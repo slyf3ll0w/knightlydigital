@@ -1,13 +1,14 @@
 import Image from "next/image";
+import { WB_HERO_BG } from "@/components/wb/WBHero";
 import WBKoala, { WBKoalaSays } from "@/components/wb/WBKoala";
 import WBScribble from "@/components/wb/WBScribble";
 
 /**
- * The inner pages' photo hero, Railway-style: one big rounded panel inset
- * from the page edges, a real job photo filling it under a navy wash that
- * is darkest behind the copy, white type, and an optional caption plate in
- * the corner. Children are written as for a light hero; .wb-photo-panel
- * (globals.css) recolors them.
+ * The inner pages' photo hero ("heavy" redesign 2026-11-19, matching the
+ * home): the navy-into-blue gradient full width, the copy on the left, the
+ * page's photo in a solid frame on the right, cut off by the bottom of the
+ * hero, with an optional caption plate on it. Children are written as for
+ * a light hero; .wb-photo-panel (globals.css) recolors them.
  *
  * `mascot` swaps the photo for the koala on the navy panel (contact,
  * book-a-call; David's pick). `phone` and `note` are accepted for older
@@ -41,44 +42,33 @@ export default function WBSplitHero({
   priority?: boolean;
 }) {
   return (
-    <section className="bg-white px-2 pt-2 sm:px-3 sm:pt-3">
-      <div className="wb-photo-panel relative overflow-hidden rounded-2xl bg-[#0A1428]">
-        {!mascot && (
-          <>
-            <Image src={photo.src} alt={photo.alt} fill priority={priority} sizes="100vw" className="object-cover" />
-            <div
-              className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,20,40,0.82)_0%,rgba(10,20,40,0.9)_100%)] lg:bg-[linear-gradient(90deg,rgba(10,20,40,0.94)_0%,rgba(10,20,40,0.82)_42%,rgba(10,20,40,0.3)_75%,rgba(10,20,40,0.15)_100%)]"
-              aria-hidden
-            />
-          </>
-        )}
-        {mascot && <div className="wb-dark absolute inset-0" aria-hidden />}
-
-        <div className={`relative mx-auto grid max-w-6xl items-center gap-10 px-5 pt-28 sm:px-8 sm:pt-36 lg:min-h-[600px] lg:grid-cols-[1.1fr_1fr] ${mascot ? "pb-0" : "pb-16 sm:pb-24"}`}>
-          <div className={`text-center lg:text-left ${mascot ? "pb-6 lg:pb-24" : ""}`}>
-            {children}
-            {note && (
-              <div className="mt-6 hidden items-end gap-1 lg:flex" aria-hidden>
-                <p className="pb-2 text-[15px] font-extrabold leading-snug text-white">{note}</p>
-                <WBScribble variant="droop" tone="chalk" delay={0.6} className="h-[80px] w-[62px] flex-none" />
-              </div>
-            )}
-            {mascot && chip && <div className="mt-8 flex justify-center lg:justify-start"><Plate chip={chip} /></div>}
-          </div>
-
-          {mascot ? (
-            <figure className="relative mx-auto w-full max-w-sm self-end pt-16 lg:max-w-none">
-              {mascot.say && <WBKoalaSays className="absolute left-0 top-0 z-10 max-w-[15rem] sm:left-4">{mascot.say}</WBKoalaSays>}
-              <WBKoala priority={priority} sizes="(min-width: 1024px) 360px, 70vw" className="mx-auto w-[72%] drop-shadow-[0_24px_30px_rgba(0,0,0,0.45)]" />
-            </figure>
-          ) : (
-            <div className="hidden lg:block" aria-hidden />
+    <section data-wb-hero className="wb-photo-panel relative overflow-hidden text-white" style={{ background: WB_HERO_BG }}>
+      <div className={`relative mx-auto grid max-w-6xl items-center gap-12 px-5 pt-32 sm:px-8 sm:pt-40 lg:grid-cols-[1.05fr_1fr] ${mascot ? "pb-0" : "pb-0 lg:pb-0"}`}>
+        <div className={`text-center lg:text-left ${mascot ? "pb-6 lg:pb-24" : "pb-4 lg:pb-28"}`}>
+          {children}
+          {note && (
+            <div className="mt-6 hidden items-end gap-1 lg:flex" aria-hidden>
+              <p className="pb-2 text-[15px] font-extrabold leading-snug text-white">{note}</p>
+              <WBScribble variant="droop" tone="chalk" delay={0.6} className="h-[80px] w-[62px] flex-none" />
+            </div>
           )}
+          {mascot && chip && <div className="mt-8 flex justify-center lg:justify-start"><Plate chip={chip} /></div>}
         </div>
 
-        {chip && !mascot && (
-          <div className="relative flex justify-center pb-6 lg:absolute lg:bottom-8 lg:right-8 lg:block lg:pb-0">
-            <Plate chip={chip} />
+        {mascot ? (
+          <figure className="relative mx-auto w-full max-w-sm self-end pt-16 lg:max-w-none">
+            {mascot.say && <WBKoalaSays className="absolute left-0 top-0 z-10 max-w-[15rem] sm:left-4">{mascot.say}</WBKoalaSays>}
+            <WBKoala priority={priority} sizes="(min-width: 1024px) 360px, 70vw" className="mx-auto w-[72%] drop-shadow-[0_24px_30px_rgba(0,0,0,0.45)]" />
+          </figure>
+        ) : (
+          // The photo in a solid frame, cut off by the bottom of the hero.
+          <div className="relative h-[300px] self-end overflow-hidden rounded-t-xl shadow-[0_0_0_1px_rgba(255,255,255,0.12),0_40px_80px_-30px_rgba(0,0,0,0.7)] sm:h-[380px] lg:h-[460px]">
+            <Image src={photo.src} alt={photo.alt} fill priority={priority} sizes="(min-width: 1024px) 560px, 100vw" className="object-cover" />
+            {chip && (
+              <div className="absolute bottom-5 left-5">
+                <Plate chip={chip} />
+              </div>
+            )}
           </div>
         )}
       </div>

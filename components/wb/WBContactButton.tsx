@@ -17,12 +17,11 @@ import { WB_PHONE } from "@/lib/wb-site";
  * own (the one customers put on their sites), then the form (the embed, so a message
  * lands in WorkBench's leads). Hidden on /contact, which has the same form.
  * The mascot here counts as "contact" (David's pick: contact, book-a-call,
- * 404).
+ * 404). No pop-up bubble on its own (David 2026-11-19: out of place).
  */
 export default function WBContactButton() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [hint, setHint] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -31,47 +30,13 @@ export default function WBContactButton() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  // A one-time "Questions?" bubble a few seconds in, once per visit.
-  useEffect(() => {
-    let seen = false;
-    try {
-      seen = sessionStorage.getItem("wb-contact-hint") === "1";
-    } catch {}
-    if (seen) return;
-    const t = setTimeout(() => {
-      setHint(true);
-      try {
-        sessionStorage.setItem("wb-contact-hint", "1");
-      } catch {}
-    }, 6000);
-    const off = setTimeout(() => setHint(false), 18000);
-    return () => {
-      clearTimeout(t);
-      clearTimeout(off);
-    };
-  }, []);
-
   if (pathname === "/contact") return null;
 
   return (
     <>
-      {hint && !open && (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="wb-bubble-in fixed bottom-[6.2rem] right-5 z-40 max-w-[17rem] rounded-xl rounded-br-sm border-2 border-[#0A1428] bg-white px-4 py-3 text-left shadow-[3px_3px_0_#0A1428]"
-        >
-          <span className="block text-[15px] font-extrabold text-[#0A1428]">Questions? Ask a real person.</span>
-          <span className="mt-1 block text-[13.5px] leading-snug text-gray-600">Tap me. The form inside is the same one your customers use to reach you on WorkBench.</span>
-        </button>
-      )}
-
       <button
         type="button"
-        onClick={() => {
-          setHint(false);
-          setOpen((o) => !o);
-        }}
+        onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-label={open ? "Close contact panel" : "Contact WorkBench"}
         className="group fixed bottom-5 right-5 z-[60] flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-[3px] border-white bg-[#EEF4FE] shadow-[0_14px_34px_-10px_rgba(11,87,216,0.6)] ring-2 ring-[#0B57D8] transition-transform hover:scale-105"
@@ -122,7 +87,7 @@ export default function WBContactButton() {
             </div>
             <p className="mt-6 text-[14px] font-extrabold text-gray-900">Send us a message</p>
             <div className="mt-2">
-              <WBEmbedForm />
+              <WBEmbedForm note={false} />
             </div>
           </div>
         </div>

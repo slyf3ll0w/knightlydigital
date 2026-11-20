@@ -152,7 +152,7 @@ export default function HelpHome({
           </div>
 
           {!searching && (
-            <div className="ds-rise mt-5 hidden flex-wrap items-center justify-center gap-2 sm:flex" style={rise(2)}>
+            <div className="help-hero-popular ds-rise mt-5 hidden flex-wrap items-center justify-center gap-2 sm:flex" style={rise(2)}>
               <span className="mr-1 text-[13.5px] font-semibold text-gray-500">Popular:</span>
               {popular.slice(0, 4).map(({ article }) => (
                 <Link key={article.slug} prefetch={false} href={`${base}/${article.slug}`} className="help-chip">

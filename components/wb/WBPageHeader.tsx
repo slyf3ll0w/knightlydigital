@@ -30,18 +30,18 @@ export default function WBPageHeader({
   aside?: React.ReactNode;
 }) {
   return (
-    <WBHero ribbon={!aside}>
+    <WBHero>
       {crumbs && crumbs.length > 0 && (
-        <nav className="mb-8 flex flex-wrap items-center gap-1.5 text-[14px] font-semibold text-gray-500" aria-label="Breadcrumb">
+        <nav className="mb-8 flex flex-wrap items-center gap-1.5 text-[14px] font-semibold text-white/60" aria-label="Breadcrumb">
           {crumbs.map((c, i) => (
             <span key={`${c.label}-${i}`} className="inline-flex items-center gap-1.5">
-              {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-gray-300" strokeWidth={2.5} aria-hidden />}
+              {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-white/35" strokeWidth={2.5} aria-hidden />}
               {c.href ? (
-                <Link href={c.href} className="hover:text-gray-900">
+                <Link href={c.href} className="hover:text-white">
                   {c.label}
                 </Link>
               ) : (
-                <span className="text-gray-700">{c.label}</span>
+                <span className="text-white/85">{c.label}</span>
               )}
             </span>
           ))}
@@ -49,7 +49,7 @@ export default function WBPageHeader({
       )}
       <div className={aside ? "grid gap-10 lg:grid-cols-[1.4fr_1fr] lg:items-end lg:gap-16" : ""}>
         <div className="max-w-3xl">
-          <h1 className="mt-4 text-4xl font-extrabold leading-[1.06] text-gray-900 sm:text-[3.2rem]">{title}</h1>
+          <h1 className="mt-4 text-[2.6rem] font-black leading-[1.02] tracking-[-0.035em] sm:text-[3.6rem]">{title}</h1>
           {intro && <div className="mt-6 max-w-2xl text-[17px] leading-relaxed text-gray-600 sm:text-[18px]">{intro}</div>}
           {actions && <div className="mt-8 flex flex-wrap items-center gap-3">{actions}</div>}
         </div>

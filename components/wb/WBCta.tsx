@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import WBRibbon from "@/components/wb/WBRibbon";
+import WBDoodle from "@/components/wb/WBDoodle";
 
 /**
- * The closing band on every marketing page: navy with a blue breath and the
- * brand ribbon sweeping in from the left (2026-11-19, "more pizzazz"), the
- * headline, one orange pill and one ghost pill (no phone line: David
- * 2026-11-19).
+ * The closing band on every marketing page ("heavy" redesign 2026-11-19):
+ * the home's brand-blue band with a faint hand-drawn compass, the headline,
+ * one orange pill and one ghost pill (no phone line: David 2026-11-19).
  */
 export default function WBCta({
   title = "Ready to get started?",
@@ -18,8 +17,8 @@ export default function WBCta({
   secondary?: { label: string; href: string } | null;
 }) {
   return (
-    <section className="wb-dark relative overflow-hidden text-white">
-      <WBRibbon id="cta-r" className="bottom-0 left-0 h-[150%] w-[70%] -scale-100 opacity-40 sm:w-[44%] sm:opacity-55" />
+    <section className="relative overflow-hidden text-white" style={{ background: "linear-gradient(135deg, #0A45B8 0%, #0B57D8 55%, #2563EB 100%)" }}>
+      <WBDoodle word="atlas" ink="#FFFFFF" opacity={0.07} className="-right-20 -top-24 w-[460px] rotate-12 max-lg:hidden" />
       <div className="relative mx-auto grid max-w-6xl gap-8 px-5 py-20 sm:px-8 sm:py-28 lg:grid-cols-[1.3fr_1fr] lg:items-center">
         <div>
           <h2 className="max-w-xl text-3xl font-extrabold leading-[1.05] sm:text-[3rem]">{title}</h2>

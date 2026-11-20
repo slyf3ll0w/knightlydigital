@@ -2120,6 +2120,9 @@ html[data-mode="dark"] .app-ui .card-tool {
   font-family: var(--font-nunito), "Nunito", var(--font-body);
   letter-spacing: -0.02em;
 }
+/* "Heavy" redesign (2026-11-19): page and section titles in the heaviest
+   Nunito with tighter tracking, as on the home page. */
+.wb-site h1, .wb-site h2 { font-weight: 900; letter-spacing: -0.03em; }
 /* Flat button: darkens a touch on hover, nothing moves. (.wb-btn-tool is
    the old name, still used by the in-app activate + superadmin pages.) */
 .wb-btn, .wb-btn-tool {
@@ -2338,6 +2341,7 @@ html[data-mode="dark"] .app-ui .card-tool {
 @keyframes wb-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .wb-marquee { animation: wb-marquee var(--wb-marquee-s, 40s) linear infinite; }
 .wb-marquee-wrap:hover .wb-marquee { animation-play-state: paused; }
+.wb-marquee-rev { animation-direction: reverse; }
 .wb-marquee-wrap {
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
@@ -2353,7 +2357,12 @@ html[data-mode="dark"] .app-ui .card-tool {
 .wb-photo-panel h1, .wb-photo-panel h2 { color: #FFFFFF; }
 .wb-photo-panel .text-gray-600, .wb-photo-panel .text-gray-500 { color: rgba(226, 234, 248, 0.88); }
 .wb-photo-panel .text-gray-900 { color: #FFFFFF; }
-.wb-photo-panel :is(h1, h2) .text-\[\#0B57D8\] { color: #8FB3F5; }
+.wb-photo-panel :is(h1, h2) .text-\[\#0B57D8\] { color: #FF8B33; }
+.wb-photo-panel :is(h1, h2) :is(.text-gray-400, .text-gray-500, .text-\[\#64748B\]) { color: rgba(255, 255, 255, 0.5); }
+.wb-photo-panel .text-gray-700 { color: rgba(255, 255, 255, 0.85); }
+.wb-photo-panel .text-gray-400 { color: rgba(255, 255, 255, 0.55); }
+.wb-photo-panel .text-\[\#0B57D8\] { color: #9DBBF7; }
+.wb-photo-panel .border-gray-200, .wb-photo-panel .border-gray-100 { border-color: rgba(255, 255, 255, 0.15); }
 .wb-photo-panel .wb-label { color: #FFB27A; }
 .wb-photo-panel .wb-label + :is(h1, h2)::after { background: linear-gradient(90deg, #F86A0A 0 66%, rgba(255, 255, 255, 0.35) 66% 100%); }
 /* hand-drawn notes on a photo panel turn white (chalk) */
@@ -2500,7 +2509,8 @@ html[data-mode="dark"] .app-ui .card-tool {
 @media (prefers-reduced-motion: reduce) { .wb-pill:active { transform: none; } }
 
 /* Reveal on scroll: shorter travel, the shared easing. */
-.wb-site .reveal { transform: translateY(14px); transition: opacity 0.7s var(--wb-ease), transform 0.7s var(--wb-ease); }
+.wb-site .reveal { transition: opacity 0.7s var(--wb-ease), transform 0.7s var(--wb-ease); }
+.wb-site .reveal:not(.visible) { transform: translateY(14px); }
 
 /* Segmented control (Try it tabs): one track, a thumb that slides. */
 .wb-seg { position: relative; gap: 2px; padding: 4px; border-radius: 0.625rem; background: #EDF0F5; box-shadow: inset 0 1px 2px rgba(10, 20, 40, 0.08); }
@@ -3527,3 +3537,77 @@ html[data-mode="dark"] .app-ui .wb-map-skeleton {
   transform: rotate(-1.5deg);
 }
 .wb-mat .group:hover .wb-trade-label { background: linear-gradient(180deg, #FF7A1F 0%, #E85D04 100%); }
+
+/* ── Section animations (home direction preview, David 2026-11-19: "clean
+   animations in each section"). Children of .wb-stagger rise in one after
+   another when their AnimateIn (.reveal) scrolls into view; .wb-stagger-load
+   does the same on page load (the hero). .wb-stamp lands with a small
+   press. All off under reduced motion. ── */
+@keyframes wb-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes wb-stamp { 0% { opacity: 0; transform: scale(1.35) rotate(-4deg); } 60% { opacity: 1; transform: scale(0.96) rotate(0); } 100% { opacity: 1; transform: none; } }
+.reveal .wb-stagger > *, .wb-stagger-load > * { opacity: 0; }
+.reveal.visible .wb-stagger > *, .wb-stagger-load > * { animation: wb-rise 0.7s var(--wb-ease) forwards; }
+.wb-stagger > :nth-child(2), .wb-stagger-load > :nth-child(2) { animation-delay: 0.08s; }
+.wb-stagger > :nth-child(3), .wb-stagger-load > :nth-child(3) { animation-delay: 0.16s; }
+.wb-stagger > :nth-child(4), .wb-stagger-load > :nth-child(4) { animation-delay: 0.24s; }
+.wb-stagger > :nth-child(5), .wb-stagger-load > :nth-child(5) { animation-delay: 0.32s; }
+.wb-stagger > :nth-child(6), .wb-stagger-load > :nth-child(6) { animation-delay: 0.4s; }
+.reveal .wb-stamp { opacity: 0; }
+.reveal.visible .wb-stamp { animation: wb-stamp 0.6s var(--wb-ease) 0.15s forwards; }
+@keyframes wb-wave { 0%, 100% { transform: scaleY(0.35); } 50% { transform: scaleY(1); } }
+.wb-wave > span { display: block; width: 3px; height: 18px; border-radius: 2px; background: currentColor; transform-origin: center; animation: wb-wave 0.9s ease-in-out infinite; }
+.wb-wave > span:nth-child(2) { animation-delay: 0.15s; }
+.wb-wave > span:nth-child(3) { animation-delay: 0.3s; }
+.wb-wave > span:nth-child(4) { animation-delay: 0.45s; }
+.wb-wave > span:nth-child(5) { animation-delay: 0.6s; }
+@media (prefers-reduced-motion: reduce) {
+  .reveal .wb-stagger > *, .wb-stagger-load > *, .reveal .wb-stamp { opacity: 1; animation: none !important; }
+  .wb-wave > span { animation: none; }
+}
+/* One step of the job journey sliding in (WBJobJourney). */
+@keyframes wb-step-in { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: none; } }
+.wb-step-in { animation: wb-step-in 0.6s var(--wb-ease); }
+@media (prefers-reduced-motion: reduce) { .wb-step-in { animation: none; } }
+/* Integrations hub (WBIntegrationsHub): a tile popping to a new logo, and
+   dots flowing along the lines into the WorkBench mark. */
+@keyframes wb-pop-in { 0% { transform: scale(0.6); opacity: 0; } 60% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); } }
+.wb-pop-in { animation: wb-pop-in 0.5s var(--wb-ease) both; }
+@keyframes wb-flow-in { to { stroke-dashoffset: -24; } }
+.wb-flow-in { animation: wb-flow-in 0.9s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .wb-pop-in, .wb-flow-in { animation: none; } }
+/* The job journey's app moments (WBAppJourney): a paper plane off the Send
+   button, a signature drawing itself, a stamp slamming down, a job dropping
+   onto the calendar, a small win burst and confetti. */
+@keyframes wb-plane { 0% { transform: translate(0, 0) rotate(0); opacity: 1; } 100% { transform: translate(140px, -90px) rotate(-18deg); opacity: 0; } }
+.wb-plane { animation: wb-plane 0.9s cubic-bezier(0.4, 0, 0.6, 1) forwards; }
+.wb-sign { stroke-dasharray: 1; stroke-dashoffset: 1; animation: wb-draw 1.1s ease-in-out forwards; }
+@keyframes wb-stamp-now { 0% { opacity: 0; scale: 1.8; } 55% { opacity: 1; scale: 0.94; } 100% { opacity: 1; scale: 1; } }
+.wb-stamp-now { animation: wb-stamp-now 0.45s var(--wb-ease); }
+@keyframes wb-drop-cal { 0% { opacity: 0; transform: translateY(-60px) scale(1.04); } 70% { opacity: 1; transform: translateY(4px); } 100% { transform: none; } }
+.wb-drop-cal { animation: wb-drop-cal 0.6s var(--wb-ease) both; }
+@keyframes wb-burst { from { transform: translate(-50%, -50%) rotate(var(--a)) translateY(0); opacity: 1; } to { transform: translate(-50%, -50%) rotate(var(--a)) translateY(-30px); opacity: 0; } }
+.wb-burst { animation: wb-burst 0.7s ease-out forwards; }
+@keyframes wb-confetti { 0% { transform: translate(0, -10px) rotate(0); opacity: 1; } 100% { transform: translate(var(--x), 220px) rotate(var(--r)); opacity: 0; } }
+.wb-confetti { animation: wb-confetti 1.4s ease-in forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .wb-plane, .wb-burst, .wb-confetti { display: none; }
+  .wb-sign { stroke-dashoffset: 0; animation: none; }
+  .wb-stamp-now, .wb-drop-cal { animation: none; }
+}
+@keyframes wb-pop-out { to { transform: scale(0.6); opacity: 0; } }
+.wb-pop-out { animation: wb-pop-out 0.35s var(--wb-ease) forwards; }
+
+/* ── Inner pages, "heavy" redesign (David 2026-11-19: "redesign the other
+   pages using inspiration from the home"). The body pieces every page is
+   built from take the home's look without touching each page:
+   - outlined white cards become solid cards with the home's shadow,
+   - the small two-tone bar under section titles goes (the home has none).
+   Pages and templates that need more get it in their own markup. ── */
+.wb-site main :is(.rounded-xl, .rounded-2xl, .rounded-\[1\.25rem\], .rounded-\[1\.5rem\]).border.bg-white:not(.wb-photo-panel *) {
+  border-color: transparent;
+  box-shadow: 0 0 0 1px rgba(10, 20, 40, 0.08), 0 2px 0 rgba(10, 20, 40, 0.05), 0 18px 34px -22px rgba(10, 20, 40, 0.35);
+}
+.wb-site .wb-bar, .wb-site .wb-label + :is(h1, h2)::after { display: none; }
+/* A hero headline accent written as an inline blue (legal pages, status)
+   turns orange on the navy, like the rest. */
+.wb-photo-panel :is(h1, h2) :is([style*="#0B57D8"], [style*="rgb(11, 87, 216)"]) { color: #FF8B33 !important; }

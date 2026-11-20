@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WB_HERO_BG } from "@/components/wb/WBHero";
 import { ArrowRight, Phone } from "lucide-react";
 import WBKoala, { WBKoalaSays } from "@/components/wb/WBKoala";
 import { WB_PHONE } from "@/lib/wb-site";
@@ -19,8 +20,7 @@ const PLACES = [
 export default function WBNotFound() {
   return (
     <>
-        <section className="relative overflow-hidden border-b border-gray-200">
-          <div className="wb-bloom absolute inset-0" aria-hidden />
+        <section data-wb-hero className="wb-photo-panel relative overflow-hidden text-white" style={{ background: WB_HERO_BG }}>
           <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 pb-14 pt-[7.5rem] sm:px-8 sm:pb-20 sm:pt-[9.5rem] lg:grid-cols-[1.2fr_1fr]">
             <div>
               <h1 className="mt-4 text-4xl font-extrabold leading-[1.06] text-gray-900 sm:text-[3.4rem]">
@@ -29,15 +29,15 @@ export default function WBNotFound() {
               <p className="mt-6 max-w-xl text-[17px] leading-relaxed text-gray-600">
                 The address may be mistyped, or the page moved. One of these is probably where you were headed.
               </p>
-              <ul className="mt-8 max-w-xl border-t-2 border-[#0A1428]">
+              <ul className="mt-8 max-w-xl border-t-2 border-white/40">
                 {PLACES.map((p) => (
-                  <li key={p.href} className="border-b border-gray-200">
+                  <li key={p.href} className="border-b border-white/15">
                     <Link href={p.href} className="group flex items-center gap-4 py-3.5">
                       <span className="flex-1">
-                        <span className="block text-[17px] font-extrabold text-gray-900 group-hover:text-[#0B57D8]">{p.label}</span>
+                        <span className="block text-[17px] font-extrabold text-gray-900 group-hover:text-[#FFB27A]">{p.label}</span>
                         <span className="block text-[14px] text-gray-500">{p.sub}</span>
                       </span>
-                      <ArrowRight className="h-5 w-5 text-gray-300 transition-transform group-hover:translate-x-1 group-hover:text-[#0B57D8]" strokeWidth={2.5} />
+                      <ArrowRight className="h-5 w-5 text-white/40 transition-transform group-hover:translate-x-1 group-hover:text-[#FFB27A]" strokeWidth={2.5} />
                     </Link>
                   </li>
                 ))}

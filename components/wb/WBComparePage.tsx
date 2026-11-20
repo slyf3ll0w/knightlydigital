@@ -96,7 +96,7 @@ export default function WBComparePage({
       <section className="mx-auto max-w-4xl px-5 py-16 sm:px-8">
         <AnimateIn>
           <div className="rounded-[1.5rem] border border-gray-200 bg-[#F6F8FB] px-6 py-7 sm:px-8">
-            <p className="text-[13.5px] font-bold text-gray-500">
+            <p className="text-[18px] font-black text-gray-900">
               Fair's fair
             </p>
             <h2 className="mt-2 text-[18px] font-extrabold text-gray-900">{fairPoint.title}</h2>
@@ -135,12 +135,12 @@ export default function WBComparePage({
       <section className="border-t border-gray-200 bg-white">
         <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8">
           <p className="text-[13.5px] font-bold text-gray-500">Also compare</p>
-          <div className="mt-4 flex flex-wrap gap-3">
+          <div className="mt-5 grid gap-x-10 border-t-2 border-[#0A1428] sm:grid-cols-2 lg:grid-cols-3">
             {["jobber", "housecall-pro", "servicetitan"].map((slug) => (
               <Link
                 key={slug}
                 href={`/vs/${slug}`}
-                className="rounded-full border border-gray-200 px-4 py-2 text-[13.5px] font-semibold text-gray-700 transition-colors hover:border-gray-900"
+                className="flex items-center justify-between border-b border-gray-200 py-3.5 text-[15.5px] font-bold text-gray-900 hover:text-[#0B57D8]"
               >
                 vs. {slug === "servicetitan" ? "ServiceTitan" : slug === "housecall-pro" ? "Housecall Pro" : "Jobber"} →
               </Link>

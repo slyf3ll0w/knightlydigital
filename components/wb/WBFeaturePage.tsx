@@ -73,14 +73,14 @@ export default function WBFeaturePage({
     <>
       {/* Hero */}
       <WBSplitHero photo={photo} phone={phone} chip={chip}>
-        <h1 className="mt-4 text-4xl font-extrabold leading-[1.08] sm:text-5xl">{title}</h1>
-        <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-gray-600 lg:mx-0">{intro}</p>
+        <h1 className="mt-4 text-[2.7rem] leading-[1.0] tracking-[-0.04em] sm:text-[3.8rem]">{title}</h1>
+        <p className="mx-auto mt-6 max-w-2xl text-[18px] leading-relaxed text-gray-600 lg:mx-0">{intro}</p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4 lg:justify-start">
-          <Link href="/apply" className="wb-pill text-white" style={{ backgroundColor: c.hex }}>
-            Get started
+          <Link href="/apply" className="wb-pill wb-pill-orange !px-7 !py-4 !text-[16px]">
+            Get started free
             <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
           </Link>
-          <Link href="/features" className="wb-pill wb-pill-outline">
+          <Link href="/features" className="wb-pill wb-pill-outline !px-7 !py-4 !text-[16px]">
             See every feature
           </Link>
         </div>
@@ -109,28 +109,22 @@ export default function WBFeaturePage({
 
       {/* How it works */}
       {steps && steps.length > 0 && (
-        <section className="mx-auto max-w-6xl px-5 py-16 sm:px-8">
-          <AnimateIn>
-            <h2 className="text-2xl font-extrabold sm:text-3xl">How it works</h2>
-            <span className="wb-bar" aria-hidden />
-          </AnimateIn>
-          <div className="mt-10 grid gap-8 sm:grid-cols-3">
-            {steps.map((s, i) => (
-              <AnimateIn key={s.title} delay={i * 90}>
-                <div className="flex gap-4">
-                  <span
-                    className="flex h-8 w-8 flex-none items-center justify-center rounded-md text-[13px] font-bold text-white"
-                    style={{ backgroundColor: c.hex }}
-                  >
-                    {i + 1}
-                  </span>
-                  <div>
-                    <h3 className="text-[15.5px] font-bold text-gray-900">{s.title}</h3>
-                    <p className="mt-1 text-[14px] leading-relaxed text-gray-600">{s.body}</p>
-                  </div>
+        <section className="bg-[#F5F7FA]">
+          <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
+            <AnimateIn>
+              <h2 className="text-[2.2rem] leading-[1.05] sm:text-[3.2rem]">
+                How it <span className="text-[#0B57D8]">works.</span>
+              </h2>
+            </AnimateIn>
+            <AnimateIn className="wb-stagger mt-12 grid gap-4 md:grid-cols-3">
+              {steps.map((s, i) => (
+                <div key={s.title} className="rounded-xl bg-white p-7 shadow-[0_0_0_1px_rgba(10,20,40,0.08),0_2px_0_rgba(10,20,40,0.05),0_18px_34px_-22px_rgba(10,20,40,0.35)]">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F86A0A] text-[15px] font-black text-white">{i + 1}</span>
+                  <h3 className="mt-5 text-[19px] font-extrabold text-gray-900">{s.title}</h3>
+                  <p className="mt-2 text-[15px] leading-relaxed text-gray-600">{s.body}</p>
                 </div>
-              </AnimateIn>
-            ))}
+              ))}
+            </AnimateIn>
           </div>
         </section>
       )}
@@ -138,23 +132,27 @@ export default function WBFeaturePage({
       {extra}
 
       {/* Feature grid */}
-      <section className="border-t border-gray-200 bg-white">
-        <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8">
+      <section className="bg-white">
+        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
           <AnimateIn>
-            <h2 className="text-2xl font-extrabold sm:text-3xl">What&apos;s included</h2>
-            <p className="mt-2 text-[14.5px] font-semibold text-gray-500">
+            <h2 className="text-[2.2rem] leading-[1.05] sm:text-[3.2rem]">
+              What&apos;s <span className="text-[#F86A0A]">included.</span>
+            </h2>
+            <p className="mt-4 text-[16px] font-semibold text-gray-500">
               {features.some((f) => f.plan)
                 ? `In ${FREE_PLAN_NAME}, the free plan, unless marked with an add-on.`
                 : `All of it is in ${FREE_PLAN_NAME}, the free plan.`}
             </p>
           </AnimateIn>
-          <div className="mt-10 grid gap-x-10 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {features.map(({ icon: Icon, title: t, body, plan }, i) => (
-              <AnimateIn key={t} delay={(i % 3) * 90}>
-                <div className="flex gap-4">
-                  <Icon className={`mt-0.5 h-5 w-5 flex-none ${c.text}`} strokeWidth={1.9} />
+              <AnimateIn key={t} delay={(i % 3) * 90} className="h-full">
+                <div className="flex h-full gap-4 rounded-xl bg-white p-6 shadow-[0_0_0_1px_rgba(10,20,40,0.08),0_2px_0_rgba(10,20,40,0.05),0_18px_34px_-22px_rgba(10,20,40,0.35)]">
+                  <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-[#0A1428]">
+                    <Icon className="h-5 w-5 text-[#FF8B33]" strokeWidth={2} />
+                  </span>
                   <div>
-                    <h3 className="flex flex-wrap items-center gap-2 text-[15.5px] font-bold text-gray-900">
+                    <h3 className="flex flex-wrap items-center gap-2 text-[17px] font-extrabold text-gray-900">
                       {t}
                       {plan && (
                         <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-[#0B57D8]">
@@ -162,7 +160,7 @@ export default function WBFeaturePage({
                         </span>
                       )}
                     </h3>
-                    <p className="mt-1 text-[14px] leading-relaxed text-gray-600">{body}</p>
+                    <p className="mt-1.5 text-[14.5px] leading-relaxed text-gray-600">{body}</p>
                   </div>
                 </div>
               </AnimateIn>
@@ -179,18 +177,17 @@ export default function WBFeaturePage({
       {related.length > 0 && (
         <section className="border-t border-gray-200 bg-white">
           <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8">
-            <p className="text-[13.5px] font-bold text-gray-500">Keep exploring</p>
-            <div className="mt-4 flex flex-wrap gap-3">
+            <p className="text-[18px] font-black text-gray-900">Keep exploring</p>
+            <ul className="mt-5 grid gap-x-10 border-t-2 border-[#0A1428] sm:grid-cols-2 lg:grid-cols-3">
               {related.map((r) => (
-                <Link
-                  key={r.href}
-                  href={r.href}
-                  className="rounded-full border border-gray-200 px-4 py-2 text-[13.5px] font-semibold text-gray-700 transition-colors hover:border-gray-900"
-                >
-                  {r.label} →
-                </Link>
+                <li key={r.href} className="border-b border-gray-200">
+                  <Link href={r.href} className="flex items-center justify-between py-3.5 text-[15.5px] font-bold text-gray-900 hover:text-[#0B57D8]">
+                    {r.label}
+                    <ArrowRight className="h-4 w-4 text-[#F86A0A]" strokeWidth={2.5} />
+                  </Link>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         </section>
       )}

@@ -214,8 +214,8 @@ export default function WBAlternativePage({ alt }: { alt: Alternative }) {
 
       <section className="border-t border-gray-200 bg-white">
         <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8">
-          <p className="text-[13.5px] font-bold text-gray-500">Keep exploring</p>
-          <div className="mt-4 flex flex-wrap gap-3">
+          <p className="text-[18px] font-black text-gray-900">Keep exploring</p>
+          <div className="mt-5 grid gap-x-10 border-t-2 border-[#0A1428] sm:grid-cols-2 lg:grid-cols-3">
             {[
               { label: `WorkBench vs. ${alt.name}`, href: `/vs/${alt.slug}` },
               ...others.map((o) => ({ label: `${o.name} alternative`, href: `${ALTERNATIVES_PATH}/${o.slug}` })),
@@ -223,7 +223,7 @@ export default function WBAlternativePage({ alt }: { alt: Alternative }) {
               { label: "Free invoice and estimate tools", href: TOOLS_PATH },
               { label: "Pricing", href: "/pricing" },
             ].map((r) => (
-              <Link key={r.href} href={r.href} className="rounded-full border border-gray-200 px-4 py-2 text-[13.5px] font-semibold text-gray-700 transition-colors hover:border-gray-900">
+              <Link key={r.href} href={r.href} className="flex items-center justify-between border-b border-gray-200 py-3.5 text-[15.5px] font-bold text-gray-900 hover:text-[#0B57D8]">
                 {r.label} →
               </Link>
             ))}

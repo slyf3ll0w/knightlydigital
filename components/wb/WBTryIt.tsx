@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CalendarDays, FileText, Smartphone } from "lucide-react";
 import DocGenerator from "@/components/wb/tools/DocGenerator";
+import { WBBuiltWith } from "@/components/wb/WBEmbedForm";
 import type { ToolDoc } from "@/lib/tool-doc";
 
 /**
@@ -116,6 +117,7 @@ export default function WBTryIt({ initialQuote, bookingPath, hubPath }: { initia
         {opened.has("book") && (
           <div className={tab === "book" ? "block bg-white p-3 sm:p-5" : "hidden"}>
             <div className="mx-auto max-w-3xl">
+              <WBBuiltWith kind="booking" className="mb-4" />
               <AutoFrame src={bookingPath} title="Brightwire Electric's online booking form (demo)" />
             </div>
           </div>

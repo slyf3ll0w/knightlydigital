@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Check } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
+import WBHero from "@/components/wb/WBHero";
 import DocGenerator from "@/components/wb/tools/DocGenerator";
 import WBCta from "@/components/wb/WBCta";
 import { WBFaqSection } from "@/components/wb/WBFaq";
@@ -86,20 +86,13 @@ export default function ToolPage({ tool, trade }: { tool: ToolMeta; trade?: Trad
   return (
     <>
       <WBFaqJsonLd items={faq} />
-      <section className="mx-auto max-w-6xl px-5 pb-8 pt-[7.5rem] sm:px-8 sm:pt-[9rem]">
-        <AnimateIn>
-          <h1 className="mt-4 max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">{title}</h1>
-          <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-gray-600">{intro}</p>
-          <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[13.5px] font-semibold text-gray-700">
-            {["No account", "No email required", "No watermark", "Your logo and colors", "Unlimited"].map((t) => (
-              <li key={t} className="inline-flex items-center gap-1.5">
-                <Check className="h-4 w-4 text-[#15803D]" strokeWidth={2.75} />
-                {t}
-              </li>
-            ))}
-          </ul>
-        </AnimateIn>
-      </section>
+      {/* The navy hero every page opens on ("heavy" redesign 2026-11-19); the
+          row of check marks is gone (David: rows of checks read as AI-made) —
+          the intro already says it. */}
+      <WBHero>
+        <h1 className="max-w-3xl text-[2.6rem] leading-[1.02] tracking-[-0.035em] sm:text-[3.6rem]">{title}</h1>
+        <p className="mt-6 max-w-2xl text-[18px] leading-relaxed text-gray-600">{intro}</p>
+      </WBHero>
 
       <section className="border-y border-gray-200 bg-[#F4F5F8]">
         <div className="mx-auto max-w-6xl px-1 py-4 sm:px-4">
@@ -169,8 +162,8 @@ export default function ToolPage({ tool, trade }: { tool: ToolMeta; trade?: Trad
       {/* Related */}
       <section className="border-t border-gray-200 bg-white">
         <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8">
-          <p className="text-[13.5px] font-bold text-gray-500">Keep exploring</p>
-          <div className="mt-4 flex flex-wrap gap-3">
+          <p className="text-[18px] font-black text-gray-900">Keep exploring</p>
+          <div className="mt-5 grid gap-x-10 border-t-2 border-[#0A1428] sm:grid-cols-2 lg:grid-cols-3">
             {[
               { label: `Free ${other.noun} generator`, href: toolPath(other) },
               { label: "Every free tool", href: TOOLS_PATH },
@@ -178,7 +171,7 @@ export default function ToolPage({ tool, trade }: { tool: ToolMeta; trade?: Trad
               { label: tool.kind === "invoice" ? "Free invoicing software" : "Quotes & invoicing in WorkBench", href: tool.kind === "invoice" ? "/free-invoicing-software" : "/features/quotes-and-invoicing" },
               { label: "The free plan", href: FREE_PAGE_PATH },
             ].map((r) => (
-              <Link key={r.href} href={r.href} className="rounded-full border border-gray-200 px-4 py-2 text-[13.5px] font-semibold text-gray-700 transition-colors hover:border-gray-900">
+              <Link key={r.href} href={r.href} className="flex items-center justify-between border-b border-gray-200 py-3.5 text-[15.5px] font-bold text-gray-900 hover:text-[#0B57D8]">
                 {r.label} →
               </Link>
             ))}

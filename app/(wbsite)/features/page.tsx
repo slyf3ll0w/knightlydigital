@@ -59,35 +59,12 @@ export default function WBFeaturesPage() {
         <p className="mx-auto mt-6 max-w-2xl lg:mx-0 text-[17px] leading-relaxed text-gray-600">
           WorkBench covers the whole arc of a job: winning it, running it,
           getting paid for it, and keeping the client for the next one.
-          Nearly all of sections 01 to 04 are in Core, the free plan,
+          Nearly everything below is in Core, the free plan,
           with full access for {INCLUDED_SEATS} users. The few marked Pro come with
           that add-on, alongside the estimator, routes, automations, and
           QuickBooks. Atlas, the AI assistant, gives every account free
           tokens each month, with a larger paid allowance for heavy users.
         </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-2.5 lg:justify-start">
-          {sections.map((s) => (
-            <a
-              key={s.id}
-              href={`#${s.id}`}
-              className={`rounded-full px-4 py-2 text-[13px] font-bold transition-colors hover:opacity-80 ${s.chip}`}
-            >
-              {s.num} · {s.title}
-            </a>
-          ))}
-          <a
-            href="#atlas"
-            className="rounded-full bg-blue-50 px-4 py-2 text-[13px] font-bold text-[#0B57D8] transition-colors hover:opacity-80"
-          >
-            05 · Atlas AI
-          </a>
-          <a
-            href="#mobile"
-            className="rounded-full bg-orange-50 px-4 py-2 text-[13px] font-bold text-[#F86A0A] transition-colors hover:opacity-80"
-          >
-            06 · Mobile
-          </a>
-        </div>
       </WBSplitHero>
 
       {/* ── Feature sections ── */}
@@ -95,27 +72,24 @@ export default function WBFeaturesPage() {
         <section
           key={section.id}
           id={section.id}
-          className={`scroll-mt-24 ${si % 2 ? "" : "bg-white"} ${si % 2 ? "" : "border-y border-gray-200"}`}
+          className={`scroll-mt-24 ${si % 2 ? "bg-[#F5F7FA]" : "bg-white"}`}
         >
-          <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
+          <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
             <AnimateIn>
-              <div className="flex items-baseline gap-3">
-                <span className={`rounded-full px-2.5 py-1 text-[11.5px] font-bold ${section.chip}`}>
-                  {section.num}
-                </span>
-                <h2 className="text-2xl font-extrabold sm:text-3xl">{section.title}</h2>
-              </div>
-              <p className="mt-3 max-w-2xl text-[15.5px] leading-relaxed text-gray-600">
+              <h2 className="text-[2.2rem] leading-[1.05] sm:text-[3.2rem]">{section.title}</h2>
+              <p className="mt-4 max-w-2xl text-[18px] leading-relaxed text-gray-600">
                 {section.kicker}
               </p>
             </AnimateIn>
-            <div className="mt-10 grid gap-x-10 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {section.items.map(({ icon: Icon, title, body, plan }, i) => (
-                <AnimateIn key={title} delay={(i % 3) * 90}>
-                  <div className="flex gap-4">
-                    <Icon className={`mt-0.5 h-5 w-5 flex-none ${section.accent}`} strokeWidth={1.9} />
+                <AnimateIn key={title} delay={(i % 3) * 90} className="h-full">
+                  <div className="flex h-full gap-4 rounded-xl bg-white p-6 shadow-[0_0_0_1px_rgba(10,20,40,0.08),0_2px_0_rgba(10,20,40,0.05),0_18px_34px_-22px_rgba(10,20,40,0.35)]">
+                    <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-[#0A1428]">
+                      <Icon className="h-5 w-5 text-[#FF8B33]" strokeWidth={2} />
+                    </span>
                     <div>
-                      <h3 className="flex flex-wrap items-center gap-2 text-[15.5px] font-bold text-gray-900">
+                      <h3 className="flex flex-wrap items-center gap-2 text-[17px] font-extrabold text-gray-900">
                         {title}
                         {plan && (
                           <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-[#0B57D8]">
@@ -123,21 +97,17 @@ export default function WBFeaturesPage() {
                           </span>
                         )}
                       </h3>
-                      <p className="mt-1 text-[14px] leading-relaxed text-gray-600">{body}</p>
+                      <p className="mt-1.5 text-[14.5px] leading-relaxed text-gray-600">{body}</p>
                     </div>
                   </div>
                 </AnimateIn>
               ))}
             </div>
             {deepLinks[section.id] && (
-              <div className="mt-10 flex flex-wrap gap-3">
+              <div className="mt-5 grid gap-x-10 border-t-2 border-[#0A1428] sm:grid-cols-2 lg:grid-cols-3 !mt-10">
                 {deepLinks[section.id].map((l) => (
-                  <Link
-                    key={l.href}
-                    href={l.href}
-                    className={`rounded-full px-4 py-2 text-[13px] font-bold transition-colors hover:opacity-80 ${section.chip}`}
-                  >
-                    {l.label}
+                  <Link key={l.href} href={l.href} className="flex items-center justify-between border-b border-gray-200 py-3.5 text-[15.5px] font-bold text-gray-900 hover:text-[#0B57D8]">
+                    {l.label.replace(/s*→s*$/, "")} <span className="text-[#F86A0A]">→</span>
                   </Link>
                 ))}
               </div>
@@ -152,12 +122,9 @@ export default function WBFeaturesPage() {
           <AnimateIn>
             <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr] lg:items-center">
               <div>
-                <div className="flex items-baseline gap-3">
-                  <span className="rounded-xl bg-blue-50 px-2.5 py-1 text-[11.5px] font-bold text-[#0B57D8]">
-                    05
-                  </span>
-                  <h2 className="text-2xl font-extrabold sm:text-3xl">Atlas, the AI assistant</h2>
-                </div>
+                <h2 className="text-[2.2rem] leading-[1.05] sm:text-[3.2rem]">
+                  Atlas, <span className="text-[#0B57D8]">the AI assistant.</span>
+                </h2>
                 <p className="mt-4 max-w-lg text-[15.5px] leading-relaxed text-gray-600">
                   Atlas works the same tools your team does, with the same
                   permissions, and it confirms with you before anything goes

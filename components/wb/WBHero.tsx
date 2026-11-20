@@ -1,30 +1,27 @@
-import WBRibbon from "@/components/wb/WBRibbon";
-
 /**
  * Hero wrapper for every marketing page without a photo: the first band
- * under the header. White, with one sweep of the brand colors (.wb-ribbon,
- * Stripe-style) across the top right. David 2026-11-18: no grid pattern.
- * Copy sits on the left, so the ribbon never runs under text on desktop;
- * on phones it shrinks to a corner accent.
+ * under the header. Since the 2026-11-19 "heavy" redesign it matches the
+ * home hero — the navy-into-blue gradient the immersive header sits on —
+ * and children written for a light hero are recolored by .wb-photo-panel
+ * (globals.css): white type, the accent in orange, outline pills as glass.
+ * (The ribbon is gone; `ribbon` is accepted for older callers.)
  */
+export const WB_HERO_BG = "linear-gradient(180deg, #10214A 0%, #12306E 60%, #1847AE 100%)";
+
 export default function WBHero({
   children,
   className = "",
   containerClassName = "",
-  ribbon = true,
 }: {
   children: React.ReactNode;
   className?: string;
   containerClassName?: string;
-  /** Off for heroes whose right side carries its own art. */
+  /** Not drawn (2026-11-19). */
   ribbon?: boolean;
 }) {
   return (
-    <section className={`relative overflow-hidden border-b border-gray-200 bg-white ${className}`}>
-      {ribbon && (
-        <WBRibbon className="right-0 top-0 h-[200px] w-[75%] opacity-60 sm:h-[340px] sm:w-[60%] sm:opacity-80 lg:h-full lg:max-h-[560px] lg:w-[52%] lg:opacity-100" />
-      )}
-      <div className={`relative mx-auto max-w-6xl px-5 pb-14 pt-[7.5rem] sm:px-8 sm:pb-20 sm:pt-[9.5rem] ${containerClassName}`}>
+    <section data-wb-hero className={`wb-photo-panel relative overflow-hidden text-white ${className}`} style={{ background: WB_HERO_BG }}>
+      <div className={`relative mx-auto max-w-6xl px-5 pb-16 pt-[8.5rem] sm:px-8 sm:pb-24 sm:pt-[10.5rem] ${containerClassName}`}>
         {children}
       </div>
     </section>

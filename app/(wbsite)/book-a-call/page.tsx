@@ -130,10 +130,6 @@ export default function WBBookCallPage() {
           <div className="mt-7">
             <WBEmbedForm path="phone-call" title="Phone call — WorkBench" />
           </div>
-          <p className="mt-5 text-[13.5px] leading-relaxed text-gray-500">
-            This calendar is WorkBench&apos;s own booking page, the same one your
-            clients would use to book you.
-          </p>
         </div>
       </section>
 

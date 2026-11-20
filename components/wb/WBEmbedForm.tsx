@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect } from "react";
 
 /**
@@ -25,12 +26,35 @@ declare global {
  * `path` is the item on WorkBench's own booking page: "contact-us" (the
  * message form, default) or "phone-call" (the setup-call calendar, /book-a-call).
  */
+/**
+ * The note that rides with every WorkBench form or booking embed on the site
+ * (David 2026-11-19: "anytime something on the website uses a workbench form
+ * or booking, make a note explaining that is from there"), in the voice of
+ * the koala's bubble. `kind` picks the wording.
+ */
+export function WBBuiltWith({ kind = "form", className = "" }: { kind?: "form" | "booking"; className?: string }) {
+  return (
+    <p className={`flex items-start gap-3 rounded-xl bg-[#EEF3FD] px-4 py-3 text-[14px] leading-snug text-[#10244A] ${className}`}>
+      <Image src="/apple-icon.png" alt="" width={32} height={32} unoptimized className="mt-0.5 h-8 w-8 flex-none rounded-lg" />
+      <span>
+        <span className="font-extrabold">Built with WorkBench.</span>{" "}
+        {kind === "booking"
+          ? "This is the same online booking your customers would use on your website: real open times, and every booking lands on your schedule."
+          : "This is the same form you can put on your own website, and every message lands in your leads."}
+      </span>
+    </p>
+  );
+}
+
 export default function WBEmbedForm({
   path = "contact-us",
   title = "Contact us — WorkBench",
+  note = true,
 }: {
   path?: string;
   title?: string;
+  /** Show the "Built with WorkBench" note above it (off where a page already says so). */
+  note?: boolean;
 }) {
   useEffect(() => {
     if (window.WorkBenchEmbed) {
@@ -44,5 +68,10 @@ export default function WBEmbedForm({
     document.body.appendChild(s);
   }, []);
 
-  return <div data-workbench-form="work-bench" data-path={path} data-title={title} />;
+  return (
+    <div>
+      {note && <WBBuiltWith kind={path === "phone-call" ? "booking" : "form"} className="mb-4" />}
+      <div data-workbench-form="work-bench" data-path={path} data-title={title} />
+    </div>
+  );
 }

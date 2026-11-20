@@ -267,3 +267,17 @@ html[data-mode="dark"] .app-ui .help-mark { background: color-mix(in srgb, var(-
 .help-public .help-bullets > li::before { width: 10px; height: 3px; top: 0.8em; border-radius: 0; background: #F86A0A; }
 .help-public .help-prose h2 { padding-top: 18px; border-top: 1px solid #E5E7EB; }
 .help-public .help-prose h2:first-child { padding-top: 0; border-top: 0; }
+
+/* The public Help Center on the marketing site ("heavy" redesign
+   2026-11-19): the hero is the site's navy-into-blue hero so the site's
+   header sits on it like every other page. The in-app Help is untouched.
+   The hero's "Popular:" pill row repeats the Popular guides list below,
+   so the public site leaves it out. */
+.help-public .help-hero { background: linear-gradient(180deg, #10214A 0%, #12306E 60%, #1847AE 100%); color: #fff; border-color: transparent; }
+.help-public .help-hero::before, .help-public .help-hero::after { display: none; }
+.help-public .help-hero :is(h1, h2), .help-public .help-hero .text-gray-900 { color: #fff; }
+.help-public .help-hero :is(.text-gray-500, .text-gray-600, .text-gray-700) { color: rgba(226, 234, 248, 0.88); }
+.help-public .help-hero [class*="var(--hb-ink)"], .help-public .help-hero [class*="var(--hi)"] { color: #fff; }
+.help-public .help-hero path[stroke="#10244A"] { stroke: #fff; }
+.help-public .help-hero .ds-wipe-bar { display: none; }
+.help-public .help-hero-popular { display: none !important; }
