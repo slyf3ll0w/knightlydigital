@@ -15,7 +15,7 @@ import { reportError } from "@/lib/report-error";
  * - clientShell() — client-facing (quotes, invoices, bookings, contracts,
  *                   portal). The company's logo when it has one, the
  *                   message, then "Thanks, <company>" + phone and a quiet
- *                   "Sent with WorkBench". The button and links use the
+ *                   no WorkBench note (David 2026-11-20: only embedded website forms say Built with WorkBench). The button and links use the
  *                   company's accent (brandAccent semantics).
  * - heavyClientShell() — the "heavy" client card (2026-11-20, for David's
  *                   review): brand band + logo, white card on a tinted
@@ -176,8 +176,8 @@ function button(href: string, label: string, brand: EmailBrand): string {
 
 /**
  * Client-facing letter. Logo (when the company has one), the message, the
- * sign-off with the company name and phone, then a quiet "Sent with
- * WorkBench". Nothing else: no header band, no labels, no stamps.
+ * sign-off with the company name and phone, and no WorkBench note
+ * (only embedded website forms carry one). Nothing else: no header band, no labels, no stamps.
  */
 function clientShell({
   brand,
@@ -204,7 +204,7 @@ function clientShell({
     ${logo}
     ${inner}
     <p style="margin:6px 0 0;color:${TEXT};font-size:15px;line-height:1.6;font-family:${FONT};">${sign}</p>
-    <p style="margin:36px 0 0;color:#9CA3AF;font-size:12px;line-height:1.5;font-family:${FONT};">Sent with <a href="https://workbenchfsm.com" style="color:#9CA3AF;text-decoration:underline;">WorkBench</a>${footNote ? `<br />${footNote}` : ""}</p>
+    ${footNote ? `<p style="margin:36px 0 0;color:#9CA3AF;font-size:12px;line-height:1.5;font-family:${FONT};">${footNote}</p>` : ""}
   </div>
 </div>`;
 }
@@ -282,7 +282,6 @@ function heavyClientShell({
       </td></tr>
       <tr><td style="padding:20px 8px 0;text-align:center;">
         <p style="margin:0;color:${HEAVY_MUTED};font-size:13px;line-height:1.5;font-family:${HEAVY_FONT};">${contact}</p>
-        <p style="margin:6px 0 0;color:#9CA3AF;font-size:12px;line-height:1.5;font-family:${HEAVY_FONT};">Sent with <a href="https://workbenchfsm.com" style="color:#9CA3AF;text-decoration:underline;">WorkBench</a></p>
       </td></tr>
     </table>
     <!--[if mso]></td></tr></table><![endif]-->

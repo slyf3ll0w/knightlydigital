@@ -53,9 +53,6 @@ export function ClientRoot({ brand, children, className = "" }: { brand: ClientB
   return (
     <div className={`client app-ui ${className}`} style={clientBrandVars(brand) as CSSProperties}>
       {children}
-      <p className="c-powered">
-        Sent with <a href="https://workbenchfsm.com" target="_blank" rel="noopener noreferrer">WorkBench</a>
-      </p>
     </div>
   );
 }

@@ -442,9 +442,6 @@ function ReportEmail({ first, title, n }: { first: string; title: string; n: num
           <br />
           Brightwire Electric
         </p>
-        <p className="mt-9 text-[12px] leading-[1.5] text-[#9CA3AF]">
-          Sent with <span className="underline">WorkBench</span>
-        </p>
       </div>
     </div>
   );

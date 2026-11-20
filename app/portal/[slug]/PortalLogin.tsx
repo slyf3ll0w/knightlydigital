@@ -77,7 +77,6 @@ export default function PortalLogin({ company, requestHref }: { company: PortalL
                 Call {phone}
               </a>
             )}
-            <span>Secure sign-in by WorkBench</span>
           </footer>
         }
       >

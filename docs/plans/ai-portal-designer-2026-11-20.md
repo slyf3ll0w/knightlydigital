@@ -99,7 +99,7 @@ in `lib/plan-gate.ts`. Atlas tools gate the same way
 | Logo size/placement; uploaded photos (booking hero, login background) | The address step, captcha, honeypot |
 | Band style, button style, card corners | Legal pages (`/book/[slug]/privacy`, `/sms-terms`) |
 | Portal home: section order + hiding optional sections | Portal: Balance due and Messages always shown |
-| Booking page: hero layout, which items show, their order | "Built with WorkBench" note; "Secure sign-in by WorkBench" and all sign-in/security wording |
+| Booking page: hero layout, which items show, their order | "Built with WorkBench" under embedded website forms (the ONLY WorkBench note on anything a client sees, David 2026-11-20); all sign-in/security wording |
 | Login: layout + background photo | Pay and sign steps (deposits in the stepper, quote/agreement links out) |
 | Words: headings, welcome line, button text, item descriptions, thank-you message | No links or phone numbers in any copy; no custom code |
 
@@ -351,7 +351,11 @@ About **12 working days** (was 16 with quote, pay and emails in scope).
 13. Upload a photo for the login background: text stays readable. An SVG or
     PDF: refused. History → version 1 → Use this one: back as it was.
 
-## Open decisions for David
+## Decisions (all settled 2026-11-20)
+
+David: "you are good to proceed with the AI designer" — the three below take the recommended option: drafts save freely and only Publish needs an OK; leaving Pro falls back to colors + logo and keeps the theme; on embeds "match my website" wins when on. WorkBench notes: "Built with WorkBench" ONLY under embedded website forms (app/embed/[slug]/EmbedBuiltWith.tsx); none on hosted pages, portal, login, quote, pay or emails.
+
+### As written before the go-ahead
 
 Decided 2026-11-20: which pages (the four above), how much the AI can do
 (look + layout + words), fonts (a picked list), the WorkBench note (always

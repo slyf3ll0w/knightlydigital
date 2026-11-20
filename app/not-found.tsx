@@ -46,14 +46,7 @@ export default async function NotFound() {
           >
             Back to Home
           </Link>
-        ) : (
-          <p className="mt-6 text-xs text-gray-400">
-            Powered by{" "}
-            <Link href="/" className="font-semibold text-gray-500 underline-offset-2 hover:underline">
-              WorkBench
-            </Link>
-          </p>
-        )}
+        ) : null}
       </div>
     </main>
   );
