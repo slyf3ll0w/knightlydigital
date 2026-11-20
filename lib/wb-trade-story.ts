@@ -61,8 +61,8 @@ export const TRADE_STORIES: Record<string, TradeStory> = {
     signature: {
       kind: "quoteOptions",
       title: ["One quote,", "the homeowner picks."],
-      body: "Put the extras on the quote as options. The homeowner ticks the ones they want on their phone, the total moves with them, and they sign and pay the deposit in the same minute. No second trip to re-quote.",
-      note: ["They pick,", "you get paid"],
+      body: "Put the extras on the quote as options. The homeowner keeps the ones they want and unticks the rest on their phone, the total moves with them, and they sign right there. The deposit invoice follows by itself. No second trip to re-quote.",
+      note: ["They choose,", "you get the yes"],
       pick: 0,
     },
   },
@@ -98,9 +98,9 @@ export const TRADE_STORIES: Record<string, TradeStory> = {
     signature: {
       kind: "checklist",
       title: ["Show them what", "you checked."],
-      body: "The tech ticks the checklist on the phone as they work. When the job is marked done, the client gets a visit report by email with every check on it, so the bill makes sense before they read it.",
-      items: [{ label: "Drain pump tested" }, { label: "Hoses and filter checked" }, { label: "Pump replaced" }, { label: "Test cycle run", value: "No leaks" }],
-      note: ["The report", "writes itself"],
+      body: "The tech ticks the checklist on the phone as they work, so every repair is done the same way and you can see who checked what. With the Gallery plan, coming soon, the client also gets the work report by email when the job is done.",
+      items: [{ label: "Drain pump tested" }, { label: "Hoses and filter checked" }, { label: "Pump replaced" }, { label: "Test cycle run, no leaks" }],
+      note: ["Every step,", "on record"],
     },
   },
   "garage-doors": {
@@ -137,7 +137,7 @@ export const TRADE_STORIES: Record<string, TradeStory> = {
     signature: {
       kind: "quoteOptions",
       title: ["Sell the add-ons", "without the sales pitch."],
-      body: "Put fertilizing and mulch on the season quote as options. The homeowner taps the ones they want, the total updates, and they sign from the couch. Every add-on they pick goes on the schedule with the mowing.",
+      body: "Put fertilizing and mulch on the season quote as options. The homeowner unticks the ones they don't want, the total updates, and they sign from the couch. Every add-on they keep becomes part of the job.",
       note: ["Add-ons sell", "themselves"],
       pick: 0,
     },
@@ -150,16 +150,16 @@ export const TRADE_STORIES: Record<string, TradeStory> = {
     stopService: "Weekly pool service",
     signature: {
       kind: "checklist",
-      title: ["Every reading,", "in their inbox."],
-      body: "The tech logs the chemistry and ticks the checklist at the pool. The owner gets a visit report by email before the truck leaves the street, with the readings and the date of the next visit.",
+      title: ["Every stop,", "checked off."],
+      body: "The tech ticks the visit checklist on the phone at every pool, so nothing gets skipped on a long route and you can see who did what. With the Gallery plan, coming soon, the owner also gets the work report by email before the truck leaves the street.",
       items: [
-        { label: "Chlorine", value: "3 ppm" },
-        { label: "pH", value: "7.4" },
+        { label: "Chlorine tested and adjusted" },
+        { label: "pH balanced" },
         { label: "Skimmed and brushed" },
         { label: "Baskets emptied" },
-        { label: "Filter pressure", value: "12 psi" },
+        { label: "Filter pressure checked" },
       ],
-      note: ["Sent before", "you leave"],
+      note: ["Nothing", "skipped"],
     },
   },
   "pest-control": {
@@ -223,7 +223,7 @@ export const TRADE_STORIES: Record<string, TradeStory> = {
     signature: {
       kind: "contract",
       title: ["The contract signed", "before the tear-off."],
-      body: "Send the roofing agreement with the scope, the warranty and the payment terms. The homeowner signs on their phone, the deposit is paid from the same page, and the signed copy is in both inboxes before you order shingles.",
+      body: "Send the roofing agreement with the scope, the warranty and the payment terms. The homeowner signs on their phone, a signed copy lands in their inbox, and the deposit is collected before you order shingles.",
       clauses: ["Tear off and replace the full roof", "New underlayment and drip edge", "Rotten decking replaced at the listed rate", "Workmanship warranty in writing", "Deposit due at signing, balance at completion"],
       pro: true,
     },
@@ -235,7 +235,7 @@ export const TRADE_STORIES: Record<string, TradeStory> = {
     signature: {
       kind: "quoteOptions",
       title: ["Walls, trim, ceilings.", "They choose."],
-      body: "Quote the rooms and put the trim and the ceilings on as options. The homeowner ticks what they want, the price follows, and they sign with the deposit. The quote they approve becomes the job.",
+      body: "Quote the rooms and put the trim and the ceilings on as options. The homeowner unticks what they don't want, the price follows, and they sign. The quote they approve becomes the job.",
       note: ["Upsell without", "the awkward talk"],
       pick: 1,
     },
@@ -280,8 +280,8 @@ export const TRADE_STORIES: Record<string, TradeStory> = {
     signature: {
       kind: "dayshift",
       title: ["Same-day jobs,", "slotted right in."],
-      body: "A same-day pickup comes in and you drop it into the gap on today's schedule. Everyone whose time moves gets a text with the new one, and the crew sees the change on their phones.",
-      note: ["Everyone hears", "about it"],
+      body: "A same-day pickup comes in and you drag it into the gap on today's schedule. Move a job to make room and text that client the new time in one tap, and the crew sees the change on their phones.",
+      note: ["One drag,", "one tap"],
     },
   },
 };

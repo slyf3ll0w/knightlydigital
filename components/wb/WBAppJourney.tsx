@@ -1,53 +1,737 @@
 "use client";
 
-import Image from "next/image";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import {
+  ArrowLeft,
+  ArrowUpDown,
   Bell,
   Briefcase,
+  Building2,
+  Calculator,
+  CalendarClock,
   CalendarDays,
+  CalendarOff,
   Camera,
   Check,
+  CheckCircle,
+  ChevronDown,
+  ChevronLeft,
   ChevronRight,
   ChevronsUpDown,
   ClipboardCheck,
+  DollarSign,
+  Eye,
   FileSignature,
   FileText,
+  Globe,
   Home,
   Inbox,
+  Info,
+  ListChecks,
+  MapPin,
+  MessageSquare,
   MessagesSquare,
+  Mic,
+  MonitorSmartphone,
+  MoreHorizontal,
+  PenLine,
+  Pencil,
+  PhoneCall,
   Play,
   Plus,
   Receipt,
+  Repeat,
+  RotateCcw,
+  Route as RouteGlyph,
   Search,
   Send,
   Settings,
   Square,
+  SquareKanban,
+  Tag,
+  User,
+  UserCheck,
+  UserPlus,
   Users,
   Wallet,
+  X,
+  Zap,
 } from "lucide-react";
+import Avatar from "@/components/Avatar";
+import StatusChip from "@/components/StatusChip";
+import { AtlasMark } from "@/components/AtlasIcon";
+import { dsBrandVars } from "@/lib/ds-theme";
+import { shade } from "@/lib/branding";
 
 /**
- * "Win more of the work", round 3 (David 2026-11-19: "show what it looks
- * like in the software for each of the steps, including the fun animations;
- * the generic card made it look generic"). One job's real path through
- * WorkBench, each step on a coded copy of that screen of the app (same
- * sidebar, top bar, typeface and colors as WBLiveApp, the hero's copy of the
- * dashboard), each with the app's own kind of moment:
- *   Request   — the online booking slides into Requests
- *   Quote     — lines fill in, the total counts up, Send → paper plane
- *   Approved  — the client's signature draws itself, APPROVED stamps down,
- *               the deposit lands, the job is created
- *   Scheduled — the job drops onto Thursday 9:00 on the calendar
- *   Done      — clocked in, the timer runs, photos pop in, Complete
- *   Invoiced  — the balance invoice, Send → paper plane
- *   Paid      — PAID stamps down, confetti, Collected counts up
+ * "Win more of the work" — one job's path through WorkBench, each step on a
+ * copy of the REAL app screen (2026-11-20 fidelity pass, David: "all shown
+ * interfaces need to look exactly like they are in the software"). The
+ * screens are drawn with the app's own classes and pieces (.app-ui + .ds,
+ * the rail, StatusChip, Avatar, AtlasMark, ds-card, btn-primary, the
+ * ritual overlays) at the app's real desktop size (a 1280 px window) and
+ * scaled to fit, so type, spacing and color are the app's own:
+ *   Request   — the booking arrives: the live "New request" card + the row
+ *   Quote     — Email to client → the send ritual → Awaiting Response
+ *   Approved  — the approval notice, the page refreshes Approved with the
+ *               deposit paid, confetti (the app's Celebration), Convert to job
+ *   Scheduled — the job lands on Thursday 9:00 on the week calendar
+ *   Done      — Clock in, the clock runs, photos added, Complete job
+ *   Invoiced  — Send to client → the send ritual → Awaiting Payment
+ *   Paid      — "Payment received", the invoice turns Paid, confetti
  * A rail above names the step; it loops while on screen and rests on Paid
  * under reduced motion. Demo company (Brightwire Electric) only.
+ *
+ * The desktop chrome (AppWindow) is exported for the other coded copies of
+ * the app on the site (WBLiveApp, WBTeamDemo).
  */
 
-export type StepKey = "req" | "quote" | "ok" | "sched" | "done" | "inv" | "paid";
-const ALL_STEPS: { key: StepKey; label: string; icon: typeof Inbox; nav: string }[] = [
+/* ── the demo company, as the app would theme it ─────────────────────────── */
+
+/** Brightwire Electric (lib/demo-company.ts): no logo, so the rail shows the
+ *  letter tile on the primary, exactly as AppShell does. */
+export const BW = {
+  name: "Brightwire Electric",
+  primary: "#10244A",
+  secondary: "#F5B700",
+  owner: "Mike Delgado",
+};
+
+function tint(hex: string, amount: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const f = (c: number) => Math.min(255, Math.round(c + (255 - c) * amount));
+  return `#${((f((n >> 16) & 255) << 16) | (f((n >> 8) & 255) << 8) | f(n & 255)).toString(16).padStart(6, "0")}`;
+}
+
+/** The custom properties AppShell puts on its root for this company. */
+export const APP_VARS = {
+  ...dsBrandVars(BW.primary, BW.secondary),
+  "--wb-primary-l": BW.primary,
+  "--wb-accent-bright-light": tint(BW.primary, 0.14),
+  "--wb-accent-light": BW.primary,
+  "--wb-accent-strong-light": shade(BW.primary, 0.14),
+  "--wb-on-accent-light": "#ffffff",
+  "--wb-ink-light": BW.primary,
+  "--wb-ink-strong-light": shade(BW.primary, 0.14),
+  "--mobile-accent-light": BW.primary,
+  "--mobile-on-accent-light": "#ffffff",
+  "--mobile-accent-soft-light": `${BW.primary}1A`,
+} as React.CSSProperties;
+
+export const usd = (n: number) =>
+  n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+/* ── scaling: the app at its real size, fitted to the box ────────────────── */
+
+/**
+ * Renders `children` in a window of the app's real desktop size (1280 px
+ * wide; 1024, the smallest desktop the app draws, in narrow boxes) and
+ * scales it to the box's width. Nothing inside is interactive.
+ */
+export function AppCanvas({
+  height,
+  children,
+  className = "",
+}: {
+  height: number;
+  children: (w: number) => React.ReactNode;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setBox(e.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const w = box > 0 && box < 640 ? 1024 : 1280;
+  const s = box ? box / w : 0;
+  return (
+    <div
+      ref={ref}
+      aria-hidden
+      inert
+      className={`pointer-events-none relative w-full select-none overflow-hidden rounded-xl text-left shadow-[0_0_0_1px_rgba(10,20,40,0.1),0_30px_60px_-30px_rgba(10,20,40,0.5)] ${className}`}
+      style={s ? { height: height * s } : { aspectRatio: `1280 / ${height}` }}
+    >
+      <div
+        className="absolute left-0 top-0 origin-top-left"
+        style={{
+          width: w,
+          height,
+          transform: `scale(${s || 1})`,
+          visibility: s ? undefined : "hidden",
+        }}
+      >
+        {children(w)}
+      </div>
+    </div>
+  );
+}
+
+/* ── the rail (components/AppShell.tsx, rail v2) ─────────────────────────── */
+
+type NavItem = { label: string; icon: typeof Home };
+const DRIVERS: NavItem[] = [
+  { label: "Home", icon: Home },
+  { label: "Schedule", icon: CalendarDays },
+  { label: "Clients", icon: Users },
+  { label: "Quotes", icon: FileText },
+  { label: "Jobs", icon: Briefcase },
+  { label: "Invoices", icon: Receipt },
+];
+const GROUPS: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Work",
+    items: [
+      { label: "Leads", icon: SquareKanban },
+      { label: "Requests", icon: Inbox },
+      { label: "Estimates", icon: Calculator },
+      { label: "Messages", icon: MessageSquare },
+      { label: "Calls", icon: PhoneCall },
+      { label: "Appointments", icon: CalendarClock },
+      { label: "Routes", icon: RouteGlyph },
+      { label: "Tasks", icon: ListChecks },
+      { label: "Agreements", icon: FileSignature },
+    ],
+  },
+  {
+    label: "Money",
+    items: [
+      { label: "Payments", icon: DollarSign },
+      { label: "Recurring", icon: Repeat },
+    ],
+  },
+  {
+    label: "Business",
+    items: [
+      { label: "Overview", icon: Building2 },
+      { label: "Automations", icon: Zap },
+      { label: "Services", icon: Tag },
+      { label: "Booking & forms", icon: Globe },
+      { label: "Website", icon: MonitorSmartphone },
+      { label: "Team & roles", icon: UserPlus },
+    ],
+  },
+];
+
+function RailRow({
+  item,
+  active,
+  count,
+}: {
+  item: NavItem;
+  active: boolean;
+  count?: number;
+}) {
+  const Icon = item.icon;
+  return (
+    <a
+      data-rail-active={active ? "true" : undefined}
+      className={`group relative font-display flex items-center gap-2.5 py-2 pl-4 pr-4 text-[13px] ${active ? "font-semibold" : "font-medium text-[color:var(--rail-muted)]"}`}
+    >
+      {active && (
+        <span
+          aria-hidden
+          className="rail-indicator rail-indicator-on"
+          style={{ height: "100%" }}
+        />
+      )}
+      <Icon
+        size={16}
+        strokeWidth={1.8}
+        className={
+          active
+            ? "text-[color:var(--rail-accent)]"
+            : "text-[color:var(--rail-faint)]"
+        }
+      />
+      <span className="truncate">{item.label}</span>
+      {count ? (
+        <span
+          key={count}
+          className="rail-count ml-auto text-[color:var(--rail-news)]"
+        >
+          {count}
+        </span>
+      ) : null}
+    </a>
+  );
+}
+
+/**
+ * The desktop AppShell: rail (letter tile + name, six drivers, the Work /
+ * Money / Business groups — the one holding the page opens, Settings, the
+ * user row) and the top bar (Search Ctrl K, Create, Chat, bell, gear), with
+ * the Atlas pill bottom right. `overlay` paints over the whole window, like
+ * the app's body-level rituals.
+ */
+export function AppWindow({
+  nav,
+  counts = {},
+  bellDot = false,
+  children,
+  overlay,
+  toast,
+}: {
+  nav: string;
+  counts?: Record<string, number>;
+  bellDot?: boolean;
+  children: React.ReactNode;
+  overlay?: React.ReactNode;
+  toast?: React.ReactNode;
+}) {
+  return (
+    <div
+      className="app-ui ds relative flex h-full overflow-hidden bg-paper-plain"
+      style={APP_VARS}
+    >
+      <aside
+        className="rail-gray flex w-[232px] shrink-0 flex-col border-r border-[color:var(--rail-line)]"
+        style={{ "--rail-accent-l": BW.primary } as React.CSSProperties}
+      >
+        <div className="flex min-h-[57px] min-w-0 items-center gap-3 border-b border-[color:var(--rail-line)] px-3.5">
+          <span
+            className="font-display flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] text-lg font-bold shadow-sm"
+            style={{ backgroundColor: BW.primary, color: "#ffffff" }}
+          >
+            B
+          </span>
+          <span className="font-display truncate text-[15px] font-semibold tracking-tight text-[color:var(--rail-ink)]">
+            {BW.name}
+          </span>
+        </div>
+        <nav className="relative flex-1 overflow-hidden py-3">
+          {DRIVERS.map((it) => (
+            <RailRow
+              key={it.label}
+              item={it}
+              active={it.label === nav}
+              count={counts[it.label]}
+            />
+          ))}
+          {GROUPS.map((g) => {
+            const open = g.items.some((i) => i.label === nav);
+            const rollup = open
+              ? 0
+              : g.items.reduce((n, i) => n + (counts[i.label] ?? 0), 0);
+            return (
+              <div key={g.label} className="mt-3">
+                <div
+                  className={`font-display flex w-full items-center gap-2.5 py-2 pl-4 pr-4 text-[10.5px] font-semibold uppercase tracking-[0.12em] ${open ? "text-[color:var(--rail-muted)]" : "text-[color:var(--rail-faint)]"}`}
+                >
+                  <span className="shrink-0">{g.label}</span>
+                  <span aria-hidden className="rail-head-rule" />
+                  {rollup > 0 && (
+                    <span
+                      key={rollup}
+                      className="rail-count shrink-0 text-[color:var(--rail-num)]"
+                    >
+                      {rollup}
+                    </span>
+                  )}
+                  <ChevronDown
+                    size={13}
+                    className={`shrink-0 ${open ? "" : "-rotate-90"}`}
+                  />
+                </div>
+                {open && (
+                  <div>
+                    {g.items.map((it) => (
+                      <RailRow
+                        key={it.label}
+                        item={it}
+                        active={it.label === nav}
+                        count={counts[it.label]}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </nav>
+        <div className="border-t border-[color:var(--rail-line)] py-1.5">
+          <RailRow
+            item={{ label: "Settings", icon: Settings }}
+            active={nav === "Settings"}
+          />
+          <div className="flex w-full items-center gap-3 px-4 py-3 text-left">
+            <Avatar name={BW.owner} size={30} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold text-[color:var(--rail-ink)]">
+                {BW.owner}
+              </p>
+              <p className="truncate text-[11px] text-[color:var(--rail-faint)]">
+                {BW.name}
+              </p>
+            </div>
+            <ChevronsUpDown
+              size={13}
+              className="shrink-0 text-[color:var(--rail-faint)]"
+            />
+          </div>
+        </div>
+      </aside>
+
+      <div className="page-atmo relative flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="app-header relative flex min-h-[57px] shrink-0 items-center gap-4 border-b border-gray-200 bg-chrome px-6">
+          <span className="ml-auto flex w-full max-w-xs items-center gap-2 rounded-md border border-transparent bg-gray-100 px-3 py-1.5 text-sm text-gray-400">
+            <Search size={14} />
+            <span>Search</span>
+            <kbd className="ml-auto rounded border border-gray-200 bg-white px-1.5 py-px text-[10px] font-semibold text-gray-400">
+              Ctrl K
+            </kbd>
+          </span>
+          <span className="group flex items-center gap-1.5 rounded-full bg-green-600 px-3.5 py-1.5 text-sm font-semibold text-[color:var(--wb-on-accent,#ffffff)]">
+            <Plus size={15} />
+            Create
+          </span>
+          <span className="relative flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600">
+            <MessagesSquare size={15} />
+            Chat
+          </span>
+          <span className="relative flex rounded-md p-2 text-gray-400">
+            <Bell size={17} />
+            {bellDot && (
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
+            )}
+          </span>
+          <span className="flex rounded-md p-2 text-gray-400">
+            <Settings size={17} />
+          </span>
+        </header>
+        <main className="app-main relative flex-1 overflow-hidden">
+          {children}
+        </main>
+        <div className="absolute bottom-6 right-6 z-40 flex items-center gap-0.5 rounded-full bg-white p-1.5 shadow-lg ring-1 ring-black/[0.06]">
+          <AtlasMark size={44} accent={BW.secondary} className="block" />
+          <span aria-hidden className="mx-0.5 h-6 w-px bg-gray-200" />
+          <span className="flex h-11 w-11 items-center justify-center rounded-full text-gray-500">
+            <Mic size={19} strokeWidth={2.1} />
+          </span>
+        </div>
+        {toast && (
+          <div className="pointer-events-none absolute right-5 top-5 z-[70] flex w-[360px] flex-col gap-2">
+            {toast}
+          </div>
+        )}
+      </div>
+      {overlay}
+    </div>
+  );
+}
+
+/* ── the app's own moments ───────────────────────────────────────────────── */
+
+const LIVE_ICON = {
+  request: Inbox,
+  booking: CalendarClock,
+  payment: DollarSign,
+  quote: FileText,
+  message: MessageSquare,
+} as const;
+
+/** A live notification card (components/LiveToasts.tsx, the desktop corner card). */
+export function LiveCard({
+  kind,
+  title,
+  sub,
+}: {
+  kind: keyof typeof LIVE_ICON;
+  title: string;
+  sub: string;
+}) {
+  const Icon = LIVE_ICON[kind];
+  return (
+    <div className="toast-enter sheet-material flex items-center gap-3 rounded-2xl px-3.5 py-3 shadow-xl ring-1 ring-black/5">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-500/10 text-green-700">
+        <Icon size={17} strokeWidth={2.25} />
+      </span>
+      <span className="min-w-0 flex-1 text-left">
+        <span className="block truncate text-[14px] font-semibold text-gray-900">
+          {title}
+        </span>
+        <span className="block truncate text-xs text-gray-600">{sub}</span>
+      </span>
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500">
+        <X size={15} />
+      </span>
+    </div>
+  );
+}
+
+/** The send ritual (lib/send-ritual.ts): plane, then "On its way". */
+export function SendRitual({ line }: { line: string }) {
+  const [sent, setSent] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSent(true), 850);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div
+      className="charge-overlay absolute inset-0 z-[90] flex items-center justify-center px-6"
+      style={{
+        background: "rgba(255,255,255,0.8)",
+        backdropFilter: "blur(4px)",
+        WebkitBackdropFilter: "blur(4px)",
+      }}
+    >
+      <div className="w-full max-w-[320px] text-center">
+        {!sent ? (
+          <>
+            <div className="relative mx-auto h-24 w-24">
+              <svg
+                className="send-fly"
+                width="34"
+                height="34"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#16A34A"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: "50%",
+                  margin: "-17px 0 0 -17px",
+                }}
+              >
+                <path d="m22 2-7 20-4-9-9-4Z" />
+                <path d="M22 2 11 13" />
+              </svg>
+            </div>
+            <p className="mt-5 text-sm text-[#6B7280]">Sending…</p>
+          </>
+        ) : (
+          <>
+            <div className="charge-pop mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-[#16A34A]">
+              <svg viewBox="0 0 48 48" className="h-12 w-12">
+                <path
+                  className="charge-draw"
+                  d="M12 25 L21 34 L37 16"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+            <p className="mt-5 text-lg font-bold text-[#111827]">On its way</p>
+            <p className="mt-1 break-all text-sm text-[#4B5563]">{line}</p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const CONFETTI = ["#22C55E", "#16A34A", "#4ADE80", "#FBBF24", "#0C0F0C"];
+
+/** The win confetti (components/Celebration.tsx), drawn over the window. */
+export function Confetti() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (
+      !canvas ||
+      !ctx ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      return;
+    const w = canvas.offsetWidth;
+    const h = canvas.offsetHeight;
+    canvas.width = w;
+    canvas.height = h;
+    const ps = Array.from({ length: 90 }, () => ({
+      x: Math.random() * w,
+      y: -20 - Math.random() * h * 0.3,
+      vy: 140 + Math.random() * 160,
+      sway: 25 + Math.random() * 35,
+      phase: Math.random() * Math.PI * 2,
+      spin: 2 + Math.random() * 4,
+      size: 5 + Math.random() * 4,
+      rot: Math.random() * Math.PI,
+      color: CONFETTI[Math.floor(Math.random() * CONFETTI.length)],
+    }));
+    const DURATION = 2800;
+    const FADE = 600;
+    let last = performance.now();
+    const start = last;
+    let raf = 0;
+    const frame = (now: number) => {
+      const dt = Math.min((now - last) / 1000, 0.05);
+      last = now;
+      const t = now - start;
+      ctx.clearRect(0, 0, w, h);
+      const alpha =
+        t > DURATION - FADE ? Math.max(0, (DURATION - t) / FADE) : 1;
+      for (const p of ps) {
+        p.vy = Math.min(p.vy + 220 * dt, 340);
+        p.y += p.vy * dt;
+        p.phase += p.spin * dt;
+        p.x += Math.cos(p.phase) * p.sway * dt;
+        if (p.y > h + 20) continue;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot + Math.sin(p.phase) * 0.6);
+        ctx.scale(1, 0.35 + Math.abs(Math.sin(p.phase)) * 0.65);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+        ctx.restore();
+      }
+      if (t < DURATION) raf = requestAnimationFrame(frame);
+      else ctx.clearRect(0, 0, w, h);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return (
+    <canvas
+      ref={ref}
+      className="pointer-events-none absolute inset-0 z-[95] h-full w-full"
+    />
+  );
+}
+
+/* ── page pieces (the app's own markup) ──────────────────────────────────── */
+
+/** The (i) trigger, closed (components/ds/InfoTip.tsx). */
+export function InfoDot() {
+  return (
+    <span className="relative inline-flex align-middle">
+      <span className="ds-info">
+        <Info size={15} strokeWidth={2.2} />
+      </span>
+    </span>
+  );
+}
+
+/** components/PageTitle.tsx at desktop size. */
+export function Title({
+  children,
+  info,
+  sub,
+}: {
+  children: React.ReactNode;
+  info?: boolean;
+  sub?: React.ReactNode;
+}) {
+  return (
+    <div className="min-w-0">
+      <h1 className="ds-title flex items-center gap-2" style={{ fontSize: 30 }}>
+        <span className="min-w-0">{children}</span>
+        {info && <InfoDot />}
+      </h1>
+      {sub && (
+        <p className="ds-small mt-1.5 max-w-prose text-[13.5px]">{sub}</p>
+      )}
+    </div>
+  );
+}
+
+function Fact({
+  label,
+  children,
+  tone,
+}: {
+  label: string;
+  children: React.ReactNode;
+  tone?: string;
+}) {
+  return (
+    <div>
+      <span className="block text-xs font-medium text-gray-500">{label}</span>
+      <span className={tone ?? "text-gray-800"}>{children}</span>
+    </div>
+  );
+}
+
+function Facts({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="ds-card mb-6 flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 text-sm">
+      {children}
+    </div>
+  );
+}
+
+function DetailHead({
+  kind,
+  status,
+  title,
+  client,
+  actions,
+}: {
+  kind: "quote" | "invoice" | "job";
+  status: string;
+  title: string;
+  client: string;
+  actions: React.ReactNode;
+}) {
+  return (
+    <>
+      <div className="mb-4 flex items-center gap-3">
+        <span className="block text-gray-400">
+          <ArrowLeft size={18} />
+        </span>
+        <StatusChip key={status} kind={kind} status={status} />
+      </div>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <Title sub={<span className="ds-link">{client}</span>}>{title}</Title>
+        <div className="flex items-center gap-2">{actions}</div>
+      </div>
+    </>
+  );
+}
+
+function Btn({
+  icon: Icon,
+  children,
+  pressed,
+}: {
+  icon: typeof Send;
+  children: React.ReactNode;
+  pressed?: boolean;
+}) {
+  return (
+    <span
+      className="btn-primary"
+      style={pressed ? { transform: "scale(0.97)" } : undefined}
+    >
+      <Icon size={13} />
+      {children}
+    </span>
+  );
+}
+
+function IconBtn({ icon: Icon }: { icon: typeof Send }) {
+  return (
+    <span className="ds-btn-outline rounded-[10px] p-2 text-[color:var(--ds-ink-2)]">
+      <Icon size={16} />
+    </span>
+  );
+}
+
+const ROW_IN = {
+  animation: "listIn 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both",
+} as React.CSSProperties;
+
+/* ── the job the journey follows ─────────────────────────────────────────── */
+
+export type StepKey =
+  "req" | "quote" | "ok" | "sched" | "done" | "inv" | "paid";
+const ALL_STEPS: {
+  key: StepKey;
+  label: string;
+  icon: typeof Inbox;
+  nav: string;
+}[] = [
   { key: "req", label: "Request", icon: Inbox, nav: "Requests" },
   { key: "quote", label: "Quote", icon: FileText, nav: "Quotes" },
   { key: "ok", label: "Approved", icon: FileSignature, nav: "Quotes" },
@@ -56,7 +740,7 @@ const ALL_STEPS: { key: StepKey; label: string; icon: typeof Inbox; nav: string 
   { key: "inv", label: "Invoiced", icon: Receipt, nav: "Invoices" },
   { key: "paid", label: "Paid", icon: Wallet, nav: "Invoices" },
 ];
-const STEP_MS = 4600;
+const STEP_MS = 5200;
 
 /** The job the journey follows. Trade pages pass their own (built from the
  *  trade's typical line items, lib/wb-tools.ts TRADE_TEMPLATES); the home
@@ -84,12 +768,9 @@ const useJob = () => {
   const total = j.lines.reduce((a, l) => a + l.qty * l.unit, 0);
   const deposit = Math.round(total * 0.25);
   const first = j.client.split(" ")[0];
-  const initials = j.client.split(" ").map((w) => w[0]).join("").slice(0, 2);
-  return { ...j, total, deposit, balance: total - deposit, first, initials };
+  const email = `${j.client.toLowerCase().replace(/[^a-z]+/g, ".")}@gmail.com`;
+  return { ...j, total, deposit, balance: total - deposit, first, email };
 };
-const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
-const NAVY = "#1D2E52";
-const FONT = { fontFamily: "var(--font-lexend), Lexend, system-ui, sans-serif" };
 
 /** A beat inside a step: 0 on arrival, then 1, 2, 3 on a timer. */
 function useBeat(active: boolean, times: number[]) {
@@ -104,411 +785,994 @@ function useBeat(active: boolean, times: number[]) {
   return b;
 }
 
-function PageHead({ title, sub, right }: { title: string; sub?: string; right?: React.ReactNode }) {
-  return (
-    <div className="flex items-end justify-between gap-3">
-      <div>
-        {sub && <p className="text-[10.5px] text-gray-500">{sub}</p>}
-        <p className="text-[19px] font-semibold text-gray-900">{title}</p>
-      </div>
-      {right}
-    </div>
-  );
-}
-
-function Chip({ tone, children }: { tone: "blue" | "amber" | "green" | "gray"; children: React.ReactNode }) {
-  const c = { blue: "bg-[#E8EEFB] text-[#22406E]", amber: "bg-[#FDF3DC] text-[#8A5A07]", green: "bg-[#E3F5EA] text-[#17703B]", gray: "bg-[#ECEEF2] text-gray-600" }[tone];
-  return <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${c}`}>{children}</span>;
-}
-
-function Plane({ go }: { go: boolean }) {
-  return go ? <Send className="wb-plane pointer-events-none absolute right-3 top-1/2 h-4 w-4 text-[#0B57D8]" /> : null;
-}
-
 /* ── the screens ─────────────────────────────────────────────────────────── */
 
-function RequestsScreen({ on }: { on: boolean }) {
+const LIST_PAGE = "mx-auto w-full max-w-6xl px-8 pb-10 pt-8";
+const DETAIL_PAGE = "mx-auto max-w-4xl p-8";
+
+function chip(active: boolean) {
+  const base =
+    "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[9px] px-3.5 py-1.5 text-sm";
+  return active
+    ? `${base} chip-pressed font-semibold`
+    : `${base} btn-tool-line bg-white font-medium text-gray-600`;
+}
+
+function RequestsPage({ b }: { b: number }) {
   const job = useJob();
-  const b = useBeat(on, [500, 2200]);
   const rows = [
-    { who: "Hannah Brooks", what: "Smoke detectors, whole home", when: "Yesterday", src: "Website form" },
-    { who: "Tom Becker", what: "Walkthrough for panel upgrade", when: "Mon", src: "Phone call" },
+    {
+      who: "Hannah Brooks",
+      what: "Smoke detectors, whole home",
+      when: "Oct 25, 2026",
+      status: "NEW",
+    },
+    {
+      who: "Tom Becker",
+      what: "Walkthrough for panel upgrade",
+      when: "Oct 22, 2026",
+      status: "CONVERTED",
+    },
+    {
+      who: "Olivia Park",
+      what: "Outlets not working in the kitchen",
+      when: "Oct 19, 2026",
+      status: "CONVERTED",
+    },
   ];
+  const cols = "grid grid-cols-[1fr_1fr_140px_130px_40px] gap-4";
   return (
-    <div>
-      <PageHead title="Requests" right={<span className="rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white" style={{ background: NAVY }}>+ New request</span>} />
-      <div className="mt-3 flex gap-1.5 text-[11px]">
-        {["New", "Assessment", "Converted"].map((t, i) => (
-          <span key={t} className={`rounded-full px-3 py-1 ${i === 0 ? "bg-[#1D2E52] font-semibold text-white" : "bg-white text-gray-600 ring-1 ring-[#E3E6EC]"}`}>
-            {t} {i === 0 && <span className="ml-1 opacity-80">{b >= 1 ? 3 : 2}</span>}
-          </span>
-        ))}
-      </div>
-      <div className="mt-3 overflow-hidden rounded-2xl border border-[#E3E6EC] bg-white">
-        {b >= 1 && (
-          <div className="wb-row-in flex items-center gap-3 border-b border-[#EEF0F3] bg-[#FFF7EF] px-4 py-3">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F86A0A] text-[10px] font-semibold text-white">{job.initials}</span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[12.5px] font-semibold text-gray-900">{job.client} — {job.title}</span>
-              <span className="block text-[10.5px] text-[#C2410C]">Booked online just now · Thu or Fri morning</span>
-            </span>
-            <span className={`rounded-lg px-2.5 py-1 text-[10.5px] font-semibold text-white transition-transform ${b >= 2 ? "scale-105" : ""}`} style={{ background: NAVY }}>
-              Create quote
-            </span>
-          </div>
-        )}
-        {rows.map((r) => (
-          <div key={r.who} className="flex items-center gap-3 border-b border-[#EEF0F3] px-4 py-3 last:border-0">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#3E5277] text-[10px] font-semibold text-white">
-              {r.who.split(" ").map((w) => w[0]).join("")}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[12.5px] font-semibold text-gray-900">
-                {r.who} — {r.what}
-              </span>
-              <span className="block text-[10.5px] text-gray-500">
-                {r.when} · {r.src}
-              </span>
-            </span>
-            <ChevronRight className="h-4 w-4 text-gray-300" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-
-function QuoteScreen({ on }: { on: boolean }) {
-  const job = useJob();
-  const b = useBeat(on, [400, 1100, 1900, 3000]);
-  const total = job.lines.reduce((a, l, k) => a + (b >= k + 1 ? l.qty * l.unit : 0), 0);
-  return (
-    <div>
-      <PageHead sub={`${job.client} · 412 Oak Ln, Plano`} title="Quote #1051" right={b >= 4 ? <Chip tone="blue">Sent · Viewed</Chip> : <Chip tone="gray">Draft</Chip>} />
-      <div className="mt-3 overflow-hidden rounded-2xl border border-[#E3E6EC] bg-white">
-        <div className="grid grid-cols-[1fr_auto_auto] gap-x-6 border-b border-[#EEF0F3] px-4 py-2 text-[9.5px] font-semibold uppercase tracking-[0.1em] text-gray-400">
-          <span>Product / Service</span>
-          <span>Qty × price</span>
-          <span>Total</span>
-        </div>
-        {job.lines.map(({ name: a, qty, unit }, k) => [a, `${qty} × ${usd(unit)}`, qty * unit] as const).map(([a, q, t], k) =>
-          b >= k + 1 ? (
-            <div key={a} className="wb-row-in grid grid-cols-[1fr_auto_auto] items-center gap-x-6 border-b border-[#EEF0F3] px-4 py-2.5 text-[12px]">
-              <span className="font-semibold text-gray-900">{a}</span>
-              <span className="text-gray-500">{q}</span>
-              <span className="font-semibold tabular-nums text-gray-900">${t.toFixed(2)}</span>
-            </div>
-          ) : (
-            <div key={a} className="h-[39px] border-b border-[#EEF0F3]" />
-          ),
-        )}
-        <div className="flex items-center justify-between bg-[#F8F9FB] px-4 py-3">
-          <span className="text-[10.5px] font-semibold text-[#0B57D8]">Deposit 25% on approval</span>
-          <span className="text-[14px] font-semibold tabular-nums text-gray-900">Total ${total.toFixed(2)}</span>
-        </div>
-      </div>
-      <div className="relative mt-3 flex justify-end">
-        <span className={`relative flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[11.5px] font-semibold text-white transition-transform duration-200 ${b === 3 ? "scale-95" : ""}`} style={{ background: NAVY }}>
-          <Send className="h-3.5 w-3.5" />
-          {b >= 4 ? `Sent to ${job.first}` : "Send to client"}
+    <div className={LIST_PAGE}>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-y-3">
+        <Title>Requests</Title>
+        <span className="btn-primary">
+          <Plus size={15} />
+          New request
         </span>
-        <Plane go={b >= 3} />
       </div>
-    </div>
-  );
-}
-
-function ApprovedScreen({ on }: { on: boolean }) {
-  const job = useJob();
-  const b = useBeat(on, [300, 1500, 2500, 3400]);
-  return (
-    <div>
-      <PageHead sub={`${job.client} · Quote #1051`} title={job.title} right={b >= 2 ? <Chip tone="green">Approved</Chip> : <Chip tone="blue">Awaiting response</Chip>} />
-      <div className="relative mt-3 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-[#E3E6EC] bg-white p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-400">Client signature</p>
-          <svg viewBox="0 0 240 70" className="mt-1 h-[64px] w-full">
-            {b >= 1 && (
-              <path
-                d="M12 48 C 22 18, 38 18, 34 44 C 31 60, 22 52, 30 40 C 40 26, 52 30, 56 44 C 60 54, 66 40, 74 36 C 82 32, 80 50, 90 46 C 100 42, 104 30, 112 34 C 120 38, 116 52, 128 48 C 140 44, 146 28, 158 32 C 170 36, 168 50, 182 44 C 196 38, 210 30, 228 36"
-                pathLength={1}
-                stroke="#1D2E52"
-                strokeWidth={2.4}
-                fill="none"
-                strokeLinecap="round"
-                className="wb-sign"
-              />
-            )}
-            <line x1="8" y1="62" x2="232" y2="62" stroke="#E3E6EC" strokeWidth="1.5" />
-          </svg>
-          <p className="text-[10.5px] text-gray-500">Signed online · Oct 26, 7:42 PM</p>
-        </div>
-        <div className="space-y-2">
-          <div className={`flex items-center gap-2.5 rounded-2xl border bg-white p-3.5 transition-colors duration-500 ${b >= 3 ? "border-green-300" : "border-[#E3E6EC]"}`}>
-            <span className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors duration-500 ${b >= 3 ? "bg-[#17A34A] text-white" : "bg-[#ECEEF2] text-gray-400"}`}>
-              <Check className="h-4 w-4" strokeWidth={3} />
-            </span>
-            <span>
-              <span className="block text-[12px] font-semibold text-gray-900">Deposit {b >= 3 ? "paid" : "due"}</span>
-              <span className="block text-[10.5px] tabular-nums text-gray-500">{usd(job.deposit)} · card</span>
-            </span>
-          </div>
-          <div className={`flex items-center gap-2.5 rounded-2xl border border-[#E3E6EC] bg-white p-3.5 transition-opacity duration-500 ${b >= 4 ? "opacity-100" : "opacity-40"}`}>
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1D2E52] text-white">
-              <Briefcase className="h-4 w-4" />
-            </span>
-            <span>
-              <span className="block text-[12px] font-semibold text-gray-900">Job #318 created</span>
-              <span className="block text-[10.5px] text-gray-500">Ready to schedule</span>
-            </span>
-          </div>
-        </div>
-        {b >= 2 && (
-          <span className="wb-stamp-now pointer-events-none absolute left-[16%] top-[30%] rounded-lg border-[3px] border-[#17A34A] px-3 py-1 text-[22px] font-black tracking-[0.12em] text-[#17A34A]" style={{ transform: "rotate(-10deg)" }}>
-            APPROVED
-          </span>
-        )}
+      <div className="mb-4 flex h-[46px] w-[384px] items-center gap-2.5 rounded-[12px] bg-gray-100 px-4 text-[15px] text-gray-400">
+        <Search size={16} />
+        Search requests, clients…
       </div>
-    </div>
-  );
-}
-
-function ScheduleScreen({ on }: { on: boolean }) {
-  const job = useJob();
-  const b = useBeat(on, [700, 2400]);
-  const days = ["Mon 26", "Tue 27", "Wed 28", "Thu 29", "Fri 30"];
-  const hours = ["8a", "9a", "10a", "11a", "12p"];
-  const jobs: [number, number, number, string][] = [
-    [0, 0, 2, "Maria H. · AC disconnect"],
-    [1, 1, 1, "Olivia P. · Outlets"],
-    [2, 2, 2, "James W. · EV charger"],
-    [4, 0, 1, "Derek O. · Sub-panel"],
-    [3, 3, 1, "Alicia G. · Garage"],
-  ];
-  const ROW = 40;
-  return (
-    <div>
-      <PageHead title="Schedule" right={<span className="text-[11px] font-semibold text-gray-600">Oct 26 – Oct 30</span>} />
-      <div className="relative mt-3 overflow-hidden rounded-2xl border border-[#E3E6EC] bg-white">
-        <div className="grid grid-cols-[40px_repeat(5,1fr)] border-b border-[#EEF0F3] text-center text-[10px] font-semibold text-gray-500">
-          <span />
-          {days.map((d, i) => (
-            <span key={d} className={`py-2 ${i === 3 ? "text-[#0B57D8]" : ""}`}>
-              {d}
-            </span>
+      <div className="mb-6 grid grid-cols-4 gap-3">
+        <div className="card-tool p-4">
+          <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-gray-500">
+            <span
+              className="h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{ backgroundColor: "var(--ds-secondary)" }}
+            />
+            <span className="truncate">New requests</span>
+          </p>
+          <p
+            key={b >= 1 ? "n" : "o"}
+            className="numeral-ledger text-2xl font-semibold text-gray-900"
+          >
+            {b >= 1 ? 2 : 1}
+          </p>
+        </div>
+      </div>
+      <div className="mb-4 flex items-center gap-2">
+        <span className={chip(true)}>All</span>
+        <span className={chip(false)}>Needs approval</span>
+        <span className={chip(false)}>New</span>
+        <span className={chip(false)}>Converted</span>
+        <span className={chip(false)}>Archived</span>
+        <span className="mx-0.5 h-5 w-px shrink-0 bg-gray-200" />
+        <span className={chip(false)}>
+          <UserCheck size={13} />
+          Mine
+        </span>
+        <span className="btn-tool-line ml-auto flex items-center gap-1.5 rounded-[10px] bg-white px-3 py-1.5 text-sm font-semibold text-gray-700">
+          <ArrowUpDown size={14} className="text-gray-400" />
+          Newest first
+          <ChevronDown size={14} className="text-gray-400" />
+        </span>
+      </div>
+      <div className="ds-card overflow-hidden">
+        <div className="divide-y divide-gray-100">
+          <div
+            className={`${cols} bg-gray-50 px-4 py-2 text-xs font-medium text-gray-500`}
+          >
+            <span>Client</span>
+            <span>Title</span>
+            <span>Requested</span>
+            <span>Status</span>
+            <span />
+          </div>
+          {[
+            ...(b >= 1
+              ? [
+                  {
+                    who: job.client,
+                    what: job.title,
+                    when: "Oct 26, 2026",
+                    status: "NEW",
+                    fresh: true,
+                  },
+                ]
+              : []),
+            ...rows,
+          ].map((r) => (
+            <div
+              key={r.who + r.what}
+              className={`${cols} items-center px-4 py-2.5`}
+              style={"fresh" in r ? ROW_IN : undefined}
+            >
+              <span className="text-sm font-medium text-gray-900">{r.who}</span>
+              <span className="truncate text-sm text-gray-600">{r.what}</span>
+              <span className="text-sm text-gray-500">{r.when}</span>
+              <span>
+                <StatusChip kind="request" status={r.status} />
+              </span>
+              <ChevronRight size={14} className="shrink-0 text-gray-400" />
+            </div>
           ))}
         </div>
-        <div className="relative grid grid-cols-[40px_repeat(5,1fr)]">
+      </div>
+    </div>
+  );
+}
+
+function LineTable({ head }: { head: string }) {
+  const job = useJob();
+  return (
+    <div className="px-6 py-4">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-gray-100">
+            <th className="py-2 text-left text-xs font-semibold text-gray-500">
+              {head}
+            </th>
+            <th className="w-16 py-2 text-right text-xs font-semibold text-gray-500">
+              Qty
+            </th>
+            <th className="w-24 py-2 text-right text-xs font-semibold text-gray-500">
+              Unit Price
+            </th>
+            <th className="w-24 py-2 text-right text-xs font-semibold text-gray-500">
+              Total
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-50">
+          {job.lines.map((l) => (
+            <tr key={l.name}>
+              <td className="py-3">
+                <p className="font-medium text-gray-900">{l.name}</p>
+              </td>
+              <td className="ds-num py-3 text-right text-gray-600">{l.qty}</td>
+              <td className="ds-num py-3 text-right text-gray-600">
+                {usd(l.unit)}
+              </td>
+              <td className="ds-num py-3 text-right font-medium text-gray-900">
+                {usd(l.qty * l.unit)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function QuoteBody() {
+  const job = useJob();
+  return (
+    <div className="ds-card overflow-hidden">
+      <div className="border-b border-gray-100 px-6 py-4">
+        <p className="whitespace-pre-wrap text-sm text-gray-700">
+          Thanks for having us out, {job.first}. Here is the price for the work
+          we talked about.
+        </p>
+      </div>
+      <LineTable head="Product / Service" />
+      <div className="border-t border-[color:var(--ds-line)] bg-[color:var(--ds-surface-2)] px-6 py-4">
+        <div className="ml-auto w-64 space-y-1.5 text-sm">
+          <div className="flex justify-between">
+            <span className="text-gray-500">Subtotal</span>
+            <span className="ds-num text-gray-800">{usd(job.total)}</span>
+          </div>
+          <div className="flex justify-between border-t border-gray-200 pt-1.5 text-base font-bold">
+            <span className="text-gray-900">Total</span>
+            <span className="ds-num text-gray-900">{usd(job.total)}</span>
+          </div>
+          <div className="flex justify-between text-[color:var(--ds-primary)]">
+            <span>Required deposit (25%)</span>
+            <span className="ds-num font-semibold">{usd(job.deposit)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Quote: Email to client → the send ritual → Awaiting Response. */
+function QuotePage({ b }: { b: number }) {
+  const job = useJob();
+  const sent = b >= 3;
+  return (
+    <div className={DETAIL_PAGE}>
+      <DetailHead
+        kind="quote"
+        status={sent ? "AWAITING_RESPONSE" : "DRAFT"}
+        title={job.title}
+        client={job.client}
+        actions={
+          <>
+            {sent ? (
+              <Btn icon={CheckCircle}>Mark approved</Btn>
+            ) : (
+              <Btn icon={Send} pressed={b === 1}>
+                Email to client
+              </Btn>
+            )}
+            <IconBtn icon={Pencil} />
+            <IconBtn icon={MoreHorizontal} />
+          </>
+        }
+      />
+      <Facts>
+        <Fact label="Quote #">1051</Fact>
+        <Fact label="Created">Oct 26, 2026</Fact>
+        {sent && (
+          <Fact label="Viewed" tone="text-gray-400">
+            Not viewed yet
+          </Fact>
+        )}
+        <Fact label="Valid until">Nov 25, 2026</Fact>
+        <Fact label="Required deposit" tone="font-semibold text-gray-800">
+          {usd(job.deposit)}
+        </Fact>
+      </Facts>
+      <QuoteBody />
+    </div>
+  );
+}
+
+/** Approved: the client approves online and pays the deposit. */
+function ApprovedPage({ b }: { b: number }) {
+  const job = useJob();
+  const approved = b >= 2;
+  const paid = b >= 3;
+  return (
+    <div className={DETAIL_PAGE}>
+      <DetailHead
+        kind="quote"
+        status={approved ? "APPROVED" : "AWAITING_RESPONSE"}
+        title={job.title}
+        client={job.client}
+        actions={
+          <>
+            {approved ? (
+              <Btn icon={Briefcase} pressed={b >= 4}>
+                Convert to job
+              </Btn>
+            ) : (
+              <Btn icon={CheckCircle}>Mark approved</Btn>
+            )}
+            <IconBtn icon={Pencil} />
+            <IconBtn icon={MoreHorizontal} />
+          </>
+        }
+      />
+      <Facts>
+        <Fact label="Quote #">1051</Fact>
+        <Fact label="Created">Oct 26, 2026</Fact>
+        <Fact
+          label="Viewed"
+          tone="inline-flex items-center gap-1 font-medium text-green-700"
+        >
+          <Eye size={13} />
+          Oct 26, 2026
+        </Fact>
+        <Fact label="Valid until">Nov 25, 2026</Fact>
+        {approved ? (
+          <Fact
+            label="Deposit"
+            tone={`font-medium ${paid ? "text-[color:var(--ds-good)]" : "text-[color:var(--ds-warn)]"}`}
+          >
+            {usd(job.deposit)} · {paid ? "Paid" : "Invoiced"} (#2489)
+          </Fact>
+        ) : (
+          <Fact label="Required deposit" tone="font-semibold text-gray-800">
+            {usd(job.deposit)}
+          </Fact>
+        )}
+        {approved && <Fact label="Approved">Oct 26, 2026 by {job.client}</Fact>}
+      </Facts>
+      <QuoteBody />
+    </div>
+  );
+}
+
+/* the week calendar (app/platform/schedule TimeGrid) */
+const HOUR = 48;
+const FIRST_HOUR = 7;
+const WEEK = [
+  { d: "Sun 25", open: false },
+  { d: "Mon 26", open: true, today: true },
+  { d: "Tue 27", open: true },
+  { d: "Wed 28", open: true },
+  { d: "Thu 29", open: true },
+  { d: "Fri 30", open: true },
+  { d: "Sat 31", open: false },
+];
+const BOOKED: [number, number, number, string, string][] = [
+  [1, 8, 2, "Maria Hernandez", "AC disconnect replacement"],
+  [1, 13, 2, "Marcus Bell", "Pool pump circuit"],
+  [2, 9, 1, "Olivia Park", "Outlet repair"],
+  [2, 14, 1.5, "Hannah Brooks", "Smoke detectors"],
+  [3, 10, 2, "James Whitfield", "EV charger install"],
+  [4, 13, 1, "Alicia Gomez", "Garage lighting"],
+  [5, 8, 1.5, "Derek Olsen", "Sub-panel for workshop"],
+];
+const hourLabel = (h: number) =>
+  `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? "AM" : "PM"}`;
+const clock = (h: number) =>
+  `${Math.floor(h) % 12 === 0 ? 12 : Math.floor(h) % 12}:${h % 1 ? "30" : "00"}${h < 12 ? "am" : "pm"}`;
+
+function SchedulePage({ b }: { b: number }) {
+  const job = useJob();
+  const placed = b >= 2;
+  const toolBtn =
+    "btn-tool-line flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-white px-4 text-sm font-semibold text-gray-700";
+  const block = (
+    day: number,
+    start: number,
+    len: number,
+    client: string,
+    title: string,
+    extra?: React.CSSProperties,
+  ) => (
+    <div
+      key={client + day}
+      className="absolute overflow-hidden rounded-lg border-l-2 border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)] px-1.5 py-0.5 text-xs font-medium text-[color:var(--ds-ink)] shadow-sm"
+      style={{
+        top: (start - FIRST_HOUR) * HOUR + 1,
+        height: len * HOUR - 2,
+        left: 2,
+        right: 2,
+        ...extra,
+      }}
+    >
+      <span className="block truncate font-semibold">{client}</span>
+      <span className="block truncate">
+        {clock(start)} · {title}
+      </span>
+      <span className="absolute inset-x-0 bottom-0 h-2.5">
+        <span className="mx-auto mt-1 block h-0.5 w-6 rounded-full bg-current opacity-30" />
+      </span>
+    </div>
+  );
+  return (
+    <div className="mx-auto max-w-6xl p-8">
+      <div className="mb-5 flex items-center justify-between gap-2">
+        <Title>Schedule</Title>
+        <div className="flex items-center gap-2">
+          <span className={toolBtn}>
+            <UserPlus size={16} />
+            Schedule someone
+            {!placed && (
+              <span className="min-w-[18px] rounded-full bg-[color:var(--ds-warn-soft)] px-1 py-px text-center text-[11px] font-bold text-[color:var(--ds-warn)]">
+                1
+              </span>
+            )}
+          </span>
+          <span className={toolBtn}>
+            <CalendarOff size={16} />
+            Block time
+          </span>
+          <span className="btn-tool-line flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-[color:var(--ds-secondary-soft)] px-4 text-sm font-semibold text-[color:var(--ds-secondary)]">
+            <CalendarClock size={16} />
+            New appointment
+          </span>
+          <span className="btn-primary h-10">
+            <Plus size={15} />
+            New job
+          </span>
+        </div>
+      </div>
+      <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-2">
+        <div className="flex items-center gap-1">
+          <span className="rounded-full p-2">
+            <ChevronLeft size={18} className="text-gray-600" />
+          </span>
+          <span className="rounded-full p-2">
+            <ChevronRight size={18} className="text-gray-600" />
+          </span>
+          <span className="btn-tool-line rounded-[10px] bg-white px-3 py-1.5 text-sm font-medium text-gray-700">
+            Today
+          </span>
+        </div>
+        <h2 className="text-lg font-bold text-gray-900">
+          Oct 25 – Oct 31, 2026
+        </h2>
+        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+          <span className={chip(false)}>Month</span>
+          <span className={chip(true)}>Week</span>
+          <span className={chip(false)}>Day</span>
+          <span className={chip(false)}>
+            <RouteGlyph size={14} />
+            Map
+          </span>
+        </div>
+      </div>
+      <div className="ds-card overflow-hidden">
+        <div
+          className="grid border-b border-gray-200"
+          style={{ gridTemplateColumns: "56px repeat(7, minmax(0, 1fr))" }}
+        >
+          <div />
+          {WEEK.map((c) => (
+            <div
+              key={c.d}
+              className="border-l border-gray-100 px-1 py-2 text-center"
+            >
+              <div
+                className={`truncate text-sm font-semibold ${c.today ? "text-[color:var(--ds-primary)]" : "text-gray-900"}`}
+              >
+                {c.d}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div
+          className="grid border-b border-gray-200"
+          style={{ gridTemplateColumns: "56px repeat(7, minmax(0, 1fr))" }}
+        >
+          <div className="flex items-start justify-end px-2 py-1.5">
+            <span className="text-[11px] font-medium text-gray-400">
+              Anytime
+            </span>
+          </div>
+          {WEEK.map((c) => (
+            <div
+              key={c.d}
+              className="min-h-[34px] border-l border-gray-100 p-1"
+            />
+          ))}
+        </div>
+        <div
+          className="relative grid"
+          style={{ gridTemplateColumns: "56px repeat(7, minmax(0, 1fr))" }}
+        >
           <div>
-            {hours.map((h) => (
-              <div key={h} className="pr-1.5 pt-1 text-right text-[9px] text-gray-400" style={{ height: ROW }}>
-                {h}
+            {Array.from({ length: 11 }, (_, k) => FIRST_HOUR + k).map((h) => (
+              <div
+                key={h}
+                className="relative border-b border-gray-50"
+                style={{ height: HOUR }}
+              >
+                <span className="absolute -top-2 right-2 bg-white px-0.5 text-[10px] text-gray-400">
+                  {h === FIRST_HOUR ? "" : hourLabel(h)}
+                </span>
               </div>
             ))}
           </div>
-          {days.map((d) => (
-            <div key={d} className="border-l border-[#F0F2F5]">
-              {hours.map((h) => (
-                <div key={h} className="border-b border-[#F3F4F7]" style={{ height: ROW }} />
+          {WEEK.map((c, day) => (
+            <div
+              key={c.d}
+              className={`relative border-l border-gray-100 ${c.today ? "cal-today" : ""}`}
+              style={{ height: 11 * HOUR }}
+            >
+              {c.open ? (
+                <>
+                  <div
+                    className="cal-offhours pointer-events-none absolute inset-x-0"
+                    style={{ top: 0, height: HOUR }}
+                  />
+                  <div
+                    className="cal-offhours pointer-events-none absolute inset-x-0"
+                    style={{ top: 10 * HOUR, height: HOUR }}
+                  />
+                </>
+              ) : (
+                <div className="cal-offhours pointer-events-none absolute inset-0" />
+              )}
+              {Array.from({ length: 11 }, (_, k) => (
+                <div
+                  key={k}
+                  className="cal-hourline pointer-events-none absolute inset-x-0 border-b"
+                  style={{ top: k * HOUR, height: HOUR }}
+                >
+                  <div className="cal-halfline absolute inset-x-0 top-1/2 border-b border-dashed" />
+                </div>
               ))}
+              {BOOKED.filter((r) => r[0] === day).map(([, s, l, who, what]) =>
+                block(day, s, l, who, what),
+              )}
+              {day === 4 && b === 1 && (
+                <div
+                  className="pointer-events-none absolute left-[2px] right-[2px] z-20 overflow-visible rounded-lg border-2 border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)] px-1.5 py-0.5 text-xs font-medium text-[color:var(--ds-ink)] shadow-lg"
+                  style={{ top: (9 - FIRST_HOUR) * HOUR, height: 2 * HOUR }}
+                >
+                  <span className="absolute -top-6 left-0 whitespace-nowrap rounded-md bg-gray-900 px-1.5 py-0.5 text-[11px] font-semibold text-white shadow">
+                    Thu 9:00am
+                  </span>
+                  <span className="block truncate font-semibold">
+                    {job.client}
+                  </span>
+                </div>
+              )}
+              {day === 4 &&
+                placed &&
+                block(day, 9, 2, job.client, job.title, ROW_IN)}
             </div>
           ))}
-          {jobs.map(([day, start, len, label]) => (
-            <div
-              key={label}
-              className="absolute rounded-md border border-[#C9D3E6] bg-[#E8EEFB] px-1.5 py-1 text-[9.5px] font-semibold text-[#22406E]"
-              style={{ left: `calc(40px + (100% - 40px) * ${day} / 5 + 3px)`, width: "calc((100% - 40px) / 5 - 6px)", top: start * ROW + 3, height: len * ROW - 6 }}
-            >
-              {label}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Job: Clock in, the clock runs, photos, Clock out, Complete job. */
+function JobPage({ b }: { b: number }) {
+  const job = useJob();
+  const [ms, setMs] = useState(0);
+  const onClock = b >= 1 && b < 5;
+  useEffect(() => {
+    if (b === 0) setMs(0);
+    if (!onClock) return;
+    const t = setInterval(
+      () => setMs((m) => Math.min(m + 60000 * 3, 2 * 3600000 + 600000)),
+      60,
+    );
+    return () => clearInterval(t);
+  }, [onClock, b]);
+  const dur = (v: number) => {
+    const total = Math.round(v / 60000);
+    const h = Math.floor(total / 60);
+    const m = total % 60;
+    return h === 0 ? `${m}m` : m === 0 ? `${h}h` : `${h}h ${m}m`;
+  };
+  const done = b >= 6;
+  const photos = [
+    "linear-gradient(135deg,#C9C2B6,#8F877B)",
+    "linear-gradient(135deg,#B9C6D6,#6E7F95)",
+    "linear-gradient(135deg,#E2DCCF,#A79F8E)",
+  ];
+  return (
+    <div className={DETAIL_PAGE}>
+      <DetailHead
+        kind="job"
+        status={done ? "REQUIRES_INVOICING" : "ACTIVE"}
+        title={job.title}
+        client={job.client}
+        actions={
+          done ? (
+            <>
+              <Btn icon={Receipt}>Create invoice</Btn>
+              <IconBtn icon={MoreHorizontal} />
+            </>
+          ) : (
+            <>
+              <span className="ds-btn ds-btn-outline">
+                <PenLine size={15} />
+                Collect signature
+              </span>
+              <Btn icon={CheckCircle} pressed={b === 5}>
+                Complete job
+              </Btn>
+              <IconBtn icon={MoreHorizontal} />
+            </>
+          )
+        }
+      />
+      <Facts>
+        <Fact label="Job #">318</Fact>
+        <div className="min-w-0">
+          <span className="block text-xs font-medium text-gray-500">
+            Scheduled
+          </span>
+          <span className="inline-flex items-center gap-1.5 font-medium text-[color:var(--ds-primary)]">
+            <CalendarDays size={14} />
+            Oct 29, 9:00 AM
+          </span>
+        </div>
+      </Facts>
+      <div className="grid grid-cols-3 gap-5">
+        <div className="col-span-2 space-y-4">
+          <div className="ds-card p-5">
+            <h2 className="mb-4 flex items-center gap-1.5 text-[14.5px] font-semibold text-[color:var(--ds-ink)]">
+              Details
+            </h2>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <CalendarDays
+                  size={15}
+                  className="mt-0.5 shrink-0 text-gray-400"
+                />
+                <p className="text-sm text-gray-800">
+                  Thursday, October 29, 2026 9:00 AM – 11:00 AM
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <MapPin size={15} className="mt-0.5 shrink-0 text-gray-400" />
+                <p className="text-sm text-gray-800">
+                  412 Oak Ln, Plano, TX 75024
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <User size={15} className="mt-0.5 shrink-0 text-gray-400" />
+                <p className="text-sm text-gray-800">{BW.owner}</p>
+              </div>
             </div>
-          ))}
-          {b >= 1 && (
-            <div
-              className="wb-drop-cal absolute rounded-md border-2 border-[#F86A0A] bg-[#FFF1E6] px-1.5 py-1 text-[9.5px] font-bold text-[#9A3412]"
-              style={{ left: "calc(40px + (100% - 40px) * 3 / 5 + 3px)", width: "calc((100% - 40px) / 5 - 6px)", top: 1 * ROW + 3, height: 2 * ROW - 6 }}
-            >
-              9:00a · {job.client}
-              <span className="block font-semibold text-[#C2410C]">{job.short} · Sam</span>
+          </div>
+          <div className="card-ledger overflow-hidden">
+            <div className="flex w-full items-center justify-between px-5 py-4">
+              <h2 className="text-[14.5px] font-semibold text-[color:var(--ds-ink)]">
+                Notes &amp; Activity
+              </h2>
+            </div>
+            <div className="border-t border-gray-100">
+              <div className="space-y-3 p-4">
+                <div className="mt-2 flex gap-2">
+                  <span className="h-[58px] flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-400">
+                    Add a note…
+                  </span>
+                  <span className="btn-primary shrink-0 opacity-50">
+                    <Send size={14} />
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="card-ledger overflow-hidden">
+            <div className="flex w-full items-center justify-between px-5 py-4">
+              <h2 className="text-[14.5px] font-semibold text-[color:var(--ds-ink)]">
+                Photos
+              </h2>
+            </div>
+            <div className="border-t border-gray-100 p-4">
+              {b >= 2 ? (
+                <div className="grid grid-cols-4 gap-2">
+                  {photos.slice(0, Math.min(3, b - 1)).map((bg) => (
+                    <span
+                      key={bg}
+                      className="aspect-square rounded-lg"
+                      style={{ background: bg, ...ROW_IN }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="py-4 text-center text-sm font-medium text-gray-800">
+                  No photos attached yet
+                </p>
+              )}
+              <div className="mt-3 flex items-center gap-2">
+                <span className="flex items-center gap-6 rounded-[10px] border border-gray-300 px-3 py-1.5 text-xs text-gray-800">
+                  Photo <ChevronDown size={12} />
+                </span>
+                <span className="btn-tool-line flex items-center gap-1.5 rounded-[10px] bg-white px-3 py-1.5 text-sm font-semibold text-gray-800">
+                  <Camera size={13} />
+                  Add photos
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="space-y-4">
+          {!done && (
+            <div className="ds-card p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-[14.5px] font-semibold text-[color:var(--ds-ink)]">
+                  Time clock
+                </h2>
+                {b >= 5 && (
+                  <span className="flex items-center gap-1 text-xs text-gray-500">
+                    {dur(ms)} logged
+                  </span>
+                )}
+              </div>
+              {onClock ? (
+                <>
+                  <p className="numeral-ledger mb-3 text-2xl font-semibold tabular-nums text-gray-900">
+                    {dur(ms)}
+                  </p>
+                  <span className="ds-btn ds-btn-lg w-full justify-center bg-[color:var(--ds-ink)] text-[color:var(--ds-surface)]">
+                    <Square size={14} fill="currentColor" />
+                    Clock out
+                  </span>
+                </>
+              ) : (
+                <span className="btn-primary btn-lg w-full justify-center">
+                  <Play size={14} fill="currentColor" />
+                  Clock in
+                </span>
+              )}
             </div>
           )}
-        </div>
-        {b >= 2 && (
-          <div className="wb-toast-in absolute bottom-3 right-3 flex items-center gap-2 rounded-xl bg-[#1D2E52] px-3 py-2 text-[10.5px] font-semibold text-white">
-            <Check className="h-3.5 w-3.5 text-green-300" strokeWidth={3} /> Reminder sent to {job.first}
+          <div className="ds-card p-4">
+            <h2 className="mb-3 flex items-center gap-1.5 text-[14.5px] font-semibold text-[color:var(--ds-ink)]">
+              <Users size={13} />
+              Team
+            </h2>
+            <label className="flex items-center gap-2 text-sm text-gray-800">
+              <span className="flex h-4 w-4 items-center justify-center rounded-[3px] bg-[color:var(--ds-primary)] text-white">
+                <Check size={11} strokeWidth={3} />
+              </span>
+              {BW.owner}
+            </label>
           </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function JobScreen({ on }: { on: boolean }) {
-  const job = useJob();
-  const b = useBeat(on, [500, 1700, 2300, 2900, 3700]);
-  const [secs, setSecs] = useState(0);
-  useEffect(() => {
-    if (!on || b < 1) {
-      if (!on) setSecs(0);
-      return;
-    }
-    if (b >= 5) {
-      setSecs(7800);
-      return;
-    }
-    const t = setInterval(() => setSecs((s) => Math.min(7800, s + 260)), 40);
-    return () => clearInterval(t);
-  }, [on, b]);
-  const hh = Math.floor(secs / 3600);
-  const mm = String(Math.floor((secs % 3600) / 60)).padStart(2, "0");
-  return (
-    <div>
-      <PageHead sub={`${job.client} · Thu, Oct 29 · 9:00a`} title={`Job #318 · ${job.short}`} right={b >= 5 ? <Chip tone="green">Complete</Chip> : <Chip tone="blue">In progress</Chip>} />
-      <div className="relative mt-3 grid grid-cols-[1fr_1.2fr] gap-3">
-        <div className="rounded-2xl border border-[#E3E6EC] bg-white p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-400">Time clock</p>
-          <p className="mt-1 text-[28px] font-semibold tabular-nums text-gray-900">
-            {hh}:{mm}
-            <span className="text-[14px] text-gray-400"> hrs</span>
-          </p>
-          <span className={`mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-[11.5px] font-semibold text-white transition-colors duration-500 ${b >= 1 && b < 5 ? "bg-[#B91C1C]" : ""}`} style={b >= 1 && b < 5 ? undefined : { background: NAVY }}>
-            {b >= 1 && b < 5 ? (
-              <>
-                <Square className="h-3 w-3 fill-white" /> Clock out
-              </>
-            ) : (
-              <>
-                <Play className="h-3 w-3 fill-white" /> Clock in
-              </>
-            )}
-          </span>
-        </div>
-        <div className="rounded-2xl border border-[#E3E6EC] bg-white p-4">
-          <p className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-400">
-            Photos <Camera className="h-3.5 w-3.5" />
-          </p>
-          <div className="mt-2 grid grid-cols-3 gap-1.5">
-            {["#C8D6EE", "#E9D8C4", "#CFE3D4"].map((c, k) =>
-              b >= 2 + k ? (
-                <span key={c} className="wb-pop-in flex aspect-square items-end rounded-lg p-1 text-[8.5px] font-semibold text-gray-700" style={{ background: c }}>
-                  {["Before", "Wiring", "Done"][k]}
+          <div className="ds-card p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-[14.5px] font-semibold text-[color:var(--ds-ink)]">
+                Billing
+              </h2>
+              {done && (
+                <span className="ds-link text-xs font-medium">
+                  + Create Invoice
                 </span>
-              ) : (
-                <span key={c} className="aspect-square rounded-lg border-2 border-dashed border-[#E3E6EC]" />
-              ),
-            )}
+              )}
+            </div>
+            <p className="text-xs text-gray-500">
+              {done ? "This job is waiting to be invoiced." : "No invoice yet."}
+            </p>
           </div>
         </div>
-        {b >= 5 && <Burst />}
       </div>
     </div>
   );
 }
 
-function InvoiceScreen({ on, paid }: { on: boolean; paid?: boolean }) {
+/** Invoice: Send to client (unpaid), or the payment arriving (paid). */
+function InvoicePage({ b, paid }: { b: number; paid?: boolean }) {
   const job = useJob();
-  const b = useBeat(on, paid ? [500, 1300] : [1400, 2400]);
-  const sent = !paid && b >= 2;
+  const status = paid
+    ? b >= 2
+      ? "PAID"
+      : "AWAITING_PAYMENT"
+    : b >= 3
+      ? "AWAITING_PAYMENT"
+      : "DRAFT";
+  const isPaid = status === "PAID";
+  const balance = isPaid ? 0 : job.balance;
   return (
-    <div>
-      <PageHead
-        sub={`${job.client} · Job #318`}
-        title="Invoice #2490"
-        right={paid ? (b >= 1 ? <Chip tone="green">Paid</Chip> : <Chip tone="amber">Awaiting payment</Chip>) : sent ? <Chip tone="amber">Sent</Chip> : <Chip tone="gray">Draft</Chip>}
-      />
-      <div className="relative mt-3 overflow-hidden rounded-2xl border border-[#E3E6EC] bg-white">
-        {[
-          ...job.lines.map((l) => [l.qty > 1 ? `${l.name} · ${l.qty} × ${usd(l.unit)}` : l.name, usd(l.qty * l.unit)]),
-          ["Deposit paid Oct 26", `−${usd(job.deposit)}`],
-        ].map(([a, v]) => (
-          <div key={a} className="flex items-center justify-between border-b border-[#EEF0F3] px-4 py-2.5 text-[12px]">
-            <span className="text-gray-700">{a}</span>
-            <span className="font-semibold tabular-nums text-gray-900">{v}</span>
-          </div>
-        ))}
-        <div className="flex items-center justify-between bg-[#F8F9FB] px-4 py-3">
-          <span className="text-[12px] font-semibold text-gray-900">{paid && b >= 1 ? "Paid by card" : "Balance due"}</span>
-          <span className={`text-[16px] font-semibold tabular-nums ${paid && b >= 1 ? "text-[#17703B]" : "text-gray-900"}`}>{usd(job.balance)}</span>
-        </div>
-        {paid && b >= 1 && (
-          <span className="wb-stamp-now pointer-events-none absolute right-[22%] top-[22%] rounded-lg border-[3px] border-[#17A34A] px-3 py-1 text-[26px] font-black tracking-[0.14em] text-[#17A34A]" style={{ transform: "rotate(-12deg)" }}>
-            PAID
-          </span>
-        )}
-        {paid && b >= 1 && <Confetti />}
-      </div>
-      <div className="relative mt-3 flex items-center justify-between">
-        <span className="text-[11px] text-gray-500">{paid ? (b >= 2 ? `Collected on this job: ${usd(job.total)}` : "Pay link sent by text and email") : "Due on receipt"}</span>
-        {!paid && (
+    <div className={DETAIL_PAGE}>
+      <DetailHead
+        kind="invoice"
+        status={status}
+        title={job.title}
+        client={job.client}
+        actions={
           <>
-            <span className={`relative flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[11.5px] font-semibold text-white transition-transform duration-200 ${b === 1 ? "scale-95" : ""}`} style={{ background: NAVY }}>
-              <Send className="h-3.5 w-3.5" />
-              {sent ? `Sent to ${job.first}` : "Send invoice"}
-            </span>
-            <Plane go={b >= 1} />
+            {status === "DRAFT" && (
+              <Btn icon={Send} pressed={b === 1}>
+                Send to client
+              </Btn>
+            )}
+            {status === "AWAITING_PAYMENT" && (
+              <Btn icon={DollarSign}>Collect payment</Btn>
+            )}
+            {isPaid && (
+              <span className="ds-btn ds-btn-outline">
+                <RotateCcw size={13} />
+                Re-open Invoice
+              </span>
+            )}
+            <IconBtn icon={MoreHorizontal} />
           </>
+        }
+      />
+      <Facts>
+        <Fact label="Invoice #">2490</Fact>
+        <Fact label="Invoice for" tone="ds-link">
+          Job #318
+        </Fact>
+        <Fact label="From quote" tone="ds-link">
+          Quote #1051
+        </Fact>
+        <Fact label="Issued">Oct 29, 2026</Fact>
+        <Fact label="Due date">Nov 28, 2026</Fact>
+        {status !== "DRAFT" &&
+          (paid ? (
+            <Fact
+              label="Viewed"
+              tone="inline-flex items-center gap-1 font-medium text-green-700"
+            >
+              <Eye size={13} />
+              Oct 29, 2026
+            </Fact>
+          ) : (
+            <Fact label="Viewed" tone="text-gray-400">
+              Not viewed yet
+            </Fact>
+          ))}
+        {isPaid && <Fact label="Paid">Oct 29, 2026</Fact>}
+      </Facts>
+      <div className="ds-card mb-6 overflow-hidden">
+        <LineTable head="Line item" />
+        <div className="border-t border-[color:var(--ds-line)] bg-[color:var(--ds-surface-2)] px-6 py-4">
+          <div className="ml-auto w-64 space-y-1.5 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Subtotal</span>
+              <span className="ds-num text-gray-800">{usd(job.total)}</span>
+            </div>
+            <div className="flex justify-between text-[color:var(--ds-good)]">
+              <span>Deposit applied</span>
+              <span className="ds-num">−{usd(job.deposit)}</span>
+            </div>
+            <div className="flex justify-between border-t border-gray-200 pt-1.5 text-base font-bold">
+              <span className="text-gray-900">Total</span>
+              <span className="ds-num text-gray-900">{usd(job.balance)}</span>
+            </div>
+            {isPaid && (
+              <div className="flex justify-between text-[color:var(--ds-good)]">
+                <span>Payments</span>
+                <span className="ds-num">−{usd(job.balance)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-semibold">
+              <span className="text-gray-900">Invoice balance</span>
+              <span
+                className={`ds-num ${balance > 0 ? "text-gray-900" : "text-[color:var(--ds-good)]"}`}
+              >
+                {usd(balance)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="ds-card overflow-hidden">
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+          <h2 className="text-sm font-semibold text-gray-700">Payments</h2>
+          {!isPaid && (
+            <span className="ds-link text-xs">+ Collect Payment</span>
+          )}
+        </div>
+        {isPaid ? (
+          <div
+            className="flex items-center justify-between px-5 py-3"
+            style={ROW_IN}
+          >
+            <div>
+              <p className="text-sm font-medium text-gray-900">
+                Credit/debit card
+              </p>
+              <p className="text-xs text-gray-500">
+                Oct 29, 2026 · Online payment
+              </p>
+            </div>
+            <span className="ds-num text-sm font-semibold text-gray-900">
+              {usd(job.balance)}
+            </span>
+          </div>
+        ) : (
+          <p className="px-5 py-6 text-center text-sm text-gray-500">
+            No payments recorded yet.
+          </p>
         )}
       </div>
     </div>
   );
 }
 
-function Burst() {
+/** One step of the journey: the page, plus the app's moment for it. */
+function Step({ k, w }: { k: StepKey; w: number }) {
+  const job = useJob();
+  const beats: Record<StepKey, number[]> = {
+    req: [900, 3600],
+    quote: [1100, 1400, 3700],
+    ok: [600, 1900, 3100, 4300],
+    sched: [900, 2100],
+    done: [700, 1500, 2100, 2700, 3500, 4100],
+    inv: [1100, 1400, 3700],
+    paid: [700, 1500],
+  };
+  const b = useBeat(true, beats[k]);
+  const step = ALL_STEPS.find((s) => s.key === k)!;
+  const counts: Record<string, number> = {
+    Requests: k === "req" ? (b >= 1 ? 2 : 1) : 1,
+  };
+  let toast: React.ReactNode = null;
+  let overlay: React.ReactNode = null;
+  if (k === "req" && b === 1)
+    toast = (
+      <LiveCard
+        kind="request"
+        title="New request"
+        sub={`${job.title} · ${job.client}`}
+      />
+    );
+  if ((k === "quote" || k === "inv") && b === 2)
+    overlay = <SendRitual line={`Emailed to ${job.email}`} />;
+  if (k === "ok" && b === 1)
+    toast = (
+      <LiveCard
+        kind="quote"
+        title={`${job.client} approved Quote #1051`}
+        sub={`${usd(job.total)} · deposit invoice sent`}
+      />
+    );
+  if (k === "ok" && b === 3)
+    toast = (
+      <LiveCard
+        kind="payment"
+        title={`Payment received · ${usd(job.deposit)}`}
+        sub={job.client}
+      />
+    );
+  if (k === "ok" && b >= 2) overlay = <Confetti key="ok" />;
+  if (k === "paid" && b === 1)
+    toast = (
+      <LiveCard
+        kind="payment"
+        title={`Payment received · ${usd(job.balance)}`}
+        sub={job.client}
+      />
+    );
+  if (k === "paid" && b >= 2) overlay = <Confetti key="paid" />;
   return (
-    <span className="pointer-events-none absolute right-6 top-1 h-16 w-16" aria-hidden>
-      {Array.from({ length: 10 }).map((_, k) => (
-        <span key={k} className="wb-burst absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full" style={{ background: k % 2 ? "#F86A0A" : "#17A34A", ["--a" as string]: `${k * 36}deg` }} />
-      ))}
-    </span>
+    <div style={{ width: w, height: 800 }}>
+      <AppWindow
+        nav={step.nav}
+        counts={counts}
+        bellDot={Boolean(toast)}
+        toast={toast}
+        overlay={overlay}
+      >
+        {k === "req" && <RequestsPage b={b} />}
+        {k === "quote" && <QuotePage b={b} />}
+        {k === "ok" && <ApprovedPage b={b} />}
+        {k === "sched" && <SchedulePage b={b} />}
+        {k === "done" && <JobPage b={b} />}
+        {k === "inv" && <InvoicePage b={b} />}
+        {k === "paid" && <InvoicePage b={b} paid />}
+      </AppWindow>
+    </div>
   );
 }
 
-function Confetti() {
-  const colors = ["#F86A0A", "#0B57D8", "#17A34A", "#FFB020", "#1D2E52"];
+/** The step drawn finished (reduced motion): no timers, last beat. */
+function StillStep({ k, w }: { k: StepKey; w: number }) {
+  const step = ALL_STEPS.find((s) => s.key === k)!;
   return (
-    <span className="pointer-events-none absolute inset-x-0 top-0 h-full" aria-hidden>
-      {Array.from({ length: 22 }).map((_, k) => (
-        <span
-          key={k}
-          className="wb-confetti absolute top-0 h-2 w-1.5 rounded-[1px]"
-          style={{ left: `${(k * 37) % 100}%`, background: colors[k % colors.length], animationDelay: `${(k % 7) * 0.06}s`, ["--x" as string]: `${((k * 53) % 60) - 30}px`, ["--r" as string]: `${(k * 71) % 360}deg` }}
-        />
-      ))}
-    </span>
+    <div style={{ width: w, height: 800 }}>
+      <AppWindow nav={step.nav} counts={{ Requests: 2 }}>
+        {k === "req" && <RequestsPage b={2} />}
+        {k === "quote" && <QuotePage b={3} />}
+        {k === "ok" && <ApprovedPage b={3} />}
+        {k === "sched" && <SchedulePage b={2} />}
+        {k === "done" && <JobPage b={6} />}
+        {k === "inv" && <InvoicePage b={3} />}
+        {k === "paid" && <InvoicePage b={2} paid />}
+      </AppWindow>
+    </div>
   );
 }
 
-/* ── the frame ───────────────────────────────────────────────────────────── */
-
-// The app's own sidebar (as in WBLiveApp): Requests lives under WORK.
-const NAV = [
-  { icon: Home, label: "Home" },
-  { icon: CalendarDays, label: "Schedule" },
-  { icon: Users, label: "Clients" },
-  { icon: FileText, label: "Quotes" },
-  { icon: Briefcase, label: "Jobs" },
-  { icon: Receipt, label: "Invoices" },
-];
-
-export default function WBAppJourney({ job = DEFAULT_JOB, steps: only }: { job?: JourneyJob; steps?: StepKey[] } = {}) {
-  const STEPS = only ? ALL_STEPS.filter((st) => only.includes(st.key)) : ALL_STEPS;
+export default function WBAppJourney({
+  job = DEFAULT_JOB,
+  steps: only,
+}: { job?: JourneyJob; steps?: StepKey[] } = {}) {
+  const STEPS = only
+    ? ALL_STEPS.filter((st) => only.includes(st.key))
+    : ALL_STEPS;
   const ref = useRef<HTMLDivElement>(null);
   const [i, setI] = useState(0);
   const [run, setRun] = useState(false);
+  const [still, setStill] = useState(false);
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setStill(true);
       setI(STEPS.length - 1);
       return;
     }
-    const io = new IntersectionObserver(([e]) => setRun(e.isIntersecting), { threshold: 0.3 });
+    const io = new IntersectionObserver(([e]) => setRun(e.isIntersecting), {
+      threshold: 0.3,
+    });
     if (ref.current) io.observe(ref.current);
     return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!run) return;
-    const t = setTimeout(() => setI((n) => (n + 1) % STEPS.length), i === STEPS.length - 1 ? STEP_MS + 1200 : STEP_MS);
+    const t = setTimeout(
+      () => setI((n) => (n + 1) % STEPS.length),
+      i === STEPS.length - 1 ? STEP_MS + 1200 : STEP_MS,
+    );
     return () => clearTimeout(t);
   }, [i, run, STEPS.length]);
 
@@ -517,104 +1781,61 @@ export default function WBAppJourney({ job = DEFAULT_JOB, steps: only }: { job?:
 
   return (
     <JobCtx.Provider value={job}>
-    <div ref={ref}>
-      {/* the rail */}
-      <div className="relative mx-2 sm:mx-6">
-        <div className="absolute left-0 right-0 top-[19px] h-[3px] rounded-full bg-[#E3E8F0]" />
-        <div className="absolute left-0 top-[19px] h-[3px] rounded-full bg-[#F86A0A] transition-[width] duration-700 ease-[cubic-bezier(0.2,0.8,0.2,1)]" style={{ width: `${pct}%` }} />
-        <ol className="relative flex justify-between">
-          {STEPS.map((st, n) => {
-            const StIcon = st.icon;
-            return (
-              <li key={st.key} className="flex w-0 flex-col items-center">
-                <button
-                  type="button"
-                  onClick={() => setI(n)}
-                  aria-label={st.label}
-                  className={`flex h-10 w-10 items-center justify-center rounded-full transition-[background-color,color,box-shadow,transform] duration-500 ${
-                    n === i ? "scale-110 bg-[#F86A0A] text-white shadow-[0_0_0_5px_rgba(248,106,10,0.18)]" : n < i ? "bg-[#0A1428] text-white" : "bg-white text-gray-400 shadow-[0_0_0_1px_rgba(10,20,40,0.12)]"
-                  }`}
-                >
-                  {n < i ? <Check className="h-4 w-4" strokeWidth={3} /> : <StIcon className="h-[18px] w-[18px]" strokeWidth={2.2} />}
-                </button>
-                <span className={`mt-2.5 whitespace-nowrap text-[12px] font-bold transition-colors duration-500 max-sm:hidden sm:text-[13.5px] ${n === i ? "text-[#0A1428]" : "text-gray-500"}`}>{st.label}</span>
-              </li>
-            );
-          })}
-        </ol>
-      </div>
-
-      {/* the app */}
-      <div className="mt-10 select-none text-left" style={FONT} aria-hidden>
-        <div className="overflow-hidden rounded-xl bg-[#F4F5F8] shadow-[0_0_0_1px_rgba(10,20,40,0.1),0_30px_60px_-30px_rgba(10,20,40,0.5)]">
-          <div className="flex">
-            <aside className="hidden w-[168px] flex-none flex-col border-r border-[#DCE1EA] bg-[#E8ECF3] md:flex">
-              <div className="m-2.5 flex h-[44px] items-center justify-center rounded-xl border border-[#D7DCE6] bg-white">
-                <Image src="/wb/brightwire-logo.png" alt="" width={142} height={44} className="h-[26px] w-auto" />
-              </div>
-              <div className="mt-1 border-t border-[#DCE1EA] pt-2">
-                {NAV.map(({ icon: Icon, label }) => {
-                  const on = label === s.nav;
-                  return (
-                    <div key={label} className={`relative flex items-center gap-2.5 px-4 py-[7px] text-[12px] transition-colors duration-300 ${on ? "bg-[#D9DFEA] font-semibold text-gray-900" : "text-gray-600"}`}>
-                      {on && <span className="absolute inset-y-0 left-0 w-[3px] bg-[#1D2E52]" />}
-                      <Icon className="h-[14px] w-[14px]" strokeWidth={1.8} />
-                      {label}
-                    </div>
-                  );
-                })}
-                {["WORK", "MONEY", "BUSINESS"].map((g) => {
-                  const on = g === "WORK" && s.nav === "Requests";
-                  return (
-                    <div key={g} className={`flex items-center gap-2 px-4 py-[7px] text-[8.5px] font-semibold tracking-[0.14em] transition-colors duration-300 ${on ? "bg-[#D9DFEA] text-gray-900" : "text-gray-500"}`}>
-                      {g}
-                      <span className="h-px flex-1 bg-[#D3D9E3]" />
-                      <ChevronRight className="h-3 w-3" />
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="mt-auto border-t border-[#DCE1EA] px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1D2E52] text-[9.5px] font-semibold text-white">MD</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[10.5px] font-semibold text-gray-900">Mike Delgado</span>
-                    <span className="block text-[9px] text-gray-500">Brightwire Electric</span>
+      <div ref={ref}>
+        {/* the rail */}
+        <div className="relative mx-2 sm:mx-6">
+          <div className="absolute left-0 right-0 top-[19px] h-[3px] rounded-full bg-[#E3E8F0]" />
+          <div
+            className="absolute left-0 top-[19px] h-[3px] rounded-full bg-[#F86A0A] transition-[width] duration-700 ease-[cubic-bezier(0.2,0.8,0.2,1)]"
+            style={{ width: `${pct}%` }}
+          />
+          <ol className="relative flex justify-between">
+            {STEPS.map((st, n) => {
+              const StIcon = st.icon;
+              return (
+                <li key={st.key} className="flex w-0 flex-col items-center">
+                  <button
+                    type="button"
+                    onClick={() => setI(n)}
+                    aria-label={st.label}
+                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-[background-color,color,box-shadow,transform] duration-500 ${
+                      n === i
+                        ? "scale-110 bg-[#F86A0A] text-white shadow-[0_0_0_5px_rgba(248,106,10,0.18)]"
+                        : n < i
+                          ? "bg-[#0A1428] text-white"
+                          : "bg-white text-gray-400 shadow-[0_0_0_1px_rgba(10,20,40,0.12)]"
+                    }`}
+                  >
+                    {n < i ? (
+                      <Check className="h-4 w-4" strokeWidth={3} />
+                    ) : (
+                      <StIcon className="h-[18px] w-[18px]" strokeWidth={2.2} />
+                    )}
+                  </button>
+                  <span
+                    className={`mt-2.5 whitespace-nowrap text-[12px] font-bold transition-colors duration-500 max-sm:hidden sm:text-[13.5px] ${n === i ? "text-[#0A1428]" : "text-gray-500"}`}
+                  >
+                    {st.label}
                   </span>
-                  <ChevronsUpDown className="h-3 w-3 text-gray-400" />
-                </div>
-              </div>
-            </aside>
-            <div className="min-w-0 flex-1">
-              <div className="flex h-[44px] items-center justify-end gap-2.5 border-b border-[#E4E7ED] px-4">
-                <span className="mr-auto hidden w-[220px] items-center gap-2 rounded-lg bg-[#ECEEF2] px-3 py-1.5 text-[11px] text-gray-400 lg:flex">
-                  <Search className="h-3 w-3" /> Search
-                </span>
-                <span className="flex items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-semibold text-white" style={{ background: NAVY }}>
-                  <Plus className="h-3 w-3" strokeWidth={2.5} /> Create
-                </span>
-                <span className="hidden items-center gap-1 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-800 sm:flex">
-                  <MessagesSquare className="h-3 w-3" /> Chat
-                </span>
-                <Bell className="h-[14px] w-[14px] text-gray-500" />
-                <Settings className="h-[14px] w-[14px] text-gray-500" />
-              </div>
-              <div className="relative h-[330px] overflow-hidden px-5 pt-5 sm:px-7">
-                <div key={s.key} className="wb-step-in">
-                  {s.key === "req" && <RequestsScreen on={run || i === 0} />}
-                  {s.key === "quote" && <QuoteScreen on />}
-                  {s.key === "ok" && <ApprovedScreen on />}
-                  {s.key === "sched" && <ScheduleScreen on />}
-                  {s.key === "done" && <JobScreen on />}
-                  {s.key === "inv" && <InvoiceScreen on />}
-                  {s.key === "paid" && <InvoiceScreen on paid />}
-                </div>
-              </div>
-            </div>
-          </div>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+
+        {/* the app */}
+        <div className="mt-10">
+          <AppCanvas height={800}>
+            {(w) =>
+              still || !(run || i === 0) ? (
+                <StillStep key={s.key} k={s.key} w={w} />
+              ) : (
+                <Step key={`${s.key}-${run}`} k={s.key} w={w} />
+              )
+            }
+          </AppCanvas>
         </div>
       </div>
-    </div>
     </JobCtx.Provider>
   );
 }

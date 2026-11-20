@@ -1,43 +1,108 @@
 "use client";
 
-import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 import {
   Bell,
   Briefcase,
+  Building2,
+  Calculator,
+  CalendarClock,
   CalendarDays,
   ChevronDown,
-  ChevronRight,
   ChevronsUpDown,
+  DollarSign,
   FileSignature,
   FileText,
+  Globe,
   Home,
   Inbox,
+  ListChecks,
+  MessageSquare,
   MessagesSquare,
+  Mic,
+  MonitorSmartphone,
+  PhoneCall,
   Plus,
   Receipt,
   Repeat,
   Route,
   Search,
   Settings,
-  Timer,
-  Users,
-  DollarSign,
   SquareKanban,
+  Tag,
+  Timer,
+  UserPlus,
+  Users,
+  Zap,
 } from "lucide-react";
-import { FONT, NAVY } from "./kit";
+import Avatar from "@/components/Avatar";
+import { ChatFill, HomeFill, MoreFill, ScheduleFill } from "@/components/TabIcons";
+import { resolveAccent, shade, textOn } from "@/lib/branding";
+import { dsBrandVars } from "@/lib/ds-theme";
+import { FONT } from "./kit";
 
 /**
- * The desktop app's chrome (sidebar + top bar), as in WBAppJourney / the
- * real AppShell: Home, Schedule, Clients, Quotes, Jobs, Invoices up top,
- * then the WORK / MONEY / BUSINESS groups. A page that lives in a group
- * (Routes, Agreements, Timesheets under Work; Recurring under Money) opens
- * that group with its row lit. Brightwire Electric is the one demo company.
+ * The real AppShell, drawn for the marketing site's app-screen demos: the
+ * desktop rail (company tile, six daily drivers, the Work / Money /
+ * Business groups with the one holding the page open, Settings, the user
+ * row) and the top bar (Search · Ctrl K, Create in the company primary,
+ * Chat, bell, gear) — the same class names as components/AppShell.tsx, so
+ * globals.css / ds.css paint them exactly as in the app. Brightwire
+ * Electric (lib/demo-company.ts) has no logo, so the rail shows the
+ * monogram tile on its primary, as the real app does.
  *
- * `sidebarFrom` picks the width where the sidebar shows (split demos pass
- * "xl" so the screen keeps its room); below it the logo moves to the top bar.
+ * Two modes:
+ *  - default: the chrome is zoomed down (CHROME_ZOOM) around a page area
+ *    whose children are drawn at demo scale (the older demos).
+ *  - `real`: everything, children included, is drawn at the app's real
+ *    pixel sizes on a `designWidth`-wide desktop and zoomed to fit the
+ *    container — children can use the app's own classes and sizes.
+ *
+ * `PhoneApp` is the phone tree (iOS large-title header, floating glass tab
+ * bar) for a coded phone screen inside kit's `Phone`.
  */
 
-const TOP = [
+export const BRAND = {
+  name: "Brightwire Electric",
+  user: "Mike Delgado",
+  primary: "#10244A",
+  secondary: "#F5B700",
+} as const;
+
+const CHROME_ZOOM = 0.74;
+
+function tint(hex: string, amount: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const f = (c: number) => Math.min(255, Math.round(c + (255 - c) * amount));
+  return `#${((f((n >> 16) & 255) << 16) | (f((n >> 8) & 255) << 8) | f(n & 255)).toString(16).padStart(6, "0")}`;
+}
+
+const RAIL_ACCENT = resolveAccent([BRAND.primary, BRAND.secondary], "#F1F2F4", "#0A1428");
+
+/** The CSS variables AppShell puts on its root for this company (light theme). */
+export function appVars(): React.CSSProperties {
+  const a = BRAND.primary;
+  return {
+    "--mobile-accent-light": a,
+    "--mobile-on-accent-light": textOn(a),
+    "--mobile-accent-soft-light": `${a}1A`,
+    "--wb-accent-bright-light": tint(a, 0.14),
+    "--wb-accent-light": a,
+    "--wb-accent-strong-light": shade(a, 0.14),
+    "--wb-on-accent-light": textOn(a),
+    "--wb-ink-light": a,
+    "--wb-ink-strong-light": shade(a, 0.14),
+    "--wb-primary-l": a,
+    "--wb-primary": a,
+    "--rail-accent-l": RAIL_ACCENT,
+    ...dsBrandVars(BRAND.primary, BRAND.secondary),
+  } as React.CSSProperties;
+}
+
+type Item = { icon: typeof Home; label: string };
+const DRIVERS: Item[] = [
   { icon: Home, label: "Home" },
   { icon: CalendarDays, label: "Schedule" },
   { icon: Users, label: "Clients" },
@@ -45,28 +110,191 @@ const TOP = [
   { icon: Briefcase, label: "Jobs" },
   { icon: Receipt, label: "Invoices" },
 ];
-const GROUPS: { label: string; items: { icon: typeof Home; label: string }[] }[] = [
+const GROUPS: { label: string; items: Item[] }[] = [
   {
-    label: "WORK",
+    label: "Work",
     items: [
       { icon: SquareKanban, label: "Leads" },
       { icon: Inbox, label: "Requests" },
+      { icon: Calculator, label: "Estimates" },
+      { icon: MessageSquare, label: "Messages" },
+      { icon: PhoneCall, label: "Calls" },
+      { icon: CalendarClock, label: "Appointments" },
       { icon: Route, label: "Routes" },
+      { icon: ListChecks, label: "Tasks" },
       { icon: FileSignature, label: "Agreements" },
+      // Owners reach Timesheets through Business → Overview; only listed
+      // when a demo is ON that page (a tech's rail has it here).
       { icon: Timer, label: "Timesheets" },
     ],
   },
   {
-    label: "MONEY",
+    label: "Money",
     items: [
       { icon: DollarSign, label: "Payments" },
       { icon: Repeat, label: "Recurring" },
     ],
   },
-  { label: "BUSINESS", items: [] },
+  {
+    label: "Business",
+    items: [
+      { icon: Building2, label: "Overview" },
+      { icon: Zap, label: "Automations" },
+      { icon: Tag, label: "Services" },
+      { icon: Globe, label: "Booking & forms" },
+      { icon: MonitorSmartphone, label: "Website" },
+      { icon: UserPlus, label: "Team & roles" },
+    ],
+  },
 ];
 
-const SIDEBAR = { md: ["hidden md:flex", "md:hidden"], lg: ["hidden lg:flex", "lg:hidden"], xl: ["hidden xl:flex", "xl:hidden"] } as const;
+function NavLink({ Icon, label, on }: { Icon: typeof Home; label: string; on: boolean }) {
+  return (
+    <a
+      data-rail-active={on ? "true" : undefined}
+      className={`group relative font-display flex items-center gap-2.5 py-2 pl-4 pr-4 text-[13px] ${
+        on ? "font-semibold" : "font-medium text-[color:var(--rail-muted)]"
+      }`}
+    >
+      {on && <span aria-hidden className="rail-indicator rail-indicator-on" style={{ height: "100%" }} />}
+      <Icon size={16} strokeWidth={1.8} className={on ? "text-[color:var(--rail-accent)]" : "text-[color:var(--rail-faint)]"} />
+      <span className="truncate">{label}</span>
+    </a>
+  );
+}
+
+/** The desktop rail, at the app's real size (232 px). */
+function Rail({ nav, height }: { nav: string; height: number }) {
+  return (
+    <aside className="rail-gray flex w-[232px] shrink-0 flex-col border-r border-[color:var(--rail-line)]" style={{ height }}>
+      <div className="flex min-h-[57px] min-w-0 items-center gap-3 border-b border-[color:var(--rail-line)] px-3.5">
+        <span
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] font-display text-lg font-bold shadow-sm"
+          style={{ backgroundColor: RAIL_ACCENT, color: textOn(RAIL_ACCENT) }}
+        >
+          {BRAND.name.charAt(0)}
+        </span>
+        <span className="truncate font-display text-[15px] font-semibold tracking-tight text-[color:var(--rail-ink)]">{BRAND.name}</span>
+      </div>
+      <nav className="relative flex-1 overflow-hidden py-3">
+        {DRIVERS.map((d) => (
+          <NavLink key={d.label} Icon={d.icon} label={d.label} on={d.label === nav} />
+        ))}
+        {GROUPS.map((g) => {
+          const open = g.items.some((i) => i.label === nav);
+          const items = g.items.filter((i) => i.label !== "Timesheets" || nav === "Timesheets");
+          return (
+            <div key={g.label} className="mt-3">
+              <div
+                className={`flex w-full items-center gap-2.5 py-2 pl-4 pr-4 font-display text-[10.5px] font-semibold uppercase tracking-[0.12em] ${
+                  open ? "text-[color:var(--rail-muted)]" : "text-[color:var(--rail-faint)]"
+                }`}
+              >
+                <span className="shrink-0">{g.label}</span>
+                <span aria-hidden className="rail-head-rule" />
+                <ChevronDown size={13} className={`shrink-0 ${open ? "" : "-rotate-90"}`} />
+              </div>
+              {open && (
+                <div>
+                  {items.map((i) => (
+                    <NavLink key={i.label} Icon={i.icon} label={i.label} on={i.label === nav} />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </nav>
+      <div className="border-t border-[color:var(--rail-line)] py-1.5">
+        <NavLink Icon={Settings} label="Settings" on={nav === "Settings"} />
+        <div className="flex w-full items-center gap-3 px-4 py-3 text-left">
+          <Avatar name={BRAND.user} size={30} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-semibold text-[color:var(--rail-ink)]">{BRAND.user}</p>
+            <p className="truncate text-[11px] text-[color:var(--rail-faint)]">{BRAND.name}</p>
+          </div>
+          <ChevronsUpDown size={13} className="shrink-0 text-[color:var(--rail-faint)]" />
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+/** The desktop top bar, at the app's real size (57 px). */
+function TopBar() {
+  return (
+    <header className="app-header relative flex min-h-[57px] shrink-0 items-center gap-4 border-b border-gray-200 bg-chrome px-6">
+      <span className="ml-auto flex w-full max-w-xs items-center gap-2 rounded-md border border-transparent bg-gray-100 px-3 py-1.5 text-sm text-gray-400">
+        <Search size={14} />
+        <span>Search</span>
+        <kbd className="ml-auto rounded border border-gray-200 bg-white px-1.5 py-px text-[10px] font-semibold text-gray-400">Ctrl K</kbd>
+      </span>
+      <span className="flex items-center gap-1.5 rounded-full bg-green-600 px-3.5 py-1.5 text-sm font-semibold text-[color:var(--wb-on-accent,#ffffff)]">
+        <Plus size={15} />
+        Create
+      </span>
+      <span className="relative flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600">
+        <MessagesSquare size={15} />
+        Chat
+      </span>
+      <span className="relative flex rounded-md p-2 text-gray-400">
+        <Bell size={17} />
+      </span>
+      <span className="flex rounded-md p-2 text-gray-400">
+        <Settings size={17} />
+      </span>
+    </header>
+  );
+}
+
+/** The phone header's left slot: round monogram + company name + switcher chevron. */
+function PhoneTopBar() {
+  return (
+    <header className="app-header relative flex min-h-[57px] shrink-0 items-center gap-4 border-b border-gray-200 bg-chrome px-4">
+      <div className="flex min-w-max flex-1 basis-0 items-center">
+        <span className="-ml-0.5 flex h-10 items-center gap-2.5">
+          <span className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[color:var(--mobile-accent)] text-[13px] font-bold text-[color:var(--mobile-on-accent)] ring-1 ring-black/10">
+            {BRAND.name.charAt(0)}
+          </span>
+          <span className="truncate text-[16px] font-bold tracking-tight text-gray-900">{BRAND.name}</span>
+          <ChevronDown size={15} strokeWidth={2.6} className="shrink-0 text-gray-400" />
+        </span>
+      </div>
+      <div className="flex min-w-max flex-1 basis-0 items-center justify-end">
+        <span className="glass-control mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ color: BRAND.secondary }}>
+          <Mic size={20} />
+        </span>
+        <span className="glass-control relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-700">
+          <Bell size={20} />
+        </span>
+        <span className="glass-control ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-700">
+          <Settings size={20} />
+        </span>
+      </div>
+    </header>
+  );
+}
+
+const SIDEBAR = { md: ["hidden md:block", "md:hidden"], lg: ["hidden lg:block", "lg:hidden"], xl: ["hidden xl:block", "xl:hidden"] } as const;
+
+/** Zoom that fits a `designWidth`-wide drawing into the element's width. */
+export function useFitZoom(designWidth: number, max = 1) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [z, setZ] = useState<number | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => {
+      const w = el.getBoundingClientRect().width;
+      if (w > 0) setZ(Math.min(max, w / designWidth));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [designWidth, max]);
+  return { ref, z };
+}
 
 export default function WBAppFrame({
   nav,
@@ -75,71 +303,61 @@ export default function WBAppFrame({
   heightSm,
   sidebarFrom = "md",
   className = "",
+  real = false,
+  designWidth = 1040,
 }: {
   /** The active sidebar label: "Schedule", "Quotes", "Routes", "Recurring", "Timesheets"… */
   nav: string;
   children: React.ReactNode;
-  /** Height of the page area under the top bar, fixed so loops never shift the page. */
+  /** Height of the page area under the top bar, fixed so loops never shift the page.
+   *  In `real` mode it is in the app's own pixels (before the fit zoom). */
   height?: number;
   /** Height under 640px wide, when the phone layout needs less room (default: height). */
   heightSm?: number;
   sidebarFrom?: "md" | "lg" | "xl";
   className?: string;
+  /** Draw the page at the app's real sizes and zoom the whole window to fit. */
+  real?: boolean;
+  /** `real` mode: the width of the desktop window being drawn (rail included). */
+  designWidth?: number;
 }) {
-  const [asideCls, logoCls] = SIDEBAR[sidebarFrom];
+  const fit = useFitZoom(designWidth);
+
+  if (real) {
+    const z = fit.z ?? 0.6;
+    return (
+      <div ref={fit.ref} className={`select-none text-left ${className}`} aria-hidden>
+        <div
+          className="app-ui ds flex overflow-hidden rounded-xl bg-paper-plain shadow-[0_0_0_1px_rgba(10,20,40,0.1),0_30px_60px_-30px_rgba(10,20,40,0.5)]"
+          style={{ ...appVars(), ...FONT, zoom: z, height: height + 57, opacity: fit.z === null ? 0 : 1 } as React.CSSProperties}
+        >
+          <Rail nav={nav} height={height + 57} />
+          <div className="page-atmo relative flex min-w-0 flex-1 flex-col overflow-hidden">
+            <TopBar />
+            <main className="app-main relative flex-1 overflow-hidden">{children}</main>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const [asideCls, phoneBarCls] = SIDEBAR[sidebarFrom];
+  const barH = Math.round(57 * CHROME_ZOOM);
   return (
     <div className={`select-none text-left ${className}`} style={FONT} aria-hidden>
-      <div className="overflow-hidden rounded-xl bg-[#F4F5F8] shadow-[0_0_0_1px_rgba(10,20,40,0.1),0_30px_60px_-30px_rgba(10,20,40,0.5)]">
+      <div className="app-ui ds overflow-hidden rounded-xl bg-paper-plain shadow-[0_0_0_1px_rgba(10,20,40,0.1),0_30px_60px_-30px_rgba(10,20,40,0.5)]" style={appVars()}>
         <div className="flex">
-          <aside className={`${asideCls} w-[168px] flex-none flex-col overflow-hidden border-r border-[#DCE1EA] bg-[#E8ECF3]`} style={{ height: height + 44 }}>
-            <div className="m-2.5 flex h-[44px] flex-none items-center justify-center rounded-xl border border-[#D7DCE6] bg-white">
-              <Image src="/wb/brightwire-logo.png" alt="" width={142} height={44} className="h-[26px] w-auto" />
+          <div className={`${asideCls} flex-none overflow-hidden`} style={{ width: 232 * CHROME_ZOOM }}>
+            <div style={{ zoom: CHROME_ZOOM } as React.CSSProperties}>
+              <Rail nav={nav} height={Math.round((height + barH) / CHROME_ZOOM)} />
             </div>
-            <div className="mt-1 min-h-0 flex-1 overflow-hidden border-t border-[#DCE1EA] pt-2">
-              {TOP.map(({ icon: Icon, label }) => (
-                <NavRow key={label} Icon={Icon} label={label} on={label === nav} />
-              ))}
-              {GROUPS.map((g) => {
-                const hit = g.items.find((it) => it.label === nav);
-                return (
-                  <div key={g.label}>
-                    <div className="flex items-center gap-2 px-4 py-[7px] text-[8.5px] font-semibold tracking-[0.14em] text-gray-500">
-                      {g.label}
-                      <span className="h-px flex-1 bg-[#D3D9E3]" />
-                      {hit ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                    </div>
-                    {hit && <NavRow Icon={hit.icon} label={hit.label} on />}
-                  </div>
-                );
-              })}
+          </div>
+          <div className="page-atmo relative min-w-0 flex-1">
+            <div className={asideCls} style={{ zoom: CHROME_ZOOM } as React.CSSProperties}>
+              <TopBar />
             </div>
-            <div className="flex-none border-t border-[#DCE1EA] px-4 py-3">
-              <div className="flex items-center gap-2">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1D2E52] text-[9.5px] font-semibold text-white">MD</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[10.5px] font-semibold text-gray-900">Mike Delgado</span>
-                  <span className="block truncate text-[9px] text-gray-500">Brightwire Electric</span>
-                </span>
-                <ChevronsUpDown className="h-3 w-3 text-gray-400" />
-              </div>
-            </div>
-          </aside>
-          <div className="min-w-0 flex-1">
-            <div className="flex h-[44px] items-center justify-end gap-2.5 border-b border-[#E4E7ED] px-4">
-              <span className={`${logoCls} mr-auto flex items-center`}>
-                <Image src="/wb/brightwire-logo.png" alt="" width={142} height={44} className="h-[22px] w-auto" />
-              </span>
-              <span className="mr-auto hidden w-[220px] items-center gap-2 rounded-lg bg-[#ECEEF2] px-3 py-1.5 text-[11px] text-gray-400 lg:flex">
-                <Search className="h-3 w-3" /> Search
-              </span>
-              <span className="flex items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-semibold text-white" style={{ background: NAVY }}>
-                <Plus className="h-3 w-3" strokeWidth={2.5} /> Create
-              </span>
-              <span className="hidden items-center gap-1 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-800 sm:flex">
-                <MessagesSquare className="h-3 w-3" /> Chat
-              </span>
-              <Bell className="h-[14px] w-[14px] text-gray-500" />
-              <Settings className="h-[14px] w-[14px] text-gray-500" />
+            <div className={phoneBarCls} style={{ zoom: CHROME_ZOOM } as React.CSSProperties}>
+              <PhoneTopBar />
             </div>
             <div
               className="relative h-[var(--fhs)] overflow-hidden px-4 pt-4 sm:h-[var(--fh)] sm:px-6 sm:pt-5"
@@ -154,12 +372,38 @@ export default function WBAppFrame({
   );
 }
 
-function NavRow({ Icon, label, on }: { Icon: typeof Home; label: string; on: boolean }) {
+/**
+ * The phone app (390 px wide, drawn at real size; put it inside kit's
+ * `Phone` with `Fit`): the header with the company, the page, and the
+ * floating glass tab bar with the Create button. `tab` lights Home /
+ * Schedule / Chat / More (a page reached from More lights none).
+ */
+export function PhoneApp({ tab, children, height = 780 }: { tab?: "Home" | "Schedule" | "Chat" | "More"; children: React.ReactNode; height?: number }) {
+  const tabCls = (on: boolean) =>
+    `my-1.5 flex flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[10.5px] ${on ? "tab-on-pill tab-ink-on font-semibold" : "tab-ink font-medium"}`;
+  const tabs: [string, typeof HomeFill][] = [
+    ["Home", HomeFill],
+    ["Schedule", ScheduleFill],
+    ["Chat", ChatFill],
+    ["More", MoreFill],
+  ];
   return (
-    <div className={`relative flex items-center gap-2.5 px-4 py-[7px] text-[12px] ${on ? "bg-[#D9DFEA] font-semibold text-gray-900" : "text-gray-600"}`}>
-      {on && <span className="absolute inset-y-0 left-0 w-[3px] bg-[#1D2E52]" />}
-      <Icon className="h-[14px] w-[14px]" strokeWidth={1.8} />
-      {label}
+    <div className="app-ui ds relative flex flex-col overflow-hidden bg-paper-plain" style={{ ...appVars(), ...FONT, width: 390, height }}>
+      <PhoneTopBar />
+      <main className="app-main relative min-h-0 flex-1 overflow-hidden">{children}</main>
+      <nav className="mobile-tab-bar absolute inset-x-3 bottom-2.5 z-30 flex items-stretch gap-2.5">
+        <div className="glass-control flex h-[58px] min-w-0 flex-1 items-stretch rounded-full px-1.5">
+          {tabs.map(([label, Icon]) => (
+            <span key={label} className={tabCls(label === tab)}>
+              <Icon size={24} />
+              {label}
+            </span>
+          ))}
+        </div>
+        <span className="glass-tinted relative flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-full">
+          <Plus size={26} strokeWidth={2.5} />
+        </span>
+      </nav>
     </div>
   );
 }

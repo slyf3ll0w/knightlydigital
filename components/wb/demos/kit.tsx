@@ -12,6 +12,8 @@ import "./demos.css";
  */
 
 export const NAVY = "#1D2E52";
+/** Brightwire Electric's primary (lib/demo-company.ts brandColor). */
+export const BRAND_PRIMARY = "#10244A";
 export const FONT = { fontFamily: "var(--font-lexend), Lexend, system-ui, sans-serif" };
 export const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 export const firstName = (name: string) => name.split(" ")[0];
@@ -133,20 +135,19 @@ export function PageHead({ title, sub, right }: { title: string; sub?: string; r
 }
 
 export type ChipTone = "blue" | "amber" | "green" | "gray" | "orange";
+/**
+ * The app's status chip (components/StatusChip → .ds-chip in app/ds.css):
+ * a colored dot and plain words. blue = the company primary, orange = the
+ * secondary, green / amber = the fixed good / warn tones, gray = neutral.
+ */
 export function Chip({ tone, children, className = "" }: { tone: ChipTone; children: React.ReactNode; className?: string }) {
-  const c = {
-    blue: "bg-[#E8EEFB] text-[#22406E]",
-    amber: "bg-[#FDF3DC] text-[#8A5A07]",
-    green: "bg-[#E3F5EA] text-[#17703B]",
-    gray: "bg-[#ECEEF2] text-gray-600",
-    orange: "bg-[#FFE7D6] text-[#9A3412]",
-  }[tone];
-  return <span className={`inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold ${c} ${className}`}>{children}</span>;
+  const c = { blue: "ds-chip-primary", amber: "ds-chip-warn", green: "ds-chip-good", gray: "ds-chip-neutral", orange: "ds-chip-secondary" }[tone];
+  return <span className={`ds-chip flex-none ${c} ${className}`}>{children}</span>;
 }
 
-/** The app's white card (same as the screens in WBAppJourney). */
+/** The app's card (.ds-card: white, 20px corners, hairline ring). */
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`overflow-hidden rounded-2xl border border-[#E3E6EC] bg-white ${className}`}>{children}</div>;
+  return <div className={`ds-card overflow-hidden bg-white ${className}`}>{children}</div>;
 }
 
 export function Plane({ go, className = "right-3 top-1/2" }: { go: boolean; className?: string }) {
@@ -164,7 +165,8 @@ export function Burst({ className = "right-6 top-1" }: { className?: string }) {
 }
 
 export function Confetti() {
-  const colors = ["#F86A0A", "#0B57D8", "#17A34A", "#FFB020", "#1D2E52"];
+  // components/Celebration.tsx's colors (the app's win-moment confetti)
+  const colors = ["#22C55E", "#16A34A", "#4ADE80", "#FBBF24", "#0C0F0C"];
   return (
     <span className="pointer-events-none absolute inset-x-0 top-0 h-full" aria-hidden>
       {Array.from({ length: 22 }).map((_, k) => (
@@ -178,25 +180,32 @@ export function Confetti() {
   );
 }
 
-/** A rubber stamp (APPROVED / PAID / SIGNED) that slams down. */
+/**
+ * The inked stamp the client pages press onto a document (.c-stamp in
+ * app/client.css: 2.5px border, wide-tracked caps, -6deg) — APPROVED /
+ * PAID / SIGNED. green = the good tone, navy = the company's color.
+ */
 export function Stamp({ text, className = "", size = 22, tone = "green" }: { text: string; className?: string; size?: number; tone?: "green" | "navy" }) {
-  const c = tone === "green" ? "#17A34A" : NAVY;
+  const c = tone === "green" ? "#15803D" : BRAND_PRIMARY;
   return (
     <span
-      className={`wb-stamp-now pointer-events-none absolute rounded-lg border-[3px] bg-white/85 px-3 py-1 font-black tracking-[0.12em] ${className}`}
-      style={{ rotate: "-10deg", fontSize: size, borderColor: c, color: c }}
+      className={`wb-stamp-now pointer-events-none absolute whitespace-nowrap rounded-[6px] border-[2.5px] bg-white/80 font-bold uppercase ${className}`}
+      style={{ rotate: "-6deg", fontSize: size * 0.75, padding: `${size * 0.2}px ${size * 0.65}px`, letterSpacing: "0.22em", borderColor: c, color: c, opacity: 0.9 }}
     >
       {text}
     </span>
   );
 }
 
-/** The navy toast the app shows after an action. */
-export function Toast({ children, className = "bottom-3 right-3" }: { children: React.ReactNode; className?: string }) {
+/**
+ * The app's toast (app/platform/schedule/UndoToast.tsx): a gray-900 bar,
+ * 14px corners, white words. `sub` is its second, quieter line.
+ */
+export function Toast({ children, sub, className = "bottom-3 right-3" }: { children: React.ReactNode; sub?: React.ReactNode; className?: string }) {
   return (
-    <div className={`wb-toast-in absolute z-20 flex items-center gap-2 rounded-xl bg-[#1D2E52] px-3 py-2 text-[10.5px] font-semibold text-white shadow-[0_12px_24px_-12px_rgba(10,20,40,0.6)] ${className}`}>
-      <Check className="h-3.5 w-3.5 flex-none text-green-300" strokeWidth={3} />
-      <span>{children}</span>
+    <div className={`wb-toast-in absolute z-20 rounded-[14px] bg-gray-900 px-3.5 py-2 text-[11px] text-white shadow-[0_10px_30px_rgba(9,13,19,0.3)] ${className}`}>
+      <p className="font-medium leading-snug">{children}</p>
+      {sub && <p className="text-[10px] leading-snug opacity-75">{sub}</p>}
     </div>
   );
 }
@@ -252,7 +261,7 @@ export function Phone({ children, width = 280, height = 560, className = "", scr
       className={`relative flex-none rounded-[2.6rem] bg-[#0A1428] p-[9px] shadow-[0_0_0_1px_rgba(10,20,40,0.2),0_30px_60px_-28px_rgba(10,20,40,0.55)] ${className}`}
       style={{ width, height }}
     >
-      <div className={`relative flex h-full w-full flex-col overflow-hidden rounded-[2.05rem] ${screen}`}>
+      <div className={`ds relative flex h-full w-full flex-col overflow-hidden rounded-[2.05rem] ${screen}`}>
         <div className="flex h-[38px] flex-none items-center justify-between px-6 pt-1 text-[11.5px] font-semibold text-gray-900">
           <span>9:41</span>
           <span className="flex items-center gap-1">
@@ -269,6 +278,52 @@ export function Phone({ children, width = 280, height = 560, className = "", scr
       </div>
     </div>
   );
+}
+
+/**
+ * Draws its child at `width` px (a 390-wide phone page, a 1040-wide
+ * desktop) and zooms it to the width it is given, so a screen keeps the
+ * app's real proportions at any size.
+ */
+export function Fit({ width = 390, children, className = "" }: { width?: number; children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [z, setZ] = useState<number | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => {
+      const w = el.getBoundingClientRect().width;
+      if (w > 0) setZ(w / width);
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [width]);
+  return (
+    <div ref={ref} className={`w-full ${className}`}>
+      <div style={{ zoom: z ?? 0.7, width, opacity: z === null ? 0 : 1 } as React.CSSProperties}>{children}</div>
+    </div>
+  );
+}
+
+/**
+ * True when the element is narrower than `min` px — a desktop app screen
+ * drawn smaller than that can't be read, so demos show the phone app there.
+ */
+export function useNarrow(min: number) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setNarrow(el.getBoundingClientRect().width < min);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [min]);
+  return { ref, narrow };
 }
 
 /** Parse "9:00a", "9a", "9:00 AM", "1:30 pm", "13:00" into minutes from midnight. */

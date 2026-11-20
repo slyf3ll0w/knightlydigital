@@ -74,7 +74,7 @@ export const TRADES: Trade[] = [
       },
       {
         q: "How do I handle an emergency call that jumps the schedule?",
-        a: "Drag the job onto the calendar wherever it fits, or tell Atlas to move the rest of the day. Clients whose times change hear about it automatically, and the day view shows every stop in order so you can see what a same-day call does to the afternoon.",
+        a: "Drag the job onto the calendar wherever it fits, or tell Atlas to move the rest of the day. Text a client their new time in one tap from the move, and the day view shows every stop in order so you can see what a same-day call does to the afternoon.",
       },
       {
         q: "Can I collect a deposit before ordering a water heater?",

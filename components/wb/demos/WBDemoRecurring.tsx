@@ -1,16 +1,29 @@
 "use client";
 
-import { Check, CreditCard, Receipt, Repeat } from "lucide-react";
-import WBAppFrame from "./WBAppFrame";
-import { Card, Chip, PageHead, initialsOf, usd, useDemoLoop, useRoll } from "./kit";
+import { Check, Info, Pause, Pencil, Repeat, RotateCw, X } from "lucide-react";
+import PageTitle from "@/components/PageTitle";
+import { money } from "@/lib/statuses";
+import WBAppFrame, { PhoneApp } from "./WBAppFrame";
+import { Fit, Phone, useNarrow, useDemoLoop } from "./kit";
 
 /**
- * A client's recurring series: "{service} · {cadence}", the coming visits
- * filling a strip of dates, then ticking Done one by one. Billed per visit,
- * each completed visit drops its invoice in, paid by autopay; billed
- * monthly, the visits wait and one invoice for the month lands at the end
- * with a dated line per visit. Rests on the finished month under reduced
- * motion.
+ * The real Recurring page (app/platform/subscriptions, nav Money →
+ * Recurring) with the client's series on it, in the real AppShell; on
+ * phones the same page in the phone tree.
+ *
+ * billing "visit" — a per-visit series ("$95.00 per visit · bills on
+ * completion"): the owner opens the row's inline edit, sets the visit
+ * schedule (Repeats, Next visit, Time, Length, who gets the visits),
+ * saves, and the row reads "visits every 2 weeks · Next visit: …" with the
+ * page's real flash "4 upcoming visits added to the schedule." (each visit
+ * then bills itself when it is completed).
+ *
+ * billing "monthly" — per-visit price, one invoice a month ("billed
+ * monthly", Bills: the 1st): as the month's visits are completed the
+ * Ready to bill card counts them up; then Bill now → "Invoice generated."
+ * and the next billing date moves on a month.
+ *
+ * Rests on the finished state under reduced motion.
  */
 
 const DEFAULTS = {
@@ -20,6 +33,27 @@ const DEFAULTS = {
   price: 95,
   visits: ["Nov 4", "Nov 18", "Dec 2", "Dec 16"],
 };
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** "Nov 4" → "Nov 4, 2026"; anything else ("Tue 4") → that day in November. */
+function fullDate(label: string): string {
+  const [w, d] = label.split(" ");
+  if (MONTHS.includes(w) && d) return `${w} ${d}, 2026`;
+  const n = label.match(/\d+/)?.[0] ?? "4";
+  return `Nov ${n}, 2026`;
+}
+function isoOf(label: string): string {
+  const [w, d] = fullDate(label).replace(",", "").split(" ");
+  return `${String(MONTHS.indexOf(w) + 1).padStart(2, "0")}/${d.padStart(2, "0")}/2026`;
+}
+
+type Row = { name: string; client: string; sub: string; visits?: string; bills?: string; next?: string; billNow?: boolean };
+
+const OTHERS: Row[] = [
+  { name: "Maintenance plan", client: "Derek Olsen", sub: "Monthly plan · $49.00", bills: "Dec 1, 2026", billNow: true },
+  { name: "Seasonal check-up", client: "Olivia Park", sub: "Quarterly plan · $189.00", bills: "Jan 12, 2027", billNow: true },
+  { name: "Maintenance plan", client: "Hannah Brooks", sub: "Monthly plan · $49.00", bills: "Dec 3, 2026", billNow: true },
+];
 
 export default function WBDemoRecurring({
   client = DEFAULTS.client,
@@ -35,156 +69,363 @@ export default function WBDemoRecurring({
   cadence?: string;
   price?: number;
   billing?: "visit" | "monthly";
-  /** date labels, "Nov 4" style; up to six are shown */
+  /** date labels, "Nov 4" style; up to six are used */
   visits?: string[];
   /** the month the consolidated invoice is for (monthly billing) */
   month?: string;
 } = {}) {
   const vs = visits.slice(0, 6);
-  const n = vs.length;
-  // 1..n tiles fill in · then n visits complete · monthly: + invoice + paid
-  const fill = vs.map((_, k) => 300 + k * 180);
-  const complete = vs.map((_, k) => 1700 + k * 1100);
-  const last = 1700 + (n - 1) * 1100;
-  const tail = billing === "monthly" ? [last + 900, last + 1700] : [];
-  const { ref, b } = useDemoLoop([...fill, ...complete, ...tail], last + 4600);
-  const filled = Math.min(n, b);
-  const doneCount = Math.max(0, Math.min(n, b - n));
-  const monthlyIssued = billing === "monthly" && b >= 2 * n + 1;
-  const monthlyPaid = billing === "monthly" && b >= 2 * n + 2;
-  const paidTotal = billing === "visit" ? doneCount * price : monthlyPaid ? n * price : 0;
-  const shownPaid = useRoll(paidTotal, 500);
-  const ready = billing === "monthly" && !monthlyIssued ? doneCount * price : 0;
+  const n = Math.max(1, vs.length);
+  // visit: 1 edit opens · 2 Repeats set · 3 Save pressed · 4 saved + flash
+  // monthly: 1..n visits completed · n+1 Bill now pressed · n+2 billed
+  const times =
+    billing === "visit" ? [1200, 2600, 4200, 4700] : [...vs.map((_, k) => 1000 + k * 1100), 1000 + n * 1100 + 600, 1000 + n * 1100 + 1100];
+  const cycle = billing === "visit" ? 10000 : 1000 + n * 1100 + 5200;
+  const { ref, b } = useDemoLoop(times, cycle);
 
+  const state: SeriesState =
+    billing === "visit"
+      ? { mode: "visit", editing: b >= 1 && b < 4, repeats: b >= 2, saving: b === 3, saved: b >= 4 }
+      : { mode: "monthly", done: Math.min(n, b), pressing: b === n + 1, billed: b >= n + 2 };
+
+  const props = { client, service, cadence, price, vs, month, state };
+  const wide = useNarrow(560);
   return (
     <div ref={ref}>
-      <WBAppFrame nav="Recurring" height={350} heightSm={330}>
-        <PageHead
-          sub="Clients"
-          title={client}
-          right={
-            <span className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#3E5277] text-[10px] font-semibold text-white">{initialsOf(client)}</span>
-              <Chip tone="green">Active</Chip>
-            </span>
-          }
-        />
-        <div className="mt-3 grid gap-3 sm:grid-cols-[1.15fr_1fr]">
-          {/* the series */}
-          <Card className="p-4">
-            <div className="flex items-start gap-2.5">
-              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-[#1D2E52] text-white">
-                <Repeat className="h-4 w-4" />
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-[13px] font-semibold text-gray-900">
-                  {service} · {cadence}
-                </span>
-                <span className="block text-[10.5px] text-gray-500">{usd(price)} a visit · Sam</span>
-              </span>
-            </div>
-            <div className="mt-3 grid gap-1.5" style={{ gridTemplateColumns: `repeat(${Math.max(n, 1)}, minmax(0, 1fr))` }}>
-              {vs.map((v, k) => {
-                const [mon, dd] = v.includes(" ") ? [v.split(" ")[0], v.split(" ").slice(1).join(" ")] : ["", v];
-                const shown = k < filled;
-                const done = k < doneCount;
-                if (!shown) return <span key={k} className="h-[64px] rounded-xl border-2 border-dashed border-[#E3E6EC]" />;
-                return (
-                  <span
-                    key={k}
-                    className={`wb-pop-in relative flex h-[64px] flex-col items-center justify-center rounded-xl border transition-colors duration-500 ${done ? "border-[#9FD8B2] bg-[#F1FAF4]" : "border-[#C9D3E6] bg-[#E8EEFB]"}`}
-                  >
-                    <span className={`text-[9px] font-semibold uppercase tracking-[0.08em] ${done ? "text-[#17703B]" : "text-[#22406E]"}`}>{mon}</span>
-                    <span className={`text-[18px] font-semibold leading-none ${done ? "text-[#17703B]" : "text-[#22406E]"}`}>{dd}</span>
-                    <span className="mt-1 h-3.5">
-                      {done ? (
-                        <span key="d" className="wb-demo-tick flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#17A34A] text-white">
-                          <Check className="h-2.5 w-2.5" strokeWidth={3.4} />
-                        </span>
-                      ) : (
-                        <span className="text-[8.5px] text-[#3E5277]">9:00a</span>
-                      )}
-                    </span>
-                  </span>
-                );
-              })}
-            </div>
-            <div className="mt-3 space-y-1.5 border-t border-[#EEF0F3] pt-3 text-[11px]">
-              <p className="flex items-center justify-between">
-                <span className="text-gray-500">Billing</span>
-                <span className="font-semibold text-gray-900">{billing === "visit" ? "Per visit, after each one" : "One invoice a month"}</span>
-              </p>
-              <p className="flex items-center justify-between">
-                <span className="text-gray-500">Autopay</span>
-                <span className="flex items-center gap-1 font-semibold text-gray-900">
-                  <CreditCard className="h-3 w-3" /> Visa •••• 4242
-                </span>
-              </p>
-              <p className="flex items-center justify-between sm:hidden">
-                <span className="text-gray-500">Paid by autopay</span>
-                <span className="font-semibold tabular-nums text-[#17703B]">{usd(Math.round(shownPaid))}</span>
-              </p>
-              {billing === "monthly" && (
-                <p className="flex items-center justify-between">
-                  <span className="text-gray-500">Ready to bill</span>
-                  <span className="font-semibold tabular-nums text-gray-900">
-                    {monthlyIssued ? "Billed" : `${doneCount} ${doneCount === 1 ? "visit" : "visits"} · ${usd(ready)}`}
-                  </span>
-                </p>
-              )}
-            </div>
-          </Card>
+      <div ref={wide.ref}>
+      <div className={wide.narrow ? "hidden" : "max-lg:hidden"}>
+        <WBAppFrame nav="Recurring" real height={500} designWidth={880}>
+          <RecurringPage {...props} />
+        </WBAppFrame>
+      </div>
+      <div className={wide.narrow ? "flex justify-center" : "flex justify-center lg:hidden"}>
+        <Phone width={300} height={620}>
+          <Fit width={390}>
+            <PhoneApp height={Math.round(((620 - 74) * 390) / 282)}>
+              <RecurringPage {...props} phone />
+            </PhoneApp>
+          </Fit>
+        </Phone>
+      </div>
+      </div>
+    </div>
+  );
+}
 
-          {/* invoices */}
-          <Card className="flex flex-col max-sm:hidden">
-            <div className="flex items-center justify-between border-b border-[#EEF0F3] px-4 py-2.5">
-              <span className="text-[11.5px] font-semibold text-gray-900">Invoices</span>
-              <span className="text-[10.5px] tabular-nums text-gray-500">Paid {usd(Math.round(shownPaid))}</span>
-            </div>
-            <div className="flex-1">
-              {billing === "visit" &&
-                vs.slice(0, doneCount).map((v, k) => (
-                  <div key={v + k} className="wb-row-in flex items-center gap-2.5 border-b border-[#EEF0F3] px-4 py-2">
-                    <Receipt className="h-3.5 w-3.5 flex-none text-gray-400" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[11.5px] font-semibold text-gray-900">
-                        #{2491 + k} · {v}
-                      </span>
-                      <span className="block text-[10px] text-gray-500">{service}</span>
-                    </span>
-                    <span className="flex flex-col items-end gap-0.5">
-                      <span className="text-[11.5px] font-semibold tabular-nums text-gray-900">{usd(price)}</span>
-                      <Chip tone="green">Paid · autopay</Chip>
-                    </span>
-                  </div>
-                ))}
-              {billing === "monthly" && monthlyIssued && (
-                <div className="wb-row-in border-b border-[#EEF0F3] px-4 py-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <Receipt className="h-3.5 w-3.5 flex-none text-gray-400" />
-                    <span className="min-w-0 flex-1 truncate text-[11.5px] font-semibold text-gray-900">#2491 · {month}</span>
-                    <span className="text-[11.5px] font-semibold tabular-nums text-gray-900">{usd(n * price)}</span>
-                  </div>
-                  <div className="mt-1.5 space-y-0.5 pl-6">
-                    {vs.map((v, k) => (
-                      <p key={k} className="flex justify-between text-[10px] text-gray-500">
-                        <span>
-                          {v} · {service}
-                        </span>
-                        <span className="tabular-nums">{usd(price)}</span>
-                      </p>
-                    ))}
-                  </div>
-                  <div className="mt-1.5 flex justify-end">{monthlyPaid ? <Chip tone="green" className="wb-pop-in">Paid · autopay</Chip> : <Chip tone="amber">Charging card…</Chip>}</div>
-                </div>
-              )}
-              {((billing === "visit" && doneCount === 0) || (billing === "monthly" && !monthlyIssued)) && (
-                <p className="px-4 py-6 text-center text-[10.5px] text-gray-400">{billing === "visit" ? "Each visit bills when it is done" : "One invoice when the month's visits are done"}</p>
-              )}
-            </div>
-          </Card>
+type SeriesState =
+  | { mode: "visit"; editing: boolean; repeats: boolean; saving: boolean; saved: boolean }
+  | { mode: "monthly"; done: number; pressing: boolean; billed: boolean };
+
+function RecurringPage({
+  client,
+  service,
+  cadence,
+  price,
+  vs,
+  state,
+  phone = false,
+}: {
+  client: string;
+  service: string;
+  cadence: string;
+  price: number;
+  vs: string[];
+  month: string;
+  state: SeriesState;
+  phone?: boolean;
+}) {
+  const visitsLine = `visits ${cadence.toLowerCase()}`;
+  const flash =
+    state.mode === "visit"
+      ? state.saved
+        ? `${Math.min(4, vs.length)} upcoming visit${Math.min(4, vs.length) === 1 ? "" : "s"} added to the schedule.`
+        : ""
+      : state.billed
+        ? "Invoice generated."
+        : "";
+
+  const mine: Row =
+    state.mode === "visit"
+      ? {
+          name: service,
+          client,
+          sub: `${money(price)} per visit · bills on completion`,
+          visits: state.saved ? visitsLine : undefined,
+          next: state.saved ? fullDate(vs[0] ?? "Nov 4") : undefined,
+        }
+      : {
+          name: service,
+          client,
+          sub: `${money(price)} per visit · billed monthly`,
+          visits: visitsLine,
+          bills: state.billed ? "Jan 1, 2027" : "Dec 1, 2026",
+          next: fullDate(vs[Math.min(state.done, vs.length - 1)] ?? vs[0] ?? "Nov 4"),
+          billNow: true,
+        };
+  const ready = state.mode === "monthly" && !state.billed ? state.done : 0;
+
+  return (
+    <div className={phone ? "p-4" : "mx-auto max-w-4xl p-8"}>
+      <div className="mb-6 flex items-start justify-between gap-3">
+        {phone ? (
+          <h1 className="ds-title flex items-center gap-2 !text-[28px]">
+            Recurring
+            <Info size={15} className="text-[color:var(--ds-faint)]" />
+          </h1>
+        ) : (
+          <PageTitle info="Auto-charged plans, plus work billed per completed visit.">Recurring</PageTitle>
+        )}
+        <div className="flex items-center gap-2">
+          <span className="ds-btn ds-btn-outline shrink-0">
+            <RotateCw size={14} />
+            {phone ? "Run" : "Run due now"}
+          </span>
+          <span className="btn-primary shrink-0">
+            <Repeat size={14} />
+            {phone ? "New" : "New plan"}
+          </span>
         </div>
-      </WBAppFrame>
+      </div>
+
+      {flash && (
+        <div key={flash} className="wb-row-in mb-4 rounded-lg bg-[color:var(--ds-good-soft)] px-4 py-3 text-sm text-[color:var(--ds-good)]">
+          {flash}
+        </div>
+      )}
+
+      {ready > 0 && (
+        <div className="ds-card wb-row-in mb-6 overflow-hidden">
+          <div className={`flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--ds-line)] bg-[color:var(--ds-primary-soft)] py-3.5 ${phone ? "px-4" : "px-5"}`}>
+            <div>
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-[color:var(--ds-ink)]">
+                <span>
+                  Ready to bill <span key={ready} className="numeral-ledger wb-pop-in inline-block">{money(ready * price)}</span>
+                </span>
+                <Info size={14} className="text-[color:var(--ds-faint)]" />
+              </p>
+              <p className="text-xs text-[color:var(--ds-muted)]">
+                {ready} completed visit{ready === 1 ? "" : "s"} · 1 client
+              </p>
+            </div>
+            <span className="btn-primary">Bill ready work</span>
+          </div>
+          <div className="divide-y divide-gray-100">
+            <div className={`flex items-center gap-3 py-2.5 text-sm ${phone ? "px-4" : "px-5"}`}>
+              <span className="min-w-0 flex-1 truncate text-gray-800">{client}</span>
+              <span className="text-xs text-gray-500">
+                {ready} visit{ready === 1 ? "" : "s"}
+              </span>
+              <span className="numeral-ledger text-sm font-semibold text-gray-900">{money(ready * price)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-6">
+        <div className="ds-card overflow-hidden">
+          <div className="divide-y divide-gray-100">
+            {state.mode === "visit" && state.editing ? (
+              <EditForm key="edit" service={service} price={price} cadence={cadence} first={vs[0] ?? "Nov 4"} repeats={state.repeats} saving={state.saving} phone={phone} />
+            ) : (
+              <SeriesRow row={mine} phone={phone} pressing={state.mode === "monthly" && state.pressing} />
+            )}
+            {OTHERS.filter((r) => r.client !== client)
+              .slice(0, 2)
+              .map((r) => (
+                <SeriesRow key={r.client} row={r} phone={phone} />
+              ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SeriesRow({ row, phone, pressing = false }: { row: Row; phone: boolean; pressing?: boolean }) {
+  const amount = row.sub.match(/\$[\d,.]+/)?.[0] ?? "";
+  if (phone) {
+    const kind = row.sub.includes("per visit") ? "Per-job billing" : row.sub.split(" · ")[0];
+    return (
+      <div className="px-4 py-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900">{row.name}</p>
+          <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">{amount}</p>
+        </div>
+        <p className="mt-1 min-w-0 truncate text-xs text-gray-500">
+          {row.client} · {kind}
+          {row.visits && <span className="text-[color:var(--ds-primary)]"> · {row.visits}</span>}
+        </p>
+        <p className="mt-0.5 text-xs text-gray-500">
+          {row.bills && (
+            <>
+              Bills <span className="font-medium text-gray-700">{row.bills}</span>
+            </>
+          )}
+          {row.next && (
+            <>
+              {row.bills ? " · " : ""}Next visit <span className="font-medium text-gray-700">{row.next}</span>
+            </>
+          )}
+        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="flex h-10 items-center gap-1.5 rounded-[10px] border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600">
+            <Pencil size={13} />
+            Edit
+          </span>
+          {row.billNow && (
+            <span className={`relative flex h-10 items-center rounded-[10px] bg-[color:var(--ds-primary-soft)] px-3 text-xs font-medium text-[color:var(--ds-primary)] ${pressing ? "opacity-80" : ""}`}>
+              Bill now
+              {pressing && <span className="wb-demo-tap left-1/2 top-1/2" />}
+            </span>
+          )}
+          <span className="flex h-10 items-center gap-1.5 rounded-[10px] border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600">
+            <Pause size={13} />
+            Pause
+          </span>
+          <span className="flex h-10 w-10 items-center justify-center rounded-full text-gray-400">
+            <X size={16} />
+          </span>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="px-5 py-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-2 text-sm font-medium text-gray-900">{row.name}</p>
+          <p className="text-xs text-gray-500">
+            {row.client} · {row.sub}
+            {row.visits && <span key={row.visits} className="text-[color:var(--ds-primary)]"> · {row.visits}</span>}
+          </p>
+        </div>
+        <div className="whitespace-nowrap text-right text-xs text-gray-500">
+          {row.bills && (
+            <div>
+              Bills: <span key={row.bills} className="wb-pop-in inline-block font-medium text-gray-700">{row.bills}</span>
+            </div>
+          )}
+          {row.next && (
+            <div>
+              Next visit: <span className="font-medium text-gray-700">{row.next}</span>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="rounded-full p-1.5 text-gray-400">
+            <Pencil size={14} />
+          </span>
+          {row.billNow && (
+            <span className={`ds-btn ds-btn-soft ds-btn-sm relative ${pressing ? "scale-[0.97]" : ""}`}>
+              Bill now
+              {pressing && <span className="wb-demo-tap left-1/2 top-1/2" />}
+            </span>
+          )}
+          <span className="rounded-full p-1.5 text-gray-400">
+            <Pause size={14} />
+          </span>
+          <span className="rounded-full p-1.5 text-gray-400">
+            <X size={14} />
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const FIELD = "w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white text-gray-900";
+
+/** The row's inline edit form (SubscriptionsClient editId branch). */
+function EditForm({
+  service,
+  price,
+  cadence,
+  first,
+  repeats,
+  saving,
+  phone,
+}: {
+  service: string;
+  price: number;
+  cadence: string;
+  first: string;
+  repeats: boolean;
+  saving: boolean;
+  phone: boolean;
+}) {
+  return (
+    <div className={`wb-row-in space-y-3 bg-gray-50/70 py-4 ${phone ? "px-4" : "px-5"}`}>
+      <div className={`grid gap-2 ${phone ? "grid-cols-2" : "grid-cols-5"}`}>
+        <div className="col-span-2">
+          <label className="mb-0.5 block text-xs text-gray-500">Name</label>
+          <div className={`${FIELD} truncate`}>{service}</div>
+        </div>
+        <div>
+          <label className="mb-0.5 block text-xs text-gray-500">Price per visit</label>
+          <div className={FIELD}>{price}</div>
+        </div>
+        <div>
+          <label className="mb-0.5 block text-xs text-gray-500">Qty</label>
+          <div className={FIELD}>1</div>
+        </div>
+        <div className="col-span-2">
+          <label className="mb-0.5 block truncate text-xs text-gray-500">Autopay card</label>
+          <div className={`${FIELD} truncate`}>Default card (Visa •••• 4242)</div>
+        </div>
+      </div>
+      <div className="border-t border-gray-200 pt-3">
+        <p className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold text-gray-500">
+          Visit schedule
+          {repeats && <Info size={14} className="text-[color:var(--ds-faint)]" />}
+        </p>
+        <div className={`grid gap-2 ${phone ? "grid-cols-2" : "grid-cols-4"}`}>
+          <div className={phone ? "col-span-2" : ""}>
+            <label className="mb-0.5 block text-xs text-gray-500">Repeats</label>
+            <div key={String(repeats)} className={`${FIELD} ${repeats ? "wb-pop-in ring-2 ring-[color:var(--ds-primary)]" : ""}`}>{repeats ? cadence : "No repeating visits"}</div>
+          </div>
+          {repeats && (
+            <>
+              <div className="wb-row-in">
+                <label className="mb-0.5 block text-xs text-gray-500">Next visit</label>
+                <div className={FIELD}>{isoOf(first)}</div>
+              </div>
+              <div className="wb-row-in">
+                <label className="mb-0.5 block text-xs text-gray-500">Time</label>
+                <div className={FIELD}>9:00 AM</div>
+              </div>
+              <div className="wb-row-in">
+                <label className="mb-0.5 block text-xs text-gray-500">Length</label>
+                <div className={FIELD}>1 hour</div>
+              </div>
+            </>
+          )}
+        </div>
+        {repeats && (
+          <div className="wb-row-in mt-2">
+            <label className="mb-1 block text-xs text-gray-500">Assign visits to</label>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {["Jordan Reyes", "Mike Delgado", "Sam Whitaker"].map((u) => (
+                <span key={u} className="flex items-center gap-1.5 text-xs text-gray-700">
+                  <input type="checkbox" checked={u === "Sam Whitaker"} readOnly tabIndex={-1} className="accent-[color:var(--ds-primary)]" />
+                  {u}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      <p className="text-xs text-gray-500">Changes apply from the next billing run — invoices already generated keep their amounts.</p>
+      <div className="flex items-center gap-1.5">
+        <span className={`ds-btn ds-btn-primary ds-btn-sm relative ${saving ? "scale-[0.97]" : ""}`}>
+          <Check size={11} />
+          Save
+          {saving && <span className="wb-demo-tap left-1/2 top-1/2" />}
+        </span>
+        <span className="flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium text-gray-500">
+          <X size={11} />
+          Cancel
+        </span>
+      </div>
     </div>
   );
 }

@@ -123,7 +123,7 @@ export default function PaymentsPage() {
             title={["Recurring work", "pays itself."]}
             accent="#FF8B33"
             body={<p>Put a card on file once and every visit or monthly invoice charges it. A decline retries on a schedule and the client gets a link to update the card, so you never make the awkward call.</p>}
-            demo={<WBDemoRecurring />}
+            demo={<WBDemoRecurring billing="monthly" />}
           />
         </>
       }

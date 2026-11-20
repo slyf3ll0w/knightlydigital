@@ -97,7 +97,7 @@ export default function SchedulingDispatchPage() {
           eyebrow="Scheduling & dispatch"
           title={["The calendar is", "the command center."]}
           accent="#FF8B33"
-          intro="Day, week and month views with drag-to-schedule. Move a job and the clients whose times changed hear about it, so the office and the crew are always looking at the same day."
+          intro="Day, week and month views with drag-to-schedule. Drag a job to a new time, text the client the change in one tap, and the office and the crew are always looking at the same day."
           demo={<WBDemoDayShift />}
         />
       }
@@ -127,7 +127,7 @@ export default function SchedulingDispatchPage() {
             title={["Recurring visits,", "weeks ahead."]}
             accent="#0B57D8"
             body={<p>Set a visit series once and the visits appear on the calendar as real jobs you can drag, skip or reassign, billed per visit or once a month.</p>}
-            demo={<WBDemoRecurring />}
+            demo={<WBDemoRecurring billing="visit" />}
           />
         </>
       }
