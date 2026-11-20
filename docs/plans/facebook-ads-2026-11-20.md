@@ -1,5 +1,45 @@
 # Facebook ads in WorkBench (2026-11-20)
 
+> **PAUSED HERE (David, 2026-11-20): pick this up when WorkBench's own ads
+> account is set up.** Everything is built and live. What works today, with
+> nothing from Meta: reporting results back by pasting a dataset ID and
+> token (proven on a real Facebook dataset). What waits on you: the
+> one-click **Connect Facebook** button, which stays hidden until WorkBench's
+> Meta app exists. **Start at "Pick it up here" just below.**
+
+## Pick it up here
+
+Do these in order once the WorkBench ads account (its business portfolio)
+exists. Details for every step are in "What David does at Meta" further
+down; the step numbers match.
+
+1. **Start Business Verification first (step 7).** It takes days and
+   everything in section B waits on it. See "Step 7, where to click".
+2. **While that is pending, do section A (steps 1 to 6):** create the Meta
+   app, the Login configuration, the redirect addresses, the four Railway
+   variables on staging and the webhook, then Connect Facebook on staging
+   as yourself. Send every "Facebook said: …" line back: this is the first
+   time the one-click code meets Facebook and fixes are expected.
+3. **Then steps 8 to 11:** Tech Provider onboarding, App Review, the
+   Marketing API upgrade, go live. App Review cannot be submitted before
+   step 6 (Meta greys the button until it has logged a real call per
+   permission, about 2 days, and the reviewers want recordings of it
+   working).
+4. **Before WorkBench's first ad runs:** sign into WorkBench's own company
+   in the app and connect it (or paste its dataset ID and token), so
+   sign-ups and booked calls are reported from day one.
+
+Loose ends from the first test, to tidy when you are back:
+
+- **Steadfast still has the test dataset saved** (`1105339769000952`),
+  unless it was turned off. Steadfast is not running Facebook ads: Facebook
+  ads page → Turn off.
+- **The Help Center guide is on hold** until the one-click route is proven.
+- **No announcement** has been written (it is due only when you call this
+  done).
+- Still unproven even on the by-hand route: a real lead with a real click
+  ID being matched (recipe 2).
+
 David: "could we make it to where Workbench can integrate with Facebook
 ads?" He picked two pieces, **report results back to Facebook** and
 **Facebook lead forms straight in**: "i want our clients to be able to do it
@@ -206,6 +246,46 @@ the app can). Steps 7 to 10 are what lets your customers use it.
    **Create lead** → it should be on the Leads board in seconds. Tell me
    every "Facebook said: …" line you see; this is the first time this code
    meets Facebook.
+
+### Step 7, where to click
+
+Signed into the **WorkBench** business portfolio (not a test one):
+**business.facebook.com/settings/security** (Business settings → Security
+Center) → the Business verification box → **Start verification**. In some
+accounts the same button is under Business settings → Business info.
+
+It asks for, in order:
+
+1. Business details: legal name (Streamflaire Group LLC), address, phone,
+   website, typed exactly as on the documents.
+2. A document proving the legal name: articles of organization, a business
+   licence, or an IRS letter (the EIN confirmation letter).
+3. A document proving the address or phone, if the first does not show it:
+   a business bank statement or utility bill in the company's name.
+4. A confirmation: a code to the business phone, an email at the business
+   domain, or a domain check.
+
+What gets in the way:
+
+- **Start verification is greyed out.** Meta often unlocks it only once
+  the portfolio has something that needs it. Do step 2 first (create the
+  app, attached to this portfolio), then come back, or start it from the
+  app: developers.facebook.com → the app → App settings → Basic →
+  Verification → Start verification.
+- You need **full control** of the portfolio, and Meta may want two-factor
+  sign-in turned on.
+- **Name mismatches** are the usual rejection. The legal name is
+  Streamflaire Group LLC; WorkBench goes in as the brand or website.
+
+The screen names here are from Meta's help pages and other people's
+guides, not from a screen anyone on this project has seen.
+
+Lessons from the first by-hand test (they apply to the WorkBench account
+too): a dataset made under a personal ad account cannot mint a token, so
+make the portfolio first and the dataset inside it; a new dataset opens a
+"Set up Meta Pixel" wizard to cancel; the token is under the dataset's
+Settings → Set up direct integration; a test code only works on its own
+dataset's Test events tab.
 
 ### B. Get it approved for your customers
 
