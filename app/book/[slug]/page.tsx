@@ -23,14 +23,16 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
   const { slug } = await params;
   const sp = await searchParams;
   const preview = sp.preview === "1";
-  const page = await loadBookingPage(slug, { preview });
+  // Settings → Client pages previews a DRAFT look here (owner only, lib/booking-public.ts)
+  const themeToken = preview ? sp.theme : undefined;
+  const page = await loadBookingPage(slug, { preview, themeToken });
   if (!page) notFound();
   // Published estimate forms sit under the booking items (lib/estimator-public.ts)
   const estimateTools = await publicEstimatorsFor(page.company.id);
   // Products sold online (lib/store.ts) get one Shop row under the items
   const products = await storeProducts(page.company.id);
   if (page.menu.length === 1 && estimateTools.length === 0 && products.length === 0) {
-    const item = await loadBookingItem(slug, page.menu[0].slug, { preview });
+    const item = await loadBookingItem(slug, page.menu[0].slug, { preview, themeToken });
     if (item) return <ItemView companySlug={slug} itemSlug={item.pub.slug} searchParams={sp} loaded={item} home />;
   }
   const { company } = page;
@@ -43,7 +45,7 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
           Preview — this is your booking page as customers see it.
         </div>
       )}
-      {(page.menu.length > 0 || (estimateTools.length === 0 && products.length === 0)) && <ScheduleMenu companySlug={slug} types={page.menu} appearance={appearance} />}
+      {(page.menu.length > 0 || (estimateTools.length === 0 && products.length === 0)) && <ScheduleMenu companySlug={slug} types={page.menu} appearance={appearance} hrefQuery={page.previewing ? `preview=1${themeToken ? `&theme=${encodeURIComponent(themeToken)}` : ""}` : ""} />}
       {estimateTools.length > 0 && (
         <div className={page.menu.length > 0 ? "mt-8" : ""}>
           {page.menu.length > 0 && <ClientSectionTitle className="mb-3">Instant estimates</ClientSectionTitle>}

@@ -91,7 +91,7 @@ export async function handleRpc(caller: ConnectorCaller, msg: RpcRequest, header
       const burst = await limit(`connector:${caller.grantId}`, 240, 10 * 60_000);
       if (!burst.ok) return text({ error: "Too many requests from this app — wait a few minutes." }, true);
 
-      const ctx: ToolCtx = { proposals: [] };
+      const ctx: ToolCtx = { proposals: [], via: "connector" };
       let result: Record<string, unknown>;
       try {
         result = await tool.run(caller.actor, args, ctx);
@@ -103,7 +103,8 @@ export async function handleRpc(caller: ConnectorCaller, msg: RpcRequest, header
       const mode = connectorMode(name);
       const proposals = mergeBulkProposals(ctx.proposals);
       if (proposals.length === 0) {
-        logCall(caller, name, typeof result.error === "string" ? "error" : "read");
+        // a draft tool saved something private (clients see nothing): it shows as "prepared" in the activity list, not as a read
+        logCall(caller, name, typeof result.error === "string" ? "error" : mode === "draft" ? "prepared" : "read");
         return text(scrubResult(result), typeof result.error === "string");
       }
       // a read tool must never stage anything; if one ever does, it does not get through

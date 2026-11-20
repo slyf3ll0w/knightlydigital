@@ -23,6 +23,10 @@ import HubShell from "@/app/hub/[token]/HubShell";
 import { HubFormHeader } from "@/app/hub/[token]/requests/new/HubRequestForm";
 import { ClientSectionTitle } from "@/components/client/ClientFrame";
 import { orderBookingItems, themeBookingItem, type ResolvedClientTheme } from "@/lib/client-theme-spec";
+import { clientBand } from "@/lib/client-band";
+
+/** A real company's name, logo and colors laid over the fixture (a draft preview: their look, fake clients). */
+export type PreviewOwner = { name: string; logoUrl: string | null; brandColor: string | null; brandColorSecondary: string | null; documentColor: string | null };
 
 /**
  * Review frames for the booking page, its forms and the portal login, on
@@ -43,6 +47,7 @@ export default function BookingPreview({
   brand,
   logoUrl,
   theme = null,
+  owner = null,
 }: {
   doc: BookingDoc;
   state?: string;
@@ -50,13 +55,16 @@ export default function BookingPreview({
   logoUrl: string | null;
   /** A page-designer theme (fixture or spec, see ../page.tsx); null = today's look. */
   theme?: ResolvedClientTheme | null;
+  /** A draft preview (?theme=<token>): the company's own name, logo and colors on the fixture. */
+  owner?: PreviewOwner | null;
 }) {
-  const c = fixtureCompany(brand);
+  const c = { ...fixtureCompany(brand), ...(owner ?? {}) };
+  if (owner) logoUrl = owner.logoUrl;
   const company = { ...c, logoUrl, slug: SLUG };
-  const appearance = fixtureAppearance(brand, theme);
+  const appearance = owner ? { ...fixtureAppearance(brand, theme), accent: theme?.colors.accent ?? clientBand(c).accent } : fixtureAppearance(brand, theme);
   // The theme's words on an item, as lib/booking-public.ts lays them on real ones
   const themed = <T extends Parameters<typeof themeBookingItem>[0]>(it: T): T => themeBookingItem(it, theme);
-  const profile = fixtureBusinessProfile(brand);
+  const profile = { ...fixtureBusinessProfile(brand), name: c.name, logoUrl };
 
   if (doc === "login") {
     return (
@@ -116,7 +124,7 @@ export default function BookingPreview({
     return (
       <>
         <ForceLightTheme />
-        <HubShell company={{ ...hub.company, logoUrl }} firstName={hub.firstName} base={hub.data.base} unreadMessages={hub.unread} currentPath={`${hub.data.base}/requests`} theme={theme}>
+        <HubShell company={{ ...hub.company, ...(owner ?? {}), logoUrl }} firstName={hub.firstName} base={hub.data.base} unreadMessages={hub.unread} currentPath={`${hub.data.base}/requests`} theme={theme}>
           <HubFormHeader base="/client-preview?doc=hub" title={it.heading} description={it.description} />
           <RequestForm
             companySlug={SLUG}

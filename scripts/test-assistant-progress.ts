@@ -17,6 +17,11 @@ assert.equal(describeToolCall("delete_client"), "Preparing to remove client…")
 assert.equal(describeToolCall("optimize_route"), "Working out route…");
 assert.equal(describeToolCall("help_search"), "Checking the Help Center…");
 assert.equal(describeToolCall("queue_next_step"), "Lining up the next step…");
+// the page designer's tools (lib/assistant/design.ts)
+assert.equal(describeToolCall("get_client_theme"), "Looking at your client pages…");
+assert.equal(describeToolCall("draft_client_theme"), "Drafting a new look…");
+assert.equal(describeToolCall("publish_client_theme"), "Preparing to publish the new look…");
+assert.equal(describeToolCall("revert_client_theme"), "Preparing to put a look back…");
 // An unrecognised shape still reads as a sentence, never as a raw identifier.
 assert.equal(describeToolCall("manage_pipeline_stage"), "Working on manage pipeline stage…");
 assert.equal(describeToolCall("list"), "Looking up…");

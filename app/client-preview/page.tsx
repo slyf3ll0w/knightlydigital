@@ -1,14 +1,17 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { prisma } from "@/lib/db";
 import "@/app/client.css";
 import ForceLightTheme from "@/components/ForceLightTheme";
-import { getActor } from "@/lib/permissions";
+import { getActor, isManager } from "@/lib/permissions";
+import { draftForPreview } from "@/lib/client-theme-store";
+import { isDraftToken } from "@/lib/client-theme-requests";
 import { FIXTURE_THEMES, FIXTURE_THEME_PHOTOS, fixtureBalance, fixtureHub, fixtureInvoice, fixtureQuote, fixtureThemeContext, type FixtureBrand } from "@/lib/client-fixtures";
 import { parseClientTheme, portalSectionOrder, resolveTheme, type ResolvedClientTheme, type ThemeProblem } from "@/lib/client-theme-spec";
 import HubShell from "@/app/hub/[token]/HubShell";
 import HubHome from "@/app/hub/[token]/HubHome";
 import QuoteAcceptPage from "@/app/quote/[token]/QuoteAcceptPage";
 import PayPage from "@/app/pay/[token]/PayPage";
-import BookingPreview, { BOOKING_DOCS, type BookingDoc } from "./BookingPreview";
+import BookingPreview, { BOOKING_DOCS, type BookingDoc, type PreviewOwner } from "./BookingPreview";
 
 /**
  * One client-facing surface on the fake Brightwire Electric account, for
@@ -26,6 +29,12 @@ import BookingPreview, { BOOKING_DOCS, type BookingDoc } from "./BookingPreview"
  *           login, booking page and forms (quote + invoice never read a theme)
  *   themeSpec = a theme spec as JSON (checked by parseClientTheme against
  *           Brightwire; photo ids fx_crew / fx_yard; problems listed at the foot)
+ *   theme = <draft token> (a company's page-designer DRAFT, lib/client-theme-store.ts
+ *           draftForPreview): the portal, login and forms on fake clients in
+ *           that company's name, logo and draft look. Open to anyone holding
+ *           an unexpired token (7 days); a signed-in manager of the company
+ *           may open it after that, and doc=book / form send them to their
+ *           real booking page in owner preview. Never a real client's portal.
  * Demo mode: Approve / Pay succeed locally so the stamp moment can be seen.
  * Signed-in only outside development — it shows nothing real either way.
  */
@@ -38,15 +47,37 @@ export default async function ClientPreviewPage({
 }: {
   searchParams: Promise<{ doc?: string; state?: string; brand?: string; logo?: string; theme?: string; themeSpec?: string }>;
 }) {
-  if (process.env.NODE_ENV === "production" && !(await getActor())) notFound();
   const sp = await searchParams;
+  const draftToken = isDraftToken(sp.theme) ? sp.theme : null;
+  const actor = draftToken || process.env.NODE_ENV === "production" ? await getActor() : null;
+  if (!draftToken && process.env.NODE_ENV === "production" && !actor) notFound();
   const brand = (["default", "navy", "orange", "yellow", "black"].includes(sp.brand ?? "") ? sp.brand : "navy") as FixtureBrand;
-  const { theme, problems } = previewTheme(sp, brand);
+  let theme: ResolvedClientTheme | null;
+  let problems: ThemeProblem[];
+  let owner: PreviewOwner | null = null;
+  if (draftToken) {
+    const draft = await draftForPreview(draftToken, actor ? { companyId: actor.companyId, manager: isManager(actor.role) } : null);
+    if (!draft) notFound();
+    const company = await prisma.company.findUnique({
+      where: { id: draft.companyId },
+      select: { name: true, slug: true, logoUrl: true, brandColor: true, brandColorSecondary: true, documentColor: true },
+    });
+    if (!company) notFound();
+    // Their own booking page in owner preview: the real items, order and words
+    if (!draft.viaToken && (sp.doc === "book" || sp.doc === "form")) {
+      redirect(`/book/${company.slug}?preview=1&theme=${encodeURIComponent(draftToken)}`);
+    }
+    owner = { name: company.name, logoUrl: company.logoUrl, brandColor: company.brandColor, brandColorSecondary: company.brandColorSecondary, documentColor: company.documentColor };
+    theme = draft.theme;
+    problems = [];
+  } else {
+    ({ theme, problems } = previewTheme(sp, brand));
+  }
   const notes = problems.length ? <ThemeProblems problems={problems} /> : null;
   if ((BOOKING_DOCS as readonly string[]).includes(sp.doc ?? "")) {
     return (
       <>
-        <BookingPreview doc={sp.doc as BookingDoc} state={sp.state} brand={brand} logoUrl={sp.logo === "1" ? FIXTURE_LOGO : null} theme={theme} />
+        <BookingPreview doc={sp.doc as BookingDoc} state={sp.state} brand={brand} logoUrl={sp.logo === "1" ? FIXTURE_LOGO : null} theme={theme} owner={owner} />
         {notes}
       </>
     );
@@ -54,17 +85,20 @@ export default async function ClientPreviewPage({
   if (sp.doc === "hub") {
     const hub = fixtureHub(sp.state === "clear" ? "clear" : "open", brand);
     // logo=1: a stand-in mark, to see the band with a logo tile
-    const company = sp.logo === "1" ? { ...hub.company, logoUrl: FIXTURE_LOGO } : hub.company;
+    const company = owner ? { ...hub.company, ...owner } : sp.logo === "1" ? { ...hub.company, logoUrl: FIXTURE_LOGO } : hub.company;
+    const d = owner ? { ...hub.data, companyName: owner.name } : hub.data;
     return (
       <>
         <ForceLightTheme />
         <HubShell company={company} firstName={hub.firstName} base={hub.data.base} unreadMessages={hub.unread} currentPath={hub.data.base} theme={theme}>
-          <HubHome d={hub.data} sections={theme && !theme.isDefault ? portalSectionOrder(theme) : undefined} />
+          <HubHome d={d} sections={theme && !theme.isDefault ? portalSectionOrder(theme) : undefined} />
         </HubShell>
         {notes}
       </>
     );
   }
+  // A draft link only ever shows the four themed surfaces (quote and invoice never read a theme)
+  if (draftToken) notFound();
   const doc = sp.doc === "invoice" ? "invoice" : "quote";
 
   if (doc === "invoice") {

@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import { prisma } from "../db";
 import { sanitizeBookingPage } from "../booking-page";
+import { featureAllowedFor } from "../plan-gate";
 import {
   type Role,
   canSell,
@@ -171,7 +172,7 @@ export const companyTools: Tool[] = [
     decl: {
       name: "update_company_settings",
       description:
-        "Stage changes to company settings: business name, phone, email (hideEmail = keep it off client pages), address/city/state/zip, website, review link, brand colors (brandColor = primary for headers, brandColorSecondary = accent for buttons; #rrggbb), timezone (IANA, e.g. America/Chicago), arrival window minutes, the assistant's display name (assistantName), card surcharge (surchargeEnabled + surchargePercent, e.g. 3 for 3%), the company-default deposit on new quotes (defaultDepositType PERCENT/FIXED/FULL/NONE + defaultDepositValue), the online-booking service area (addServiceZips / removeServiceZips — 5-digit ZIPs), and the LOOK of the public booking page (bookingTheme light/dark/transparent, bookingFont = a Google Font name, bookingFontSize sm/md/lg, bookingAccent #rrggbb or 'brand', bookingTitle, bookingDescription, bookingShowBusinessDetails). Only include what should change. Confirmation card required.",
+        "Stage changes to company settings: business name, phone, email (hideEmail = keep it off client pages), address/city/state/zip, website, review link, brand colors (brandColor = primary for headers, brandColorSecondary = accent for buttons; #rrggbb), timezone (IANA, e.g. America/Chicago), arrival window minutes, the assistant's display name (assistantName), card surcharge (surchargeEnabled + surchargePercent, e.g. 3 for 3%), the company-default deposit on new quotes (defaultDepositType PERCENT/FIXED/FULL/NONE + defaultDepositValue), the online-booking service area (addServiceZips / removeServiceZips — 5-digit ZIPs), and the LOOK of the public booking page (bookingTheme light/dark/transparent, bookingFont = a Google Font name, bookingFontSize sm/md/lg, bookingAccent #rrggbb or 'brand', bookingTitle, bookingDescription, bookingShowBusinessDetails). On accounts with the Pro page designer, the booking page's accent, font, heading and line are set with draft_client_theme instead, and these four fields are refused. Only include what should change. Confirmation card required.",
       parameters: {
         type: "object",
         properties: {
@@ -303,6 +304,14 @@ export const companyTools: Tool[] = [
       // Booking-page look: the route replaces the whole object, so merge
       // over what's stored and send it back complete.
       const lookKeys = ["bookingTheme", "bookingFont", "bookingFontSize", "bookingAccent", "bookingTitle", "bookingDescription", "bookingShowBusinessDetails"];
+      // One way to style it (docs/plans/ai-portal-designer-2026-11-20.md): with the page designer on,
+      // the accent, font, heading and line belong to the theme (lib/assistant/design.ts).
+      const designerKeys = ["bookingFont", "bookingAccent", "bookingTitle", "bookingDescription"].filter((k) => args[k] !== undefined);
+      if (designerKeys.length && (await featureAllowedFor(actor.companyId, "page_designer"))) {
+        return {
+          error: `On this account the booking page's colors, font, heading and line are set with the page designer: use draft_client_theme (colors.accent, font, booking.heading, booking.line) instead of ${designerKeys.join(", ")}. bookingTheme, bookingFontSize and bookingShowBusinessDetails still work here.`,
+        };
+      }
       if (lookKeys.some((k) => args[k] !== undefined)) {
         const row = await prisma.company.findUnique({ where: { id: actor.companyId }, select: { bookingPage: true } });
         const look = { ...sanitizeBookingPage(row?.bookingPage) };

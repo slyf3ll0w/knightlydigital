@@ -84,6 +84,7 @@ const LABELS: Record<string, string> = {
   "plan-revoke": "Revoked a plan",
   "line-attach": "Attached a business-line number",
   "line-keep": "Cancelled the line release",
+  "theme-reset": "Reset the client pages look to default",
   "line-voice-sync": "Moved the line onto the voice app",
   "line-ring": "Test-rang the phone apps",
   "line-file": "Filed the texting registration",

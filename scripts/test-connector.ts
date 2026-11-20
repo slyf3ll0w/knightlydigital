@@ -10,7 +10,7 @@ import assert from "node:assert";
 import { createHash } from "node:crypto";
 import { toolsForActor } from "../lib/assistant";
 import type { Actor } from "../lib/permissions";
-import { CONNECTOR_NEVER, CONNECTOR_PREPARE, CONNECTOR_READ, LINK_WITHHELD, connectorInstructions, connectorMode, connectorTools, scrubResult, toolListing } from "../lib/connector/tools";
+import { CONNECTOR_DRAFT, CONNECTOR_NEVER, CONNECTOR_PREPARE, CONNECTOR_READ, LINK_WITHHELD, connectorInstructions, connectorMode, connectorTools, scrubResult, toolListing } from "../lib/connector/tools";
 import { pkceMatches, redirectAllowed, validRedirectUri, connectBlock } from "../lib/connector/oauth";
 import { authorizationServerMetadata, protectedResourceMetadata } from "../lib/connector/metadata";
 
@@ -21,22 +21,29 @@ const all = toolsForActor(owner).map((t) => t.decl.name);
 const read = new Set<string>(CONNECTOR_READ);
 const prepare = new Set<string>(CONNECTOR_PREPARE);
 const never = new Set(Object.keys(CONNECTOR_NEVER));
+const draft = new Set<string>(CONNECTOR_DRAFT);
 assert.equal(read.size, CONNECTOR_READ.length, "READ has a duplicate");
 assert.equal(prepare.size, CONNECTOR_PREPARE.length, "PREPARE has a duplicate");
-const unfiled = all.filter((n) => !read.has(n) && !prepare.has(n) && !never.has(n));
+const unfiled = all.filter((n) => !read.has(n) && !prepare.has(n) && !never.has(n) && !draft.has(n));
 assert.deepEqual(unfiled, [], `Atlas tools not filed for the connector (add each to READ, PREPARE or NEVER in lib/connector/tools.ts): ${unfiled.join(", ")}`);
-for (const n of all) assert.equal([read.has(n), prepare.has(n), never.has(n)].filter(Boolean).length, 1, `${n} is filed more than once`);
-const stale = [...read, ...prepare, ...never].filter((n) => !all.includes(n));
+for (const n of all) assert.equal([read.has(n), prepare.has(n), never.has(n), draft.has(n)].filter(Boolean).length, 1, `${n} is filed more than once`);
+const stale = [...read, ...prepare, ...never, ...draft].filter((n) => !all.includes(n));
 assert.deepEqual(stale, [], `filed for the connector but no longer an Atlas tool: ${stale.join(", ")}`);
-console.log(`ok 1: all ${all.length} Atlas tools filed — ${read.size} read, ${prepare.size} prepare, ${never.size} never`);
+// the draft allowance is narrow on purpose: only the page designer's private draft (David 2026-11-20)
+assert.deepEqual([...draft], ["draft_client_theme"], "only the page designer's draft saves without a card");
+console.log(`ok 1: all ${all.length} Atlas tools filed — ${read.size} read, ${prepare.size} prepare, ${draft.size} draft, ${never.size} never`);
 
 // 2. what an owner's connection offers: nothing from NEVER, sorted, and the two paid tools are out
 const offered = connectorTools(toolsForActor(owner)).map((t) => t.decl.name);
-assert.equal(offered.length, read.size + prepare.size);
+assert.equal(offered.length, read.size + prepare.size + draft.size);
 assert.deepEqual(offered, [...offered].sort((a, b) => a.localeCompare(b)), "the list is in a fixed order");
 for (const n of ["lookup_part_price", "manage_automation", "queue_next_step", "export_data", "place_call"]) assert.ok(!offered.includes(n), `${n} must not be offered`);
 assert.equal(connectorMode("list_money"), "read");
 assert.equal(connectorMode("update_invoice"), "prepare");
+assert.equal(connectorMode("draft_client_theme"), "draft");
+assert.equal(connectorMode("get_client_theme"), "read");
+assert.equal(connectorMode("publish_client_theme"), "prepare", "publishing a look always waits for the person");
+assert.equal(connectorMode("revert_client_theme"), "prepare");
 for (const n of ["refund_payment", "charge_saved_card", "send_payout", "run_recurring_billing"]) assert.equal(connectorMode(n), null, `${n} moves money and stays inside Workbench`);
 assert.equal(connectorMode("lookup_part_price"), null);
 console.log(`ok 2: an owner's connection offers ${offered.length} tools`);
@@ -58,6 +65,10 @@ for (const t of connectorTools(toolsForActor(owner))) {
   assert.equal(l.annotations.openWorldHint, false);
   if (read.has(l.name)) assert.equal(l.annotations.destructiveHint, false);
   if (prepare.has(l.name)) assert.ok(l.description.startsWith("PREPARES ONLY"), `${l.name} says it only prepares`);
+  if (draft.has(l.name)) {
+    assert.ok(l.description.startsWith("SAVES A PRIVATE DRAFT ONLY"), `${l.name} says it only saves a private draft`);
+    assert.equal(l.annotations.destructiveHint, false);
+  }
 }
 console.log("ok 4: listings are well-formed and writes are labelled");
 
@@ -92,7 +103,7 @@ console.log("ok 5b: customer-written fields are fenced as data");
 
 // 6. the instructions carry the rules an outside AI never sees in Atlas's prompt
 const ins = connectorInstructions("Steadfast", "Pat Owner", "America/Chicago");
-for (const must of ["PREPARES ONLY", "approve", "never", "⟪", "America/Chicago", "Pat Owner"]) assert.ok(ins.includes(must), `instructions mention ${must}`);
+for (const must of ["PREPARES ONLY", "SAVES A PRIVATE DRAFT ONLY", "approve", "never", "⟪", "America/Chicago", "Pat Owner"]) assert.ok(ins.includes(must), `instructions mention ${must}`);
 console.log("ok 6: instructions state the approval rule and the quoted-text rule");
 
 // 7. PKCE

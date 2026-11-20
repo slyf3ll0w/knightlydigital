@@ -13,6 +13,8 @@ import { PlanControl } from "./PlanControl";
 import { AddonControl } from "./AddonControl";
 import { LineControl } from "./LineControl";
 import { AccountActions } from "./AccountActions";
+import { ThemeControl } from "./ThemeControl";
+import { getThemeState } from "@/lib/client-theme-store";
 import type { CompanyCore } from "./shared";
 import { planRows } from "@/lib/plan-billing";
 
@@ -29,6 +31,7 @@ export default async function ControlsTab({ company }: { company: CompanyCore })
     consoleAuditFor(id, 40),
     planRows(id).catch(() => []),
   ]);
+  const theme = await getThemeState(id).catch(() => null);
   const atlasPlan = planBalance(company);
   const atlasFree = freeBalance(company);
   const footprint = { users, contacts, jobs, invoices, payments, large: payments > 0 || contacts > 25 || jobs > 25 };
@@ -99,6 +102,12 @@ export default async function ControlsTab({ company }: { company: CompanyCore })
             toolCalls: atlasUsage.toolCalls,
             lastAt: atlasUsage.lastAt?.toISOString() ?? null,
           }}
+        />
+        <ThemeControl
+          companyId={id}
+          live={theme?.published ? { version: theme.published.version, note: theme.published.note, publishedAt: theme.published.publishedAt?.toISOString() ?? null } : null}
+          versions={theme?.versions.length ?? 0}
+          hasDraft={Boolean(theme?.draft)}
         />
         <AddonControl
           companyId={id}

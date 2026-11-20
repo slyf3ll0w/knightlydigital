@@ -38,16 +38,16 @@ assert.deepEqual(
     "add_client_note", "add_job_line_items", "add_job_note", "add_place", "add_sticky_note", "add_stop",
     "add_team_member", "assign_client", "browse_library", "business_summary", "cancel_appointment", "charge_saved_card", "clock",
     "close_lead", "collect_deposit", "convert_quote", "create_agreement_template", "create_client", "create_invoice",
-    "create_job", "create_quote", "create_request", "create_service", "delete_record", "duplicate_document",
+    "create_job", "create_quote", "create_request", "create_service", "delete_record", "draft_client_theme", "duplicate_document",
     "edit_payment", "email_client", "email_document", "export_data", "find_a_time", "get_ads_conversion_feed", "get_client_activity",
-    "get_client_details", "get_client_notes", "get_company_settings", "get_document", "get_facebook_ads", "get_job_checklist", "get_lead_board", "get_price_book",
+    "get_client_details", "get_client_notes", "get_client_theme", "get_company_settings", "get_document", "get_facebook_ads", "get_job_checklist", "get_lead_board", "get_price_book",
     "get_route_plan", "get_schedule", "get_statement", "help_search", "lead_source_report", "list_agreement_templates", "list_agreements",
     "list_calls", "list_clients", "list_expenses", "list_job_photos", "list_money", "list_pipeline", "list_places", "list_subscriptions",
     "list_team", "log_expense", "lookup_part_price", "manage_address", "manage_automation", "manage_booking_item",
     "manage_client_fields", "manage_estimator", "manage_lead_webhook", "manage_person", "manage_pipeline_stage", "manage_recurring_expense",
     "manage_saved_card", "manage_sticky_notes", "manage_subscription", "manage_task", "manage_time_block", "manage_time_entry", "move_lead", "optimize_route", "place_call",
-    "post_team_message", "query_records", "queue_next_step", "quickbooks", "read_team_chat", "record_job_signoff", "record_payment",
-    "refund_payment", "reply_in_portal", "report", "request_ability", "request_payment", "request_review", "respond_to_booking", "run_estimator",
+    "post_team_message", "publish_client_theme", "query_records", "queue_next_step", "quickbooks", "read_team_chat", "record_job_signoff", "record_payment",
+    "refund_payment", "reply_in_portal", "report", "request_ability", "request_payment", "request_review", "respond_to_booking", "revert_client_theme", "run_estimator",
     "run_recurring_billing", "schedule_appointment", "search_clients", "send_agreement", "send_on_my_way", "send_payout",
     "send_portal_invite", "set_ads_conversion_feed", "set_business_hours", "set_client_status", "set_facebook_ads", "team_map", "undo_import", "update_agreement",
     "update_agreement_template", "update_appointment", "update_checklist_item", "update_client", "update_client_note", "update_company_settings",
@@ -90,6 +90,7 @@ console.log("ok 2: tech limited to schedule + job + field tools");
   assert.ok(!n.includes("list_expenses") && !n.includes("update_expense"), "expense tools are manager-only");
   assert.ok(!n.includes("undo_import") && !n.includes("manage_booking_item") && !n.includes("manage_client_fields"),
     "import/forms/fields are manager-only");
+  assert.ok(!["get_client_theme", "draft_client_theme", "publish_client_theme", "revert_client_theme"].some((t) => n.includes(t)), "the page designer is manager-only");
   assert.ok(n.includes("list_clients"), "sales can list clients (scoped to their leads)");
   assert.ok(
     !n.includes("list_team") && !n.includes("add_team_member") && !n.includes("update_team_member") &&
