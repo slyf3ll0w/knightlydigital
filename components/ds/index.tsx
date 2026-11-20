@@ -92,20 +92,23 @@ export function Card({
   raised = false,
   className = "",
   style,
+  "data-testid": testId,
 }: {
   children: React.ReactNode;
   href?: string;
   raised?: boolean;
   className?: string;
   style?: React.CSSProperties;
+  /** for tests: lands on the card's own element */
+  "data-testid"?: string;
 }) {
   const cls = `ds-card ${raised ? "ds-card-raised" : ""} ${className}`;
   return href ? (
-    <Link prefetch={false} href={href} className={`block ${cls}`} style={style}>
+    <Link prefetch={false} href={href} className={`block ${cls}`} style={style} data-testid={testId}>
       {children}
     </Link>
   ) : (
-    <div className={cls} style={style}>
+    <div className={cls} style={style} data-testid={testId}>
       {children}
     </div>
   );
