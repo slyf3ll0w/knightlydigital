@@ -41,12 +41,14 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as { action?: unknown; datasetId?: unknown; token?: unknown; testCode?: unknown } | null;
 
   if (body?.action === "test") {
+    let answer;
     try {
-      await sendTestEvent(companyId, body.testCode);
+      answer = await sendTestEvent(companyId, body.testCode);
     } catch (err) {
       return failure(err, "test event");
     }
-    return NextResponse.json({ ...(await loadMetaAdsStatus(companyId)), tested: true });
+    // what Facebook answered rides back, so the page can say it in plain words
+    return NextResponse.json({ ...(await loadMetaAdsStatus(companyId)), tested: true, facebook: answer });
   }
 
   if (body?.action === "sync") {

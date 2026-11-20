@@ -234,6 +234,20 @@ export function testEvent(pageUrl: string, now: Date): MetaEvent {
   };
 }
 
+/** What Facebook answered to an accepted request: how many events it took, anything it remarked on, and its trace id. */
+export type MetaAnswer = { received: number | null; messages: string[]; trace: string | null };
+
+export function parseMetaAnswer(json: unknown): MetaAnswer {
+  const received = field(json, "events_received");
+  const messages = field(json, "messages");
+  const trace = field(json, "fbtrace_id");
+  return {
+    received: typeof received === "number" && Number.isFinite(received) ? received : null,
+    messages: Array.isArray(messages) ? messages.filter((m): m is string => typeof m === "string").map((m) => m.replace(/\s+/g, " ").trim().slice(0, 300)).slice(0, 5) : [],
+    trace: typeof trace === "string" && /^[A-Za-z0-9_-]{6,64}$/.test(trace) ? trace : null,
+  };
+}
+
 /** Facebook's own words for a refusal, on one line. */
 export function metaErrorText(json: unknown, status: number): string {
   const err = field(json, "error");

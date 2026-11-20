@@ -79,11 +79,14 @@ export default function FacebookAdsClient({
   const [editing, setEditing] = useState(false);
   const showForm = !status.on || editing;
 
-  async function call(key: string, method: "POST" | "DELETE", body?: unknown): Promise<(MetaAdsStatus & { tested?: boolean }) | null> {
+  type Answer = { received: number | null; messages: string[]; trace: string | null; datasetId: string };
+  type CallResult = MetaAdsStatus & { tested?: boolean; facebook?: Answer };
+
+  async function call(key: string, method: "POST" | "DELETE", body?: unknown): Promise<CallResult | null> {
     setBusy(key);
     setError(null);
     setNotice(null);
-    const { ok, data } = await postJson<MetaAdsStatus & { tested?: boolean }>("/api/app/meta-ads", body, method);
+    const { ok, data } = await postJson<CallResult>("/api/app/meta-ads", body, method);
     setBusy(null);
     if (!ok || !data) {
       setError(data?.error ?? "That didn't work. Try again.");
@@ -148,7 +151,11 @@ export default function FacebookAdsClient({
 
   async function test() {
     const next = await call("test", "POST", { action: "test", testCode });
-    if (next) setNotice("Test event sent. It shows on the Test events tab in Events Manager within a minute.");
+    if (!next) return;
+    const f = next.facebook;
+    const took = f?.received === 0 ? "Facebook answered but took 0 events." : `Facebook accepted the test event for dataset ${f?.datasetId ?? status.datasetId}.`;
+    const said = f?.messages.length ? ` Facebook also said: ${f.messages.join(" ")}` : "";
+    setNotice(`${took}${said} Keep the Test events tab of that same dataset open: it shows there within a minute. Not there? The code must come from that dataset's tab, and an ad blocker can hide the list.${f?.trace ? ` (Facebook reference ${f.trace})` : ""}`);
   }
 
   async function turnOff() {
@@ -374,7 +381,7 @@ export default function FacebookAdsClient({
                   <label className="min-w-0 flex-1">
                     <span className="ds-label flex items-center gap-1">
                       Test code
-                      <InfoTip>In Events Manager open your dataset, then the Test events tab. Under the server option it shows a code such as TEST12345. A test event counts nothing and reaches no ad.</InfoTip>
+                      <InfoTip>In Events Manager open this same dataset, then its Test events tab, and leave that tab open. It shows a code such as TEST12345. A test event counts nothing and reaches no ad.</InfoTip>
                     </span>
                     <Input className="mt-1 w-full" value={testCode} onChange={(e) => setTestCode(e.target.value)} placeholder="TEST12345" autoCapitalize="characters" autoComplete="off" data-testid="fb-test-code" />
                   </label>
@@ -392,16 +399,22 @@ export default function FacebookAdsClient({
                 {step(
                   1,
                   "Open your dataset in Events Manager",
+                  <>
                   <p>
-                    On a computer, go to <strong>business.facebook.com/events_manager</strong> and pick the dataset your ads use (Facebook also calls it a pixel). No dataset yet? Press <strong>Connect data</strong>, choose <strong>Web</strong> and name it.
+                    On a computer, go to <strong>business.facebook.com/events_manager</strong> and pick the dataset your ads use (Facebook also calls it a pixel). No dataset yet? Press <strong>Connect data</strong>, choose <strong>Web</strong> and name it. When Facebook then asks you to install the Meta Pixel on your website, press <strong>Cancel</strong>: WorkBench doesn&apos;t use that code.
                   </p>
+                  <p className="flex items-start gap-1 text-[13.5px] text-[color:var(--ds-muted)]">
+                    <span className="min-w-0">The dataset has to belong to a business portfolio you fully control.</span>
+                    <InfoTip>Facebook only lets an admin of a business portfolio make the access token. A dataset made under a personal ad account has no portfolio. At business.facebook.com create a portfolio (it&apos;s free), then under Settings, Data sources, Datasets add a dataset there and use that one.</InfoTip>
+                  </p>
+                  </>
                 )}
                 {step(
                   2,
                   "Copy the dataset ID",
                   <>
                     <p>
-                      Open the <strong>Settings</strong> tab. The <strong>Dataset ID</strong> is the long number near the top.
+                      The <strong>ID</strong> is the long number under the dataset&apos;s name at the top of the page.
                     </p>
                     <label className="block">
                       <span className="ds-label">Dataset ID</span>
@@ -414,7 +427,7 @@ export default function FacebookAdsClient({
                   "Generate an access token",
                   <>
                     <p>
-                      On the same tab, scroll to <strong>Conversions API</strong> and press <strong>Generate access token</strong>. Copy the whole token: Facebook shows it once.
+                      Open the dataset&apos;s <strong>Settings</strong> tab and scroll down past Conversions API to <strong>Set up direct integration</strong>. Press <strong>Generate access token</strong> there and copy the whole token: Facebook shows it once.
                     </p>
                     <label className="block">
                       <span className="ds-label flex items-center gap-1">

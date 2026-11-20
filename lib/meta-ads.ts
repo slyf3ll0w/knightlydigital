@@ -32,7 +32,9 @@ import {
   hasFacebookClick,
   isTokenRefusal,
   metaErrorText,
+  parseMetaAnswer,
   testEvent,
+  type MetaAnswer,
   type MetaEvent,
   type MetaEventSummary,
   type MetaLeadInput,
@@ -59,8 +61,8 @@ export class MetaAdsError extends Error {
 
 const UNREACHABLE = "WorkBench couldn't reach Facebook. It will try again within the hour.";
 
-/** POST one body of events to a dataset. Throws MetaAdsError with Facebook's own words. */
-async function postEvents(datasetId: string, token: string, body: Record<string, unknown>): Promise<void> {
+/** POST one body of events to a dataset. Returns what Facebook answered; throws MetaAdsError with Facebook's own words. */
+async function postEvents(datasetId: string, token: string, body: Record<string, unknown>): Promise<MetaAnswer> {
   let res: Response;
   try {
     res = await fetch(`${META_GRAPH}/${datasetId}/events`, {
@@ -74,8 +76,8 @@ async function postEvents(datasetId: string, token: string, body: Record<string,
     if (isTransientNetworkError(err) || (err instanceof Error && err.name === "TimeoutError")) throw new MetaAdsError(UNREACHABLE, false, true);
     throw err;
   }
-  if (res.ok) return;
   const json = await res.json().catch(() => null);
+  if (res.ok) return parseMetaAnswer(json);
   if (isTransientStatus(res.status)) throw new MetaAdsError(UNREACHABLE, false, true);
   throw new MetaAdsError(metaErrorText(json, res.status), isTokenRefusal(json, res.status));
 }
@@ -185,7 +187,7 @@ async function datasetOf(companyId: string) {
 }
 
 /** One made-up lead sent with Events Manager's test code: it shows on the Test events tab and counts nothing. */
-export async function sendTestEvent(companyId: string, testCodeRaw: unknown, now = new Date()): Promise<void> {
+export async function sendTestEvent(companyId: string, testCodeRaw: unknown, now = new Date()): Promise<MetaAnswer & { datasetId: string }> {
   const testCode = cleanTestCode(testCodeRaw);
   if (!testCode) throw new MetaAdsError("Paste the test code from Events Manager's Test events tab (it looks like TEST12345).");
   const target = await datasetOf(companyId);
@@ -193,8 +195,9 @@ export async function sendTestEvent(companyId: string, testCodeRaw: unknown, now
   const company = await prisma.company.findUnique({ where: { id: companyId }, select: { slug: true } });
   const base = (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/$/, "");
   const [body] = eventBodies([testEvent(`${base}/book/${company?.slug ?? ""}`, now)], { testCode });
+  let answer: MetaAnswer;
   try {
-    await postEvents(target.datasetId, target.token, body);
+    answer = await postEvents(target.datasetId, target.token, body);
   } catch (err) {
     if (err instanceof MetaAdsError && err.token) {
       await prisma.metaConnection.update({ where: { id: target.id }, data: { capiNeedsToken: true, lastError: err.message.slice(0, 400) } }).catch(() => {});
@@ -203,6 +206,9 @@ export async function sendTestEvent(companyId: string, testCodeRaw: unknown, now
   }
   // A test that went through proves the token: clear an old refusal.
   await prisma.metaConnection.update({ where: { id: target.id }, data: { capiNeedsToken: false, lastError: null } }).catch(() => {});
+  // kept in the server log too: Facebook's trace id is what its support asks for
+  console.info(`[meta-ads] test event: dataset ${target.datasetId} received ${answer.received ?? "?"} trace ${answer.trace ?? "-"}${answer.messages.length ? ` messages ${JSON.stringify(answer.messages)}` : ""}`);
+  return { ...answer, datasetId: target.datasetId };
 }
 
 // ─── Sending the steps ───────────────────────────────────────────────────────
