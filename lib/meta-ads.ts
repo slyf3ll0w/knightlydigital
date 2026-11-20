@@ -41,6 +41,8 @@ import {
 } from "@/lib/meta-ads-shape";
 
 const CAPI_SCOPE = "meta-capi";
+/** the Facebook sign-in's token (lib/meta-leads.ts seals it under the same label) */
+const USER_SCOPE = "meta-user";
 /** Leads read for one send or one status; far above a week of one company's Facebook leads. */
 const READ_CAP = 2000;
 /** The lead count on the page looks back this far. */
@@ -162,7 +164,7 @@ export async function saveDataset(companyId: string, datasetIdRaw: unknown, toke
   if (!datasetId) throw new MetaAdsError("That doesn't look like a dataset ID. It is the long number under the dataset's name in Events Manager.");
   const token = cleanCapiToken(tokenRaw);
   if (!token) throw new MetaAdsError("That doesn't look like an access token. Copy the whole token Events Manager shows after Generate access token.");
-  const data = { datasetId, capiTokenEnc: sealSecret(token, CAPI_SCOPE), capiNeedsToken: false, lastError: null };
+  const data = { datasetId, datasetVia: "paste", capiTokenEnc: sealSecret(token, CAPI_SCOPE), capiNeedsToken: false, lastError: null };
   await prisma.metaConnection.upsert({ where: { companyId }, create: { companyId, ...data }, update: data });
 }
 
@@ -176,14 +178,17 @@ export async function clearDataset(companyId: string): Promise<void> {
   }
   await prisma.metaConnection.update({
     where: { id: c.id },
-    data: { datasetId: null, capiTokenEnc: null, capiNeedsToken: false, lastSendAt: null, lastSendCount: null, lastError: null },
+    data: { datasetId: null, datasetVia: null, capiTokenEnc: null, capiNeedsToken: false, lastSendAt: null, lastSendCount: null, lastError: null },
   });
 }
 
 async function datasetOf(companyId: string) {
   const c = await prisma.metaConnection.findUnique({ where: { companyId } });
-  if (!c?.datasetId || !c.capiTokenEnc) return null;
-  return { id: c.id, datasetId: c.datasetId, token: openSecret(c.capiTokenEnc, CAPI_SCOPE), needsToken: c.capiNeedsToken };
+  if (!c?.datasetId) return null;
+  // a pasted token wins; otherwise the dataset was picked from the Facebook sign-in and that sign-in's token sends
+  const token = c.capiTokenEnc ? openSecret(c.capiTokenEnc, CAPI_SCOPE) : c.datasetVia === "connect" && c.userTokenEnc ? openSecret(c.userTokenEnc, USER_SCOPE) : null;
+  if (!token) return null;
+  return { id: c.id, datasetId: c.datasetId, token, needsToken: c.capiNeedsToken };
 }
 
 /** One made-up lead sent with Events Manager's test code: it shows on the Test events tab and counts nothing. */
@@ -287,7 +292,12 @@ export async function syncCompany(companyId: string, now = new Date()): Promise<
 /** Cron step: every company reporting to Facebook. Hourly, because Facebook only takes a step for 7 days. */
 export async function runMetaAdsSweep(now = new Date()): Promise<{ companies: number; sent: number; refused: number; errors: number }> {
   const due = await prisma.metaConnection.findMany({
-    where: { datasetId: { not: null }, capiTokenEnc: { not: null }, capiNeedsToken: false, company: { suspendedAt: null } },
+    where: {
+      datasetId: { not: null },
+      capiNeedsToken: false,
+      OR: [{ capiTokenEnc: { not: null } }, { datasetVia: "connect", userTokenEnc: { not: null } }],
+      company: { suspendedAt: null },
+    },
     select: { companyId: true },
     take: 500,
   });
@@ -311,6 +321,8 @@ export async function runMetaAdsSweep(now = new Date()): Promise<{ companies: nu
 
 export type MetaAdsStatus = {
   on: boolean;
+  /** "connect" = through the Facebook sign-in, "paste" = a pasted dataset ID and token; null while off */
+  via: "connect" | "paste" | null;
   datasetId: string | null;
   /** Facebook refused the token: a new one has to be pasted */
   needsToken: boolean;
@@ -341,9 +353,11 @@ export async function loadMetaAdsStatus(companyId: string, now = new Date()): Pr
     prisma.metaEventSent.count({ where: { companyId, sentAt: { gte: week }, error: null } }),
     loadMetaEvents(companyId, now),
   ]);
-  const on = !!(c?.datasetId && c.capiTokenEnc);
+  const viaConnect = !!(c?.datasetId && !c.capiTokenEnc && c.datasetVia === "connect" && c.userTokenEnc);
+  const on = !!(c?.datasetId && c.capiTokenEnc) || viaConnect;
   return {
     on,
+    via: on ? (viaConnect ? "connect" : "paste") : null,
     datasetId: on ? c!.datasetId : null,
     needsToken: on && c!.capiNeedsToken,
     lastSendAt: on && c!.lastSendAt ? c!.lastSendAt.toISOString() : null,

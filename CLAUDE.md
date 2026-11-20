@@ -352,7 +352,12 @@ pick a Page → WorkBench subscribes to its `leadgen` webhook
 hint and the lead is read from Facebook with the Page's token; one
 `MetaLead` per Facebook lead id) and files each lead through
 `lib/lead-intake.ts` `createInboundLead`, the same code the lead webhook
-uses. Cron step `metaLeads` retries unread leads. WorkBench's own company
+uses. Cron step `metaLeads` retries unread leads. The same sign-in is the
+seamless route for results back: it lists the business's datasets, the owner
+picks one (`chooseDataset`, `MetaConnection.datasetVia = "connect"`) and the
+steps are sent with the sign-in's token, nothing pasted; a pasted token
+(`datasetVia = "paste"`) stays as the fallback. Built for a Login for
+Business configuration of type System-user access token. WorkBench's own company
 uses the feature like any customer; the only supporting change is that a
 sign-up now keeps how it arrived (`lib/site-track.ts` `getArrival` →
 `ensureBillingContact`). Atlas: `get_facebook_ads` / `set_facebook_ads`.

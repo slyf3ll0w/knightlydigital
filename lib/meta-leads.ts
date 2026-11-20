@@ -13,6 +13,15 @@
  * Redirect address to register: ${NEXTAUTH_URL}/api/app/integrations/meta/callback
  * Webhook address to register:  ${NEXTAUTH_URL}/api/public/webhooks/meta (object Page, field leadgen)
  *
+ * The same sign-in also reports results back, with nothing pasted ("the
+ * seamless route"): it lists the business's datasets, the owner picks one
+ * (one dataset = picked for them), and lib/meta-ads.ts sends the steps with
+ * the sign-in's own token (MetaConnection.datasetVia = "connect"). Built for
+ * a Facebook Login for Business configuration of type SYSTEM-USER access
+ * token, whose token does not expire and names the business
+ * (client_business_id). A user-token configuration works too, but its token
+ * lasts about 60 days, after which the page asks to connect again.
+ *
  * The webhook only names a lead; its answers are then read from Facebook
  * with the Page's own token, so a forged notice can file nothing. Each lead
  * is a MetaLead row, unique on Facebook's lead id: a resent notice is a
@@ -37,7 +46,10 @@ import {
   formLeadSource,
   isLeadsAccessRefusal,
   leadFromFacebook,
+  parseClientBusinessId,
+  parseDatasets,
   parsePages,
+  type FacebookDataset,
   type FacebookPage,
   type LeadgenNotice,
 } from "@/lib/meta-leads-shape";
@@ -123,8 +135,12 @@ export function verifyState(state: string): { companyId: string; userId: string 
   return want.length === got.length && timingSafeEqual(want, got) ? { companyId, userId } : null;
 }
 
-/** code → a long-lived user token (about 60 days; the Page tokens made from it do not expire). */
-async function exchangeCode(code: string): Promise<string> {
+/**
+ * code → the sign-in's token. A system-user configuration answers with a token that does not expire and
+ * names the business it acts for; that one is kept as is. A user configuration answers with a short-lived
+ * user token, which is traded for a long-lived one (about 60 days; the Page tokens made from it do not expire).
+ */
+async function exchangeCode(code: string): Promise<{ token: string; businessId: string | null }> {
   const ask = async (params: Record<string, string>) => {
     const url = new URL(`${META_GRAPH}/oauth/access_token`);
     let res: Response;
@@ -139,8 +155,31 @@ async function exchangeCode(code: string): Promise<string> {
     if (!res.ok || typeof json?.access_token !== "string") throw new MetaLeadsError(metaErrorText(json, res.status));
     return json.access_token;
   };
-  const short = await ask({ redirect_uri: redirectUri(), code });
-  return ask({ grant_type: "fb_exchange_token", fb_exchange_token: short });
+  const first = await ask({ redirect_uri: redirectUri(), code });
+  // only a system-user token has this field; a user token is refused for asking, which is the answer
+  const businessId = parseClientBusinessId(await graph("me", first, { params: { fields: "client_business_id" } }).catch(() => null));
+  if (businessId) return { token: first, businessId };
+  return { token: await ask({ grant_type: "fb_exchange_token", fb_exchange_token: first }), businessId: null };
+}
+
+/** The datasets this sign-in can send to. A refusal of one list is not the end: the others may answer. */
+async function datasetsFor(token: string, businessId: string | null): Promise<FacebookDataset[]> {
+  const answers: unknown[] = [];
+  const tryList = async (path: string, fields: string) => {
+    try {
+      answers.push(await graph(path, token, { params: { fields, limit: "100" } }));
+    } catch (err) {
+      if (!(err instanceof MetaLeadsError) || err.reconnect) throw err;
+      console.warn(`[meta-leads] ${path} answered:`, err.message);
+    }
+  };
+  if (businessId) {
+    await tryList(`${businessId}/owned_pixels`, "id,name,is_unavailable");
+    await tryList(`${businessId}/client_pixels`, "id,name,is_unavailable");
+  }
+  // a personal sign-in has no business to ask; its ad accounts carry their datasets
+  if (!businessId || answers.length === 0) await tryList("me/adaccounts", "adspixels{id,name,is_unavailable}");
+  return parseDatasets(...answers);
 }
 
 async function pagesFor(userToken: string): Promise<FacebookPage[]> {
@@ -154,13 +193,13 @@ async function usePage(connectionId: string, companyId: string, page: FacebookPa
   await graph(`${page.id}/subscribed_apps`, page.token, { method: "POST", params: { subscribed_fields: "leadgen" } });
   await prisma.metaConnection.update({
     where: { id: connectionId },
-    data: { pageId: page.id, pageName: page.name, pageTokenEnc: sealSecret(page.token, PAGE_SCOPE), userTokenEnc: null, needsReconnect: false, lastLeadError: null },
+    data: { pageId: page.id, pageName: page.name, pageTokenEnc: sealSecret(page.token, PAGE_SCOPE), needsReconnect: false, lastLeadError: null },
   });
 }
 
 /** Finishes the sign-in. One Page → it is picked. Several → the page lists them. */
 export async function connectCompany(opts: { companyId: string; userId: string; code: string }): Promise<"connected" | "pick_page" | "no_pages"> {
-  const userToken = await exchangeCode(opts.code);
+  const { token: userToken, businessId } = await exchangeCode(opts.code);
   const me = (await graph("me", userToken, { params: { fields: "name" } })) as { name?: unknown } | null;
   const pages = (await pagesFor(userToken)).filter((p) => p.canAdvertise);
   if (pages.length === 0) return "no_pages";
@@ -168,13 +207,48 @@ export async function connectCompany(opts: { companyId: string; userId: string; 
     connectedById: opts.userId,
     fbUserName: typeof me?.name === "string" ? me.name.slice(0, 120) : null,
     userTokenEnc: sealSecret(userToken, USER_SCOPE),
+    businessId,
     needsReconnect: false,
     lastLeadError: null,
   };
   const connection = await prisma.metaConnection.upsert({ where: { companyId: opts.companyId }, create: { companyId: opts.companyId, ...data }, update: data });
+  // Results back, with nothing pasted: one dataset under this sign-in = it is the one. Several = the page lists them.
+  // A company already reporting through a pasted token keeps that until it chooses otherwise. Never fatal to the connect.
+  try {
+    if (connection.datasetVia === "connect" || !connection.datasetId) {
+      const datasets = await datasetsFor(userToken, businessId);
+      const keep = datasets.find((d) => d.id === connection.datasetId) ?? (datasets.length === 1 ? datasets[0] : null);
+      await prisma.metaConnection.update({
+        where: { id: connection.id },
+        data: keep ? { datasetId: keep.id, datasetVia: "connect", capiTokenEnc: null, capiNeedsToken: false, lastError: null } : { datasetId: null, datasetVia: null },
+      });
+    }
+  } catch (err) {
+    reportError("[meta-leads] listing datasets at connect failed", err);
+  }
   if (pages.length > 1) return "pick_page";
   await usePage(connection.id, opts.companyId, pages[0]);
   return "connected";
+}
+
+/** The datasets to pick from. Names and ids only. */
+export async function datasetsToPick(companyId: string): Promise<FacebookDataset[]> {
+  const c = await prisma.metaConnection.findUnique({ where: { companyId }, select: { userTokenEnc: true, businessId: true } });
+  if (!c?.userTokenEnc) return [];
+  return datasetsFor(openSecret(c.userTokenEnc, USER_SCOPE), c.businessId);
+}
+
+/** Report results to this dataset through the sign-in. Only a dataset Facebook lists for this sign-in is accepted. */
+export async function chooseDataset(companyId: string, datasetIdRaw: unknown): Promise<void> {
+  const c = await prisma.metaConnection.findUnique({ where: { companyId }, select: { id: true, userTokenEnc: true, businessId: true } });
+  if (!c?.userTokenEnc) throw new MetaLeadsError("Connect Facebook first.");
+  const want = typeof datasetIdRaw === "string" ? datasetIdRaw : "";
+  const dataset = (await datasetsFor(openSecret(c.userTokenEnc, USER_SCOPE), c.businessId)).find((d) => d.id === want);
+  if (!dataset) throw new MetaLeadsError("That dataset isn't one this Facebook sign-in can use.");
+  await prisma.metaConnection.update({
+    where: { id: c.id },
+    data: { datasetId: dataset.id, datasetVia: "connect", capiTokenEnc: null, capiNeedsToken: false, lastError: null },
+  });
 }
 
 /** The Pages to pick from while one still has to be picked. Names and ids only: tokens never leave the server. */
@@ -206,13 +280,14 @@ export async function disconnectPage(companyId: string): Promise<void> {
       // best effort: the owner can also remove WorkBench under the Page's Business integrations
     }
   }
-  if (!c.datasetId) {
+  // reporting that ran on this sign-in stops with it; a pasted dataset and token carry on
+  if (!c.datasetId || c.datasetVia === "connect" || !c.capiTokenEnc) {
     await prisma.metaConnection.delete({ where: { id: c.id } });
     return;
   }
   await prisma.metaConnection.update({
     where: { id: c.id },
-    data: { connectedById: null, fbUserName: null, userTokenEnc: null, pageId: null, pageName: null, pageTokenEnc: null, needsReconnect: false, lastLeadAt: null, lastLeadError: null },
+    data: { connectedById: null, fbUserName: null, userTokenEnc: null, businessId: null, pageId: null, pageName: null, pageTokenEnc: null, needsReconnect: false, lastLeadAt: null, lastLeadError: null },
   });
 }
 
@@ -323,6 +398,8 @@ export type MetaLeadsStatus = {
   pageName: string | null;
   /** signed in, several Pages, none picked yet */
   needsPage: boolean;
+  /** a Facebook sign-in is on file (it can list datasets and send results) */
+  signedIn: boolean;
   needsReconnect: boolean;
   lastLeadAt: string | null;
   lastLeadError: string | null;
@@ -348,6 +425,7 @@ export async function loadMetaLeadsStatus(companyId: string, now = new Date()): 
     fbUserName: c?.fbUserName ?? null,
     pageName: connected ? c!.pageName : null,
     needsPage: !!c?.userTokenEnc && !connected,
+    signedIn: !!c?.userTokenEnc,
     needsReconnect: connected && c!.needsReconnect,
     lastLeadAt: connected && c!.lastLeadAt ? c!.lastLeadAt.toISOString() : null,
     lastLeadError: connected ? c!.lastLeadError : null,
