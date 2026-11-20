@@ -256,7 +256,7 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
       if (await companyEmailBlocked(companyId)) return "skipped: company email blocked";
       const payable = canChargeOnline(company);
       const payUrl = `${baseUrl()}/pay/${i.publicToken}`;
-      const { subject, html } = invoiceLinkEmail({ brand, companyName: company.name, contactFirstName: contact.firstName, invoiceNumber: i.invoiceNumber, total: Number(i.total), payUrl, serviceNames: i.lineItems.map((li) => li.name || li.description || "Service"), payable });
+      const { subject, html } = invoiceLinkEmail({ brand, companyName: company.name, contactFirstName: contact.firstName, invoiceNumber: i.invoiceNumber, total: Number(i.total), payUrl, serviceNames: i.lineItems.map((li) => li.name || li.description || "Service"), payable, dueDate: i.dueDate ?? dueDateFromTerms(now, contact.paymentTermsDays) });
       const emailed = await sendEmail({ companyId, to: contact.email, subject, html, replyTo: company.email || undefined, fromName: company.name });
       if (!emailed) return "failed: email send failed";
       let texted = false;

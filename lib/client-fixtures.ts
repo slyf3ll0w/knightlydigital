@@ -1,5 +1,6 @@
 import type { PublicQuote } from "@/app/quote/[token]/QuoteAcceptPage";
 import type { PublicInvoice } from "@/app/pay/[token]/PayPage";
+import type { HubHomeData } from "@/app/hub/[token]/HubHome";
 
 /**
  * Brightwire Electric — the FAKE company every client-facing surface is
@@ -7,11 +8,12 @@ import type { PublicInvoice } from "@/app/pay/[token]/PayPage";
  * client of WorkBench (feedback-no-real-clients-in-marketing).
  */
 
-export type FixtureBrand = "default" | "navy" | "yellow" | "black";
+export type FixtureBrand = "default" | "navy" | "orange" | "yellow" | "black";
 
 const BRANDS: Record<FixtureBrand, { brandColor: string | null; brandColorSecondary: string | null; documentColor: string | null }> = {
   default: { brandColor: null, brandColorSecondary: null, documentColor: null },
   navy: { brandColor: "#0A1428", brandColorSecondary: "#F86808", documentColor: null },
+  orange: { brandColor: "#F97316", brandColorSecondary: null, documentColor: null },
   yellow: { brandColor: "#FDE047", brandColorSecondary: null, documentColor: null },
   black: { brandColor: "#111111", brandColorSecondary: "#FFFFFF", documentColor: null },
 };
@@ -132,4 +134,51 @@ export function fixtureBalance(inv: PublicInvoice): number {
   const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
   const surcharges = inv.payments.reduce((s, p) => s + Number(p.surchargeAmount ?? 0), 0);
   return Math.max(0, Math.round((Number(inv.total) + surcharges - paid) * 100) / 100);
+}
+
+/**
+ * The client portal home for Maria Hernandez (demo client) at Brightwire
+ * Electric. "open" = an unpaid invoice, a quote to approve, a visit coming up
+ * and an unread reply; "clear" = nothing owed or waiting, history only.
+ */
+export function fixtureHub(state: "open" | "clear" = "open", brand: FixtureBrand = "navy"): { company: ReturnType<typeof fixtureCompany>; firstName: string; unread: number; data: HubHomeData } {
+  const base = "/hub/preview";
+  const tz = "America/Chicago";
+  const md = (offset: number) => {
+    const d = new Date(Date.now() + offset * DAY);
+    return { month: d.toLocaleDateString("en-US", { month: "short", timeZone: tz }), day: d.toLocaleDateString("en-US", { day: "numeric", timeZone: tz }), weekday: d.toLocaleDateString("en-US", { weekday: "long", timeZone: tz }), long: d.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: tz }) };
+  };
+  const v1 = md(3);
+  const v2 = md(17);
+  const w1 = md(-9);
+  const w2 = md(-40);
+  const open = state === "open";
+  return {
+    company: fixtureCompany(brand),
+    firstName: "Maria",
+    unread: open ? 1 : 0,
+    data: {
+      token: "preview",
+      base,
+      companyName: "Brightwire Electric",
+      balance: open
+        ? { amount: 1842.5, count: 1, href: "/client-preview?doc=invoice", what: "Invoice 2210", due: `Due ${md(12).long}`, overdue: false, payable: true }
+        : null,
+      quote: open ? { count: 1, title: "EV charger circuit (50A)", total: 703.63, href: "/client-preview?doc=quote" } : null,
+      pendingContracts: [],
+      unread: open ? { count: 1, preview: "Hi Maria, the inspector signed off this morning. We'll see you Thursday for the charger walk-through." } : null,
+      visits: open
+        ? [
+            { id: "v1", title: "EV charger walk-through", month: v1.month, day: v1.day, when: `${v1.weekday} · arriving 9:00 – 11:00 AM` },
+            { id: "v2", title: "Smoke detector check", month: v2.month, day: v2.day, when: `${v2.weekday} · Anytime` },
+          ]
+        : [],
+      recentWork: [
+        { id: "w1", title: "Panel upgrade, 200A", when: `Completed ${w1.long}`, thumb: null, month: w1.month, day: w1.day },
+        { id: "w2", title: "Kitchen GFCI outlets", when: `Completed ${w2.long}`, thumb: null, month: w2.month, day: w2.day },
+      ],
+      signedContracts: [{ id: "c1", title: "Service agreement", when: w2.long }],
+      form: { heading: "Get work done", description: "Send us a request and fill us in on the details.", buttonLabel: "New request" },
+    },
+  };
 }

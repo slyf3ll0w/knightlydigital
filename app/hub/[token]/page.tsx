@@ -1,24 +1,13 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import Link from "next/link";
-import {
-  Inbox,
-  FileText,
-  Receipt,
-  ArrowRight,
-  CalendarDays,
-  ChevronRight,
-  FileSignature,
-  CheckCircle2,
-  Mail,
-} from "lucide-react";
-import { money } from "@/lib/statuses";
 import { invoiceBalance } from "@/lib/payments";
+import { canChargeOnline, CHARGE_GATE_SELECT } from "@/lib/payments-gate";
+import { isPastDue } from "@/lib/due-dates";
 import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
-import ResendContractButton from "./ResendContractButton";
 import { hubFormWords } from "@/lib/hub-form";
 import { galleryStateFor } from "@/lib/gallery-preview";
 import { hubPhotoSrc } from "@/lib/photos-shared";
+import HubHome, { type HubHomeData } from "./HubHome";
 
 export default async function HubHomePage({
   params,
@@ -33,10 +22,15 @@ export default async function HubHomePage({
   const contact = await prisma.contact.findUnique({
     where: { hubToken: token },
     include: {
-      quotes: { where: { status: "AWAITING_RESPONSE" } },
+      quotes: {
+        where: { status: "AWAITING_RESPONSE" },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, title: true, quoteNumber: true, total: true, publicToken: true },
+      },
       invoices: {
         where: { status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] } },
         include: { payments: true },
+        orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
       },
       jobs: {
         where: { status: "ACTIVE", scheduledAt: { gte: startOfDay } },
@@ -50,7 +44,17 @@ export default async function HubHomePage({
           arrivalWindowMinutes: true,
         },
       },
-      company: { select: { id: true, slug: true, timezone: true, arrivalWindowMinutes: true, hubBookingTypeId: true } },
+      company: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          timezone: true,
+          arrivalWindowMinutes: true,
+          hubBookingTypeId: true,
+          ...CHARGE_GATE_SELECT,
+        },
+      },
       contracts: {
         where: { status: { in: ["SENT", "SIGNED"] } },
         orderBy: { createdAt: "desc" },
@@ -77,267 +81,114 @@ export default async function HubHomePage({
         },
       })
     : [];
+  // Unread company replies: the count rides the nav; the newest one's words lead the card
+  const unreadCount = await prisma.portalMessage.count({
+    where: { contactId: contact.id, direction: "OUTBOUND", readByClientAt: null },
+  });
+  const latestUnread = unreadCount
+    ? await prisma.portalMessage.findFirst({
+        where: { contactId: contact.id, direction: "OUTBOUND", readByClientAt: null },
+        orderBy: { createdAt: "desc" },
+        select: { body: true },
+      })
+    : null;
 
-  const openQuotes = contact.quotes.length;
-  const openBalance = contact.invoices.reduce(
-    (s, inv) => s + Math.max(0, invoiceBalance(inv)),
-    0
-  );
-  const pendingContracts = contact.contracts.filter((c) => c.status === "SENT");
-  const nextVisit = contact.jobs[0];
   const base = `/hub/${token}`;
+  const tz = contact.company.timezone;
+
+  // Balance: what's still owed across open invoices (a fully covered one drops out)
+  const owing = contact.invoices
+    .map((inv) => ({ inv, left: Math.max(0, invoiceBalance(inv)) }))
+    .filter((x) => x.left > 0);
+  const balanceAmount = owing.reduce((s, x) => s + x.left, 0);
+  // Due dates are calendar days stored at noon — read them on the UTC day (lib/due-dates)
+  const dueDay = (d: Date) => d.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "UTC" });
+  const overdue = owing.filter((x) => x.inv.status === "PAST_DUE" || isPastDue(x.inv.dueDate, now));
+  const soonestDue = owing.find((x) => x.inv.dueDate)?.inv.dueDate ?? null;
+  const balance: HubHomeData["balance"] =
+    balanceAmount > 0
+      ? {
+          amount: balanceAmount,
+          count: owing.length,
+          href: owing.length === 1 ? `/pay/${owing[0].inv.publicToken}` : `${base}/invoices`,
+          what: owing.length === 1 ? `Invoice ${owing[0].inv.invoiceNumber}` : `${owing.length} invoices`,
+          due:
+            overdue.length > 0
+              ? owing.length === 1 && overdue[0].inv.dueDate
+                ? `Past due since ${dueDay(overdue[0].inv.dueDate)}`
+                : overdue.length === 1
+                  ? "1 is past due"
+                  : `${overdue.length} are past due`
+              : soonestDue
+                ? `Due ${dueDay(soonestDue)}`
+                : null,
+          overdue: overdue.length > 0,
+          payable: canChargeOnline(contact.company),
+        }
+      : null;
 
   // Clients are promised an arrival window, never the dispatch-exact time —
   // and everything renders in the company's timezone, not the server's.
-  const tz = contact.company.timezone;
   const visitTime = (d: Date, anytime: boolean, jobWindow: number | null) =>
     anytime
       ? "Anytime"
-      : `arriving ${arrivalTimeLabel(
-          tz,
-          d,
-          resolveArrivalWindowMinutes(jobWindow, contact.company.arrivalWindowMinutes)
-        )}`;
+      : `arriving ${arrivalTimeLabel(tz, d, resolveArrivalWindowMinutes(jobWindow, contact.company.arrivalWindowMinutes))}`;
+  const month = (d: Date) => d.toLocaleDateString("en-US", { month: "short", timeZone: tz });
+  const day = (d: Date) => d.toLocaleDateString("en-US", { day: "numeric", timeZone: tz });
 
-  /** Small ledger "appointment ticket" date tile — month over day numeral. */
-  const dateTile = (d: Date | null) => (
-    <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-md border border-gray-200 bg-white">
-      {d ? (
-        <>
-          <span className="text-[9px] font-bold uppercase tracking-wide leading-none text-red-600/80">
-            {d.toLocaleDateString("en-US", { month: "short", timeZone: tz })}
-          </span>
-          <span className="numeral-ledger text-lg font-semibold leading-tight text-gray-900">
-            {d.toLocaleDateString("en-US", { day: "numeric", timeZone: tz })}
-          </span>
-        </>
-      ) : (
-        <CalendarDays size={16} className="text-gray-300" />
-      )}
-    </div>
-  );
+  const q0 = contact.quotes[0];
+  const data: HubHomeData = {
+    token,
+    base,
+    companyName: contact.company.name,
+    balance,
+    quote: q0
+      ? {
+          count: contact.quotes.length,
+          title: q0.title || `Quote ${q0.quoteNumber}`,
+          total: contact.quotes.length === 1 ? Number(q0.total) : null,
+          href: contact.quotes.length === 1 ? `/quote/${q0.publicToken}` : `${base}/quotes`,
+        }
+      : null,
+    pendingContracts: contact.contracts.filter((c) => c.status === "SENT").map((c) => ({ id: c.id, title: c.title })),
+    unread: unreadCount ? { count: unreadCount, preview: latestUnread?.body?.trim() || null } : null,
+    visits: contact.jobs
+      .filter((j) => j.scheduledAt)
+      .map((j) => {
+        const d = new Date(j.scheduledAt!);
+        return {
+          id: j.id,
+          title: j.title,
+          month: month(d),
+          day: day(d),
+          when: `${d.toLocaleDateString("en-US", { weekday: "long", timeZone: tz })} · ${visitTime(d, j.scheduledAnytime, j.arrivalWindowMinutes)}`,
+        };
+      }),
+    recentWork: recentWork.map((j) => {
+      const when = j.completedAt ?? j.closedAt;
+      const cover = j.photos[0];
+      return {
+        id: j.id,
+        title: j.title,
+        when: when ? `Completed ${when.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: tz })}` : "Completed",
+        thumb: cover ? hubPhotoSrc(token, cover.id, cover.thumbKey ? "thumb" : "full") : null,
+        month: when ? month(when) : null,
+        day: when ? day(when) : null,
+      };
+    }),
+    signedContracts: contact.contracts
+      .filter((c) => c.status === "SIGNED")
+      .map((c) => ({
+        id: c.id,
+        title: c.title,
+        when: c.signedAt ? new Date(c.signedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: tz }) : "",
+      })),
+    form: {
+      heading: hubForm?.heading ?? "Get work done",
+      description: hubForm?.description ?? "Send us a request and fill us in on the details.",
+      buttonLabel: hubForm?.buttonLabel ?? "New request",
+    },
+  };
 
-  return (
-    <div className="space-y-4">
-      {/* Action items — the money path stays at the very top */}
-      {openQuotes > 0 && (
-        <Link
-          href={`${base}/quotes`}
-          className="anim-portal flex items-center justify-between px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-        >
-          <p className="text-sm font-medium text-blue-800">
-            {openQuotes} {openQuotes === 1 ? "quote is" : "quotes are"} waiting for your approval
-          </p>
-          <ArrowRight size={14} className="text-blue-700" />
-        </Link>
-      )}
-      {pendingContracts.length > 0 && (
-        <div className="anim-portal flex items-center justify-between px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg">
-          <p className="text-sm font-medium text-amber-800">
-            {pendingContracts.length === 1
-              ? "An agreement is waiting for your signature — check your email"
-              : `${pendingContracts.length} agreements are waiting for your signature — check your email`}
-          </p>
-          <Mail size={14} className="text-amber-700 shrink-0" />
-        </div>
-      )}
-      {openBalance > 0 && (
-        <Link
-          href={`${base}/invoices`}
-          className="anim-portal flex items-center justify-between px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
-        >
-          <p className="text-sm font-medium text-amber-800">
-            You have an outstanding balance of $
-            {openBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-          </p>
-          <ArrowRight size={14} className="text-amber-700" />
-        </Link>
-      )}
-
-      {/* At-a-glance strip — the app's KPI card: tool chrome, accent-dot
-          labels, ledger numerals */}
-      <div className="anim-portal anim-delay-1 card-tool grid grid-cols-3 divide-x divide-gray-100">
-        {[
-          { label: "Open balance", value: money(openBalance) },
-          {
-            label: "Next visit",
-            value: nextVisit?.scheduledAt
-              ? new Date(nextVisit.scheduledAt).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  timeZone: tz,
-                })
-              : "—",
-          },
-          { label: "Quotes to review", value: String(openQuotes) },
-        ].map((kpi) => (
-          <div key={kpi.label} className="px-4 py-4">
-            <p className="flex items-center gap-1.5 text-[11px] font-medium text-gray-500">
-              <span
-                aria-hidden
-                className="h-1.5 w-1.5 shrink-0 rounded-full"
-                style={{ background: "var(--wb-accent-bright, #2E6FF2)" }}
-              />
-              {kpi.label}
-            </p>
-            <p className="numeral-ledger mt-1 text-lg sm:text-2xl font-semibold text-gray-900">
-              {kpi.value}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      {/* Upcoming visits — appointment-ticket date tiles */}
-      {contact.jobs.length > 0 && (
-        <div className="anim-portal anim-delay-2 card-ledger overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
-            <CalendarDays size={15} className="text-gray-400" />
-            <h2 className="font-semibold text-gray-900 text-sm">Upcoming visits</h2>
-          </div>
-          <div className="list-settle divide-y divide-gray-50">
-            {contact.jobs.map((job) => {
-              const d = job.scheduledAt ? new Date(job.scheduledAt) : null;
-              return (
-                <div key={job.id} className="flex items-center gap-3 px-4 py-3">
-                  {dateTile(d)}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900 truncate">{job.title}</p>
-                    <p className="text-xs text-gray-500">
-                      {d
-                        ? `${d.toLocaleDateString("en-US", { weekday: "long", timeZone: tz })} · ${visitTime(d, job.scheduledAnytime, job.arrivalWindowMinutes)}`
-                        : "To be scheduled"}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-
-      {/* Completed work — the report of each finished visit (Gallery plan) */}
-      {recentWork.length > 0 && (
-        <div className="anim-portal anim-delay-2 card-ledger overflow-hidden">
-          <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 size={15} className="text-gray-400" />
-              <h2 className="font-semibold text-gray-900 text-sm">Completed work</h2>
-            </div>
-            <Link href={`${base}/work`} className="text-xs font-medium text-[color:var(--wb-ink,#0B57D8)] hover:underline">
-              See all
-            </Link>
-          </div>
-          <div className="list-settle divide-y divide-gray-50">
-            {recentWork.map((j) => {
-              const when = j.completedAt ?? j.closedAt;
-              const cover = j.photos[0];
-              return (
-                <Link key={j.id} href={`${base}/work/${j.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors">
-                  {cover ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={hubPhotoSrc(token, cover.id, cover.thumbKey ? "thumb" : "full")} alt="" className="h-11 w-11 shrink-0 rounded-md bg-gray-100 object-cover" />
-                  ) : (
-                    dateTile(when)
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900 truncate">{j.title}</p>
-                    <p className="text-xs text-gray-500">
-                      {when ? `Completed ${when.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: tz })}` : "Completed"} · see the report
-                    </p>
-                  </div>
-                  <ChevronRight size={15} className="text-gray-400 shrink-0" />
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Agreements — signing happens via the emailed link, never inline here */}
-      {contact.contracts.length > 0 && (
-        <div className="anim-portal anim-delay-2 card-ledger overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
-            <FileSignature size={15} className="text-gray-400" />
-            <h2 className="font-semibold text-gray-900 text-sm">Agreements</h2>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {contact.contracts.map((c) => (
-              <div key={c.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{c.title}</p>
-                    {c.status === "SIGNED" ? (
-                      <span className="stamp text-green-700">
-                        Signed
-                      </span>
-                    ) : (
-                      <span className="stamp text-amber-700">
-                        Awaiting signature
-                      </span>
-                    )}
-                  </div>
-                  {c.status === "SIGNED" ? (
-                    <p className="mt-0.5 flex items-center gap-1 text-xs text-green-700">
-                      <CheckCircle2 size={12} />
-                      Signed{" "}
-                      {c.signedAt
-                        ? new Date(c.signedAt).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })
-                        : ""}
-                    </p>
-                  ) : (
-                    <p className="mt-0.5 text-xs text-amber-700">
-                      We emailed you the signing link
-                    </p>
-                  )}
-                </div>
-                {c.status === "SENT" && (
-                  <ResendContractButton token={token} contractId={c.id} />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Get work done */}
-      <div className="anim-portal anim-delay-3 card-ledger p-8 text-center">
-        <Inbox size={32} className="text-gray-300 mx-auto mb-3" />
-        <h2 className="text-lg font-bold text-gray-900 mb-1">{hubForm?.heading ?? "Get work done"}</h2>
-        <p className="text-sm text-gray-500 mb-5">
-          {hubForm?.description ?? "Send us a request and fill us in on the details."}
-        </p>
-        <Link
-          href={`${base}/requests/new`}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
-        >
-          {hubForm?.buttonLabel ?? "New request"}
-        </Link>
-      </div>
-
-      {/* Quick links — lift on hover, leaning chevrons like the app's rows */}
-      <div className="anim-portal anim-delay-4 grid grid-cols-2 gap-3">
-        {[
-          { href: `${base}/quotes`, label: "Quotes", Icon: FileText },
-          { href: `${base}/invoices`, label: "Invoices", Icon: Receipt },
-          { href: `${base}/visits`, label: "Visits", Icon: CalendarDays },
-          { href: `${base}/requests`, label: "Requests", Icon: Inbox },
-        ].map(({ href, label, Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className="lift-hover flex items-center gap-3 card-ledger p-4 transition-shadow hover:shadow-md"
-          >
-            <Icon size={18} className="shrink-0 text-[color:var(--wb-ink,#0B57D8)]" />
-            <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800">{label}</span>
-            <ChevronRight size={14} className="shrink-0 text-gray-400" />
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
+  return <HubHome d={data} />;
 }
