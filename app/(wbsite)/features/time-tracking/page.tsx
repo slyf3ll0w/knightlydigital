@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
+import { CenterHero, DemoHero, DemoSection } from "@/components/wb/WBTradeSections";
+import WBDemoTimesheet from "@/components/wb/demos/WBDemoTimesheet";
+import WBInsights from "@/components/wb/WBInsights";
+import WBTeamDemo from "@/components/wb/WBTeamDemo";
+import { SEATS_SENTENCE } from "@/lib/help/plan-copy";
 import WBAppJourney from "@/components/wb/WBAppJourney";
 import { Clock } from "lucide-react";
 import { WB_SHOTS } from "@/components/wb/WBSplitHero";
@@ -61,6 +66,41 @@ const faq = [
 export default function TimeTrackingPage() {
   return (
     <WBFeaturePage
+      hero={
+        <CenterHero
+          tone="navy"
+          eyebrow="Time tracking"
+          title={["Labor cost that lands", "on the job."]}
+          accent="#FF8B33"
+          intro="Techs clock in and out right on the job. Weekly timesheets add up per person, managers fix a forgotten clock-out, and every hour becomes real labor cost on that job, not a guess at the end of the month."
+          demo={<WBDemoTimesheet />}
+        />
+      }
+      body={
+        <>
+          <section className="bg-[#F5F7FA]">
+            <div className="mx-auto max-w-6xl px-5 py-24 sm:px-8 sm:py-32">
+              <h2 className="max-w-3xl text-[2.3rem] font-black leading-[1.02] tracking-[-0.035em] sm:text-[3.4rem]">
+                Everyone signs in. <span className="text-[#0B57D8]">Everyone clocks in.</span>
+              </h2>
+              <p className="mt-6 max-w-2xl text-[18px] leading-relaxed text-gray-600">
+                Give each person their own sign-in and a cost per hour. Techs see their own jobs and their own timesheet, never your prices.
+              </p>
+              <div className="mx-auto mt-14 max-w-5xl">
+                <WBTeamDemo seatsSentence={SEATS_SENTENCE} />
+              </div>
+            </div>
+          </section>
+          <DemoSection
+            tone="deep"
+            title={["See what each job", "really made."]}
+            accent="#FF8B33"
+            body={<p>Logged hours times each person&apos;s cost becomes the labor line on the job, beside the materials and expenses, so the margin is real.</p>}
+            demo={<WBInsights />}
+          />
+        </>
+      }
+      stepsStyle="rail"
       demo={<WBAppJourney steps={["sched", "done", "inv"]} />}
       eyebrow="Run the day"
       accent="orange"

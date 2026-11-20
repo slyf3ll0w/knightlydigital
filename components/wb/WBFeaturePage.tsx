@@ -7,6 +7,7 @@ import WBTestimonials from "@/components/wb/WBTestimonials";
 import WBCta from "@/components/wb/WBCta";
 import { WBFaqSection, type FaqItem } from "./WBFaq";
 import WBScreenshotFrame from "./WBScreenshotFrame";
+import { StepsOnBand, StepsRail, StepsRuled } from "./WBTradeSections";
 import type { FeatureItem } from "@/lib/wb-features";
 import { FREE_PLAN_NAME, INCLUDED_SEATS, PLANS } from "@/lib/plans";
 
@@ -41,6 +42,9 @@ export default function WBFeaturePage({
   features,
   faq,
   related,
+  hero,
+  body,
+  stepsStyle = "ruled",
   ctaTitle = "Free to start. Full access, not a trial.",
   ctaBody = (
     <>
@@ -53,15 +57,21 @@ export default function WBFeaturePage({
   accent: Accent;
   title: React.ReactNode;
   intro: string;
-  screenshot: { src: string; alt: string; kind?: "desktop" | "mobile"; caption?: string };
+  screenshot?: { src: string; alt: string; kind?: "desktop" | "mobile"; caption?: string };
+  /** A page's own hero (2026-11-20: each feature page gets its own layout). Replaces the photo hero. */
+  hero?: React.ReactNode;
+  /** The page's own sections between the hero and "What's included". Replaces the screen, the steps and `extra`. */
+  body?: React.ReactNode;
+  /** How the steps are drawn under a custom `body`. */
+  stepsStyle?: "ruled" | "rail" | "band";
   /** A live, animated coded copy of the app shown in place of the screenshot
    *  (2026-11-19: WBAppJourney with this page's steps or trade's job,
    *  WBAtlasDemo…). Falls back to the screenshot. */
   demo?: React.ReactNode;
   /** Job-site photo behind the phone in the hero. */
-  photo: { src: string; alt: string };
+  photo?: { src: string; alt: string };
   /** Real phone screenshot for the hero (see WB_SHOTS in WBSplitHero). */
-  phone: React.ComponentProps<typeof WBSplitHero>["phone"];
+  phone?: React.ComponentProps<typeof WBSplitHero>["phone"];
   chip?: React.ComponentProps<typeof WBSplitHero>["chip"];
   steps?: Step[];
   /** A page-specific band between "How it works" and the feature grid. */
@@ -76,7 +86,8 @@ export default function WBFeaturePage({
 
   return (
     <>
-      {/* Hero */}
+      {hero}
+      {!hero && photo && (
       <WBSplitHero photo={photo} phone={phone} chip={chip}>
         <h1 className="mt-4 text-[2.7rem] leading-[1.0] tracking-[-0.04em] sm:text-[3.8rem]">{title}</h1>
         <p className="mx-auto mt-6 max-w-2xl text-[18px] leading-relaxed text-gray-600 lg:mx-0">{intro}</p>
@@ -90,6 +101,15 @@ export default function WBFeaturePage({
           </Link>
         </div>
       </WBSplitHero>
+      )}
+
+      {body}
+      {body && steps && steps.length > 0 && (
+        stepsStyle === "rail" ? <StepsRail steps={steps} title={["How it", "works."]} accent={c.hex} />
+        : stepsStyle === "band" ? <StepsOnBand steps={steps} title={["How it", "works."]} accent="#FF8B33" />
+        : <StepsRuled steps={steps} title={["How it", "works."]} accent={c.hex} bg="bg-[#F5F7FA]" />
+      )}
+      {!body && (<>
 
       {/* The real screen (desktop or phone) right under the hero */}
       {(
@@ -104,7 +124,7 @@ export default function WBFeaturePage({
                 </p>
                 <WBScribble variant="droop" delay={0.4} className="h-[80px] w-[62px] flex-none" />
               </div>
-              {demo ? <div className="mx-auto max-w-5xl">{demo}</div> : (
+              {demo ? <div className="mx-auto max-w-5xl">{demo}</div> : screenshot && (
                 <div className="mx-auto max-w-4xl">
                   <WBScreenshotFrame {...screenshot} />
                 </div>
@@ -136,6 +156,7 @@ export default function WBFeaturePage({
         </section>
       )}
 
+      </>)}
       {extra}
 
       {/* What's included: a spec sheet — the title holds still on the left,

@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
+import { CenterHero, DemoHero, DemoSection } from "@/components/wb/WBTradeSections";
+import WBDemoQuoteOptions from "@/components/wb/demos/WBDemoQuoteOptions";
+import WBDemoChecklist from "@/components/wb/demos/WBDemoChecklist";
+import WBBookSlot from "@/components/wb/WBBookSlot";
 import WBAppJourney from "@/components/wb/WBAppJourney";
 import { UserCheck } from "lucide-react";
 import { WB_SHOTS } from "@/components/wb/WBSplitHero";
@@ -71,6 +75,34 @@ const faq = [
 export default function ClientPortalPage() {
   return (
     <WBFeaturePage
+      body={
+        <>
+          <DemoSection
+            wide
+            title={["They choose,", "sign and pay."]}
+            accent="#F86A0A"
+            body={<p>The quote opens on their phone with your name on top. They tick the options they want, the total follows, and they sign and pay the deposit in the same minute.</p>}
+            demo={<WBDemoQuoteOptions />}
+          />
+          <DemoSection
+            wide
+            bg="bg-[#F5F7FA]"
+            title={["Every visit,", "reported."]}
+            accent="#0B57D8"
+            body={<p>When the tech marks the job done, the client gets a visit report with everything that was checked, and the invoice and the next visit are waiting in their portal.</p>}
+            demo={<WBDemoChecklist />}
+          />
+          <DemoSection
+            tone="deep"
+            title={["More work,", "one tap away."]}
+            accent="#FF8B33"
+            body={<p>Clients book the next visit or ask for more work from the same portal, at your real open times, without calling the office.</p>}
+            demo={<WBBookSlot />}
+            flip
+          />
+        </>
+      }
+      stepsStyle="band"
       demo={<WBAppJourney steps={["ok", "inv", "paid"]} />}
       eyebrow="Keep clients close"
       accent="orange"

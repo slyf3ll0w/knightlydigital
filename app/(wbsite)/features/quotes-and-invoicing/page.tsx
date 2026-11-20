@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
+import { CenterHero, DemoHero, DemoSection } from "@/components/wb/WBTradeSections";
+import WBDemoQuoteOptions from "@/components/wb/demos/WBDemoQuoteOptions";
 import WBAppJourney from "@/components/wb/WBAppJourney";
 import { FileSignature } from "lucide-react";
 import { WB_SHOTS } from "@/components/wb/WBSplitHero";
@@ -69,6 +71,33 @@ const faq = [
 export default function QuotesAndInvoicingPage() {
   return (
     <WBFeaturePage
+      hero={
+        <DemoHero
+          tone="navy"
+          eyebrow="Quotes & invoicing"
+          title={["From a signed quote", "to a paid invoice."]}
+          accent="#FF8B33"
+          intro="Quotes go out with e-signature, optional add-ons and a deposit, and get a nudge if they sit unanswered. Accepted quotes become jobs in one click, and finished jobs invoice in one click, every price from the same price book."
+          demo={<WBDemoQuoteOptions />}
+        />
+      }
+      body={
+        <section className="bg-white">
+          <div className="mx-auto max-w-6xl px-5 py-24 sm:px-8 sm:py-32">
+            <h2 className="max-w-3xl text-[2.3rem] font-black leading-[1.02] tracking-[-0.035em] sm:text-[3.4rem]">
+              One job, <span className="text-[#0B57D8]">one thread.</span>
+            </h2>
+            <p className="mt-6 max-w-2xl text-[18px] leading-relaxed text-gray-600">
+              The request, the quote, the signature, the calendar, the invoice and the payment, each step handing off to the next on the real
+              screens. Tap a step to jump to it.
+            </p>
+            <div className="mt-14">
+              <WBAppJourney />
+            </div>
+          </div>
+        </section>
+      }
+      stepsStyle="ruled"
       demo={<WBAppJourney steps={["req", "quote", "ok", "inv", "paid"]} />}
       eyebrow="Win the work, get paid for it"
       accent="blue"

@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
+import { CenterHero, DemoHero, DemoSection } from "@/components/wb/WBTradeSections";
+import WBDemoDayShift from "@/components/wb/demos/WBDemoDayShift";
+import WBDemoRoute from "@/components/wb/demos/WBDemoRoute";
+import WBDemoRecurring from "@/components/wb/demos/WBDemoRecurring";
+import WBBookSlot from "@/components/wb/WBBookSlot";
+import { PLANS } from "@/lib/plans";
 import WBAppJourney from "@/components/wb/WBAppJourney";
 import { MapPin } from "lucide-react";
 import { WB_SHOTS } from "@/components/wb/WBSplitHero";
@@ -85,6 +91,47 @@ const faq = [
 export default function SchedulingDispatchPage() {
   return (
     <WBFeaturePage
+      hero={
+        <CenterHero
+          tone="deep"
+          eyebrow="Scheduling & dispatch"
+          title={["The calendar is", "the command center."]}
+          accent="#FF8B33"
+          intro="Day, week and month views with drag-to-schedule. Move a job and the clients whose times changed hear about it, so the office and the crew are always looking at the same day."
+          demo={<WBDemoDayShift />}
+        />
+      }
+      body={
+        <>
+          <DemoSection
+            title={["Booked online,", "at real open times."]}
+            accent="#F86A0A"
+            body={<p>A booking button on your website shows only the times your people can really take, with drive time between jobs counted. The visit lands on the schedule with the address and the answers to your questions.</p>}
+            demo={<WBBookSlot />}
+          />
+          <DemoSection
+            tone="navy"
+            title={["Routes that", "drive less."]}
+            accent="#FF8B33"
+            body={
+              <>
+                <p>See the day on a map, press Optimize, and the stops reorder for the shortest drive, keeping any time you promised a client.</p>
+                <p className="mt-4 text-[15px] font-bold text-[#BFD6FF]">Route Manager is in beta, with {PLANS.SHOP.name}</p>
+              </>
+            }
+            demo={<WBDemoRoute />}
+            flip
+          />
+          <DemoSection
+            bg="bg-white"
+            title={["Recurring visits,", "weeks ahead."]}
+            accent="#0B57D8"
+            body={<p>Set a visit series once and the visits appear on the calendar as real jobs you can drag, skip or reassign, billed per visit or once a month.</p>}
+            demo={<WBDemoRecurring />}
+          />
+        </>
+      }
+      stepsStyle="rail"
       demo={<WBAppJourney steps={["req", "sched", "done"]} />}
       eyebrow="Run the day"
       accent="orange"

@@ -1,0 +1,39 @@
+/* Coded app-screen demos (components/wb/demos). The rest of the motion
+   reuses app/globals.css: wb-step-in, wb-row-in, wb-toast-in, wb-pop-in,
+   wb-stamp-now, wb-drop-cal, wb-sign, wb-plane, wb-burst, wb-confetti. */
+
+/* a checkmark landing in its circle */
+@keyframes wb-demo-tick {
+  0% { transform: scale(0.3); opacity: 0; }
+  60% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.wb-demo-tick { animation: wb-demo-tick 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+/* a route line drawing itself (longer than a signature) */
+.wb-demo-route { stroke-dasharray: 1; stroke-dashoffset: 1; animation: wb-draw 1.2s ease-in-out forwards; }
+
+/* a tap: a soft ring that grows and fades where a finger pressed */
+@keyframes wb-demo-tap {
+  0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0.55; }
+  100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
+}
+.wb-demo-tap {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border-radius: 9999px;
+  background: rgba(11, 87, 216, 0.35);
+  pointer-events: none;
+  animation: wb-demo-tap 0.6s ease-out forwards;
+}
+
+/* a timer digit nudging as it ticks */
+@keyframes wb-demo-live { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.wb-demo-live { animation: wb-demo-live 1.2s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-demo-tick, .wb-demo-live { animation: none; }
+  .wb-demo-route { stroke-dashoffset: 0; animation: none; }
+  .wb-demo-tap { display: none; }
+}

@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { RATES_SENTENCE, RATES_SHORT } from "@/lib/plans";
 import Link from "next/link";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
+import { CenterHero, DemoHero, DemoSection } from "@/components/wb/WBTradeSections";
+import WBDemoRecurring from "@/components/wb/demos/WBDemoRecurring";
+import WBReceipt from "@/components/wb/WBReceipt";
+import { PROCESSING_RATES } from "@/lib/plans";
 import WBAppJourney from "@/components/wb/WBAppJourney";
 import { CreditCard } from "lucide-react";
 import { WB_SHOTS } from "@/components/wb/WBSplitHero";
@@ -81,6 +85,49 @@ const faq = [
 export default function PaymentsPage() {
   return (
     <WBFeaturePage
+      hero={
+        <DemoHero
+          tone="blue"
+          eyebrow="Get paid"
+          title={["Money comes in", "on its own."]}
+          accent="#FFD2B0"
+          intro="Every invoice, quote and booking can take card or bank payments at one flat rate, with no monthly fees. Saved cards autopay recurring work, declines retry by themselves, and unpaid invoices get reminders until the money lands."
+          demo={<div className="p-6 sm:p-8"><WBAppJourney steps={["inv", "paid"]} /></div>}
+        />
+      }
+      body={
+        <>
+          <DemoSection
+            title={["One flat rate.", "Nothing monthly."]}
+            accent="#0B57D8"
+            body={<p>You pay the card fee only when a client pays you. Or turn on the service fee and the client covers it at checkout, so you get the whole invoice.</p>}
+            demo={
+              <div className="mx-auto max-w-[440px]">
+                <WBReceipt
+                  title="Getting paid"
+                  lines={[
+                    { label: "Card, you cover it", value: `${(PROCESSING_RATES.companyPaid.cardBps / 100).toFixed(2)}% + ${PROCESSING_RATES.companyPaid.cardFixedCents}¢` },
+                    { label: "Card, client covers it", value: `${(PROCESSING_RATES.serviceFee.cardBps / 100).toFixed(2)}% + ${PROCESSING_RATES.serviceFee.cardFixedCents}¢`, note: "With the service fee on" },
+                    { label: "Monthly fee", value: "None" },
+                    { label: "Cash and checks", value: "Free to record" },
+                  ]}
+                  total={{ label: "Due today", value: "$0.00", strong: true }}
+                  footer="Paid out to your own Square account."
+                />
+              </div>
+            }
+            flip
+          />
+          <DemoSection
+            tone="deep"
+            title={["Recurring work", "pays itself."]}
+            accent="#FF8B33"
+            body={<p>Put a card on file once and every visit or monthly invoice charges it. A decline retries on a schedule and the client gets a link to update the card, so you never make the awkward call.</p>}
+            demo={<WBDemoRecurring />}
+          />
+        </>
+      }
+      stepsStyle="ruled"
       demo={<WBAppJourney steps={["ok", "inv", "paid"]} />}
       eyebrow="Get paid"
       accent="blue"
