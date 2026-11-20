@@ -11,6 +11,7 @@ import WBAppJourney from "@/components/wb/WBAppJourney";
 import WBDoodle from "@/components/wb/WBDoodle";
 import WBInsights from "@/components/wb/WBInsights";
 import WBTeamDemo from "@/components/wb/WBTeamDemo";
+import { SEATS_SENTENCE } from "@/lib/help/plan-copy";
 import WBMarker from "@/components/wb/WBMarker";
 import WBPhoneStack from "@/components/wb/WBPhoneStack";
 import WBOdometer from "@/components/wb/WBOdometer";
@@ -21,7 +22,7 @@ import WBVideo from "@/components/wb/WBVideo";
 import { FREE_PAGE_PATH } from "@/lib/wb-free";
 import { APP_STORE_URL, PLAY_STORE_URL, WB_PHONE } from "@/lib/wb-site";
 import { EXTRA_SEAT_CENTS, FREE_PLAN_NAME, INCLUDED_SEATS, PLANS, PROCESSING_RATES, RATES_SENTENCE, formatCents } from "@/lib/plans";
-import { loadVolume } from "@/lib/wb-volume";
+import { loadVolume, volumeShowable } from "@/lib/wb-volume";
 
 export const metadata: Metadata = {
   title: { absolute: "WorkBench FSM — Free field service management software" },
@@ -275,20 +276,24 @@ export default async function WBHomePage() {
            ${INCLUDED_SEATS} free (David 2026-11-20). A coded Team & roles screen
            adds a tech while the seat line counts against the free ones. ── */}
       <section className="bg-[#F5F7FA]">
-        <div className="mx-auto grid max-w-6xl items-center gap-14 px-5 py-24 sm:px-8 sm:py-32 lg:grid-cols-[0.9fr_1.1fr]">
-          <div>
+        <div className="mx-auto max-w-6xl px-5 py-24 sm:px-8 sm:py-32">
+          <div className="grid items-end gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
             <h2 className={H2}>
               Bring the whole crew. <span className="text-[#0B57D8]">Your first {INCLUDED_SEATS} are free.</span>
             </h2>
-            <p className="mt-6 max-w-md text-[18px] leading-relaxed text-gray-600">
-              Add your techs, office and sales people in a minute. Each gets their own sign-in on the phone app or the computer,
-              and a role that shows them only what they need: techs see their own jobs and schedule, never your prices.
-            </p>
-            <p className="mt-6 max-w-md text-[16px] leading-relaxed text-gray-600">
-              {INCLUDED_SEATS} users are included free. Each extra person is {formatCents(EXTRA_SEAT_CENTS)} a month, or go unlimited with {PLANS.SHOP.name}.
-            </p>
+            <div>
+              <p className="text-[18px] leading-relaxed text-gray-600">
+                Add your techs, office and sales people in a minute. Each gets their own sign-in on the phone app or the computer,
+                and a role that shows them only what they need: techs see their own jobs and schedule, never your prices.
+              </p>
+              <p className="mt-4 text-[16px] leading-relaxed text-gray-600">
+                {INCLUDED_SEATS} users are included free. Each extra person is {formatCents(EXTRA_SEAT_CENTS)} a month, or go unlimited with {PLANS.SHOP.name}.
+              </p>
+            </div>
           </div>
-          <WBTeamDemo included={INCLUDED_SEATS} extraSeat={`${formatCents(EXTRA_SEAT_CENTS)}/mo`} proName={PLANS.SHOP.name} />
+          <div className="mx-auto mt-14 max-w-5xl">
+            <WBTeamDemo seatsSentence={SEATS_SENTENCE} />
+          </div>
         </div>
       </section>
 
@@ -449,28 +454,22 @@ export default async function WBHomePage() {
 
       {/* ── 9. The counter (blue band): REAL totals from lib/wb-volume.ts. On the
            live home it renders only once volumeShowable() is true. ── */}
-      {/* SHOWN for now so David can see the live totals (2026-11-19); before
-          launch, gate it again: volumeShowable(volume) && … */}
-      {volume && (
+      {/* Hidden again 2026-11-20 (David: "until the volume catches up");
+          it appears by itself once both totals pass VOLUME_SHOW_MIN. */}
+      {volumeShowable(volume) && (
         <section className="relative overflow-hidden text-white" style={{ background: BG.blue }}>
           <div className="relative mx-auto max-w-6xl px-5 py-24 text-center sm:px-8 sm:py-32">
             <h2 className={H2}>
               Running on WorkBench <span className="text-[#BFD6FF]">right now.</span>
             </h2>
             <AnimateIn className="wb-stagger mt-14 grid gap-5 md:grid-cols-2">
-              <div className="relative overflow-hidden rounded-2xl bg-[#F86A0A] px-6 pb-24 pt-10 shadow-[0_2px_0_rgba(0,0,0,0.15),0_30px_50px_-28px_rgba(0,0,0,0.55)]">
+              <div className="relative overflow-hidden rounded-2xl bg-[#F86A0A] px-6 py-12 shadow-[0_2px_0_rgba(0,0,0,0.15),0_30px_50px_-28px_rgba(0,0,0,0.55)]">
                 <WBOdometer value={volume.jobs} className="text-[4.4rem] font-black leading-none tracking-[-0.04em] sm:text-[6rem]" />
                 <p className="mt-4 text-[18px] font-bold text-white/90">jobs done</p>
-                <svg viewBox="0 0 400 80" preserveAspectRatio="none" className="wb-scribble absolute inset-x-0 bottom-0 h-20 w-full" aria-hidden style={{ ["--wb-draw-delay" as string]: "0.6s" }}>
-                  <path d="M0 70 C 40 66, 70 60, 100 62 C 140 64, 160 48, 200 44 C 240 40, 260 30, 300 26 C 340 22, 370 12, 400 6" pathLength={1} stroke="rgba(255,255,255,0.75)" strokeWidth={4} fill="none" strokeLinecap="round" />
-                </svg>
               </div>
-              <div className="relative overflow-hidden rounded-2xl bg-white px-6 pb-24 pt-10 text-[#0A1428] shadow-[0_2px_0_rgba(0,0,0,0.15),0_30px_50px_-28px_rgba(0,0,0,0.55)]">
+              <div className="relative overflow-hidden rounded-2xl bg-white px-6 py-12 text-[#0A1428] shadow-[0_2px_0_rgba(0,0,0,0.15),0_30px_50px_-28px_rgba(0,0,0,0.55)]">
                 <WBOdometer value={volume.paidCents / 100} money className="text-[4.4rem] font-black leading-none tracking-[-0.04em] text-[#0B57D8] sm:text-[6rem]" />
                 <p className="mt-4 text-[18px] font-bold text-gray-500">paid to businesses through WorkBench</p>
-                <svg viewBox="0 0 400 80" preserveAspectRatio="none" className="wb-scribble absolute inset-x-0 bottom-0 h-20 w-full" aria-hidden style={{ ["--wb-draw-delay" as string]: "0.9s" }}>
-                  <path d="M0 72 C 50 70, 80 64, 120 58 C 160 52, 180 56, 220 42 C 260 28, 300 30, 330 20 C 360 10, 380 8, 400 4" pathLength={1} stroke="#F86A0A" strokeWidth={4} fill="none" strokeLinecap="round" />
-                </svg>
               </div>
             </AnimateIn>
             <p className="mt-10 -rotate-2 text-[20px] font-extrabold text-white" aria-hidden>
