@@ -424,7 +424,7 @@ export default function ClientPagesClient({
           info={
             <>
               How your sign-in page, client portal, booking page and forms look. Changes save as a draft only you can see; Publish puts
-              them live. Quotes, invoices and emails keep your Branding colors. Form questions are edited in Booking &amp; forms.
+              them live. Quotes, invoices and emails keep your brand colors from Settings → Branding. Form questions are edited in Booking &amp; forms.
             </>
           }
           actions={
@@ -493,9 +493,10 @@ export default function ClientPagesClient({
           </aside>
         </div>
 
-        {/* Desktop bottom bar: sticks to the foot of the page column (never over the nav rail) */}
+        {/* Desktop bottom bar: sticks to the foot of the page column (never over the nav rail);
+            the right padding keeps Publish clear of the floating Atlas buttons. */}
         <div className="sticky bottom-0 z-30 -mx-8 hidden border-t border-[color:var(--ds-line)] bg-[color:var(--ds-surface)]/95 backdrop-blur lg:block">
-          <div className="flex items-center justify-end gap-3 px-8 py-3">
+          <div className="flex items-center justify-end gap-3 py-3 pl-8 pr-[168px]">
             <span className="mr-auto flex items-center gap-2 text-sm text-[color:var(--ds-ink-2)]" data-testid="theme-status">
               {statusText}
               {problems.length > 0 && (
@@ -822,7 +823,7 @@ function summaryOf(key: SectionKey, spec: Spec, items: { id: string; showOnPage:
     case "colors": {
       const c = spec.colors ?? {};
       const n = [c.band, c.accent, c.ground].filter(Boolean).length;
-      return n ? [c.band, c.accent, c.ground].filter(Boolean).join(" · ") : "Your Branding colors";
+      return n ? [c.band, c.accent, c.ground].filter(Boolean).join(" · ") : "Same as your brand colors";
     }
     case "font":
       return (spec.font as string) || "Default";
@@ -891,7 +892,7 @@ function ColorRow({ label, info, value, onChange, problems }: { label: string; i
         />
         <Input
           value={text}
-          placeholder="Your Branding color"
+          placeholder="Same as your brand color"
           onChange={(e) => {
             const v = e.target.value.trim();
             setText(v);
@@ -900,7 +901,7 @@ function ColorRow({ label, info, value, onChange, problems }: { label: string; i
             if (!v) onChange(null);
           }}
           aria-label={`${label} hex`}
-          className="w-full font-mono uppercase"
+          className="w-full font-mono uppercase placeholder:font-sans placeholder:normal-case"
         />
         {value && (
           <button type="button" className="ds-small shrink-0 underline" onClick={() => onChange(null)}>
