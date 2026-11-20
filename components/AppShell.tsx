@@ -1825,8 +1825,6 @@ export default function AppShell({
   const [companySheetOpen, setCompanySheetOpen] = useState(false);
   const [notifsOpen, setNotifsOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
-  // Text a page asked to put in the message box (AssistantContext open(prompt))
-  const [assistantPrefill, setAssistantPrefill] = useState<string | null>(null);
   // Open straight into the voice screen (Talk buttons): the tap primes audio
   // + asks for the mic (lib/voice-launch.ts), the drawer picks that up.
   const [assistantVoice, setAssistantVoice] = useState(false);
@@ -2899,11 +2897,7 @@ export default function AppShell({
               locked: atlasLocked,
               name: assistantName || "Atlas",
               accent: brandColorSecondary || brandColor || undefined,
-              open: (prompt?: unknown) => {
-                // onClick={atlas.open} hands over the click event: only a string prefills
-                if (typeof prompt === "string" && prompt.trim()) setAssistantPrefill(prompt);
-                setAssistantOpen(true);
-              },
+              open: () => setAssistantOpen(true),
               talk: talkToAssistant,
             }}
           >
@@ -3065,8 +3059,6 @@ export default function AppShell({
           onClose={() => setAssistantOpen(false)}
           startVoice={assistantVoice}
           onVoiceStarted={() => setAssistantVoice(false)}
-          prefill={assistantPrefill}
-          onPrefillUsed={() => setAssistantPrefill(null)}
           name={assistantName || "Atlas"}
           storageScope={userId ?? ""}
           accent={brandColorSecondary || brandColor || undefined}

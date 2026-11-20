@@ -40,7 +40,7 @@ export default function HelpFooterBand({ inApp }: { inApp: boolean }) {
           {inApp ? (
             <>
               {atlas.available && (
-                <button type="button" onClick={() => atlas.open()} className="help-pill help-pill-orange">
+                <button type="button" onClick={atlas.open} className="help-pill help-pill-orange">
                   Ask {atlas.name}
                   <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
                 </button>
