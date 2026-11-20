@@ -18,6 +18,7 @@ import {
   isTokenRefusal,
   metaErrorText,
   metaEventKey,
+  parseMetaAnswer,
   testEvent,
   type MetaLeadInput,
 } from "../lib/meta-ads-shape";
@@ -240,6 +241,12 @@ t("a dead token is told apart from a refused event", () => {
   assert.equal(isTokenRefusal({ error: { code: 200, type: "OAuthException" } }, 403), true);
   assert.equal(isTokenRefusal({ error: { code: 100, type: "OAuthException" } }, 400), false);
   assert.equal(isTokenRefusal({ error: { code: 2200, type: "GraphMethodException" } }, 400), false);
+});
+t("an accepted request's answer is read: how many events, any remark, the trace id", () => {
+  assert.deepEqual(parseMetaAnswer({ events_received: 1, messages: [], fbtrace_id: "AbC123xyz_-9" }), { received: 1, messages: [], trace: "AbC123xyz_-9" });
+  assert.deepEqual(parseMetaAnswer({ events_received: 0, messages: ["Event  dropped:\n bad fbc", 7] }), { received: 0, messages: ["Event dropped: bad fbc"], trace: null });
+  assert.deepEqual(parseMetaAnswer(null), { received: null, messages: [], trace: null });
+  assert.equal(parseMetaAnswer({ fbtrace_id: "<script>" }).trace, null);
 });
 
 console.log(`\n${n} checks passed`);
