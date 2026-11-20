@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code when working with this repository.
 
+## Social videos (David's Steadfast / WorkBench videos)
+
+Editing a video David shot? Read `marketing/videos/PLAYBOOK.md` first — what
+he likes and dislikes, the workflow, and the Remotion toolkit that lives
+there (its own `package.json`; excluded from the app's tsconfig/build).
+Add his new notes to the playbook's notes log.
+
 ## Commands
 
 ```bash

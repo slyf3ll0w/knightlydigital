@@ -1,0 +1,13 @@
+node_modules/
+whisper.cpp/
+out/
+takes/
+work/
+token.json
+# media stays on the machine that shot it — re-record b-roll with the scripts
+public/**/*.mov
+public/**/*.MOV
+public/**/*.mp4
+public/**/*.wav
+public/**/*.webp
+public/**/*.jpg
