@@ -332,36 +332,34 @@ export const startSection: HelpSection = {
       blocks: [
         {
           type: "p",
-          text: "The **free tools** on the WorkBench website make a professional invoice or estimate in your browser. Download it as a PDF, or email it to the client straight from the page and see when they open it. There is no account to open and no watermark, and you can make as many PDFs as you like. The PDF is rendered by the same engine that prints real WorkBench invoices and quotes, so it looks exactly like one. Every trade has a template page with its usual line items already filled in (open **Templates by trade** on the tools page); the prices on those are starting points for you to edit, not ours.",
+          text: "The **free tools** on the WorkBench website make a professional invoice or estimate in your browser, on the same **New Invoice** and **New Quote** screens the app uses (WorkBench calls estimates quotes). Download it as a PDF, or email it to the client straight from the page and see when they open it. There is no account to open and no watermark, and you can make as many PDFs as you like. The PDF is rendered by the same engine that prints real WorkBench invoices and quotes, so it looks exactly like one. Every trade has a template page (open **Templates by trade** on the tools page) that explains what that trade's invoice or estimate should carry.",
         },
         {
           type: "steps",
           items: [
             "Open [workbenchfsm.com/tools](/tools) and pick the **invoice generator** or the **estimate generator**, or a trade template.",
-            "**Your business**: name (the only required field), contact details, `Add your logo` (a PNG or JPG) and a **Color** for the header rule and total.",
-            "**Bill to** / **Prepared for**: the client's name and address.",
-            "**Details**: the document number, the date, and the due date (invoice) or the valid-through date (estimate).",
-            "**Line items**: what you did, quantity and price, with an optional description under each. On an estimate, tick **Optional for the client** on anything they can leave off.",
-            "**Tax, discount and message**: sales tax as a percent, a discount as a percent or an amount, a deposit on an estimate, and the note printed at the bottom.",
-            "Press `Download PDF`. The preview on the right is what you get. Or press `Email it` to send it to the client from the page — see below.",
+            "**Step 1, the document.** It is the app's own New Invoice / New Quote screen. Pick the client with `New client` (they stay in this page only), add the line items with quantity and price, and on a quote mark anything the client can leave off as optional and set a deposit if you need one. Add tax, a discount and a message the same way you would in the app.",
+            "Press `Save invoice` (or `Save quote`). The page moves to step 2.",
+            "**Step 2, your business.** Type your **Business name** (the only required field) and your contact details, check the invoice or quote number, press `Add your logo` (a PNG or JPG) and pick a **Color**. `Preview` shows the finished document; `Edit` takes you back to step 1 with everything kept.",
+            "Press `Download PDF`, or `Send invoice` (`Send quote`) to email it to the client from the page — see below.",
           ],
         },
         {
           type: "tip",
-          text: "The page saves what you type in that browser, so a refresh or a closed tab doesn't lose it. `Start over` clears it. Nothing is stored on our side unless you email the document or open an account with it.",
+          text: "The page saves what you type in that browser, including which step you were on, so a refresh or a closed tab doesn't lose it. `Start over` (under the buttons) clears it. Nothing is stored on our side unless you email the document or open an account with it.",
         },
         { type: "h", text: "Emailing it to the client" },
         {
           type: "p",
-          text: "`Email it` sends the document to your client from the page, with a **View** button that opens it in their browser and a PDF link under it. The email comes from **your business name via WorkBench**, and when the client replies, the reply lands in your inbox. The first time, the page checks that the email address is really yours — we send a six-digit code, you type it in, and that browser remembers you for a month.",
+          text: "`Send invoice` (or `Send quote`) emails the document to your client from the page, with a **View** button that opens it in their browser and a PDF link under it. The email comes from **your business name via WorkBench**, and when the client replies, the reply lands in your inbox. The first time, the page checks that the email address is really yours — we send a six-digit code, you type it in, and that browser remembers you for a month.",
         },
         {
           type: "steps",
           items: [
-            "Fill in the document (your business name and one priced line are the minimum) and press `Email it`.",
+            "Finish both steps (your business name and one priced line are the minimum) and press `Send invoice` or `Send quote`.",
             "**Your email**: the address the client will reply to. Press `Send me a code`, open the code email, and type the six digits. You do this once per browser, not per invoice.",
-            "**To**: the client's address (filled in from **Bill to** when you typed one there). `Add another address` sends it to a second person; **Send a copy to me** puts you on the email too.",
-            "Press `Send the invoice`. The page confirms who it went to, and **See what they see** opens the client's copy.",
+            "**To**: the client's address (filled in from the client you picked in step 1 when they have an email). `Add another address` sends it to a second person; **Send a copy to me** puts you on the email too.",
+            "Press `Send the invoice` (`Send the quote`). The page confirms who it went to, and **See what they see** opens the client's copy.",
           ],
         },
         {
@@ -373,13 +371,13 @@ export const startSection: HelpSection = {
           items: [
             "The free tool sends up to **five documents a day**, to up to **two addresses** each. The email itself is a fixed letter — your name, the total, the View button — so the only thing you write is the document.",
             "Every client copy carries a small **Report it** link. A client who says they never asked for the document stops that email address from sending through the free tool, so send only to people who expect it.",
-            "A WorkBench account has no sending limit, and its emails carry a **Pay** button and automatic reminders — that is what `Get paid online` sets up, with the document and the client already in the account.",
+            "A WorkBench account has no sending limit, and its emails carry a **Pay** button and automatic reminders — that is what `Get paid online` (on a quote, `Get it signed online`) sets up, with the document and the client already in the account.",
           ],
         },
         { type: "h", text: "Bringing it into WorkBench" },
         {
           type: "p",
-          text: "Beside the download is `Get paid online` (on an estimate, `Send it for e-signature`). It opens the sign-up form with your business name, email and phone already filled in, and the document comes with you: the moment the account opens, the invoice is in **Invoices** as a draft (an estimate is in **Quotes** — WorkBench calls estimates quotes), the client is saved under **Clients**, your logo is the company logo, and the tax rate you used is the default sales tax. A new account goes through the payment-setup screen first — see [Turn on online payments](/help/activate-payments) — and the invoice is waiting when you land in the app.",
+          text: "Beside the download is `Get paid online` (on a quote, `Get it signed online`). It opens the sign-up form with your business name, email and phone already filled in, and the document comes with you: the moment the account opens, the invoice is in **Invoices** as a draft (an estimate is in **Quotes** — WorkBench calls estimates quotes), the client is saved under **Clients**, your logo is the company logo, and the tax rate you used is the default sales tax. A new account goes through the payment-setup screen first — see [Turn on online payments](/help/activate-payments) — and the invoice is waiting when you land in the app.",
         },
         {
           type: "list",

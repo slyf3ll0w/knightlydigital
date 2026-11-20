@@ -4,7 +4,6 @@ import {
   ANNUAL_TERM,
   ATLAS_FREE,
   ATLAS_FULL,
-  ATLAS_FULL_PRICE,
   BILLED_BY_LINE,
   BILLING_PAGE,
   CORE,
@@ -240,7 +239,6 @@ export const settingsSection: HelpSection = {
             `**${PRO}** (${PRO_PRICE}): unlimited people, [estimate tools](/help/build-an-estimate-tool), [Route Manager (beta)](/help/plan-routes), [automations](/help/build-an-automation), [agreements](/help/send-an-agreement), the [team map](/help/team-map), [clock-in, timesheets and labor cost](/help/clock-in-and-timesheets), [QuickBooks sync](/help/quickbooks), [tasks for your team](/help/tasks-and-reminders), [team sticky notes](/help/sticky-notes), and **Atlas Full** (${ATLAS_FULL} Atlas tokens a month).`,
             `**${MAX}** (${MAX_PRICE}): ${VOICE} and ${PRO} together, for less than both.`,
             `**${GALLERY}** (${GALLERY_PRICE}, coming soon): job photos stamped with who, when and where, before-and-after pairs, client galleries and photo reports. It joins ${MAX} at no extra charge for anyone already on it.`,
-            `**Atlas Full** on its own (${ATLAS_FULL_PRICE}): ${ATLAS_FULL} Atlas tokens a month, if Atlas is the only extra you want. See [Atlas tokens and limits](/help/atlas-tokens).`,
           ],
         },
         {
@@ -251,7 +249,6 @@ export const settingsSection: HelpSection = {
           type: "list",
           items: [
             `**${VOICE}**, **${PRO}** and **${MAX}**: ${HOW_TO_ADD_PRO}`,
-            `**Atlas Full** on its own: message us from the Help Center and we switch it on for you.`,
             `Paying yearly costs ${ANNUAL_TERM}.`,
             `A plan can also be switched on for you by us — it then reads **Included** on the Plans page, with nothing to pay.`,
           ],

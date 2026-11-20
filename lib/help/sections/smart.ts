@@ -1,5 +1,5 @@
 import type { HelpSection } from "../types";
-import { ATLAS_FREE, ATLAS_FULL, ATLAS_FULL_PRICE, CORE, MAX, PRO, PRO_CHIP, PRO_GATE_LINE, PRO_PRICE, proLine, proTip } from "../plan-copy";
+import { ATLAS_FREE, ATLAS_FULL, CORE, MAX, PRO, PRO_CHIP, PRO_GATE_LINE, PRO_PRICE, proLine, proTip } from "../plan-copy";
 
 export const automationsSection: HelpSection = {
   id: "automations",
@@ -158,7 +158,7 @@ export const atlasSection: HelpSection = {
         },
         {
           type: "tip",
-          text: `Every account gets ${ATLAS_FREE} Atlas tokens a month free. **Atlas Full** (${ATLAS_FULL} a month) comes with ${PRO} and ${MAX}, or ${ATLAS_FULL_PRICE} on its own. See [Atlas tokens and limits](/help/atlas-tokens). Owners can rename the assistant in Settings → Automations & assistant.`,
+          text: `Every account gets ${ATLAS_FREE} Atlas tokens a month free. **Atlas Full** (${ATLAS_FULL} a month) comes with ${PRO} and ${MAX}. See [Atlas tokens and limits](/help/atlas-tokens). Owners can rename the assistant in Settings → Automations & assistant.`,
         },
         {
           type: "p",
@@ -227,11 +227,11 @@ export const atlasSection: HelpSection = {
           type: "list",
           items: [
             `Every account gets **${ATLAS_FREE} Atlas tokens free each month**, refilled on the 1st.`,
-            `**Atlas Full** is **${ATLAS_FULL} tokens a month**. It comes with the **${PRO}** plan (${PRO_PRICE}) and **${MAX}**, or costs ${ATLAS_FULL_PRICE} on its own. Its tokens refill on your billing day.`,
+            `**Atlas Full** is **${ATLAS_FULL} tokens a month**. It comes with the **${PRO}** plan (${PRO_PRICE}) and **${MAX}**. Its tokens refill on your billing day.`,
             "Each reply shows how many tokens it used, and the meter above the message box shows what's left. On a phone a small pill at the top of the drawer shows the same number.",
             "Call notes, building estimate tools and drafting automation text also use tokens.",
             "When they're gone, Atlas says so and opens again when the meter refills. Everything else in WorkBench keeps working.",
-            `Using Atlas every day? Atlas Full is the way to stop running out. It comes with **${PRO}**, which the owner adds on [Settings → Plans](/app/settings/plans) (see [Manage your plan](/help/manage-your-plan)); for Atlas Full on its own, message us from the Help Center.`,
+            `Using Atlas every day? Atlas Full is the way to stop running out. It comes with **${PRO}**, which the owner adds on [Settings → Plans](/app/settings/plans) (see [Manage your plan](/help/manage-your-plan)).`,
           ],
         },
         {
