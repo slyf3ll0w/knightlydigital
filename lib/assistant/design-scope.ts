@@ -74,3 +74,44 @@ export async function designScopeVolatile(companyId: string): Promise<string> {
   };
   return `Draft context (read fresh for this turn): ${JSON.stringify(context)}`;
 }
+
+/** Plain names for the spec paths a save can refuse. */
+const PIECE_NAMES: Record<string, string> = {
+  "colors.accent": "the button color",
+  "colors.band": "the band color",
+  "colors.ground": "the page background",
+  font: "the font",
+  band: "the band photo",
+  "band.imageId": "the band photo",
+  "band.overlay": "the color layer over the photo",
+  "login.imageId": "the sign-in photo",
+  "portal.welcome": "the welcome line",
+  "booking.heading": "the booking page heading",
+  "booking.line": "the booking page line",
+  "booking.thankYou": "the thank-you message",
+};
+
+function pieceName(path: string): string {
+  if (PIECE_NAMES[path]) return PIECE_NAMES[path];
+  const top = path.split(".")[0];
+  if (top === "itemWords") return "the words on a booking item";
+  if (top === "portal") return "the portal sections";
+  if (top === "booking") return "the booking page";
+  if (top === "login") return "the sign-in page";
+  return "part of the change";
+}
+
+/**
+ * What the page's Atlas says when the model still hasn't saved the change
+ * after its extra round (lib/assistant/index.ts): WorkBench's own honest
+ * words instead of a reply that might claim something that didn't happen.
+ */
+export function designHonestReply(saved: boolean, refused: string[]): string {
+  if (!saved) {
+    return "I couldn't save that change. Try saying it another way, for example \"make the band dark green\", or set it under Adjust it yourself.";
+  }
+  const names = [...new Set(refused.map(pieceName))];
+  const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0] ?? "part of the change";
+  const color = refused.some((p) => p.startsWith("colors."));
+  return `I saved the rest, but ${list} didn't go in${color ? ": that color is too hard to read. Try a darker shade, or pick one under Adjust it yourself" : ". You can set it under Adjust it yourself"}.`;
+}
