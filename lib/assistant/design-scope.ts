@@ -113,5 +113,6 @@ export function designHonestReply(saved: boolean, refused: string[]): string {
   const names = [...new Set(refused.map(pieceName))];
   const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0] ?? "part of the change";
   const color = refused.some((p) => p.startsWith("colors."));
-  return `I saved the rest, but ${list} didn't go in${color ? ": that color is too hard to read. Try a darker shade, or pick one under Adjust it yourself" : ". You can set it under Adjust it yourself"}.`;
+  const cap = list.charAt(0).toUpperCase() + list.slice(1);
+  return `${cap} didn't go in${color ? ": that color is too hard to read. Try a darker shade, or pick one under Adjust it yourself" : ". You can set it under Adjust it yourself"}.`;
 }
