@@ -22,6 +22,7 @@ import { featureByTitle } from "../lib/wb-features";
 import { FREE_PAGE_PATH } from "../lib/wb-free";
 import { WB_SHOTS } from "../lib/wb-site";
 import { TRADES, freePlanFaq } from "../lib/wb-trades";
+import { TRADE_STORIES } from "../lib/wb-trade-story";
 import { ALTERNATIVES, ALTERNATIVES_PATH } from "../lib/wb-alternatives";
 import { MARKDOWN_PAGES, alternativeMarkdown, alternativesMarkdown, pricingMarkdown, vsMarkdown } from "../lib/wb-markdown";
 import { VS_LIST } from "../lib/wb-vs";
@@ -114,6 +115,22 @@ for (const t of TRADES) {
       if (m) check(false, `trade ${t.slug} copy hard-codes ${why}: "${m[0]}"`);
     }
   }
+}
+
+// Trade layouts (lib/wb-trade-story.ts, David 2026-11-20): every trade has a story,
+// and no two trades in one family share a signature section, so pages differ.
+{
+  const seen = new Map<string, string>();
+  for (const t of TRADES) {
+    const st = TRADE_STORIES[t.slug];
+    check(Boolean(st), `trade ${t.slug}: no story in lib/wb-trade-story.ts`);
+    if (!st) continue;
+    const key = st.family + ":" + st.signature.kind;
+    check(!seen.has(key), `trade ${t.slug}: same family + signature as ${seen.get(key)} (${key})`);
+    seen.set(key, t.slug);
+    check(st.family !== "route" || Boolean(st.cadence), `trade ${t.slug}: route trades need a cadence`);
+  }
+  for (const slug of Object.keys(TRADE_STORIES)) check(TRADES.some((t) => t.slug === slug), `lib/wb-trade-story.ts: story ${slug} has no trade`);
 }
 
 // ── 3. Sitemap + llms.txt list every page ──────────────────────────────────
@@ -221,7 +238,7 @@ for (const v of VS_LIST) {
 // eyebrows over a title. A new page that copies old markup fails here.
 {
   const pageFiles = walk(join(process.cwd(), "app", "(wbsite)")).filter((f) => /[\\/]page\.tsx$/.test(f));
-  const HERO = /\b(WBHero|WBSplitHero|WBPageHeader|HelpHome|HelpArticleView|HelpTopicView|WBFeaturePage|WBComparePage|WBAlternativePage|WBFreeSoftwarePage|ToolPage)\b|notFound\(\)/;
+  const HERO = /\b(WBHero|WBSplitHero|WBPageHeader|HelpHome|HelpArticleView|HelpTopicView|WBFeaturePage|WBTradePage|WBComparePage|WBAlternativePage|WBFreeSoftwarePage|ToolPage)\b|notFound\(\)/;
   for (const f of pageFiles) {
     const src = readFileSync(f, "utf8");
     const rel = f.slice(process.cwd().length + 1);

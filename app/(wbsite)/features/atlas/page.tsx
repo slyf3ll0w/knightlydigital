@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AudioLines, Compass, Mic, Plug, Sparkles } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
+import { SECTION_BG } from "@/components/wb/WBTradeSections";
 import { WBAtlasVoiceSection } from "@/components/wb/WBAtlasVoice";
 import WBAtlasDemo from "@/components/wb/WBAtlasDemo";
 import { WB_SHOTS } from "@/components/wb/WBSplitHero";
@@ -165,6 +166,29 @@ const faq = [
 export default function AtlasPage() {
   return (
     <WBFeaturePage
+      hero={
+        <section data-wb-hero className="relative overflow-hidden text-white" style={{ background: SECTION_BG.blue }}>
+          <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-20 pt-32 sm:px-8 sm:pt-40 lg:grid-cols-[1fr_440px] lg:gap-16 lg:pb-28">
+            <div className="wb-stagger-load">
+              <p className="text-[16px] font-bold text-white/70">The AI assistant</p>
+              <h1 className="mt-3 text-[2.8rem] font-black leading-[0.98] tracking-[-0.045em] sm:text-[4rem]">
+                Just say it. <span className="text-[#BFD6FF]">Atlas gets it done.</span>
+              </h1>
+              <p className="mt-6 max-w-lg text-[18px] leading-relaxed text-white/85">
+                Talk to Atlas the way you&apos;d talk to an office manager, hands-free from the truck, or type if you&apos;d rather. It works the
+                same schedule, quotes, invoices and messages your team does, and reads anything client-facing back to you before it goes out.
+              </p>
+              <div className="mt-9 flex flex-wrap gap-3">
+                <Link href="/apply" className="wb-pill wb-pill-orange !px-7 !py-4 !text-[16px]">Get started free</Link>
+                <Link href="/help/talk-to-atlas" className="wb-pill !border !border-white/25 !px-7 !py-4 !text-[16px] text-white hover:!border-white/60">How to talk to it</Link>
+              </div>
+            </div>
+            <WBAtlasDemo />
+          </div>
+        </section>
+      }
+      body={<></>}
+      stepsStyle="band"
       demo={<WBAtlasDemo />}
       eyebrow="The AI assistant"
       accent="blue"

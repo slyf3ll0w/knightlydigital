@@ -63,7 +63,7 @@ export function templatePath(tool: ToolMeta, trade: Trade): string {
 
 export type TemplateLine = Omit<ToolLine, "id">;
 
-type TradeTemplate = {
+export type TradeTemplate = {
   /** Printed on the document for the client. */
   message: string;
   lines: TemplateLine[];
