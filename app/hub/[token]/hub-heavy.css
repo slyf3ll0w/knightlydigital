@@ -33,9 +33,9 @@
   padding-top: env(safe-area-inset-top);
 }
 .hub-heavy .hh-logo {
-  height: 44px;
+  height: var(--ch-logo-h, 44px);
   width: auto;
-  max-width: 160px;
+  max-width: var(--ch-logo-w, 160px);
   object-fit: contain;
   background: #fff;
   border-radius: 8px;
@@ -55,6 +55,13 @@
 }
 @media (min-width: 1024px) {
   .hub-heavy .hh-hello { font-size: 44px; }
+}
+/* The theme's welcome line under the greeting (AI page designer) */
+.hub-heavy .hh-welcome {
+  font-size: 16px;
+  line-height: 1.45;
+  font-weight: 500;
+  color: var(--hh-on-band-quiet);
 }
 
 /* Desktop tabs on the band — underline marks the current one */
@@ -92,13 +99,13 @@
 /* ── Cards ────────────────────────────────────────────────────────────── */
 .hub-heavy .hh-card {
   background: #fff;
-  border-radius: 12px;
+  border-radius: var(--ch-r-card, 12px);
   box-shadow: var(--hh-shadow);
 }
 /* The other tabs' existing cards sit on the same ground with the same weight */
 .hub-heavy .card-ledger {
   border-color: transparent;
-  border-radius: 12px;
+  border-radius: var(--ch-r-card, 12px);
   box-shadow: var(--hh-shadow);
 }
 
@@ -146,13 +153,13 @@
   width: 56px;
   height: 60px;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: var(--ch-r-tile, 10px);
   background: var(--hh-ink);
   color: #fff;
 }
 .hub-heavy .hh-date-m { font-size: 12px; font-weight: 600; line-height: 1; opacity: 0.8; }
 .hub-heavy .hh-date-d { font-size: 24px; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; }
-.hub-heavy .hh-date.is-small { width: 44px; height: 48px; border-radius: 8px; }
+.hub-heavy .hh-date.is-small { width: 44px; height: 48px; border-radius: var(--ch-r-ctl, 8px); }
 .hub-heavy .hh-date.is-small .hh-date-d { font-size: 19px; }
 
 /* Rows inside a card */
@@ -177,7 +184,7 @@
   gap: 8px;
   min-height: 52px;
   padding: 0 20px;
-  border-radius: 8px;
+  border-radius: var(--ch-r-btn, var(--ch-r-ctl, 8px));
   font-family: var(--hh-font);
   font-size: 16px;
   font-weight: 700;
@@ -195,7 +202,7 @@
   justify-content: center;
   min-height: 48px;
   padding: 0 18px;
-  border-radius: 8px;
+  border-radius: var(--ch-r-btn, var(--ch-r-ctl, 8px));
   font-family: var(--hh-font);
   font-size: 15px;
   font-weight: 700;

@@ -1,6 +1,8 @@
 import type { ScheduleAppearance } from "@/app/book/[slug]/schedule/shell";
 import EmbedStyleMatch from "../EmbedStyleMatch";
 import "@/app/client-heavy.css";
+import "@/app/client-theme.css";
+import { themeRoot } from "@/lib/client-theme-style";
 
 /**
  * Website match (public/embed.js → EmbedStyleMatch): every rule is gated on
@@ -31,8 +33,15 @@ html[data-embed-ink="dark"] .embed-shell :is(h1,h2,h3,.text-white:not(button)){c
 export default function EmbedScheduleShell({ appearance, children }: { appearance: ScheduleAppearance; children: React.ReactNode }) {
   const { dark, transparent, fontName, fontHref, zoom } = appearance;
   const pageBg = transparent ? "transparent" : dark ? "#0C0F0C" : "#ffffff";
+  // The page-designer theme (Pro): corners, buttons and the display font only — no band or
+  // ground on someone else's website, and "match my website" (MATCH_CSS) still wins when on
+  const root = themeRoot(appearance.theme, { band: appearance.accent, onBand: "#FFFFFF", accent: appearance.accent }, { surface: "embed", dark });
   return (
-    <div className={`embed-shell app-ui ch-font p-4 ${dark ? "is-dark" : ""}`} style={{ backgroundColor: pageBg, zoom, ...(fontName ? { fontFamily: `"${fontName}", sans-serif` } : {}) }}>
+    <div
+      className={`embed-shell app-ui ch-font p-4 ${dark ? "is-dark" : ""}`}
+      style={{ backgroundColor: pageBg, zoom, ...(fontName ? { fontFamily: `"${fontName}", sans-serif` } : {}), ...root.vars }}
+      {...root.attrs}
+    >
       <style>{`html,body{background:${pageBg} !important}${MATCH_CSS}`}</style>
       <EmbedStyleMatch dark={dark} />
       {fontHref && (
@@ -42,6 +51,10 @@ export default function EmbedScheduleShell({ appearance, children }: { appearanc
           {/* eslint-disable-next-line @next/next/no-page-custom-font */}
           <link rel="stylesheet" href={fontHref} />
         </>
+      )}
+      {root.fontHref && (
+        // eslint-disable-next-line @next/next/no-page-custom-font
+        <link rel="stylesheet" href={root.fontHref} />
       )}
       {children}
     </div>

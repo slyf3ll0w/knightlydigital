@@ -8,10 +8,22 @@ import {
   type ResolveOpts,
 } from "@/lib/booking-runtime";
 import { appearanceFor, type AppearanceOverrides, type ScheduleAppearance } from "@/app/book/[slug]/schedule/shell";
+import { loadClientTheme } from "@/lib/client-theme-load";
+import { orderBookingItems, themeBookingItem, type ResolvedClientTheme } from "@/lib/client-theme-spec";
+
+/**
+ * The booking menu under the company's page-designer theme (Pro): the
+ * theme's item order, hidden items left off the menu (their own links keep
+ * working), and its words on each row. Default theme = the menu as is.
+ */
+function themedMenu(types: PublicBookingType[], theme: ResolvedClientTheme): PublicBookingType[] {
+  if (theme.isDefault) return menuTypes(types);
+  return orderBookingItems(menuTypes(types), theme).map((t) => themeBookingItem(t, theme));
+}
 
 /**
  * Loaders for the public booking pages (/book, /embed and their APIs).
- * `preview` is the owner looking at their own page from the settings editor:
+ * 'preview' is the owner looking at their own page from the settings editor:
  * inactive items render and the approval gate is skipped, but only for a
  * signed-in manager of that company — anyone else gets the public view.
  */
@@ -33,13 +45,15 @@ export async function loadBookingPage(companySlug: string, params: { preview?: b
     // A manager of some other company asked to preview: fall back to the public view
     const pub = await listPublicBookingTypes(companySlug);
     if (!pub) return null;
-    return { company: pub.company, appearance: appearanceFor(pub.company, params.overrides), types: pub.types, menu: menuTypes(pub.types), previewing: false };
+    const theme = await loadClientTheme(pub.company.id);
+    return { company: pub.company, appearance: appearanceFor(pub.company, params.overrides, theme), types: pub.types, menu: themedMenu(pub.types, theme), previewing: false };
   }
+  const theme = await loadClientTheme(listed.company.id);
   return {
     company: listed.company,
-    appearance: appearanceFor(listed.company, params.overrides),
+    appearance: appearanceFor(listed.company, params.overrides, theme),
     types: listed.types,
-    menu: menuTypes(listed.types),
+    menu: themedMenu(listed.types, theme),
     previewing,
   };
 }
@@ -69,12 +83,13 @@ export async function loadBookingItem(
   }
   if (!resolved) return null;
   const listed = await listPublicBookingTypes(companySlug, previewing ? opts : {});
+  const theme = await loadClientTheme(resolved.company.id);
   return {
     company: resolved.company,
     type: resolved.type,
-    pub: toPublicBookingType(resolved.type, resolved.company),
-    appearance: appearanceFor(resolved.company, params.overrides),
+    pub: themeBookingItem(toPublicBookingType(resolved.type, resolved.company), theme),
+    appearance: appearanceFor(resolved.company, params.overrides, theme),
     previewing,
-    menuCount: listed ? menuTypes(listed.types).length : 0,
+    menuCount: listed ? themedMenu(listed.types, theme).length : 0,
   };
 }

@@ -1,6 +1,9 @@
 import "./hub-heavy.css";
+import "@/app/client-theme.css";
 import { hubBrandVars } from "@/lib/hub-brand";
 import { clientBand } from "@/lib/client-band";
+import type { ResolvedClientTheme } from "@/lib/client-theme-spec";
+import { themeRoot, themedBand } from "@/lib/client-theme-style";
 import HubNav from "./HubNav";
 
 export type HubShellCompany = {
@@ -24,6 +27,7 @@ export default function HubShell({
   base,
   unreadMessages,
   currentPath,
+  theme = null,
   children,
 }: {
   company: HubShellCompany;
@@ -32,9 +36,14 @@ export default function HubShell({
   unreadMessages: number;
   /** Review frames only (see HubNav). */
   currentPath?: string;
+  /** The company's published page-designer theme (lib/client-theme-load.ts); null = today's look. */
+  theme?: ResolvedClientTheme | null;
   children: React.ReactNode;
 }) {
-  const b = clientBand(company);
+  const b = themedBand(clientBand(company), theme);
+  const root = themeRoot(theme, b);
+  const center = theme?.logo.placement === "band-center";
+  const welcome = theme?.portal.welcome ?? null;
   const vars = {
     ...hubBrandVars(company),
     "--hh-band": b.band,
@@ -43,13 +52,18 @@ export default function HubShell({
     "--hh-accent": b.accent,
     "--hh-on-accent": b.onAccent,
     "--hh-accent-strong": b.accentStrong,
+    ...root.vars,
   } as React.CSSProperties;
 
   return (
-    <div className="app-ui hub-heavy min-h-screen" style={vars}>
-      <header className="hh-band">
+    <div className="app-ui hub-heavy min-h-screen" style={vars} {...root.attrs}>
+      {root.fontHref && (
+        // eslint-disable-next-line @next/next/no-page-custom-font
+        <link rel="stylesheet" href={root.fontHref} />
+      )}
+      <header className={`hh-band${center ? " text-center" : ""}`}>
         <div className="max-w-3xl mx-auto px-4 pt-6 pb-7 lg:pb-0 lg:pt-8">
-          <div className="anim-portal flex items-center gap-3">
+          <div className={`anim-portal flex items-center gap-3${center ? " justify-center" : ""}`}>
             {company.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={company.logoUrl} alt={`${company.name} logo`} className="hh-logo shrink-0" />
@@ -57,7 +71,8 @@ export default function HubShell({
             <p className="hh-company truncate">{company.name}</p>
           </div>
           <h1 className="anim-portal anim-delay-1 hh-hello mt-5 lg:mt-6">Hi {firstName}</h1>
-          <div className="anim-portal anim-delay-2 mt-7 hidden lg:block">
+          {welcome ? <p className={`anim-portal anim-delay-1 hh-welcome mt-2.5 max-w-xl${center ? " mx-auto" : ""}`}>{welcome}</p> : null}
+          <div className={`anim-portal anim-delay-2 mt-7 hidden ${center ? "lg:flex lg:justify-center" : "lg:block"}`}>
             <HubNav
               base={base}
               variant="top"

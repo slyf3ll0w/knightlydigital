@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
  */
 export default async function BusinessAboutPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const shell = await resolveScheduleAppearance(slug, {}, { skipGate: true });
+  const shell = await resolveScheduleAppearance(slug, {}, { skipGate: true, theme: true });
   if (!shell) notFound();
   const { accent } = shell.appearance;
   return (

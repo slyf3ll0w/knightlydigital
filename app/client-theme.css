@@ -1,0 +1,93 @@
+/* ── Client pages: the AI page designer's shapes (2026-11-20) ─────────────
+   docs/plans/ai-portal-designer-2026-11-20.md. A Pro company's published
+   theme (lib/client-theme-spec.ts) reaches the client pages as data-ch-*
+   attributes + custom properties on the page root (lib/client-theme-style.ts
+   themeRoot): ClientPage (booking page, forms, portal login), HubShell
+   (portal) and EmbedScheduleShell (embedded forms). With no theme none of
+   these attributes exist, every var() below falls back to today's value,
+   and the pages render exactly as before.
+
+   Only shapes the heavy look built and reviewed: three corner sets, three
+   button styles, a display font, logo size, a gradient or photo band.
+   Embeds that match the host website (EmbedStyleMatch, !important rules)
+   still win over these, by design (plan decision 3).
+   ──────────────────────────────────────────────────────────────────────── */
+
+/* Corners: cards / tiles / controls. "round" (12 / 10 / 8) is today. */
+[data-ch-corners="soft"] {
+  --ch-r-card: 8px;
+  --ch-r-tile: 7px;
+  --ch-r-ctl: 6px;
+}
+[data-ch-corners="square"] {
+  --ch-r-card: 2px;
+  --ch-r-tile: 2px;
+  --ch-r-ctl: 2px;
+}
+
+/* Buttons: pill = fully round ends */
+[data-ch-buttons="pill"] {
+  --ch-r-btn: 999px;
+}
+/* Buttons: outline that fills solid on hover. The doubled attribute out-ranks
+   .hub-heavy .hh-btn whichever stylesheet loads last. */
+/* !important: the forms paint their primary button with an inline accent style */
+[data-ch-buttons="outline"][data-ch-buttons] .ch-btn {
+  background: transparent !important;
+  color: var(--ch-accent-text, var(--ch-accent, #0b57d8)) !important;
+  box-shadow: inset 0 0 0 2px var(--ch-accent, #0b57d8);
+}
+[data-ch-buttons="outline"][data-ch-buttons] .ch-btn:hover:not(:disabled) {
+  background: var(--ch-accent, #0b57d8) !important;
+  color: var(--ch-on-accent, #fff) !important;
+  filter: none;
+}
+[data-ch-buttons="outline"][data-ch-buttons] .hh-btn {
+  background: transparent;
+  color: var(--ch-accent-text, var(--hh-accent));
+  box-shadow: inset 0 0 0 2px var(--hh-accent);
+}
+[data-ch-buttons="outline"][data-ch-buttons] .hh-btn:hover {
+  background: var(--hh-accent);
+  color: var(--hh-on-accent);
+}
+
+/* Display font: headings, the band title and buttons. Body text stays Lexend
+   (docs/design-system.md rule 1) and amounts stay Inter (.hh-num). */
+[data-ch-display][data-ch-display] :is(.ch-title, .ch-h2, .ch-h3, .ch-section, .ch-btn, .ch-btn-2, .hh-hello, .hh-title, .hh-section, .hh-btn, .hh-btn-2, .hh-tab) {
+  font-family: var(--ch-display);
+}
+
+/* Band: gradient or photo (the fill is built in themeRoot) */
+[data-ch-band][data-ch-band] :is(.ch-band, .hh-band) {
+  background: var(--ch-band-fill);
+}
+[data-ch-band="photo"] :is(.ch-band, .hh-band) :is(h1, p, a, .ch-title, .ch-sub, .ch-company, .hh-hello, .hh-company, .hh-welcome) {
+  text-shadow: var(--ch-band-shadow, none);
+}
+
+/* Logo centered in the band (logo.placement band-center) */
+.ch-band-center {
+  text-align: center;
+}
+
+/* Booking hero: the band photo beside the title (booking.hero photo-left) */
+.ch-hero-photo {
+  width: 100%;
+  height: 168px;
+  border-radius: var(--ch-r-card, 12px);
+  box-shadow: 0 0 0 1px rgba(10, 20, 40, 0.12), 0 18px 34px -22px rgba(10, 20, 40, 0.5);
+  background-color: rgba(255, 255, 255, 0.12);
+}
+@media (min-width: 768px) {
+  .ch-hero-photo {
+    width: 300px;
+    height: 200px;
+    flex-shrink: 0;
+  }
+}
+
+/* Portal login: the photo layouts */
+.ch-login-photo {
+  background-color: #0a1428;
+}

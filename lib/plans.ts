@@ -132,6 +132,7 @@ export const PLANS: Record<PlanId, Plan> = {
       "QuickBooks Online sync",
       "Tasks you can hand to your team",
       "Team sticky notes everyone sees",
+      "Custom client pages: your look on the portal, booking page and forms",
       `Atlas Full: ${ATLAS_PLAN_TOKENS.toLocaleString("en-US")} Atlas tokens a month`,
     ],
   },
@@ -333,6 +334,9 @@ export type GatedFeature =
   | "timesheets"
   | "quickbooks"
   | "seats"
+  // AI page designer (docs/plans/ai-portal-designer-2026-11-20.md): a custom look
+  // for the portal login, client portal, booking page and its forms.
+  | "page_designer"
   // Gallery ($29, id JOBSITE) — the one gate that is not Pro. Job photos as
   // they always were stay on Core; everything the Gallery plan adds
   // (estimate photos, pairs, the completed job report, the feed, markup,
@@ -350,6 +354,7 @@ export const GATED_FEATURES: readonly GatedFeature[] = [
   "timesheets",
   "quickbooks",
   "seats",
+  "page_designer",
   "gallery",
 ] as const;
 
@@ -367,6 +372,7 @@ const FEATURE_LABEL: Record<GatedFeature, string> = {
   timesheets: "Timesheets and labor costing",
   quickbooks: "QuickBooks Online sync",
   seats: "More than the included people",
+  page_designer: "Custom client pages",
   gallery: "Gallery",
 };
 
@@ -382,6 +388,8 @@ const FEATURE_BLURB: Record<GatedFeature, string> = {
   timesheets: "Clock in and out on jobs, weekly timesheets, and labor cost on every job's margin.",
   quickbooks: "Customers, invoices, payments and estimates synced to QuickBooks Online every night.",
   seats: `Core includes ${INCLUDED_SEATS} people. Add a person for ${formatCents(EXTRA_SEAT_CENTS)} a month, or go Pro for unlimited people.`,
+  page_designer:
+    "Your own look on the client portal, its sign-in page, your booking page and its forms: colors, a display font, photos, layout and words, designed with Atlas.",
   gallery:
     "Photos on the estimate and on the finished job, before-and-after pairs, a Work completed report for the client, and one gallery across every job and client.",
 };

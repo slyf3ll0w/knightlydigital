@@ -22,6 +22,7 @@ import PortalLogin from "@/app/portal/[slug]/PortalLogin";
 import HubShell from "@/app/hub/[token]/HubShell";
 import { HubFormHeader } from "@/app/hub/[token]/requests/new/HubRequestForm";
 import { ClientSectionTitle } from "@/components/client/ClientFrame";
+import { orderBookingItems, themeBookingItem, type ResolvedClientTheme } from "@/lib/client-theme-spec";
 
 /**
  * Review frames for the booking page, its forms and the portal login, on
@@ -36,10 +37,25 @@ export type BookingDoc = (typeof BOOKING_DOCS)[number];
 
 const SLUG = "brightwire-electric";
 
-export default function BookingPreview({ doc, state, brand, logoUrl }: { doc: BookingDoc; state?: string; brand: FixtureBrand; logoUrl: string | null }) {
+export default function BookingPreview({
+  doc,
+  state,
+  brand,
+  logoUrl,
+  theme = null,
+}: {
+  doc: BookingDoc;
+  state?: string;
+  brand: FixtureBrand;
+  logoUrl: string | null;
+  /** A page-designer theme (fixture or spec, see ../page.tsx); null = today's look. */
+  theme?: ResolvedClientTheme | null;
+}) {
   const c = fixtureCompany(brand);
   const company = { ...c, logoUrl, slug: SLUG };
-  const appearance = fixtureAppearance(brand);
+  const appearance = fixtureAppearance(brand, theme);
+  // The theme's words on an item, as lib/booking-public.ts lays them on real ones
+  const themed = <T extends Parameters<typeof themeBookingItem>[0]>(it: T): T => themeBookingItem(it, theme);
   const profile = fixtureBusinessProfile(brand);
 
   if (doc === "login") {
@@ -49,17 +65,18 @@ export default function BookingPreview({ doc, state, brand, logoUrl }: { doc: Bo
         <PortalLogin
           company={{ name: c.name, slug: SLUG, logoUrl, phone: "4695550142", email: c.email, brandColor: c.brandColor, brandColorSecondary: c.brandColorSecondary, documentColor: c.documentColor }}
           requestHref={`/client-preview?doc=book&brand=${brand}`}
+          theme={theme}
         />
       </>
     );
   }
 
   if (doc === "book") {
-    const items = fixtureBookingItems();
+    const items = theme ? orderBookingItems(fixtureBookingItems(), theme).map(themed) : fixtureBookingItems();
     return (
       <>
         <ForceLightTheme />
-        <BookingFrame company={company} appearance={appearance} subtitle="Pick what you'd like to book" footer={<BusinessFooterView profile={profile} slug={SLUG} variant="full" />}>
+        <BookingFrame company={company} appearance={appearance} subtitle="Pick what you'd like to book" home footer={<BusinessFooterView profile={profile} slug={SLUG} variant="full" />}>
           <ScheduleMenu companySlug={SLUG} types={items} appearance={appearance} hrefBase="/client-preview" />
           <div className="mt-8">
             <ClientSectionTitle className="mb-3">Instant estimates</ClientSectionTitle>
@@ -71,7 +88,7 @@ export default function BookingPreview({ doc, state, brand, logoUrl }: { doc: Bo
   }
 
   if (doc === "form" || doc === "embed") {
-    const it = fixtureRequestItem();
+    const it = themed(fixtureRequestItem());
     const form = <RequestForm companySlug={SLUG} item={it} appearance={appearance} showHeader={doc === "embed"} preview businessName={c.name} offerSms />;
     if (doc === "embed") {
       return (
@@ -95,11 +112,11 @@ export default function BookingPreview({ doc, state, brand, logoUrl }: { doc: Bo
 
   if (doc === "hubform") {
     const hub = fixtureHub("open", brand);
-    const it = fixtureRequestItem();
+    const it = themed(fixtureRequestItem());
     return (
       <>
         <ForceLightTheme />
-        <HubShell company={{ ...hub.company, logoUrl }} firstName={hub.firstName} base={hub.data.base} unreadMessages={hub.unread} currentPath={`${hub.data.base}/requests`}>
+        <HubShell company={{ ...hub.company, logoUrl }} firstName={hub.firstName} base={hub.data.base} unreadMessages={hub.unread} currentPath={`${hub.data.base}/requests`} theme={theme}>
           <HubFormHeader base="/client-preview?doc=hub" title={it.heading} description={it.description} />
           <RequestForm
             companySlug={SLUG}
@@ -118,7 +135,7 @@ export default function BookingPreview({ doc, state, brand, logoUrl }: { doc: Bo
   // doc === "stepper"
   const days = fixtureSlotDays();
   const services = state === "services";
-  const type = services ? fixtureServiceItem() : fixtureBookingItems()[0];
+  const type = themed(services ? fixtureServiceItem() : fixtureBookingItems()[0]);
   const lastStep = services ? 0 : state === "details" ? 1 : 0;
   return (
     <>

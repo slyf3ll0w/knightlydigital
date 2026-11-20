@@ -154,6 +154,10 @@ model Company {
   // existing clients see instead of the built-in title + details request form.
   // Null = the plain form. The item's DELETE route clears it. See lib/hub-form.ts.
   hubBookingTypeId          String?
+  // AI page designer (Pro, docs/plans/ai-portal-designer-2026-11-20.md): the
+  // ClientTheme row the four client pages wear. Null = the default look.
+  // Read through lib/client-theme-load.ts loadClientTheme (applied only on Pro).
+  publishedThemeId          String?
   // Online booking (self-scheduling). businessHours: { mon: [{start:"08:00",end:"17:00"}], ... }
   // per lib/business-hours.ts; null = default weekday hours. serviceZips empty = no
   // service-area restriction. arrivalWindowMinutes = width of the promised window.
@@ -409,6 +413,8 @@ model Company {
   // Studio-built website (docs/plans/client-websites-2026-10-05.md)
   site                  Website?
   websitePhotos         WebsitePhoto[]
+  // AI page designer: theme versions
+  clientThemes          ClientTheme[]
 
   @@index([slug])
 }
@@ -429,6 +435,44 @@ enum WebsiteStatus {
 // everything it needs from GET /api/public/site/[slug]. Relevant writes
 // (hours, services, booking items, flagged photos, this row) schedule a
 // rebuild through lib/website.ts scheduleSiteRebuild.
+// AI page designer (docs/plans/ai-portal-designer-2026-11-20.md). One row per
+// version of a company's client-pages theme; spec is the theme spec v1
+// (lib/client-theme-spec.ts parseClientTheme), valid at write time. One draft
+// per company; publishing archives the previous; undo = publish an older
+// version as a new version.
+model ClientTheme {
+  id               String    @id @default(cuid())
+  companyId        String
+  company          Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  spec             Json // valid at write time
+  status           String    @default("draft") // draft | published | archived
+  version          Int
+  note             String? // "Dark green, crew photo" — the card title
+  createdById      String?
+  source           String // app | atlas | connector
+  previewToken     String?   @unique
+  previewExpiresAt DateTime?
+  createdAt        DateTime  @default(now())
+  publishedAt      DateTime?
+
+  @@unique([companyId, version])
+  @@index([companyId, status])
+}
+
+// A photo uploaded for a theme (booking hero, band, login background),
+// re-encoded to WebP server-side (phase 5).
+model ThemeAsset {
+  id        String   @id @default(cuid())
+  companyId String
+  key       String // R2: themes/<companyId>/<id>.webp
+  width     Int
+  height    Int
+  bytes     Int // <= 2 MB after re-encode
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+}
+
 model Website {
   id               String        @id @default(cuid())
   companyId        String        @unique

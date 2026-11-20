@@ -22,6 +22,7 @@ export default function ScheduleFrame({
   subtitle,
   wide = false,
   footer = "slim",
+  home = false,
   children,
 }: {
   company: FrameCompany;
@@ -31,6 +32,8 @@ export default function ScheduleFrame({
   wide?: boolean;
   /** "full" on the business's home page (details block when on), "about" on /about (always), "slim" on forms and legal pages. */
   footer?: "full" | "slim" | "about";
+  /** The business's booking page itself (menu, or its single item): wears the theme's hero, heading and line. */
+  home?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -40,6 +43,7 @@ export default function ScheduleFrame({
       title={title}
       subtitle={subtitle}
       wide={wide}
+      home={home}
       footer={company.slug ? <BusinessFooter slug={company.slug} dark={appearance.dark} variant={footer} /> : null}
     >
       {children}
@@ -54,18 +58,26 @@ export function BookingFrame({
   title,
   subtitle,
   wide = false,
+  home = false,
   footer,
   children,
 }: {
   company: FrameCompany;
-  appearance: Pick<ScheduleAppearance, "dark" | "fontName" | "fontHref" | "zoom">;
+  appearance: Pick<ScheduleAppearance, "dark" | "fontName" | "fontHref" | "zoom" | "theme">;
   title?: string;
   subtitle?: string | null;
   wide?: boolean;
+  /** See ScheduleFrame. */
+  home?: boolean;
   footer?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const width = wide ? "wide" : "narrow";
+  // The page-designer theme (Pro): band style everywhere, the hero + words on the home page only
+  const theme = appearance.theme ?? null;
+  const hero = home && theme ? theme.booking.hero : "plain";
+  const heading = (home && theme?.booking.heading) || title;
+  const line = (home && theme?.booking.line) || subtitle;
   return (
     <ClientPage
       brand={company}
@@ -75,7 +87,19 @@ export function BookingFrame({
       zoom={appearance.zoom}
       width={width}
       footer={footer}
-      band={<ClientBandHeader name={company.name} logoUrl={company.logoUrl} title={title ?? company.name} subtitle={subtitle} width={width} />}
+      theme={theme}
+      bandStyle={hero === "photo-behind" ? "photo" : undefined}
+      band={
+        <ClientBandHeader
+          name={company.name}
+          logoUrl={company.logoUrl}
+          title={heading ?? company.name}
+          subtitle={line}
+          width={width}
+          center={theme?.logo.placement === "band-center"}
+          heroPhoto={hero === "photo-left" ? theme?.band.imageUrl : null}
+        />
+      }
     >
       {children}
     </ClientPage>

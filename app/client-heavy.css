@@ -38,9 +38,9 @@
   padding-top: env(safe-area-inset-top);
 }
 .ch-logo {
-  height: 44px;
+  height: var(--ch-logo-h, 44px);
   width: auto;
-  max-width: 160px;
+  max-width: var(--ch-logo-w, 160px);
   object-fit: contain;
   background: #fff;
   border-radius: 8px;
@@ -79,7 +79,7 @@
 /* ── Cards ────────────────────────────────────────────────────────────── */
 .ch-card {
   background: #fff;
-  border-radius: 12px;
+  border-radius: var(--ch-r-card, 12px);
   box-shadow: 0 0 0 1px rgba(10, 20, 40, 0.08), 0 2px 0 rgba(10, 20, 40, 0.05),
     0 18px 34px -22px rgba(10, 20, 40, 0.35);
   color: #0a1428;
@@ -126,7 +126,7 @@
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  border-radius: var(--ch-r-tile, 10px);
   background: var(--ch-accent, #0b57d8);
   color: var(--ch-on-accent, #fff);
 }
@@ -144,7 +144,7 @@
   width: 100%;
   min-height: 48px;
   padding: 11px 14px;
-  border-radius: 8px;
+  border-radius: var(--ch-r-ctl, 8px);
   background: #fff;
   border: 1px solid #d5dae2;
   font-size: 16px; /* 16px: iOS doesn't zoom the page on focus */
@@ -168,7 +168,7 @@ textarea.ch-input { min-height: 96px; }
   align-items: flex-start;
   gap: 12px;
   padding: 14px 16px;
-  border-radius: 10px;
+  border-radius: var(--ch-r-tile, 10px);
   background: #fff;
   box-shadow: 0 0 0 1px #d5dae2;
   transition: box-shadow 0.15s ease, background-color 0.15s ease;
@@ -188,7 +188,7 @@ textarea.ch-input { min-height: 96px; }
   gap: 8px;
   min-height: 52px;
   padding: 0 20px;
-  border-radius: 8px;
+  border-radius: var(--ch-r-btn, var(--ch-r-ctl, 8px));
   font-size: 16px;
   font-weight: 700;
   background: var(--ch-accent, #0b57d8);
@@ -207,7 +207,7 @@ textarea.ch-input { min-height: 96px; }
   gap: 8px;
   min-height: 48px;
   padding: 0 18px;
-  border-radius: 8px;
+  border-radius: var(--ch-r-btn, var(--ch-r-ctl, 8px));
   font-size: 15px;
   font-weight: 700;
   background: #eef0f4;
@@ -245,7 +245,7 @@ textarea.ch-input { min-height: 96px; }
   width: 64px;
   height: 72px;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: var(--ch-r-tile, 10px);
   background: #fff;
   color: #0a1428;
   box-shadow: 0 0 0 1px #d5dae2;
@@ -264,7 +264,7 @@ textarea.ch-input { min-height: 96px; }
 .ch-time {
   min-height: 48px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--ch-r-ctl, 8px);
   background: #fff;
   box-shadow: 0 0 0 1px #d5dae2;
   font-size: 15px;
@@ -309,7 +309,7 @@ textarea.ch-input { min-height: 96px; }
 }
 
 .ch-error {
-  border-radius: 8px;
+  border-radius: var(--ch-r-ctl, 8px);
   background: #fef2f2;
   box-shadow: inset 3px 0 0 #b91c1c;
   padding: 12px 14px;
@@ -317,7 +317,7 @@ textarea.ch-input { min-height: 96px; }
   color: #991b1b;
 }
 .ch-note {
-  border-radius: 8px;
+  border-radius: var(--ch-r-ctl, 8px);
   background: #eef0f4;
   padding: 10px 14px;
   font-size: 13px;

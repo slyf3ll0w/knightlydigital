@@ -6,6 +6,7 @@ import { atlasAccess, ATLAS_ACCESS_SELECT } from "@/lib/assistant-access";
 import { resolvePublicEstimator } from "@/lib/estimator-server";
 import { defaultButtonLabel, publicInputs, taxNoteFor } from "@/lib/estimator-public";
 import { appearanceFor, type AppearanceOverrides } from "../schedule/shell";
+import { loadClientTheme } from "@/lib/client-theme-load";
 import ScheduleFrame from "../schedule/ScheduleFrame";
 import { offersSmsConsent } from "@/lib/sms-consent";
 import EmbedScheduleShell from "@/app/embed/[slug]/schedule/EmbedScheduleShell";
@@ -36,7 +37,9 @@ export default async function EstimateView({
   if (!pub) notFound();
   const { company, row, spec, config, previewing } = pub;
   // Hosted pages sit on the heavy frame: "transparent" only means something inside a host website's iframe
-  const appearance = embed ? appearanceFor(company, searchParams) : { ...appearanceFor(company, searchParams), transparent: false };
+  // The page-designer theme (Pro) so an estimate page matches the booking page it opens from
+  const theme = await loadClientTheme(company.id);
+  const appearance = embed ? appearanceFor(company, searchParams, theme) : { ...appearanceFor(company, searchParams, theme), transparent: false };
   // A view is a person: previews, thumbnails, crawlers and link-preview fetchers don't count
   if (!previewing && searchParams.thumb !== "1" && !isBotUserAgent((await headers()).get("user-agent"))) {
     void prisma.estimator.update({ where: { id: row.id }, data: { publicViews: { increment: 1 } } }).catch(() => {});
