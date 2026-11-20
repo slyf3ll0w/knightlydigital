@@ -130,7 +130,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   if (!verified) return NextResponse.json(SLOT_TAKEN, { status: 409 });
 
   const since = new Date(now.getTime() - 86400000);
-  const recent = await prisma.request.count({ where: { companyId: company.id, source: { not: "webhook" }, createdAt: { gte: since } } });
+  const recent = await prisma.request.count({ where: { companyId: company.id, source: { notIn: ["webhook", "facebook_form"] }, createdAt: { gte: since } } });
   if (recent >= MAX_REQUESTS_PER_COMPANY_PER_DAY) {
     return NextResponse.json({ error: "This business can't accept more bookings right now. Please call instead." }, { status: 429 });
   }

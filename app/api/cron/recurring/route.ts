@@ -24,6 +24,7 @@ import { runGoogleCalendarSweep } from "@/lib/google-calendar";
 import { runGoogleCalendarPullSweep } from "@/lib/google-calendar-pull";
 import { runGoogleAdsSweep } from "@/lib/google-ads";
 import { runMetaAdsSweep } from "@/lib/meta-ads";
+import { runMetaLeadsSweep } from "@/lib/meta-leads";
 import { runRecurringExpenses } from "@/lib/expenses";
 import { expireApprovalBookings } from "@/lib/approval-bookings";
 import { rollupStorageSnapshots } from "@/lib/usage";
@@ -237,6 +238,10 @@ export async function POST(req: NextRequest) {
     // Facebook ads: each step a Facebook lead reached (lead, appointment, quote,
     // won, paid) goes to the company's own dataset (lib/meta-ads.ts). Every hour:
     // Facebook only takes a step for 7 days. No-op until a company turns it on.
+    // Facebook lead forms: leads Facebook named whose answers could not be read
+    // when the notice came (lib/meta-leads.ts). Before metaAds, so a lead filed
+    // here is reported in the same pass. No-op without META_* env vars.
+    await step("metaLeads", () => runMetaLeadsSweep(now));
     await step("metaAds", () => runMetaAdsSweep(now));
     await step("googleCalendarPull", () => runGoogleCalendarPullSweep());
     await step("googleCalendar", () => runGoogleCalendarSweep());

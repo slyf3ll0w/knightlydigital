@@ -1,28 +1,74 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LifeBuoy, PhoneCall, RefreshCw } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import { Button, Card, Chip, DsPage, InfoTip, PageHeader, SectionTitle } from "@/components/ds";
 import { Input } from "@/components/Input";
 import { alertSheet, confirmSheet, promptSheet } from "@/components/ConfirmSheet";
+import { getCapacitor } from "@/components/NativeShell";
 import { postJson } from "@/lib/safe-fetch";
 import { SETUP_CALL_LABEL, SETUP_CALL_PATH } from "@/lib/setup-call";
 import { META_STEPS } from "@/lib/meta-ads-shape";
 import type { MetaAdsStatus } from "@/lib/meta-ads";
+import type { MetaLeadsStatus } from "@/lib/meta-leads";
 
 /**
  * Facebook ads. Laid out like the Google Ads page beside it
  * (docs/design-system.md): the thing to do first, explanations in (i) bubbles.
  *
+ *   Get leads from Facebook forms — Connect Facebook, one sign-in (only when
+ *     the server has it set up). Connected: the Page, when a lead last came,
+ *     Disconnect.
  *   Tell Facebook which leads became jobs — off: three steps and two boxes to
  *     paste into. On: the dataset, when steps last went, Send now, a test
  *     event, Turn off.
  *   What Facebook is being told — the numbers.
  *   Stuck? — ask WorkBench for help from right here, or book a setup call.
  */
-export default function FacebookAdsClient({ initial, timeZone }: { initial: MetaAdsStatus; timeZone: string }) {
+type Page = { id: string; name: string };
+type LeadsData = MetaLeadsStatus & { pages?: Page[] };
+
+const OUTCOMES: Record<string, { tone: "ok" | "err"; text: string }> = {
+  connected: { tone: "ok", text: "Facebook is connected. Leads from your Facebook and Instagram forms land on your Leads board from now on." },
+  pick_page: { tone: "ok", text: "Signed in. Pick the Facebook Page your lead forms are on." },
+  no_pages: { tone: "err", text: "That Facebook sign-in has no Page it can advertise for. Sign in as someone who manages your business's Page." },
+  denied: { tone: "err", text: "Facebook connection cancelled. Nothing was changed." },
+  expired: { tone: "err", text: "That connection link expired. Press Connect Facebook again." },
+  failed: { tone: "err", text: "Facebook didn't complete the connection." },
+};
+
+export default function FacebookAdsClient({
+  initial,
+  initialLeads,
+  timeZone,
+  outcome,
+  outcomeWhy,
+}: {
+  initial: MetaAdsStatus;
+  initialLeads: MetaLeadsStatus;
+  timeZone: string;
+  outcome: string | null;
+  outcomeWhy: string | null;
+}) {
   const [status, setStatus] = useState(initial);
+  const [leads, setLeads] = useState<LeadsData>(initialLeads);
+  const flash = outcome ? OUTCOMES[outcome] ?? null : null;
+
+  // several Pages under one sign-in: fetch the list to pick from
+  useEffect(() => {
+    if (!initialLeads.needsPage) return;
+    let live = true;
+    fetch("/api/app/meta-leads", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: LeadsData | null) => {
+        if (live && d) setLeads(d);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [initialLeads.needsPage]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -45,6 +91,45 @@ export default function FacebookAdsClient({ initial, timeZone }: { initial: Meta
     }
     setStatus(data);
     return data;
+  }
+
+  async function connection(key: string, method: "POST" | "DELETE", body?: unknown) {
+    setBusy(key);
+    setError(null);
+    setNotice(null);
+    const { ok, data } = await postJson<LeadsData>("/api/app/meta-leads", body, method);
+    setBusy(null);
+    if (!ok || !data) setError(data?.error ?? "That didn't work. Try again.");
+    else setLeads(data);
+  }
+
+  /** Facebook's screen can't load inside the phone app, so there it opens in the system browser (same as Google Ads). */
+  async function startConnect() {
+    const browser = getCapacitor()?.Plugins?.Browser;
+    if (!browser?.open) {
+      window.location.assign("/api/app/integrations/meta/connect");
+      return;
+    }
+    setBusy("connect");
+    try {
+      const res = await fetch("/api/app/integrations/meta/connect?mode=url");
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.url) setError(data?.error ?? "Couldn't reach Facebook. Try again.");
+      else await browser.open({ url: data.url });
+    } catch {
+      setError("Couldn't reach Facebook. Check your connection and try again.");
+    }
+    setBusy(null);
+  }
+
+  async function disconnect() {
+    const yes = await confirmSheet({
+      title: "Disconnect Facebook?",
+      message: "Leads from your Facebook forms stop arriving in WorkBench. Leads already on your board stay.",
+      confirmLabel: "Disconnect",
+      destructive: true,
+    });
+    if (yes) void connection("disconnect", "DELETE");
   }
 
   async function save() {
@@ -93,6 +178,8 @@ export default function FacebookAdsClient({ initial, timeZone }: { initial: Meta
     if (note === null) return;
     setBusy("help");
     const where = [
+      leads.available ? (leads.connected ? `Lead forms: connected to ${leads.pageName}${leads.needsReconnect ? ", needs reconnect" : ""}, ${leads.unread} unread` : leads.needsPage ? "Lead forms: signed in, no Page picked" : "Lead forms: not connected") : "Lead forms: not offered",
+      leads.lastLeadError ? `Last lead error: ${leads.lastLeadError}` : "",
       `Reporting: ${status.on ? (status.needsToken ? "on, token refused" : "on") : "off"}${status.lastSendAt ? `, last sent ${status.lastSendAt}` : ", nothing sent yet"}`,
       status.lastError ? `Last Facebook error: ${status.lastError}` : "",
       `Facebook leads ${status.facebookLeads}, steps this week ${status.sentThisWeek}, waiting ${status.waiting}`,
@@ -136,6 +223,12 @@ export default function FacebookAdsClient({ initial, timeZone }: { initial: Meta
         />
       </div>
 
+      {flash && !error && !notice && (
+        <div role="status" className={flash.tone === "ok" ? "mt-5 rounded-[12px] bg-[color:var(--ds-surface-2)] px-3.5 py-3 text-[14px] text-[color:var(--ds-ink)]" : "form-error mt-5"} data-testid="fb-connect-outcome">
+          {flash.text}
+          {flash.tone === "err" && outcomeWhy ? ` Facebook said: ${outcomeWhy}` : ""}
+        </div>
+      )}
       {notice && !error && (
         <div role="status" className="mt-5 rounded-[12px] bg-[color:var(--ds-surface-2)] px-3.5 py-3 text-[14px] text-[color:var(--ds-ink)]" data-testid="fb-notice">
           {notice}
@@ -148,8 +241,85 @@ export default function FacebookAdsClient({ initial, timeZone }: { initial: Meta
       )}
 
       <div className="mt-6 space-y-8">
+        {/* ── lead forms in: sign in with Facebook and leads arrive by themselves ── */}
+        {leads.available && (
+          <section className="ds-rise">
+            <SectionTitle info="When someone fills in a lead form on one of your Facebook or Instagram ads, Facebook tells WorkBench and the lead lands on your Leads board in seconds, with the same alert a website lead gets. No Zapier, no downloading spreadsheets.">
+              Get leads from Facebook forms
+            </SectionTitle>
+            <Card className="p-5" data-testid="fb-connect">
+              {!leads.connected && !leads.needsPage ? (
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <p className="flex min-w-0 flex-1 items-start gap-1.5 text-[14.5px] text-[color:var(--ds-ink)]">
+                    <span className="min-w-0">Sign in with the Facebook account that manages your business&apos;s Page.</span>
+                    <InfoTip>Facebook asks you to let WorkBench read the leads from your Page&apos;s forms. WorkBench uses that for nothing else: it doesn&apos;t post, message anyone, or touch your ads or budgets.</InfoTip>
+                  </p>
+                  <Button loading={busy === "connect"} onClick={() => void startConnect()} data-testid="fb-connect-start">
+                    Connect Facebook
+                  </Button>
+                </div>
+              ) : leads.needsPage ? (
+                <div>
+                  <p className="text-[14.5px] font-semibold text-[color:var(--ds-ink)]">Which Facebook Page?</p>
+                  {leads.fbUserName && <p className="ds-small mt-0.5">Signed in as {leads.fbUserName}</p>}
+                  {leads.lastLeadError && <p className="mt-2 text-[13.5px] text-[color:var(--ds-bad)]">{leads.lastLeadError}</p>}
+                  <ul className="ds-divide mt-3 overflow-hidden rounded-[12px] border border-[color:var(--ds-line)]">
+                    {(leads.pages ?? []).map((p) => (
+                      <li key={p.id} className="flex items-center gap-3 px-3.5 py-2.5">
+                        <span className="min-w-0 flex-1 truncate text-[14.5px] font-medium text-[color:var(--ds-ink)]">{p.name}</span>
+                        <Button variant="soft" size="sm" loading={busy === `pick-${p.id}`} disabled={!!busy} onClick={() => void connection(`pick-${p.id}`, "POST", { pageId: p.id })}>
+                          Use this one
+                        </Button>
+                      </li>
+                    ))}
+                    {(leads.pages ?? []).length === 0 && <li className="ds-small px-3.5 py-3">Reading your Facebook Pages…</li>}
+                  </ul>
+                  <Button variant="ghost" size="sm" className="mt-3" disabled={!!busy} onClick={() => void disconnect()}>
+                    Disconnect
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2.5">
+                      {leads.needsReconnect || leads.lastLeadError ? <Chip tone="bad">Needs you</Chip> : <Chip tone="good">Connected</Chip>}
+                      <span className="min-w-0 truncate text-[14.5px] font-medium text-[color:var(--ds-ink)]">{leads.pageName}</span>
+                    </div>
+                    <p className="ds-small mt-1">
+                      {leads.needsReconnect
+                        ? "Facebook no longer accepts this sign-in. Connect again to keep leads arriving."
+                        : leads.lastLeadAt
+                          ? `Last lead ${at(leads.lastLeadAt)} · ${leads.leads30} in the last 30 days`
+                          : "Waiting for your first lead."}
+                    </p>
+                    {leads.lastLeadError && !leads.needsReconnect && <p className="mt-1.5 text-[13.5px] text-[color:var(--ds-bad)]">{leads.lastLeadError}</p>}
+                    {leads.unread > 0 && (
+                      <p className="mt-1.5 flex items-start gap-1 text-[13.5px] text-[color:var(--ds-bad)]">
+                        <span className="min-w-0">
+                          {leads.unread} {leads.unread === 1 ? "lead" : "leads"} Facebook told us about couldn&apos;t be read yet.
+                        </span>
+                        <InfoTip>WorkBench tries again every hour. If it stays, your leads are still in Facebook: open the form in Meta Business Suite to see them.</InfoTip>
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1">
+                    {leads.needsReconnect && (
+                      <Button loading={busy === "connect"} onClick={() => void startConnect()}>
+                        Connect again
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" disabled={!!busy} onClick={() => void disconnect()} data-testid="fb-connect-off">
+                      Disconnect
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </section>
+        )}
+
         {/* ── results back ── */}
-        <section className="ds-rise">
+        <section className="ds-rise" style={{ ["--ds-i" as string]: 1 }}>
           <SectionTitle
             info={
               <>
@@ -271,7 +441,7 @@ export default function FacebookAdsClient({ initial, timeZone }: { initial: Meta
         </section>
 
         {/* ── what Facebook is told ── */}
-        <section className="ds-rise" style={{ ["--ds-i" as string]: 1 }}>
+        <section className="ds-rise" style={{ ["--ds-i" as string]: 2 }}>
           <SectionTitle info="Facebook only accepts a step within 7 days of when it happened, so WorkBench sends each one within the hour. A step that happened before you turned this on, more than 7 days back, is never sent.">
             {status.on ? "What Facebook is being told" : "What Facebook would be told"}
           </SectionTitle>
@@ -298,7 +468,7 @@ export default function FacebookAdsClient({ initial, timeZone }: { initial: Meta
         </section>
 
         {/* ── the failsafe: a person ── */}
-        <Card className="ds-rise flex flex-col gap-4 p-5 sm:flex-row sm:items-center" style={{ ["--ds-i" as string]: 2 }} data-testid="fb-help">
+        <Card className="ds-rise flex flex-col gap-4 p-5 sm:flex-row sm:items-center" style={{ ["--ds-i" as string]: 3 }} data-testid="fb-help">
           <p className="min-w-0 flex-1 text-[14.5px] text-[color:var(--ds-ink)]">
             <strong>Stuck?</strong> We&apos;ll set it up with you.
           </p>
