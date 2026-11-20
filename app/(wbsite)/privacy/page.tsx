@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     "How WorkBench collects, uses, and protects your information — and why we never sell it.",
 };
 
-const LAST_UPDATED = "November 17, 2026";
+const LAST_UPDATED = "November 20, 2026";
 
 /* Public privacy policy for WorkBench. This URL is required by the App Store,
    the Play Store, and our payment processor (Finix) onboarding, so it must stay
@@ -33,13 +33,15 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
       "Business records you create. The Service exists to run your business, so we store the records you and your team create: clients and their contact details, leads and pipeline stages, service requests, quotes, invoices, appointments and schedules, agreements and e-signatures, payments, team chat messages, photos, and notes.",
       "Payment and payout information. If you enable online payments, we collect the information needed to set up and operate your payment account — such as your business and ownership details, tax identifiers, and the bank account where your payouts are deposited. This information is collected and processed by our payment partner (see “Payments” below). We do not store full card numbers on our servers.",
       "Automatically collected information. We collect limited technical information needed to run the Service — such as IP address, browser and device type, and login timestamps — for security and troubleshooting. We do not run third-party advertising trackers.",
+      "How you found us. When you arrive at our website we note the page you came from, any campaign tags on the link, and, if you clicked one of our ads, the click ID the advertising platform (such as Google or Meta) attached to that link. If you sign up or contact us, that is kept with your record so we know which of our advertising works. See “Advertising” below.",
       "Push notification subscriptions. If you turn on notifications, we store the device subscription needed to deliver them. You can turn notifications off at any time in your profile or your device settings.",
     ],
   },
   {
     heading: "3. Your clients’ information",
     paragraphs: [
-      "Businesses using WorkBench upload and manage information about their own customers — names, contact details, service addresses, job history, and the payments those customers make. That information belongs to the business that entered it. We act as a processor on that business’s behalf: we use it only to provide the Service to that business, and we never sell it or use it for advertising.",
+      "Businesses using WorkBench upload and manage information about their own customers — names, contact details, service addresses, job history, and the payments those customers make. That information belongs to the business that entered it. We act as a processor on that business’s behalf: we use it only to provide the Service to that business, and we never sell it or use it for our own advertising.",
+      "A business can choose to connect its own advertising account (Google Ads, or Facebook and Instagram ads through Meta). This is optional and off until an owner or admin of that business turns it on. When it is on, and one of that business’s customers reached it by clicking a link from that platform, WorkBench reports back to the business’s own advertising account that the click led to a lead, an appointment, a quote, a job or a payment. What is sent is the click ID or lead ID that the platform itself created, the step, its time, and for a payment the amount. WorkBench does not send the customer’s name, email address, phone number or street address. If the business connects its Facebook Page, the answers people give on that business’s Facebook or Instagram lead forms are delivered from Meta into the business’s WorkBench account.",
       "If you are a customer of a business that uses WorkBench and have questions about your information, please contact that business directly — they control their records.",
     ],
   },
@@ -78,46 +80,54 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
     heading: "8. Service providers",
     paragraphs: [
       "We rely on a small number of vendors to run the Service, and they only receive the data required to do their job: cloud hosting and database infrastructure (Railway), payment processing (Square / Block, Inc.), transactional email delivery (Resend), bot and spam protection (Cloudflare Turnstile), push-notification delivery (Apple Push Notification service and Firebase Cloud Messaging), and AI processing (Anthropic and Google). Each vendor is bound by its own terms and privacy commitments.",
+      "Advertising platforms (Google and Meta) receive only what is described under “Your clients’ information” and “Advertising”: a click or lead ID they created themselves and what it led to.",
     ],
   },
   {
     heading: "9. Cookies",
     paragraphs: [
-      "We use essential cookies only — primarily a session cookie that keeps you signed in. We do not use advertising or cross-site tracking cookies.",
+      "We use essential cookies only — primarily a session cookie that keeps you signed in. We do not use advertising or cross-site tracking cookies, and we do not place an advertising platform’s tracking code (a “pixel”) on our website or in the Service.",
     ],
   },
   {
-    heading: "10. Data retention and deletion",
+    heading: "10. Advertising",
+    paragraphs: [
+      "We advertise WorkBench on platforms such as Google and Meta (Facebook and Instagram). If you reach our website by clicking one of our ads and then contact us, book a call or sign up, we may tell that platform that its click led to that step, so our advertising can be measured and improved. We send the click ID the platform attached to the link, the step and its time, the address of the page you landed on and your browser type. We do not send your name, email address, phone number or business details, and we do not sell or share your information for anyone else’s marketing.",
+      "The advertising platform handles what it receives under its own privacy policy, and you can control how ads are shown to you in your Google or Meta account settings.",
+    ],
+  },
+  {
+    heading: "11. Data retention and deletion",
     paragraphs: [
       "We keep your information for as long as your account is active. Business owners can permanently delete their account and company data at any time from Settings inside the app (Danger Zone → Delete company…). Team members can ask the business owner, or contact us, to remove their account. Some records may persist briefly in encrypted backups before being cycled out, and we may retain limited transaction records where the law or our payment partner requires it.",
     ],
   },
   {
-    heading: "11. Your rights",
+    heading: "12. Your rights",
     paragraphs: [
       "Depending on where you live, you may have the right to access, correct, export, or delete your personal information, and to object to certain processing. You can exercise most of these directly in the app — editing your profile and company records, or deleting your account. For anything you can’t do yourself, email us and we’ll help. We won’t discriminate against you for exercising these rights.",
     ],
   },
   {
-    heading: "12. Security",
+    heading: "13. Security",
     paragraphs: [
       "All traffic to the Service is encrypted in transit (HTTPS). Passwords are stored hashed, access to production systems is restricted, sensitive payment data is handled by our PCI-compliant payment partner rather than stored by us, and client-facing links use unguessable tokens. No system is perfectly secure, but we take reasonable measures appropriate to the data we hold, and we will notify affected users of any breach as required by law.",
     ],
   },
   {
-    heading: "13. Children",
+    heading: "14. Children",
     paragraphs: [
       "WorkBench is a business tool intended for adults. It is not directed to children under 13, and we do not knowingly collect information from children.",
     ],
   },
   {
-    heading: "14. Changes to this policy",
+    heading: "15. Changes to this policy",
     paragraphs: [
       "We may update this policy as the Service evolves. When we do, we will update the date at the top of this page, and for significant changes we will notify you in the app or by email.",
     ],
   },
   {
-    heading: "15. Contact us",
+    heading: "16. Contact us",
     paragraphs: [
       <span key="contact">
         Questions about this policy or your data? Email{" "}
