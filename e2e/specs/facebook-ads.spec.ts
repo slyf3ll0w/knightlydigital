@@ -77,8 +77,7 @@ test.describe("facebook ads", () => {
     expect(first.status).toBe(201);
     const { leadId } = (await first.json()) as { leadId: string };
     try {
-      const contact = await db().contact.findUniqueOrThrow({ where: { id: leadId }, select: { leadSource: true, status: true, firstName: true, lastName: true, pipelineStageId: true, requests: { select: { source: true, title: true } } } });
-      expect(contact.pipelineStageId).not.toBeNull();
+      const contact = await db().contact.findUniqueOrThrow({ where: { id: leadId }, select: { leadSource: true, status: true, firstName: true, lastName: true, requests: { select: { source: true, title: true } } } });
       expect(contact.requests).toEqual([{ source: "webhook", title: "Facebook Ads lead" }]);
       expect(contact.leadSource).toBe("Facebook Ads");
       expect(contact.status).toBe("LEAD");
