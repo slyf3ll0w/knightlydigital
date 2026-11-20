@@ -37,3 +37,22 @@
   .wb-demo-route { stroke-dashoffset: 0; animation: none; }
   .wb-demo-tap { display: none; }
 }
+
+/* ── The client page (app/client.css) drawn on a phone inside a demo ─────
+   client.css switches to its desk layout by VIEWPORT width; a demo phone
+   sits on a wide page, so these put back the phone rules (the same values
+   client.css uses under 640 / 760 px) for anything inside .wb-demo-phone. */
+.wb-demo-phone .client { background: var(--c-paper); min-height: 0; }
+.wb-demo-phone .client .c-sheet { margin: 0 auto; padding: 20px 20px 32px; border-radius: 0; box-shadow: none; animation: none; }
+.wb-demo-phone .client .c-items-head { display: none; }
+.wb-demo-phone .client .c-item { grid-template-columns: 1fr auto; gap: 4px 16px; }
+.wb-demo-phone .client .c-item-qty { display: block; }
+.wb-demo-phone .client .c-cell-r { display: none; }
+.wb-demo-phone .client .c-stamp { font-size: 15px; padding: 4px 12px; }
+.wb-demo-phone .client .c-actionbar { display: grid; gap: 8px; }
+
+/* The real schedule TimeGrid inside a demo: its hour grid scrolls inside a
+   viewport-tall box (max-h-[60vh] / lg:max-h-[calc(100vh-21rem)]); a demo
+   pins it to a fixed window (the demo sets scrollTop to the morning). */
+.wb-demo-grid .overflow-y-auto { max-height: 440px !important; overflow: hidden !important; }
+.wb-demo-grid .overflow-x-auto { overflow: hidden !important; }

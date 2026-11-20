@@ -81,15 +81,15 @@ export default function ClientPortalPage() {
             wide
             title={["They choose,", "sign and pay."]}
             accent="#F86A0A"
-            body={<p>The quote opens on their phone with your name on top. They tick the options they want, the total follows, and they sign and pay the deposit in the same minute.</p>}
+            body={<p>The quote opens on their phone with your name on top. They untick any option they don't want, the total follows, and they sign. If you asked for a deposit, its pay link comes right after.</p>}
             demo={<WBDemoQuoteOptions />}
           />
           <DemoSection
             wide
             bg="bg-[#F5F7FA]"
-            title={["Every visit,", "reported."]}
+            title={["Every visit,", "checked off."]}
             accent="#0B57D8"
-            body={<p>When the tech marks the job done, the client gets a visit report with everything that was checked, and the invoice and the next visit are waiting in their portal.</p>}
+            body={<p>Your techs tick the job checklist on the phone, and the invoice and the next visit are waiting in the client&apos;s portal. With the Gallery plan, coming soon, the client also gets the work report by email.</p>}
             demo={<WBDemoChecklist />}
           />
           <DemoSection

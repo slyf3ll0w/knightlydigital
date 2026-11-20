@@ -1,133 +1,219 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Compass, Mic, ShieldCheck } from "lucide-react";
+import { Coins, Copy, Flag, Mic, RotateCcw, X } from "lucide-react";
+import { ProposalCard, type CardProposal } from "@/components/AssistantCard";
 import { ASSISTANT_NAME } from "@/lib/wb-assistant";
+import { APP_VARS } from "@/components/wb/WBAppJourney";
 
 /**
- * The assistant section's live demo (home direction preview, David
- * 2026-11-19: "make the chat box change for each message, a lot of
- * different messages showing what he does; slow the animation down").
- * Each scene: what the owner says, the assistant's answer, and the card the
- * app shows for it. Scenes rotate slowly while on screen; the capability
- * chips beside it light up with the scene's area. Everything here is
- * something the assistant really does (lib/assistant tools); anything that
- * sends or charges is shown waiting for the owner's OK, as in the app.
- * Demo company (Brightwire Electric) names only. Name: lib/wb-assistant.ts.
+ * The assistant section's live demo: a copy of the REAL Atlas chat drawer
+ * (components/AssistantDrawer.tsx — the floating report / new chat / close
+ * controls, the owner's message in an accent bubble, Atlas answering in
+ * plain text with Copy and the tokens line, the composer with the mic, the
+ * "AI answers can be wrong" line), in Brightwire Electric's colors
+ * (2026-11-20 fidelity pass). Anything that changes data comes back as the
+ * app's own confirmation card (ProposalCard from components/AssistantCard,
+ * the same component the drawer renders): "Needs your OK" with Cancel and
+ * the commit button; for some scenes the owner confirms and the card turns
+ * Applied with its DONE stamp, as in the app. Answers that only read data
+ * are plain text, as Atlas gives them. Scenes rotate slowly while on screen;
+ * the capability chips beside it light up with the scene's area. Demo
+ * company names only. Name: lib/wb-assistant.ts.
  */
 
-type Row = [string, string];
+export const AREAS = [
+  "Money",
+  "Schedule",
+  "Quotes",
+  "Clients",
+  "Leads",
+  "Expenses",
+  "Time",
+] as const;
+type Area = (typeof AREAS)[number];
+
 type Scene = {
   area: Area;
   say: string;
   reply: string;
-  card: { title: string; rows?: Row[]; ok?: string; done?: boolean };
+  tokens: number;
+  card?: { kind: string; title: string; lines: string[]; confirm?: boolean };
 };
-
-export const AREAS = ["Money", "Schedule", "Quotes", "Clients", "Leads", "Expenses", "Time"] as const;
-type Area = (typeof AREAS)[number];
 
 const SCENES: Scene[] = [
   {
     area: "Money",
     say: "Who still owes me money?",
-    reply: "Three clients owe you $2,140.",
-    card: { title: "Unpaid invoices", rows: [["Derek Olsen · 12 days late", "$1,240"], ["Priya Natarajan · due today", "$663"], ["Alicia Gomez · due Fri", "$237"]], ok: "Send all three a reminder" },
+    reply:
+      "Three clients owe you $2,140.00. Derek Olsen is 12 days late on $1,240.00, Priya Natarajan's $663.00 is due today and Alicia Gomez owes $237.00 by Friday. Want me to send them a reminder?",
+    tokens: 1412,
+    card: {
+      kind: "send_payment_reminders",
+      title: "Send 3 payment reminders",
+      lines: [
+        "Derek Olsen: $1,240.00",
+        "Priya Natarajan: $663.00",
+        "Alicia Gomez: $237.00",
+      ],
+    },
   },
   {
     area: "Schedule",
     say: "Move Tuesday's jobs to Friday.",
-    reply: "Done. Three jobs moved to Friday.",
-    card: { title: "Moved to Fri, Oct 30", rows: [["Maria Hernandez · AC disconnect", "9:00a"], ["Olivia Park · Ceiling fans", "10:00a"], ["James Whitfield · EV charger", "12:00p"]], ok: "Text the clients their new times", done: true },
+    reply: "Here's the move. Say yes and I'll make it.",
+    tokens: 1180,
+    card: {
+      kind: "move_jobs",
+      title: "Move 3 jobs to Fri, Oct 30",
+      lines: [
+        "Maria Hernandez: 9:00 AM",
+        "Olivia Park: 10:00 AM",
+        "James Whitfield: 12:00 PM",
+      ],
+      confirm: true,
+    },
   },
   {
     area: "Quotes",
-    say: "Send the Hendersons their quote.",
+    say: "Send Marcus Bell his quote.",
     reply: "Here it is. Say yes and it goes out.",
-    card: { title: "Email quote #1042", rows: [["To", "Hendersons"], ["Main panel upgrade", "$4,850"]], ok: "Send it" },
+    tokens: 964,
+    card: {
+      kind: "email_document",
+      title: "Email Quote #1042 to Marcus Bell",
+      lines: ["To: marcus.bell@gmail.com", "Pool pump circuit: $1,180.00"],
+    },
   },
   {
     area: "Schedule",
     say: "What's my day look like tomorrow?",
-    reply: "Five jobs. First one is at 8:00 in Plano.",
-    card: { title: "Tomorrow", rows: [["8:00a · Smoke detectors", "Plano"], ["10:30a · Outlet repair", "Allen"], ["1:00p · Panel inspection", "Frisco"]] },
+    reply:
+      "Five jobs tomorrow. The first is at 8:00 AM in Plano: Hannah Brooks's smoke detectors. Then Olivia Park's outlet repair in Allen at 10:30 AM and Derek Olsen's panel inspection in Frisco at 1:00 PM.",
+    tokens: 1306,
   },
   {
     area: "Quotes",
     say: "Quote Maria a 200 amp panel upgrade.",
     reply: "Drafted from your price book.",
-    card: { title: "Draft quote · Maria Hernandez", rows: [["200A panel + breakers", "$1,450"], ["Labor · 6 hrs", "$690"], ["Total with tax", "$2,316"]], done: true },
+    tokens: 1688,
+    card: {
+      kind: "create_quote",
+      title: "New quote for Maria Hernandez",
+      lines: [
+        "Panel Upgrade (200A): $2,800.00",
+        "Whole-Home Surge Protector: $350.00",
+        "Total: $3,150.00",
+      ],
+      confirm: true,
+    },
   },
   {
     area: "Expenses",
     say: "Log eighty-six dollars at Home Depot for the Park job.",
-    reply: "Logged against the Park job.",
-    card: { title: "Expense added", rows: [["Home Depot · Materials", "$86.00"], ["Job", "Olivia Park · Ceiling fans"]], done: true },
+    reply: "Ready to log it against the Park job.",
+    tokens: 902,
+    card: {
+      kind: "log_expense",
+      title: "Log a $86.00 expense",
+      lines: [
+        "Description: Home Depot",
+        "Category: Materials",
+        "Job: Olivia Park · Outlet repair",
+      ],
+      confirm: true,
+    },
   },
   {
     area: "Clients",
     say: "Book Grace Kim for Thursday morning.",
     reply: "Sam is free at 9:00. Want me to book it?",
-    card: { title: "Thu, Oct 29 · 9:00a", rows: [["Grace Kim", "Ceiling fan install"], ["Tech", "Sam Ortiz"]], ok: "Book it and confirm with Grace" },
+    tokens: 1544,
+    card: {
+      kind: "schedule_job",
+      title: "Schedule Grace Kim · Thu, Oct 29, 9:00 AM",
+      lines: ["Job: Ceiling fan install", "Crew: Sam Ortiz"],
+    },
   },
   {
     area: "Leads",
     say: "Which lead source made me the most money?",
-    reply: "Google Ads, by a long way this quarter.",
-    card: { title: "Collected by lead source", rows: [["Google Ads · 6 jobs", "$8,900"], ["Referrals · 4 jobs", "$5,120"], ["Website form · 5 jobs", "$3,480"]] },
+    reply:
+      "Google Ads, by a long way this quarter: $8,900.00 from 6 jobs. Referrals are next with $5,120.00, then your website estimate form with $3,480.00.",
+    tokens: 1220,
   },
   {
     area: "Time",
     say: "Clock me in on the Olsen job.",
-    reply: "You're on the clock.",
-    card: { title: "Clocked in · 8:02a", rows: [["Job", "Derek Olsen · Sub-panel"], ["Location", "Stamped at the job"]], done: true },
+    reply: "Clocking you in now.",
+    tokens: 744,
+    card: {
+      kind: "clock_in",
+      title: "Clock in on Derek Olsen · Sub-panel",
+      lines: ["When: 8:02 AM"],
+      confirm: true,
+    },
   },
   {
     area: "Money",
     say: "How did last month go?",
-    reply: "Your best month yet.",
-    card: { title: "October", rows: [["Collected", "$18,420"], ["Jobs done", "34"], ["Unpaid", "$2,140"]] },
+    reply:
+      "October was your best month yet: $18,420.00 collected from 34 jobs, with $2,140.00 still owed to you.",
+    tokens: 1096,
   },
   {
     area: "Clients",
     say: "Add a note to the Bells: gate code is 4412.",
-    reply: "Saved on their client page.",
-    card: { title: "Note added · Marcus Bell", rows: [["Gate code", "4412"]], done: true },
+    reply: "I'll put it on Marcus Bell's client page.",
+    tokens: 810,
+    card: {
+      kind: "add_client_note",
+      title: "Add a note for Marcus Bell",
+      lines: ["Note: Gate code is 4412"],
+      confirm: true,
+    },
   },
   {
     area: "Leads",
     say: "Any new leads today?",
-    reply: "Two came in. One booked online.",
-    card: { title: "New leads", rows: [["Hannah Brooks · Smoke detectors", "Website"], ["Tom Becker · Panel walkthrough", "Booked online"]] },
+    reply:
+      "Two came in today. Hannah Brooks asked about smoke detectors through your website, and Tom Becker booked a panel walkthrough online.",
+    tokens: 1018,
   },
 ];
 
-const HOLD_MS = 7000;
+const HOLD_MS = 7400;
+const noop = () => {};
 
-export default function WBAtlasDemo({ onArea }: { onArea?: (a: Area) => void }) {
+export default function WBAtlasDemo({
+  onArea,
+}: {
+  onArea?: (a: Area) => void;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [i, setI] = useState(0);
   const [run, setRun] = useState(false);
-  const [stage, setStage] = useState(3); // 0 = blank, 1 = said, 2 = reply, 3 = card
-  const reduce = useRef(false);
+  const [stage, setStage] = useState(4); // 0 = blank, 1 = said, 2 = reply, 3 = card, 4 = confirmed
 
   useEffect(() => {
-    reduce.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce.current) return;
-    const io = new IntersectionObserver(([e]) => setRun(e.isIntersecting), { threshold: 0.3 });
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const io = new IntersectionObserver(([e]) => setRun(e.isIntersecting), {
+      threshold: 0.3,
+    });
     if (ref.current) io.observe(ref.current);
     return () => io.disconnect();
   }, []);
 
-  // Each scene builds in (what was said → the answer → the card), holds, then
-  // the next one starts. Slow on purpose.
+  // Each scene builds in (what was said → the answer → the card → the OK),
+  // holds, then the next one starts. Slow on purpose.
   useEffect(() => {
     if (!run) return;
     setStage(0);
     const t = [
       setTimeout(() => setStage(1), 350),
-      setTimeout(() => setStage(2), 1500),
-      setTimeout(() => setStage(3), 2500),
+      setTimeout(() => setStage(2), 1700),
+      setTimeout(() => setStage(3), 2600),
+      setTimeout(() => setStage(4), 4600),
       setTimeout(() => setI((n) => (n + 1) % SCENES.length), HOLD_MS),
     ];
     return () => t.forEach(clearTimeout);
@@ -136,63 +222,99 @@ export default function WBAtlasDemo({ onArea }: { onArea?: (a: Area) => void }) 
   const s = SCENES[i];
   useEffect(() => onArea?.(s.area), [s.area, onArea]);
 
-  const show = (n: number) => `transition-[opacity,transform] duration-700 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${stage >= n ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"}`;
+  const card: CardProposal | null = s.card
+    ? {
+        id: `demo-${i}`,
+        kind: s.card.kind,
+        title: s.card.title,
+        lines: s.card.lines,
+        endpoint: "",
+        method: "POST",
+        payload: {},
+        state: s.card.confirm && stage >= 4 ? "done" : "pending",
+        resultNote: undefined,
+      }
+    : null;
+
+  const show = (n: number) =>
+    `transition-opacity duration-500 ${stage >= n ? "opacity-100" : "opacity-0"}`;
 
   return (
-    <div ref={ref} className="mx-auto w-full max-w-[440px] overflow-hidden rounded-2xl bg-white text-[#0A1428] shadow-[0_0_0_1px_rgba(10,20,40,0.08),0_30px_60px_-28px_rgba(10,20,40,0.6)]">
-      <div className="flex items-center gap-3 border-b border-gray-100 px-5 py-3.5">
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0B57D8] text-white">
-          <Compass className="h-5 w-5" strokeWidth={2.2} />
-        </span>
-        <span className="flex-1">
-          <span className="block text-[15px] font-extrabold">{ASSISTANT_NAME}</span>
-          <span className="block text-[12px] text-gray-500">Listening</span>
-        </span>
-        <span className="wb-wave flex h-5 items-center gap-[3px] text-[#0B57D8]" aria-hidden>
-          <span />
-          <span />
-          <span />
-          <span />
-          <span />
-        </span>
-      </div>
+    <div
+      ref={ref}
+      className="mx-auto w-full max-w-[400px] select-none text-left"
+      aria-hidden
+      inert
+    >
+      <div
+        className="app-ui ds relative flex h-[560px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-paper-plain shadow-2xl"
+        style={APP_VARS}
+      >
+        {/* floating controls */}
+        <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
+          {[
+            { Icon: Flag, size: 15, cls: "text-gray-500" },
+            { Icon: RotateCcw, size: 16, cls: "text-gray-500" },
+            { Icon: X, size: 20, cls: "text-gray-600" },
+          ].map(({ Icon, size, cls }, k) => (
+            <span
+              key={k}
+              className={`flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm ${cls}`}
+            >
+              <Icon size={size} strokeWidth={k === 2 ? 2.2 : 2} />
+            </span>
+          ))}
+        </div>
 
-      <div className="min-h-[330px] space-y-3 bg-[#F7F8FB] px-5 py-5" aria-live="polite">
-        {/* what the owner said */}
-        <div className={`flex justify-end ${show(1)}`}>
-          <p className="flex max-w-[85%] items-start gap-2 rounded-2xl rounded-br-md bg-[#0B57D8] px-4 py-2.5 text-[15px] font-semibold text-white">
-            <Mic className="mt-0.5 h-4 w-4 flex-none opacity-80" />
-            {s.say}
-          </p>
-        </div>
-        {/* the answer */}
-        <div className={show(2)}>
-          <p className="max-w-[85%] rounded-2xl rounded-bl-md bg-white px-4 py-2.5 text-[15px] font-semibold shadow-[0_0_0_1px_rgba(10,20,40,0.06)]">{s.reply}</p>
-        </div>
-        {/* the card the app shows */}
-        <div className={`overflow-hidden rounded-xl bg-white shadow-[0_0_0_1px_rgba(10,20,40,0.08),0_8px_18px_-12px_rgba(10,20,40,0.3)] ${show(3)}`}>
-          <p className={`flex items-center gap-2 px-4 py-2.5 text-[14px] font-extrabold ${s.card.done ? "bg-[#ECFDF3] text-[#15803D]" : "bg-[#EEF3FD] text-[#0B57D8]"}`}>
-            {s.card.done ? <Check className="h-4 w-4" strokeWidth={3} /> : <Compass className="h-4 w-4" />}
-            {s.card.title}
-          </p>
-          {s.card.rows && (
-            <ul className="divide-y divide-gray-100 px-4">
-              {s.card.rows.map(([a, b]) => (
-                <li key={a} className="flex items-center justify-between gap-3 py-2 text-[13.5px]">
-                  <span className="text-gray-600">{a}</span>
-                  <span className="font-bold tabular-nums">{b}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {s.card.ok && (
-            <div className="flex items-center justify-between gap-3 border-t border-gray-100 px-4 py-2.5">
-              <span className="flex items-center gap-1.5 text-[12.5px] font-bold text-[#B45309]">
-                <ShieldCheck className="h-4 w-4" /> Needs your OK
-              </span>
-              <span className="rounded-lg bg-[#0B57D8] px-3 py-1.5 text-[12.5px] font-bold text-white">{s.card.ok}</span>
+        {/* messages */}
+        <div className="flex-1 space-y-3 overflow-hidden px-4 pb-4 pt-14">
+          <div
+            className={`ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-green-600 px-3.5 py-2 ${show(1)}`}
+          >
+            <p className="whitespace-pre-wrap text-sm font-medium">{s.say}</p>
+          </div>
+          <div className="mr-4 space-y-2">
+            <div className={`px-0.5 py-1 ${show(2)}`}>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
+                {s.reply}
+              </p>
+              <div className="mt-1 flex items-center gap-3 text-[10px] text-gray-400">
+                <span className="-my-1 -ml-1 flex items-center gap-1 rounded-md px-1 py-1 text-gray-400">
+                  <Copy size={11} />
+                  Copy
+                </span>
+                <span className="flex items-center gap-1">
+                  <Coins size={10} />
+                  {s.tokens.toLocaleString("en-US")} tokens
+                </span>
+              </div>
             </div>
-          )}
+            {card && (
+              <div className={show(3)}>
+                <ProposalCard
+                  key={`${i}-${card.state}`}
+                  proposal={card}
+                  onConfirm={noop}
+                  onCancel={noop}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* composer */}
+        <div className="shrink-0 border-t border-gray-200 p-3">
+          <div className="flex items-end gap-2">
+            <span className="flex min-h-[42px] flex-1 items-center rounded-2xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-400">
+              Ask {ASSISTANT_NAME}, or tell it what to do...
+            </span>
+            <span className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-green-600">
+              <Mic size={17} strokeWidth={2.2} />
+            </span>
+          </div>
+          <p className="mt-1.5 text-center text-[10px] text-gray-400">
+            AI answers can be wrong — verify anything important on its page.
+          </p>
         </div>
       </div>
     </div>

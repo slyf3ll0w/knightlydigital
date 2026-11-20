@@ -259,7 +259,7 @@ export default function WBTradePage({
               and the billing follows: an invoice after each visit, or one a month with every visit on it, paid by the card on file.
             </p>
           }
-          demo={<WBDemoRecurring client={client} service={svc?.name ?? t.name} cadence={cadence} price={svc?.unitPrice ?? 0} billing={index % 2 ? "visit" : "monthly"} visits={["Tue 4", "Tue 11", "Tue 18", "Tue 25"]} />}
+          demo={<WBDemoRecurring client={client} service={svc?.name ?? t.name} cadence={cadence} price={svc?.unitPrice ?? 0} billing="monthly" visits={["Tue 4", "Tue 11", "Tue 18", "Tue 25"]} />}
           flip
         />
 

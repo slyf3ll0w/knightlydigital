@@ -1,192 +1,207 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Pause, Repeat, Trash2 } from "lucide-react";
+import { APP_VARS, InfoDot, usd } from "@/components/wb/WBAppJourney";
 
 /**
- * "Know which jobs make you money" (home, David 2026-11-19: the Get paid
- * section repeated what the hero, the job journey and pricing already say).
- * A coded copy of what WorkBench adds up as you work — Insights' collected
- * by month, a job's profit after labor and materials (the job page's
- * Profit margin card), and Insights → Lead sources — whose charts grow in
- * when the section scrolls into view, plus logged expenses (Overview →
- * Expenses: one-off and repeat-monthly) and profit = collected − expenses,
- * the same sum Insights shows (David 2026-11-20: touch on tracking
- * expenses). Brightwire Electric demo numbers.
- * Drawn finished under reduced motion.
+ * "Know which jobs make you money" (home). Copies of the REAL screens where
+ * WorkBench adds it up as you work, drawn with the app's own classes
+ * (.app-ui + .ds, ds-card) in Brightwire Electric's colors (2026-11-20
+ * fidelity pass):
+ *   - Insights (app/platform/insights/page.tsx): the money summary (the
+ *     page's ledger card: Collected revenue, Expenses, Profit) and the "By
+ *     lead source" card,
+ *   - a job's Profit margin card (app/platform/jobs/[id]/page.tsx),
+ *   - Expenses → Repeats monthly (app/platform/expenses/ExpensesClient.tsx).
+ * Static, as the app draws them (the app does not animate these).
  */
 
-const MONTHS: [string, number][] = [
-  ["May", 9.2], ["Jun", 11.8], ["Jul", 13.1], ["Aug", 12.4], ["Sep", 15.6], ["Oct", 18.4],
-];
-const SOURCES: [string, number, string][] = [
-  ["Google Ads", 8900, "#0B57D8"],
-  ["Referrals", 5120, "#F86A0A"],
-  ["Website form", 3480, "#17A34A"],
-  ["Online booking", 2210, "#7C9CD6"],
-];
-// The Olsen sub-panel job: $2,316 billed.
-const SPLIT: [string, number, string][] = [
-  ["Profit", 1046, "#17A34A"],
-  ["Labor", 690, "#0B57D8"],
-  ["Materials", 580, "#F86A0A"],
-];
-const SPLIT_TOTAL = SPLIT.reduce((a, [, v]) => a + v, 0);
-
 const COLLECTED = 18420;
-// October's logged expenses: shown rows + the two folded into "more".
-const EXPENSES: [string, string, number, boolean][] = [
-  ["Supply house", "Materials", 2860, false],
-  ["Shop rent", "Rent", 1200, true],
-  ["Van payment", "Vehicle", 940, true],
-  ["Liability insurance", "Insurance", 268, true],
+const SPENT = 6240;
+const SOURCES: [string, number][] = [
+  ["Google Ads", 8900],
+  ["Referral", 5120],
+  ["Website estimate", 2210],
+  ["Online booking", 1490],
+  ["Facebook", 700],
 ];
-const MORE = { count: 2, amount: 972 };
-const SPENT = EXPENSES.reduce((a, [, , v]) => a + v, 0) + MORE.amount;
+// The Olsen sub-panel job.
+const JOB = { revenue: 2316, cost: 580, laborMs: 6 * 3600000, labor: 690 };
+const RECURRING: [string, number, string][] = [
+  ["Shop rent", 1200, "Rent"],
+  ["Van payment", 940, "Vehicle"],
+  ["Liability insurance", 268, "Insurance"],
+];
 
-const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+/** One line of the Insights ledger card (LedgerLine in the page). */
+function Ledger({
+  label,
+  hint,
+  value,
+  strong,
+}: {
+  label: string;
+  hint?: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3">
+      <span className="min-w-0 flex-1">
+        <span
+          className={`block truncate ${strong ? "text-[15px] font-semibold text-gray-900" : "text-sm text-gray-600"}`}
+        >
+          {label}
+        </span>
+        {hint && (
+          <span className="block truncate text-[11px] text-gray-400">
+            {hint}
+          </span>
+        )}
+      </span>
+      <span
+        className={`numeral-ledger shrink-0 tabular-nums ${strong ? "text-xl font-bold text-[color:var(--ds-good)]" : "text-[15px] font-semibold text-gray-900"}`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function Card({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return <div className={`ds-card ${className}`}>{children}</div>;
+}
 
 export default function WBInsights() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [on, setOn] = useState(true);
-
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    setOn(false);
-    const io = new IntersectionObserver(
-      ([e]) => {
-        if (!e.isIntersecting) return;
-        io.disconnect();
-        requestAnimationFrame(() => setOn(true));
-      },
-      { threshold: 0.3 },
-    );
-    if (ref.current) io.observe(ref.current);
-    return () => io.disconnect();
-  }, []);
-
-  const max = Math.max(...MONTHS.map(([, v]) => v));
-  const srcMax = SOURCES[0][1];
-  // donut: circumference of r=42 ≈ 263.9
-  const C = 2 * Math.PI * 42;
-  let acc = 0;
-
+  const profit = JOB.revenue - JOB.cost - JOB.labor;
   return (
-    <div ref={ref} className="grid gap-4 text-[#0A1428] sm:grid-cols-2" style={{ fontFamily: "var(--font-lexend), Lexend, system-ui, sans-serif" }} aria-hidden>
-      {/* collected by month */}
-      <div className="rounded-2xl bg-white p-5 shadow-[0_0_0_1px_rgba(10,20,40,0.07),0_18px_34px_-24px_rgba(10,20,40,0.4)] sm:col-span-2">
-        <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
-          <div>
-            <p className="text-[12px] font-semibold text-gray-500">Collected</p>
-            <p className="mt-1 text-[26px] font-semibold tabular-nums">{usd(COLLECTED)}</p>
-          </div>
-          <div className={`transition-opacity duration-500 ${on ? "opacity-100" : "opacity-0"}`} style={{ transitionDelay: "700ms" }}>
-            <p className="text-[12px] font-semibold text-gray-500">Expenses</p>
-            <p className="mt-1 text-[20px] font-semibold tabular-nums text-[#C2410C]">−{usd(SPENT)}</p>
-          </div>
-          <div className={`transition-opacity duration-500 ${on ? "opacity-100" : "opacity-0"}`} style={{ transitionDelay: "1000ms" }}>
-            <p className="text-[12px] font-semibold text-gray-500">Profit</p>
-            <p className="mt-1 text-[20px] font-semibold tabular-nums text-[#17703B]">{usd(COLLECTED - SPENT)}</p>
-          </div>
-          <p className="ml-auto text-[12px] font-semibold text-[#17703B]">▲ 18% vs last month</p>
+    <div
+      className="app-ui ds grid select-none gap-4 text-left sm:grid-cols-2"
+      style={APP_VARS}
+      aria-hidden
+      inert
+    >
+      {/* Insights: the money summary (the page's ledger card at this width) */}
+      <Card className="divide-y divide-[color:var(--ds-line)] sm:col-span-2">
+        <Ledger
+          label="Collected revenue"
+          hint="41 payments in this period"
+          value={usd(COLLECTED)}
+        />
+        <Ledger
+          label="Expenses"
+          hint="23 logged — manage"
+          value={`−${usd(SPENT)}`}
+        />
+        <Ledger label="Profit" value={usd(COLLECTED - SPENT)} strong />
+      </Card>
+
+      {/* Insights: By lead source */}
+      <Card>
+        <div className="flex items-center justify-between gap-3 border-b border-[color:var(--ds-line)] px-5 py-4">
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[color:var(--ds-ink)]">
+            By lead source
+            <InfoDot />
+          </h2>
+          <span className="shrink-0 text-xs font-semibold text-[color:var(--ds-primary)]">
+            Lead sources →
+          </span>
         </div>
-        <div className="mt-4 flex h-[120px] items-end gap-3">
-          {MONTHS.map(([m, v], k) => (
-            <div key={m} className="flex h-full flex-1 flex-col items-center gap-2">
-              <div className="flex w-full flex-1 items-end">
-                <div
-                  className="w-full rounded-t-md transition-[height] duration-[900ms] ease-[cubic-bezier(0.2,0.8,0.2,1)]"
-                  style={{ height: on ? `${(v / max) * 100}%` : "0%", transitionDelay: `${k * 90}ms`, background: k === MONTHS.length - 1 ? "#F86A0A" : "#C9D7F2" }}
-                />
+        <div className="space-y-3 p-5">
+          {SOURCES.map(([key, revenue]) => {
+            const pct = Math.round((revenue / COLLECTED) * 100);
+            return (
+              <div key={key}>
+                <div className="mb-1.5 flex items-baseline justify-between gap-3 text-sm">
+                  <span className="min-w-0 flex-1 truncate font-medium text-gray-800">
+                    {key}
+                  </span>
+                  <span className="numeral-ledger shrink-0 font-semibold text-gray-900">
+                    {usd(revenue)}
+                    <span className="ml-1.5 text-xs font-normal text-gray-400">
+                      {pct}%
+                    </span>
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className="h-full rounded-full bg-[color:var(--ds-primary)]"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
               </div>
-              <span className={`text-[10.5px] font-semibold ${k === MONTHS.length - 1 ? "text-[#C2410C]" : "text-gray-500"}`}>{m}</span>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* the job page's Profit margin card */}
+      <Card className="self-start p-4">
+        <h2 className="mb-3 flex items-center gap-1.5 text-[14.5px] font-semibold text-[color:var(--ds-ink)]">
+          Profit margin
+        </h2>
+        <div className="space-y-1.5 text-sm">
+          <div className="flex justify-between">
+            <span className="text-gray-500">Revenue</span>
+            <span className="text-gray-800">{usd(JOB.revenue)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Line item cost</span>
+            <span className="text-gray-800">−{usd(JOB.cost)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Labor (6h)</span>
+            <span className="text-gray-800">−{usd(JOB.labor)}</span>
+          </div>
+          <div className="flex justify-between border-t border-gray-100 pt-1.5 font-semibold">
+            <span className="text-gray-900">Profit</span>
+            <span className="text-[color:var(--ds-good)]">
+              {usd(profit)} ({Math.round((profit / JOB.revenue) * 100)}%)
+            </span>
+          </div>
+        </div>
+      </Card>
+
+      {/* Expenses → Repeats monthly */}
+      <Card className="sm:col-span-2">
+        <div className="flex items-center gap-2 px-4 pb-2 pt-3">
+          <Repeat size={14} className="text-gray-400" />
+          <h2 className="text-sm font-semibold text-gray-900">
+            Repeats monthly
+          </h2>
+        </div>
+        <div className="divide-y divide-[color:var(--ds-line)]">
+          {RECURRING.map(([what, amount, cat]) => (
+            <div key={what} className="flex items-center gap-3 px-4 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-gray-900">
+                  {what}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Logs on the 1st · next Nov 1 · {cat}
+                </p>
+              </div>
+              <span className="shrink-0 text-sm font-semibold text-gray-900">
+                {usd(amount)}/mo
+              </span>
+              <span className="flex shrink-0 items-center gap-0.5">
+                <span className="rounded-full p-1.5 text-gray-300">
+                  <Pause size={13} />
+                </span>
+                <span className="rounded-full p-1.5 text-gray-300">
+                  <Trash2 size={13} />
+                </span>
+              </span>
             </div>
           ))}
         </div>
-      </div>
-
-      {/* one job's profit */}
-      <div className="rounded-2xl bg-white p-5 shadow-[0_0_0_1px_rgba(10,20,40,0.07),0_18px_34px_-24px_rgba(10,20,40,0.4)]">
-        <p className="text-[12px] font-semibold text-gray-500">Profit on the Olsen job</p>
-        <div className="mt-3 flex items-center gap-4">
-          <svg viewBox="0 0 100 100" className="h-[104px] w-[104px] flex-none -rotate-90">
-            <circle cx="50" cy="50" r="42" fill="none" stroke="#EEF0F3" strokeWidth="14" />
-            {SPLIT.map(([label, v, color], k) => {
-              const len = (v / SPLIT_TOTAL) * C;
-              const off = acc;
-              acc += len;
-              return (
-                <circle
-                  key={label}
-                  cx="50"
-                  cy="50"
-                  r="42"
-                  fill="none"
-                  stroke={color}
-                  strokeWidth="14"
-                  strokeDasharray={`${on ? len : 0} ${C}`}
-                  strokeDashoffset={-off}
-                  className="transition-[stroke-dasharray] duration-[900ms] ease-[cubic-bezier(0.2,0.8,0.2,1)]"
-                  style={{ transitionDelay: `${300 + k * 200}ms` }}
-                />
-              );
-            })}
-          </svg>
-          <ul className="space-y-1.5 text-[12px]">
-            {SPLIT.map(([label, v, color]) => (
-              <li key={label} className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-sm" style={{ background: color }} />
-                <span className="text-gray-600">{label}</span>
-                <span className="ml-auto pl-2 font-semibold tabular-nums">{usd(v)}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <p className="mt-3 text-[12px] font-semibold text-[#17703B]">45% margin</p>
-      </div>
-
-      {/* lead sources */}
-      <div className="rounded-2xl bg-white p-5 shadow-[0_0_0_1px_rgba(10,20,40,0.07),0_18px_34px_-24px_rgba(10,20,40,0.4)]">
-        <p className="text-[12px] font-semibold text-gray-500">Collected by lead source</p>
-        <ul className="mt-3 space-y-2.5">
-          {SOURCES.map(([label, v, color], k) => (
-            <li key={label}>
-              <div className="flex items-baseline justify-between text-[12px]">
-                <span className="font-semibold">{label}</span>
-                <span className="tabular-nums text-gray-600">{usd(v)}</span>
-              </div>
-              <div className="mt-1 h-2 rounded-full bg-[#EEF0F3]">
-                <div
-                  className="h-full rounded-full transition-[width] duration-[900ms] ease-[cubic-bezier(0.2,0.8,0.2,1)]"
-                  style={{ width: on ? `${(v / srcMax) * 100}%` : "0%", background: color, transitionDelay: `${500 + k * 120}ms` }}
-                />
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* logged expenses */}
-      <div className="rounded-2xl bg-white p-5 shadow-[0_0_0_1px_rgba(10,20,40,0.07),0_18px_34px_-24px_rgba(10,20,40,0.4)] sm:col-span-2">
-        <div className="flex items-baseline justify-between">
-          <p className="text-[12px] font-semibold text-gray-500">Expenses in October</p>
-          <p className="text-[12px] font-semibold tabular-nums">{usd(SPENT)}</p>
-        </div>
-        <ul className="mt-2 divide-y divide-gray-100">
-          {EXPENSES.map(([what, cat, v, repeats], k) => (
-            <li
-              key={what}
-              className={`flex items-center gap-3 py-2 text-[12.5px] transition-[opacity,transform] duration-500 ${on ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"}`}
-              style={{ transitionDelay: `${600 + k * 140}ms` }}
-            >
-              <span className="font-semibold">{what}</span>
-              <span className="text-gray-500">{cat}</span>
-              {repeats && <span className="rounded-md bg-[#EEF3FD] px-1.5 py-0.5 text-[10.5px] font-semibold text-[#0B57D8]">Every month</span>}
-              <span className="ml-auto tabular-nums">{usd(v)}</span>
-            </li>
-          ))}
-          <li className="py-2 text-[12px] text-gray-500">{MORE.count} more · {usd(MORE.amount)}</li>
-        </ul>
-      </div>
+      </Card>
     </div>
   );
 }

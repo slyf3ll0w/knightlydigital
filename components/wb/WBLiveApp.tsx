@@ -1,49 +1,37 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import WBAppIcon from "@/components/wb/WBAppIcon";
+import { CalendarDays, ChevronRight, MapPin, Mic, Plus } from "lucide-react";
+import { AtlasMark } from "@/components/AtlasIcon";
 import {
-  Bell,
-  Briefcase,
-  CalendarDays,
-  ChevronRight,
-  ChevronsUpDown,
-  Compass,
-  FileText,
-  Home,
-  Info,
-  MapPin,
-  MessagesSquare,
-  Plus,
-  Receipt,
-  Search,
-  Settings,
-  Users,
-} from "lucide-react";
+  AppCanvas,
+  AppWindow,
+  BW,
+  InfoDot,
+  LiveCard,
+  usd,
+} from "@/components/wb/WBAppJourney";
 
 /**
- * The home hero's "live app" (David 2026-11-18): a coded copy of the REAL
- * WorkBench dashboard (public/screens/desktop-dashboard.jpg is the
- * reference: same sidebar, top bar, three money cards, Today and Needs
- * you, the Atlas button), for the made-up Brightwire Electric (never a
- * real client), in the app's own typeface (Lexend). It works by itself on a
- * loop while on screen:
- *   1. a new online booking lands in Today,
- *   2. the past-due invoice is paid: its row turns green and Collected
- *      counts up while Outstanding drops,
- *   3. the payment notification comes in.
- * Still, finished state under reduced motion. Round 5: rebuilt after David
- * said the first copy did not look like the software.
+ * The home hero's "live app": a copy of the REAL WorkBench dashboard at
+ * desktop size (app/platform/dashboard/page.tsx, desktop tree: greeting
+ * header with Schedule / New job, Talk to Atlas, the three stats, Today and
+ * Needs you) in the real AppShell, for the made-up Brightwire Electric
+ * (never a real client). 2026-11-20 fidelity pass: drawn with the app's own
+ * classes (.ds, ds-card, ds-row, ds-count, ds-chip) and scaled to fit.
+ * It works by itself on a loop while on screen, using only what the app
+ * really shows:
+ *   1. a booking arrives — the live "New booking" card, and it is in Today,
+ *   2. the past-due invoice is paid — the live "Payment received" card,
+ *      Collected counts up (the dashboard's CountUp), Outstanding drops and
+ *      the past-due row leaves Needs you.
+ * Still, finished state under reduced motion.
  */
 
-const STEP_MS = [1800, 2600, 2600, 4200];
+const STEP_MS = [1800, 3400, 4600];
 const BASE_COLLECTED = 5190.59;
 const PAID = 1240;
-
-const money = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
-
-const NAVY = "#1D2E52";
+const DAILY = [0, 410, 2216, 0, 0, 1240, 520, 0, 804.59];
 
 export default function WBLiveApp() {
   const [step, setStep] = useState(0);
@@ -53,11 +41,14 @@ export default function WBLiveApp() {
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setStep(3);
+      setStep(2);
       setCollected(BASE_COLLECTED + PAID);
       return;
     }
-    const io = new IntersectionObserver(([e]) => (visible.current = e.isIntersecting), { threshold: 0.2 });
+    const io = new IntersectionObserver(
+      ([e]) => (visible.current = e.isIntersecting),
+      { threshold: 0.2 },
+    );
     if (ref.current) io.observe(ref.current);
     let timer: ReturnType<typeof setTimeout>;
     let s = 0;
@@ -66,7 +57,7 @@ export default function WBLiveApp() {
         timer = setTimeout(tick, 500);
         return;
       }
-      s = (s + 1) % 4;
+      s = (s + 1) % 3;
       setStep(s);
       if (s === 0) setCollected(BASE_COLLECTED);
       timer = setTimeout(tick, STEP_MS[s]);
@@ -78,8 +69,13 @@ export default function WBLiveApp() {
     };
   }, []);
 
+  // The dashboard's CountUp: the new total counts up when it lands.
   useEffect(() => {
-    if (step !== 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (
+      step !== 2 ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      return;
     const start = performance.now();
     let raf = 0;
     const run = (t: number) => {
@@ -93,257 +89,334 @@ export default function WBLiveApp() {
 
   const booked = step >= 1;
   const paid = step >= 2;
-  const pinged = step >= 3;
 
-  const nav = [
-    { icon: Home, label: "Home" },
-    { icon: CalendarDays, label: "Schedule" },
-    { icon: Users, label: "Clients" },
-    { icon: FileText, label: "Quotes" },
-    { icon: Briefcase, label: "Jobs" },
-    { icon: Receipt, label: "Invoices" },
-  ];
-
-  const today: { t: string; who: string; sub: string; amt?: string; visit?: boolean }[] = [
-    { t: "9:00a", who: "Maria Hernandez — AC disconnect replacement", sub: "Mike Delgado", amt: "$450.00" },
-    { t: "10:00a", who: "Olivia Park — Ceiling fan install x3", sub: "Sam Ortiz", amt: "$520.00" },
-    { t: "12:00p", who: "James Whitfield — EV charger install", sub: "Sam Ortiz", amt: "$450.00" },
-    { t: "3:00p", who: "Tom Becker — Walkthrough for panel upgrade", sub: "In-person · Mike Delgado", visit: true },
+  const today: {
+    t: string;
+    who: string;
+    sub: string;
+    amt?: number;
+    visit?: boolean;
+    fresh?: boolean;
+  }[] = [
+    {
+      t: "9:00a",
+      who: "Maria Hernandez — AC disconnect replacement",
+      sub: BW.owner,
+      amt: 450,
+    },
+    {
+      t: "10:00a",
+      who: "Olivia Park — Ceiling fan install x3",
+      sub: "Sam Ortiz",
+      amt: 520,
+    },
+    {
+      t: "12:00p",
+      who: "James Whitfield — EV charger install",
+      sub: "Sam Ortiz",
+      amt: 450,
+    },
+    ...(booked
+      ? [
+          {
+            t: "1:00p",
+            who: "Rachel Moore — Panel inspection",
+            sub: "Sam Ortiz",
+            amt: 320,
+            fresh: true,
+          },
+        ]
+      : []),
+    {
+      t: "3:00p",
+      who: "Tom Becker — Walkthrough for panel upgrade",
+      sub: `In-person · ${BW.owner}`,
+      visit: true,
+    },
   ];
 
   const needs = [
+    ...(paid
+      ? []
+      : [{ n: 1, a: "Past-due invoice", b: "Send a reminder", bad: true }]),
     { n: 3, a: "New leads", b: "Reach out" },
     { n: 2, a: "New requests", b: "Review & send a quote" },
     { n: 1, a: "Changes requested", b: "Update the quote" },
+    { n: 1, a: "Approved quote", b: "Convert to a job" },
   ];
 
+  const daily = paid
+    ? [...DAILY.slice(0, -1), DAILY[DAILY.length - 1] + PAID]
+    : DAILY;
+  const max = Math.max(...daily, 1);
+  const bw = (100 - 1.5 * (daily.length - 1)) / daily.length;
+
+  const toast =
+    step === 1 ? (
+      <LiveCard
+        key="b"
+        kind="booking"
+        title="New booking"
+        sub="Rachel Moore — Panel inspection, Tue, Oct 6, 1:00 PM"
+      />
+    ) : step === 2 ? (
+      <LiveCard
+        key="p"
+        kind="payment"
+        title={`Payment received · ${usd(PAID)}`}
+        sub="Derek Olsen"
+      />
+    ) : null;
+
   return (
-    <div ref={ref} className="relative select-none text-left" style={{ fontFamily: "var(--font-lexend), Lexend, system-ui, sans-serif" }} aria-hidden>
-      <div className="wb-window !bg-[#F4F5F8]">
-        <div className="flex">
-          {/* sidebar */}
-          <aside className="hidden w-[176px] flex-none flex-col border-r border-[#DCE1EA] bg-[#E8ECF3] md:flex">
-            <div className="m-2.5 flex h-[46px] items-center justify-center rounded-xl border border-[#D7DCE6] bg-white">
-              <Image src="/wb/brightwire-logo.png" alt="" width={142} height={44} className="h-[28px] w-auto" />
-            </div>
-            <div className="mt-1 border-t border-[#DCE1EA] pt-2">
-              {nav.map(({ icon: Icon, label }, i) => (
-                <div
-                  key={label}
-                  className={`relative flex items-center gap-2.5 px-4 py-[7px] text-[12px] ${i === 0 ? "bg-[#D9DFEA] font-semibold text-gray-900" : "text-gray-600"}`}
-                >
-                  {i === 0 && <span className="absolute inset-y-0 left-0 w-[3px] bg-[#1D2E52]" />}
-                  <Icon className="h-[14px] w-[14px]" strokeWidth={1.8} />
-                  {label}
-                  {label === "Invoices" && !paid && (
-                    <span className="ml-auto rounded bg-[#F6E7C8] px-1.5 text-[9px] font-semibold text-[#9A6B12]">1</span>
-                  )}
-                </div>
-              ))}
-              {["WORK", "MONEY", "BUSINESS"].map((g) => (
-                <div key={g} className="flex items-center gap-2 px-4 py-[7px] text-[8.5px] font-semibold tracking-[0.14em] text-gray-500">
-                  {g}
-                  <span className="h-px flex-1 bg-[#D3D9E3]" />
-                  {g === "WORK" && <span className="rounded bg-[#D9DFEA] px-1.5 text-[8.5px] text-gray-600">5</span>}
-                  <ChevronRight className="h-3 w-3" />
-                </div>
-              ))}
-            </div>
-            <div className="mt-auto border-t border-[#DCE1EA] px-4 py-3">
-              <div className="flex items-center gap-2 text-[11.5px] text-gray-600">
-                <Settings className="h-[13px] w-[13px]" strokeWidth={1.8} />
-                Settings
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1D2E52] text-[9.5px] font-semibold text-white">MD</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[10.5px] font-semibold text-gray-900">Mike Delgado</span>
-                  <span className="block text-[9px] text-gray-500">Brightwire Electric</span>
-                </span>
-                <ChevronsUpDown className="h-3 w-3 text-gray-400" />
-              </div>
-            </div>
-          </aside>
-
-          {/* main */}
-          <div className="min-w-0 flex-1">
-            {/* top bar */}
-            <div className="flex h-[46px] items-center justify-end gap-2.5 border-b border-[#E4E7ED] bg-[#F4F5F8] px-4">
-              <span className="mr-auto hidden w-[230px] items-center gap-2 rounded-lg bg-[#ECEEF2] px-3 py-1.5 text-[11px] text-gray-400 lg:flex">
-                <Search className="h-3 w-3" />
-                Search
-                <span className="ml-auto rounded border border-gray-300 bg-white px-1 text-[8px] text-gray-500">Ctrl K</span>
-              </span>
-              <span className="flex items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-semibold text-white" style={{ background: NAVY }}>
-                <Plus className="h-3 w-3" strokeWidth={2.5} />
-                Create
-              </span>
-              <span className="hidden items-center gap-1 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-800 sm:flex">
-                <MessagesSquare className="h-3 w-3" />
-                Chat
-              </span>
-              <span className="relative">
-                <Bell className="h-[14px] w-[14px] text-gray-500" />
-                <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-red-500" />
-              </span>
-              <Settings className="h-[14px] w-[14px] text-gray-500" />
-            </div>
-
-            <div className="relative px-5 pb-6 pt-5 sm:px-8">
-              <div className="flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-[10.5px] text-gray-500">Tuesday, October 6</p>
-                  <p className="mt-0.5 flex items-center gap-1.5 text-[20px] font-semibold text-gray-900 sm:text-[22px]">
-                    Good evening, <span style={{ color: "#22406E" }}>Mike</span>
-                    <Info className="h-3 w-3 text-gray-400" />
-                  </p>
-                </div>
-                <div className="hidden items-center gap-2 sm:flex">
-                  <span className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-800">
-                    <CalendarDays className="h-3 w-3" />
-                    Schedule
-                  </span>
-                  <span className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white" style={{ background: NAVY }}>
-                    <Plus className="h-3 w-3" strokeWidth={2.5} />
-                    New job
-                  </span>
-                </div>
-              </div>
-
-              {/* money cards */}
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                <div className={`rounded-2xl border bg-white p-3.5 transition-colors duration-500 ${paid ? "border-green-300" : "border-[#E3E6EC]"}`}>
-                  <p className="flex items-center gap-1 text-[10px] text-gray-500">
-                    Collected <Info className="h-2.5 w-2.5" />
-                  </p>
-                  <p key={paid ? "p" : "u"} className={`text-[16px] font-semibold tabular-nums text-gray-900 sm:text-[19px] ${step === 2 ? "wb-pop" : ""}`}>
-                    {money(collected)}
-                  </p>
-                  <p className="text-[9.5px] text-gray-500">this month</p>
-                  <div className="mt-2 flex h-6 items-end gap-1.5">
-                    {[3, 18, 2, 2, 4, 1].map((h, i) => (
-                      <span
-                        key={i}
-                        className="flex-1 rounded-[2px] bg-[#3E5277] transition-all duration-700"
-                        style={{ height: `${i === 4 && paid ? 22 : h}px`, opacity: i === 5 ? 0.25 : 1 }}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-[#E3E6EC] bg-white p-3.5">
-                  <p className="flex items-center gap-1 text-[10px] text-gray-500">
-                    Outstanding <Info className="h-2.5 w-2.5" />
-                  </p>
-                  <p className="text-[16px] font-semibold tabular-nums text-[#D62828] sm:text-[19px]">{money(paid ? 1379.65 : 2619.65)}</p>
-                  <p className="text-[9.5px] text-gray-500">{paid ? "1 client owes you" : "2 clients owe you"}</p>
-                </div>
-                <div className="rounded-2xl border border-[#E3E6EC] bg-white p-3.5">
-                  <p className="flex items-center gap-1 text-[10px] text-gray-500">
-                    Booked this week <Info className="h-2.5 w-2.5" />
-                  </p>
-                  <p className="text-[16px] font-semibold tabular-nums text-gray-900 sm:text-[19px]">{money(booked ? 7615 : 7295)}</p>
-                  <p className="text-[9.5px] text-gray-500">{booked ? "14" : "13"} jobs scheduled</p>
-                </div>
-              </div>
-
-              {/* Today + Needs you */}
-              <div className="mt-5 grid gap-4 lg:grid-cols-[1.25fr_1fr]">
-                <div>
-                  <div className="mb-2 flex items-baseline justify-between">
-                    <p className="text-[13px] font-semibold text-gray-900">
-                      Today <span className="text-[9.5px] font-normal text-gray-500">· {booked ? 5 : 4} jobs · 1 appointment</span>
+    <div ref={ref}>
+      <AppCanvas height={800}>
+        {(w) => (
+          <div style={{ width: w, height: 800 }}>
+            <AppWindow
+              nav="Home"
+              counts={{ Invoices: paid ? 0 : 1, Requests: 2 }}
+              bellDot
+              toast={toast}
+            >
+              <div className="mx-auto w-full max-w-6xl px-8 pb-10 pt-8">
+                {/* PageHeader */}
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="ds-eyebrow ds-eyebrow-plain">
+                      Tuesday, October 6
                     </p>
-                    <span className="text-[9.5px] font-semibold text-[#1D2E52]">Open schedule →</span>
+                    <h1
+                      className="ds-title mt-1 flex items-center gap-2"
+                      style={{ fontSize: 30 }}
+                    >
+                      <span>
+                        Good evening,{" "}
+                        <span style={{ color: "var(--ds-primary)" }}>Mike</span>
+                      </span>
+                      <InfoDot />
+                    </h1>
                   </div>
-                  <ul className="divide-y divide-[#EEF0F3] overflow-hidden rounded-2xl border border-[#E3E6EC] bg-white">
-                    {today.map((j, i) => (
-                      <li key={j.who} className="contents">
-                        {i === 3 && booked && (
-                          <div key={step === 1 ? "n" : "o"} className={`flex items-center gap-3 bg-[#FFF6EE] px-3.5 py-2 ${step === 1 ? "wb-row-in" : ""}`}>
-                            <span className="w-9 text-right text-[10.5px] text-gray-700">1:00p</span>
-                            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#E8ECF3]">
-                              <span className="h-1.5 w-1.5 rounded-full bg-[#1D2E52]" />
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-[11px] font-medium text-gray-900">Rachel Moore — Panel inspection</span>
-                              <span className="block text-[9.5px] text-[#E85D04]">Booked online just now</span>
-                            </span>
-                            <span className="text-[10.5px] font-semibold tabular-nums text-gray-900">$320.00</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-3 px-3.5 py-2">
-                          <span className="w-9 text-right text-[10.5px] text-gray-700">{j.t}</span>
-                          {j.visit ? (
-                            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#FCEFD9]">
-                              <MapPin className="h-2.5 w-2.5 text-[#C98A1A]" />
-                            </span>
-                          ) : (
-                            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#E8ECF3]">
-                              <span className="h-1.5 w-1.5 rounded-full bg-[#1D2E52]" />
-                            </span>
-                          )}
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[11px] font-medium text-gray-900">{j.who}</span>
-                            <span className="block text-[9.5px] text-gray-500">{j.sub}</span>
-                          </span>
-                          {j.amt && <span className="text-[10.5px] font-semibold tabular-nums text-gray-900">{j.amt}</span>}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="flex gap-2">
+                      <span className="ds-btn ds-btn-outline">
+                        <CalendarDays size={17} strokeWidth={2.2} />
+                        Schedule
+                      </span>
+                      <span className="ds-btn ds-btn-primary">
+                        <Plus size={17} strokeWidth={2.2} />
+                        New job
+                      </span>
+                    </span>
+                  </div>
                 </div>
-                <div className="hidden sm:block">
-                  <p className="mb-2 flex items-center gap-1 text-[13px] font-semibold text-gray-900">
-                    Needs you <Info className="h-3 w-3 text-gray-400" />
-                  </p>
-                  <ul className="divide-y divide-[#EEF0F3] overflow-hidden rounded-2xl border border-[#E3E6EC] bg-white">
-                    <li className={`flex items-center gap-3 px-3.5 py-2 transition-colors duration-500 ${paid ? "bg-green-50" : ""}`}>
-                      <span className={`flex h-6 w-6 items-center justify-center rounded-md text-[11px] font-semibold ${paid ? "bg-green-600 text-white" : "bg-[#FDE8E8] text-[#D62828]"}`}>
-                        {paid ? "✓" : "1"}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[11px] font-medium text-gray-900">{paid ? "Invoice paid" : "Past-due invoice"}</span>
-                        <span className="block text-[9.5px] text-gray-500">{paid ? `Derek Olsen · ${money(PAID)} by card` : "Send a reminder"}</span>
-                      </span>
-                      <span key={paid ? "pd" : "od"} className={`flex items-center gap-1 text-[9.5px] font-semibold ${paid ? "wb-pop text-green-700" : "text-[#D62828]"}`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${paid ? "bg-green-600" : "bg-[#D62828]"}`} />
-                        {paid ? "Paid" : "Overdue"}
-                      </span>
-                      <ChevronRight className="h-3 w-3 text-gray-400" />
-                    </li>
-                    {needs.map((r) => (
-                      <li key={r.a} className="flex items-center gap-3 px-3.5 py-2">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#E8ECF3] text-[11px] font-semibold text-[#1D2E52]">{r.n}</span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[11px] font-medium text-gray-900">{r.a}</span>
-                          <span className="block text-[9.5px] text-gray-500">{r.b}</span>
+
+                {/* Talk to Atlas */}
+                <div className="mt-6 flex w-full items-center gap-3 rounded-2xl border border-[color:var(--ds-line)] bg-[color:var(--ds-surface)] px-3.5 py-3 text-left shadow-sm">
+                  <AtlasMark
+                    size={40}
+                    accent={BW.secondary}
+                    className="shrink-0 rounded-[12px]"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-semibold text-[color:var(--ds-ink)]">
+                      Talk to Atlas
+                    </span>
+                    <span className="block truncate text-[12.5px] text-[color:var(--ds-ink-2)]">
+                      Say what you need — schedule, quotes, clients, follow-ups.
+                      Hands-free.
+                    </span>
+                  </span>
+                  <span
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                    style={{
+                      background: "var(--wb-accent, var(--ds-primary))",
+                      color: "var(--wb-on-accent, #ffffff)",
+                    }}
+                  >
+                    <Mic size={18} />
+                  </span>
+                </div>
+
+                {/* the three stats */}
+                <div className="mt-7 grid grid-cols-3 gap-4">
+                  <div className="ds-card p-5">
+                    <p className="ds-label flex items-center gap-1">
+                      Collected
+                      <InfoDot />
+                    </p>
+                    <p className="ds-value mt-2">{usd(collected)}</p>
+                    <p className="ds-small mt-1.5">this month</p>
+                    <svg
+                      viewBox="0 0 100 24"
+                      className="mt-4 h-8 w-full"
+                      preserveAspectRatio="none"
+                      aria-hidden
+                    >
+                      {daily.map((v, i) => {
+                        const h = v > 0 ? Math.max((v / max) * 22, 2) : 1;
+                        const last = i === daily.length - 1;
+                        return (
+                          <rect
+                            key={i}
+                            x={i * (bw + 1.5)}
+                            y={24 - h}
+                            width={bw}
+                            height={h}
+                            rx={0.75}
+                            fill={
+                              last ? "var(--ds-secondary)" : "var(--ds-primary)"
+                            }
+                            opacity={v > 0 ? (last ? 1 : 0.8) : 0.15}
+                            style={{ transition: "y 0.7s, height 0.7s" }}
+                          />
+                        );
+                      })}
+                    </svg>
+                  </div>
+                  <div className="ds-card p-5">
+                    <p className="ds-label flex items-center gap-1">
+                      Outstanding
+                      <InfoDot />
+                    </p>
+                    <p
+                      className="ds-value mt-2"
+                      style={{ color: "var(--ds-bad)" }}
+                    >
+                      {usd(paid ? 1379.65 : 2619.65)}
+                    </p>
+                    <p className="ds-small mt-1.5">
+                      {paid ? "1 client owes you" : "2 clients owe you"}
+                    </p>
+                  </div>
+                  <div className="ds-card p-5">
+                    <p className="ds-label flex items-center gap-1">
+                      Booked this week
+                      <InfoDot />
+                    </p>
+                    <p className="ds-value mt-2">{usd(booked ? 7615 : 7295)}</p>
+                    <p className="ds-small mt-1.5">
+                      {booked ? 14 : 13} jobs scheduled
+                    </p>
+                  </div>
+                </div>
+
+                {/* Today + Needs you */}
+                <div className="mt-8 grid grid-cols-[1.45fr_1fr] items-start gap-6">
+                  <section>
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <h2 className="ds-h2 flex items-center gap-1.5">
+                        Today
+                        <span className="ds-small ml-1 font-normal">
+                          · {booked ? 4 : 3} jobs · 1 appointment
                         </span>
-                        <ChevronRight className="h-3 w-3 text-gray-400" />
-                      </li>
-                    ))}
-                  </ul>
+                      </h2>
+                      <span className="ds-link inline-flex items-center gap-1 text-[13.5px]">
+                        Open schedule <span aria-hidden>→</span>
+                      </span>
+                    </div>
+                    <div className="ds-card ds-divide overflow-hidden">
+                      {today.map((j) => (
+                        <div
+                          key={j.who}
+                          className="ds-row"
+                          style={
+                            j.fresh && step === 1
+                              ? {
+                                  animation:
+                                    "listIn 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both",
+                                }
+                              : undefined
+                          }
+                        >
+                          <span className="flex w-[74px] shrink-0 items-center gap-2.5">
+                            <span className="ds-num w-12 text-right text-[12.5px] font-semibold text-[color:var(--ds-ink-2)]">
+                              {j.t}
+                            </span>
+                            <span
+                              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+                              style={{
+                                background: j.visit
+                                  ? "var(--ds-secondary-soft)"
+                                  : "var(--ds-primary-soft)",
+                              }}
+                            >
+                              {j.visit ? (
+                                <MapPin
+                                  size={12}
+                                  strokeWidth={2.4}
+                                  style={{ color: "var(--ds-secondary)" }}
+                                />
+                              ) : (
+                                <span
+                                  className="h-2 w-2 rounded-full"
+                                  style={{ background: "var(--ds-primary)" }}
+                                />
+                              )}
+                            </span>
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[14.5px] font-medium text-[color:var(--ds-ink)]">
+                              {j.who}
+                            </span>
+                            <span className="ds-small mt-0.5 block truncate">
+                              {j.sub}
+                            </span>
+                          </span>
+                          {j.amt ? (
+                            <span className="ds-num shrink-0 text-[13.5px] font-semibold text-[color:var(--ds-ink)]">
+                              {usd(j.amt)}
+                            </span>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                  <section>
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <h2 className="ds-h2 flex items-center gap-1.5">
+                        Needs you
+                        <InfoDot />
+                      </h2>
+                    </div>
+                    <div className="ds-card ds-divide overflow-hidden">
+                      {needs.map((r) => (
+                        <div key={r.a} className="ds-row">
+                          <span
+                            key={r.n}
+                            className={`ds-count ${r.bad ? "ds-count-bad" : ""}`}
+                          >
+                            {r.n}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[14.5px] font-medium text-[color:var(--ds-ink)]">
+                              {r.a}
+                            </span>
+                            <span className="ds-small mt-0.5 block truncate">
+                              {r.b}
+                            </span>
+                          </span>
+                          <span className="flex shrink-0 items-center gap-2">
+                            {r.bad && (
+                              <span className="ds-chip ds-chip-bad">
+                                Overdue
+                              </span>
+                            )}
+                            <ChevronRight
+                              size={16}
+                              className="text-[color:var(--ds-faint)]"
+                            />
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                 </div>
               </div>
-
-              {/* the Atlas button */}
-              <span className="absolute bottom-4 right-4 flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#B98516] bg-[#E3AA2E] shadow-md">
-                <Compass className="h-[18px] w-[18px] text-[#3B2A05]" strokeWidth={2.2} />
-              </span>
-            </div>
+            </AppWindow>
           </div>
-        </div>
-      </div>
-
-      {/* the payment notification */}
-      {pinged && (
-        <div className="wb-toast-in absolute -bottom-5 right-6 flex w-[300px] items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-[0_24px_50px_-16px_rgba(10,20,40,0.45)] sm:right-14">
-          <WBAppIcon className="h-8 w-8 rounded-lg" />
-          <span style={{ fontFamily: "var(--font-lexend), Lexend, system-ui, sans-serif" }}>
-            <span className="block text-[11.5px] font-semibold text-gray-900">Payment received</span>
-            <span className="block text-[10.5px] text-gray-500">Derek Olsen paid invoice #2481 · {money(PAID)}</span>
-          </span>
-        </div>
-      )}
+        )}
+      </AppCanvas>
     </div>
   );
 }
