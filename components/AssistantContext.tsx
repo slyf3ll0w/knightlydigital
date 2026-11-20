@@ -16,8 +16,7 @@ export type AssistantContextValue = {
   name: string;
   /** Company accent for AtlasMark; undefined = the default badge color. */
   accent?: string;
-  /** Open the drawer; a string prefills the message box (not sent) — e.g. Settings → Client pages' "Ask Atlas to design it". */
-  open: (prompt?: string) => void;
+  open: () => void;
   /** Open straight into a voice conversation (the Talk buttons). Call from
    *  the tap handler itself — iPhones grant the mic only inside the tap. */
   talk: () => void;

@@ -33,6 +33,7 @@ import { callTools } from "./calls";
 import { extraTools } from "./extras";
 import { gapTools } from "./gaps";
 import { designTools } from "./design";
+import { DESIGN_SCOPE_TOOLS, designScopeStable, designScopeVolatile, type AssistantScope } from "./design-scope";
 
 export type { Proposal, BatchItem, Tool, ToolCtx } from "./core";
 
@@ -376,6 +377,8 @@ export async function runAssistant(
     onProgress?: (p: AssistantProgress) => void;
     /** The user is talking and listening (voice mode) — the reply is read aloud, so it is shaped for the ear. */
     voice?: boolean;
+    /** A page's own Atlas (lib/assistant/design-scope.ts): only that page's tools and a short prompt. */
+    scope?: AssistantScope;
   } = {}
 ): Promise<AssistantResult | null> {
   const company = await prisma.company.findUnique({
@@ -385,7 +388,9 @@ export async function runAssistant(
   if (!company) return null;
   const assistantName = company.assistantName || DEFAULT_ASSISTANT_NAME;
 
-  const active = toolsForActor(actor);
+  const active = opts.scope
+    ? toolsForActor(actor).filter((t) => DESIGN_SCOPE_TOOLS.includes(t.decl.name))
+    : toolsForActor(actor);
   // Voice turns may run on a faster model than typed ones (AI_MODEL_ASSISTANT_VOICE):
   // a spoken answer that takes ten seconds is a failed conversation.
   let model =
@@ -414,8 +419,13 @@ export async function runAssistant(
     parts: [{ text: m.content.slice(0, 4000) }],
   }));
 
-  const prompt = systemPrompt(actor, company.name, company.timezone, assistantName);
-  if (opts.voice) prompt.volatile += `\n\n${VOICE_MODE_RULES}`;
+  const prompt = opts.scope
+    ? {
+        stable: designScopeStable(assistantName, company.name),
+        volatile: `${await designScopeVolatile(actor.companyId)}\n\nThe person you are talking to is ${actor.name}, role: ${roleLabel[actor.role]}.`,
+      }
+    : systemPrompt(actor, company.name, company.timezone, assistantName);
+  if (opts.voice && !opts.scope) prompt.volatile += `\n\n${VOICE_MODE_RULES}`;
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const callOpts = {
       system: prompt.stable,

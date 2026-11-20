@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { reportError } from "@/lib/report-error";
 import { prisma } from "@/lib/db";
-import { getActor } from "@/lib/permissions";
+import { getActor, isManager } from "@/lib/permissions";
+import { checkFeature } from "@/lib/plan-gate";
+import { isAssistantScope } from "@/lib/assistant/design-scope";
 import { aiEnabled } from "@/lib/ai";
 import { limit } from "@/lib/rate-limit";
 import { runAssistant, type ChatMessage } from "@/lib/assistant";
@@ -104,9 +106,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const body = (await req.json().catch(() => ({}))) as { messages?: unknown; voice?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { messages?: unknown; voice?: unknown; scope?: unknown };
   const voice = body.voice === true;
-  const raw = Array.isArray(body.messages) ? body.messages.slice(-30) : [];
+  // A page's own Atlas (Settings → Client pages): same meter, only that page's tools
+  const scope = isAssistantScope(body.scope) ? body.scope : undefined;
+  if (body.scope !== undefined && !scope) return NextResponse.json({ error: "Unknown scope." }, { status: 400 });
+  if (scope) {
+    if (!isManager(actor.role)) return NextResponse.json({ error: "Only owners and admins can design the client pages." }, { status: 403 });
+    const gate = await checkFeature(actor.companyId, "page_designer");
+    if (!gate.ok) return gate.response;
+  }
+  const raw = Array.isArray(body.messages) ? body.messages.slice(scope ? -12 : -30) : [];
   const messages: ChatMessage[] = raw
     .map((m) => {
       const r = (m ?? {}) as Record<string, unknown>;
@@ -150,6 +160,7 @@ export async function POST(req: NextRequest) {
   async function turn(onProgress?: (text: string) => void): Promise<{ status: number; body: Record<string, unknown> }> {
     const result = await runAssistant(actor!, messages, {
       voice,
+      scope,
       onFailure: (partial) => {
         // burned tokens are still spend — meter them, then let the caller retry
         void settle(partial.usage, { ...partial, proposals: 0, ok: false });
