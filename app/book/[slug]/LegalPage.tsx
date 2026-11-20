@@ -17,16 +17,19 @@ export default async function LegalPage({
   slug,
   title,
   sections,
+  updated,
 }: {
   slug: string;
   title: string;
+  /** a later date than BUSINESS_LEGAL_UPDATED, when this business's page carries wording newer than that */
+  updated?: string;
   sections: (p: BusinessProfile) => LegalSection[];
 }) {
   const [shell, profile] = await Promise.all([resolveScheduleAppearance(slug, {}, { skipGate: true }), loadBusinessProfile(slug)]);
   if (!shell || !profile) notFound();
   const { dark } = shell.appearance;
   return (
-    <ScheduleFrame company={shell.company} appearance={shell.appearance} title={title} subtitle={`${profile.name} · Last updated ${BUSINESS_LEGAL_UPDATED}`} wide>
+    <ScheduleFrame company={shell.company} appearance={shell.appearance} title={title} subtitle={`${profile.name} · Last updated ${updated ?? BUSINESS_LEGAL_UPDATED}`} wide>
       <article className={`rounded-lg border p-5 text-[14px] leading-relaxed sm:p-7 ${dark ? "border-white/10 bg-white/5 text-gray-300" : "border-gray-200 bg-white text-gray-600"}`}>
         {sections(profile).map((s) => (
           <section key={s.heading} className="mb-6 last:mb-0">
