@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import WBAppIcon from "@/components/wb/WBAppIcon";
 import { useEffect, useRef, useState } from "react";
 
 /**
@@ -96,7 +97,7 @@ export default function WBPhoneStack() {
           }`}
         >
           <div className="flex items-start gap-2">
-            <Image src="/apple-icon.png" alt="" width={28} height={28} unoptimized className="h-8 w-8 flex-none rounded-lg" />
+            <WBAppIcon className="h-8 w-8 rounded-lg" />
             <span className="min-w-0 leading-tight">
               <span className="flex items-center justify-between gap-2 text-[13px] font-extrabold text-[#0A1428]">
                 {p.title}

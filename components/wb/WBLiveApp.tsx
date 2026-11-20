@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import WBAppIcon from "@/components/wb/WBAppIcon";
 import {
   Bell,
   Briefcase,
@@ -336,7 +337,7 @@ export default function WBLiveApp() {
       {/* the payment notification */}
       {pinged && (
         <div className="wb-toast-in absolute -bottom-5 right-6 flex w-[300px] items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-[0_24px_50px_-16px_rgba(10,20,40,0.45)] sm:right-14">
-          <Image src="/workbench-icon.png" alt="" width={339} height={296} className="h-8 w-auto flex-none" />
+          <WBAppIcon className="h-8 w-8 rounded-lg" />
           <span style={{ fontFamily: "var(--font-lexend), Lexend, system-ui, sans-serif" }}>
             <span className="block text-[11.5px] font-semibold text-gray-900">Payment received</span>
             <span className="block text-[10.5px] text-gray-500">Derek Olsen paid invoice #2481 · {money(PAID)}</span>

@@ -10,6 +10,7 @@ import WBLiveApp from "@/components/wb/WBLiveApp";
 import WBAppJourney from "@/components/wb/WBAppJourney";
 import WBDoodle from "@/components/wb/WBDoodle";
 import WBInsights from "@/components/wb/WBInsights";
+import WBTeamDemo from "@/components/wb/WBTeamDemo";
 import WBMarker from "@/components/wb/WBMarker";
 import WBPhoneStack from "@/components/wb/WBPhoneStack";
 import WBOdometer from "@/components/wb/WBOdometer";
@@ -270,24 +271,24 @@ export default async function WBHomePage() {
         </div>
       </section>
 
-      {/* ── 3. Know your numbers (light gray): a coded copy of what WorkBench
-           adds up as you work, its charts growing in (replaces "Get paid",
-           which repeated the hero, the job journey and pricing). ── */}
+      {/* ── 3. The crew (light gray): add people in a minute, the first
+           ${INCLUDED_SEATS} free (David 2026-11-20). A coded Team & roles screen
+           adds a tech while the seat line counts against the free ones. ── */}
       <section className="bg-[#F5F7FA]">
         <div className="mx-auto grid max-w-6xl items-center gap-14 px-5 py-24 sm:px-8 sm:py-32 lg:grid-cols-[0.9fr_1.1fr]">
           <div>
             <h2 className={H2}>
-              Know which jobs <span className="text-[#0B57D8]">make you money.</span>
+              Bring the whole crew. <span className="text-[#0B57D8]">Your first {INCLUDED_SEATS} are free.</span>
             </h2>
             <p className="mt-6 max-w-md text-[18px] leading-relaxed text-gray-600">
-              WorkBench adds it up while you work: what came in this month, what each job really made after labor and materials,
-              and which lead sources are worth paying for.
+              Add your techs, office and sales people in a minute. Each gets their own sign-in on the phone app or the computer,
+              and a role that shows them only what they need: techs see their own jobs and schedule, never your prices.
             </p>
             <p className="mt-6 max-w-md text-[16px] leading-relaxed text-gray-600">
-              And the money still out there? Automatic reminders and autopay chase it for you.
+              {INCLUDED_SEATS} users are included free. Each extra person is {formatCents(EXTRA_SEAT_CENTS)} a month, or go unlimited with {PLANS.SHOP.name}.
             </p>
           </div>
-          <WBInsights />
+          <WBTeamDemo included={INCLUDED_SEATS} extraSeat={`${formatCents(EXTRA_SEAT_CENTS)}/mo`} proName={PLANS.SHOP.name} />
         </div>
       </section>
 
@@ -391,6 +392,28 @@ export default async function WBHomePage() {
             </p>
           </div>
           <WBIntegrationsHub />
+        </div>
+      </section>
+
+      {/* ── 7b. Know your numbers (light gray): a coded copy of what WorkBench
+           adds up as you work, its charts growing in (replaces "Get paid",
+           which repeated the hero, the job journey and pricing). ── */}
+      <section className="bg-[#F5F7FA]">
+        <div className="mx-auto grid max-w-6xl items-center gap-14 px-5 py-24 sm:px-8 sm:py-32 lg:grid-cols-[0.9fr_1.1fr]">
+          <div>
+            <h2 className={H2}>
+              Know which jobs <span className="text-[#0B57D8]">make you money.</span>
+            </h2>
+            <p className="mt-6 max-w-md text-[18px] leading-relaxed text-gray-600">
+              WorkBench adds it up while you work: what came in this month, what each job really made after labor and materials,
+              and which lead sources are worth paying for.
+            </p>
+            <p className="mt-6 max-w-md text-[16px] leading-relaxed text-gray-600">
+              Log your expenses as they happen, from the supply-house run to the rent, and set the ones that repeat to log
+              themselves every month. Profit is what came in minus what went out, so it is the real number.
+            </p>
+          </div>
+          <WBInsights />
         </div>
       </section>
 
