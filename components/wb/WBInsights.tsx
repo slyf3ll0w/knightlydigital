@@ -8,7 +8,10 @@ import { useEffect, useRef, useState } from "react";
  * A coded copy of what WorkBench adds up as you work — Insights' collected
  * by month, a job's profit after labor and materials (the job page's
  * Profit margin card), and Insights → Lead sources — whose charts grow in
- * when the section scrolls into view. Brightwire Electric demo numbers.
+ * when the section scrolls into view, plus logged expenses (Overview →
+ * Expenses: one-off and repeat-monthly) and profit = collected − expenses,
+ * the same sum Insights shows (David 2026-11-20: touch on tracking
+ * expenses). Brightwire Electric demo numbers.
  * Drawn finished under reduced motion.
  */
 
@@ -28,6 +31,17 @@ const SPLIT: [string, number, string][] = [
   ["Materials", 580, "#F86A0A"],
 ];
 const SPLIT_TOTAL = SPLIT.reduce((a, [, v]) => a + v, 0);
+
+const COLLECTED = 18420;
+// October's logged expenses: shown rows + the two folded into "more".
+const EXPENSES: [string, string, number, boolean][] = [
+  ["Supply house", "Materials", 2860, false],
+  ["Shop rent", "Rent", 1200, true],
+  ["Van payment", "Vehicle", 940, true],
+  ["Liability insurance", "Insurance", 268, true],
+];
+const MORE = { count: 2, amount: 972 };
+const SPENT = EXPENSES.reduce((a, [, , v]) => a + v, 0) + MORE.amount;
 
 const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
@@ -60,11 +74,21 @@ export default function WBInsights() {
     <div ref={ref} className="grid gap-4 text-[#0A1428] sm:grid-cols-2" style={{ fontFamily: "var(--font-lexend), Lexend, system-ui, sans-serif" }} aria-hidden>
       {/* collected by month */}
       <div className="rounded-2xl bg-white p-5 shadow-[0_0_0_1px_rgba(10,20,40,0.07),0_18px_34px_-24px_rgba(10,20,40,0.4)] sm:col-span-2">
-        <div className="flex items-baseline justify-between">
-          <p className="text-[12px] font-semibold text-gray-500">Collected</p>
-          <p className="text-[12px] font-semibold text-[#17703B]">▲ 18% vs last month</p>
+        <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
+          <div>
+            <p className="text-[12px] font-semibold text-gray-500">Collected</p>
+            <p className="mt-1 text-[26px] font-semibold tabular-nums">{usd(COLLECTED)}</p>
+          </div>
+          <div className={`transition-opacity duration-500 ${on ? "opacity-100" : "opacity-0"}`} style={{ transitionDelay: "700ms" }}>
+            <p className="text-[12px] font-semibold text-gray-500">Expenses</p>
+            <p className="mt-1 text-[20px] font-semibold tabular-nums text-[#C2410C]">−{usd(SPENT)}</p>
+          </div>
+          <div className={`transition-opacity duration-500 ${on ? "opacity-100" : "opacity-0"}`} style={{ transitionDelay: "1000ms" }}>
+            <p className="text-[12px] font-semibold text-gray-500">Profit</p>
+            <p className="mt-1 text-[20px] font-semibold tabular-nums text-[#17703B]">{usd(COLLECTED - SPENT)}</p>
+          </div>
+          <p className="ml-auto text-[12px] font-semibold text-[#17703B]">▲ 18% vs last month</p>
         </div>
-        <p className="mt-1 text-[26px] font-semibold tabular-nums">$18,420</p>
         <div className="mt-4 flex h-[120px] items-end gap-3">
           {MONTHS.map(([m, v], k) => (
             <div key={m} className="flex h-full flex-1 flex-col items-center gap-2">
@@ -138,6 +162,29 @@ export default function WBInsights() {
               </div>
             </li>
           ))}
+        </ul>
+      </div>
+
+      {/* logged expenses */}
+      <div className="rounded-2xl bg-white p-5 shadow-[0_0_0_1px_rgba(10,20,40,0.07),0_18px_34px_-24px_rgba(10,20,40,0.4)] sm:col-span-2">
+        <div className="flex items-baseline justify-between">
+          <p className="text-[12px] font-semibold text-gray-500">Expenses in October</p>
+          <p className="text-[12px] font-semibold tabular-nums">{usd(SPENT)}</p>
+        </div>
+        <ul className="mt-2 divide-y divide-gray-100">
+          {EXPENSES.map(([what, cat, v, repeats], k) => (
+            <li
+              key={what}
+              className={`flex items-center gap-3 py-2 text-[12.5px] transition-[opacity,transform] duration-500 ${on ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"}`}
+              style={{ transitionDelay: `${600 + k * 140}ms` }}
+            >
+              <span className="font-semibold">{what}</span>
+              <span className="text-gray-500">{cat}</span>
+              {repeats && <span className="rounded-md bg-[#EEF3FD] px-1.5 py-0.5 text-[10.5px] font-semibold text-[#0B57D8]">Every month</span>}
+              <span className="ml-auto tabular-nums">{usd(v)}</span>
+            </li>
+          ))}
+          <li className="py-2 text-[12px] text-gray-500">{MORE.count} more · {usd(MORE.amount)}</li>
         </ul>
       </div>
     </div>

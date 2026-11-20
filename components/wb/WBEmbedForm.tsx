@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import WBAppIcon from "@/components/wb/WBAppIcon";
 import { useEffect } from "react";
 
 /**
@@ -35,7 +35,7 @@ declare global {
 export function WBBuiltWith({ kind = "form", className = "" }: { kind?: "form" | "booking"; className?: string }) {
   return (
     <p className={`flex items-start gap-3 rounded-xl bg-[#EEF3FD] px-4 py-3 text-[14px] leading-snug text-[#10244A] ${className}`}>
-      <Image src="/apple-icon.png" alt="" width={32} height={32} unoptimized className="mt-0.5 h-8 w-8 flex-none rounded-lg" />
+      <WBAppIcon className="mt-0.5 h-8 w-8 rounded-lg" />
       <span>
         <span className="font-extrabold">Built with WorkBench.</span>{" "}
         {kind === "booking"
