@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { RESERVED_SLUGS, slugWhere, slugify } from "@/lib/company-slug";
 import { pricebookForIndustry } from "@/lib/pricebooks";
 import { paymentsSetupGateEnabled } from "@/lib/payments-gate";
+import type { Arrival } from "@/lib/lead-source";
 
 /**
  * Company creation shared by the two ways in:
@@ -69,6 +70,11 @@ export async function createCompanySignup(opts: {
   phone?: string | null;
   /** "How did you hear about us?" from the sign-up form → Company.referralSource. */
   referralSource?: string | null;
+  /**
+   * How the visitor reached the site (lib/lead-source.ts Arrival, already sanitized) →
+   * the sign-up's lead in the WorkBench account, filed and matched like any website lead.
+   */
+  arrival?: Arrival | null;
   /** Link this AccessApplication to the new company (and the invite, if any). */
   applicationId?: string | null;
   /**
@@ -230,7 +236,7 @@ async function createInTransaction(
   // email / phone, is linked; otherwise one is made — a LEAD on the board
   // until they connect Square. Best effort.
   await import("@/lib/plan-billing")
-    .then((m) => m.ensureBillingContact(result.companyId))
+    .then((m) => m.ensureBillingContact(result.companyId, { arrival: opts.arrival ?? null }))
     .catch((e) => reportError("[signup] billing contact failed", e));
   return result;
 }

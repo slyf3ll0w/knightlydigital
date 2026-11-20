@@ -145,7 +145,20 @@ export type Arrival = {
   at?: number;
   /** True when the form sat on the business's own website (public/embed.js) */
   embedded?: boolean;
+  /**
+   * The browser that submitted the form (its User-Agent header), set by the
+   * server with `withUserAgent`, never read from what the browser posted.
+   * Facebook asks for it on a website event (lib/meta-ads-shape.ts).
+   */
+  ua?: string;
 };
+
+/** The arrival with the submitting browser's User-Agent header on it. Null stays null: no arrival, nothing to match. */
+export function withUserAgent(arrival: Arrival | null, userAgent: string | null | undefined): Arrival | null {
+  if (!arrival) return null;
+  const ua = cleanText(userAgent ?? "", 400);
+  return ua ? { ...arrival, ua } : arrival;
+}
 
 /** URL parameter → Arrival field. public/embed.js and lib/arrival-client.ts read the same list. */
 export const ARRIVAL_PARAMS: [string, keyof Arrival][] = [

@@ -3,7 +3,7 @@ import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { phoneDigits } from "@/lib/phone";
 import { namePlaceholder } from "@/lib/placeholder-contact";
-import { leadSourceFor, sanitizeArrival } from "@/lib/lead-source";
+import { leadSourceFor, sanitizeArrival, withUserAgent } from "@/lib/lead-source";
 import type { Prisma } from "@prisma/client";
 import { verifyCaptcha } from "@/lib/captcha";
 import { sendEmail, newRequestEmail, quoteLinkEmail } from "@/lib/email";
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   const preferredDate = intake.fields.date.show ? str(body.preferredDate, 10) : "";
   const message = intake.message.show ? str(body.message, 5000) : "";
   // How the visitor arrived (ad click, search, another site) names a new lead's source; a signed-in client is not a lead
-  const arrival = hubContact ? null : sanitizeArrival(body.arrival);
+  const arrival = hubContact ? null : withUserAgent(sanitizeArrival(body.arrival), req.headers.get("user-agent"));
   const leadSource = leadSourceFor(arrival, "Online booking");
   const leadArrival = arrival ? (arrival as Prisma.InputJsonValue) : null;
 

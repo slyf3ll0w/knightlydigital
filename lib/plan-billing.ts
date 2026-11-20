@@ -45,6 +45,7 @@ import {
 } from "@/lib/plans";
 import type { SquareClientConfig } from "@/lib/pay-config";
 import type { Prisma } from "@prisma/client";
+import { leadSourceFor, type Arrival } from "@/lib/lead-source";
 
 /**
  * Plan billing — WorkBench's paid plans, sold the way every WorkBench
@@ -189,7 +190,10 @@ const digitsOf = (phone: string | null | undefined) => {
  * (settleSignupLead): a LEAD until Square is connected. Nothing found = a new row. Null
  * when there is no WorkBench company yet, or for the WorkBench company itself.
  */
-export async function ensureBillingContact(companyId: string): Promise<string | null> {
+export async function ensureBillingContact(companyId: string, opts: { arrival?: Arrival | null } = {}): Promise<string | null> {
+  // How the sign-up reached the site (given only by the sign-up itself): names a NEW lead's source
+  // and is kept on it, exactly as a website form does for any business (lib/lead-source.ts).
+  const arrival = opts.arrival ?? null;
   const platform = await platformCompany();
   if (!platform || platform.id === companyId) return null;
   // The marketing site's demo company is never a lead or client of WorkBench.
@@ -217,7 +221,7 @@ export async function ensureBillingContact(companyId: string): Promise<string | 
     ? await prisma.contact.findMany({
         where: { companyId: platform.id, placeholder: false, billedCompany: { is: null }, OR: emails.map((e) => ({ email: { equals: e, mode: "insensitive" as const } })) },
         orderBy: [{ status: "asc" }, { createdAt: "asc" }],
-        select: { id: true, status: true, pipelineStageId: true, companyName: true, email: true, phone: true, kind: true },
+        select: { id: true, status: true, pipelineStageId: true, companyName: true, email: true, phone: true, kind: true, leadArrival: true },
       })
     : [];
   const byPhone =
@@ -225,7 +229,7 @@ export async function ensureBillingContact(companyId: string): Promise<string | 
       ? await prisma.contact.findMany({
           where: { companyId: platform.id, placeholder: false, billedCompany: { is: null }, phoneDigits: { in: digits } },
           orderBy: [{ status: "asc" }, { createdAt: "asc" }],
-          select: { id: true, status: true, pipelineStageId: true, companyName: true, email: true, phone: true, kind: true },
+          select: { id: true, status: true, pipelineStageId: true, companyName: true, email: true, phone: true, kind: true, leadArrival: true },
         })
       : [];
   const pick = (list: typeof byEmail) => list.find((c) => c.status !== "ARCHIVED") ?? list[0] ?? null;
@@ -245,6 +249,8 @@ export async function ensureBillingContact(companyId: string): Promise<string | 
         ...(found.companyName ? {} : { companyName: company.name }),
         ...(found.email || !emails[0] ? {} : { email: emails[0] }),
         ...(found.phone || !phone ? {} : { phone, phoneDigits: digitsOf(phone) || null }),
+        // a lead already known keeps the arrival it came with; one that had none gains this one
+        ...(arrival && found.leadArrival == null ? { leadArrival: arrival as Prisma.InputJsonValue } : {}),
       },
     });
   } else {
@@ -261,7 +267,8 @@ export async function ensureBillingContact(companyId: string): Promise<string | 
         phoneDigits: digits[0] || null,
         status: company.squareMerchantId ? "ACTIVE" : "LEAD",
         kind: "CLIENT",
-        leadSource: "WorkBench sign-up",
+        leadSource: leadSourceFor(arrival, "WorkBench sign-up"),
+        ...(arrival ? { leadArrival: arrival as Prisma.InputJsonValue } : {}),
       },
       select: { id: true },
     });

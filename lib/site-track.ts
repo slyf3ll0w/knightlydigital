@@ -22,6 +22,9 @@ export type SiteAttribution = {
 export type SiteEventName = "cta_click" | "signup" | "apply_submit" | "tool_pdf" | "tool_draft" | "tool_open" | "tool_email";
 
 const ATTR_KEY = "wb_attr";
+/** Ad click ids from the address this session arrived on (the same list every other WorkBench form reads: lib/lead-source.ts ARRIVAL_PARAMS). */
+const CLICK_KEY = "wb_clicks";
+const CLICK_PARAMS = ["gclid", "gbraid", "wbraid", "fbclid", "msclkid"] as const;
 const VISITOR_KEY = "wb_vid";
 
 function safeGet(storage: Storage, key: string): string | null {
@@ -72,6 +75,13 @@ export function captureAttribution(): SiteAttribution {
     if (v) fromUrl[key] = v.slice(0, 120);
   }
   const hasUtm = Object.keys(fromUrl).length > 0;
+  // An ad click id on this address: remember it with when it was seen. A later click replaces an earlier one.
+  const clicks: Record<string, string | number> = {};
+  for (const p of CLICK_PARAMS) {
+    const v = params.get(p)?.trim();
+    if (v) clicks[p] = v.slice(0, 400);
+  }
+  if (Object.keys(clicks).length > 0) safeSet(window.sessionStorage, CLICK_KEY, JSON.stringify({ ...clicks, at: Date.now() }));
   if (saved && !hasUtm) {
     try {
       return JSON.parse(saved) as SiteAttribution;
@@ -106,6 +116,23 @@ export function getAttribution(): SiteAttribution {
   } catch {
     return {};
   }
+}
+
+/**
+ * How this visitor arrived, in the shape every WorkBench form sends (lib/lead-source.ts
+ * Arrival): the attribution above plus any ad click id. The sign-up form posts it so a
+ * sign-up is filed by its source and keeps its click id like any other website lead.
+ */
+export function getArrival(): Record<string, unknown> {
+  if (typeof window === "undefined") return {};
+  const { landing, ...attr } = getAttribution();
+  let clicks: Record<string, unknown> = {};
+  try {
+    clicks = JSON.parse(safeGet(window.sessionStorage, CLICK_KEY) || "{}") as Record<string, unknown>;
+  } catch {
+    clicks = {};
+  }
+  return { ...attr, ...(landing ? { landing: window.location.origin + landing } : {}), ...clicks };
 }
 
 /** Fire-and-forget. Uses sendBeacon so a click that leaves the page still lands. */

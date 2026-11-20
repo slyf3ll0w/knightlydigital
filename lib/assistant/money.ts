@@ -24,6 +24,7 @@ import { isOnlinePayment } from "../payment-ref";
 import { loadLeadSourceReport } from "../lead-source-report";
 import { loadAdsFeedStatus } from "../ads-conversions-server";
 import { loadAdsConnectStatus } from "../google-ads";
+import { loadMetaAdsStatus } from "../meta-ads";
 import { quickChargeIssue } from "../quick-charge";
 
 /** Invoices, payments, subscriptions, expenses, and real email sends. */
@@ -225,6 +226,61 @@ export const moneyTools: Tool[] = [
         });
       }
       return { error: "action must be on, new_address, off or disconnect" };
+    },
+  },
+  {
+    decl: {
+      name: "get_facebook_ads",
+      description:
+        "Facebook ads: whether WorkBench is reporting lead steps back to Facebook (new lead, appointment booked, quote sent, job won, paid) for leads who came from Facebook or Instagram, when steps were last sent, Facebook's last refusal if any, how many Facebook leads arrived in the last 90 days, how many steps were sent this week and how many are waiting. Turning it on is done on the page by pasting a dataset ID and an access token from Facebook's Events Manager.",
+      parameters: { type: "object", properties: {} },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor) => {
+      const s = await loadMetaAdsStatus(actor.companyId);
+      return {
+        reportingToFacebook: s.on,
+        needsNewAccessToken: s.needsToken,
+        lastSent: s.lastSendAt,
+        stepsLastSent: s.lastSendCount,
+        lastFacebookError: s.lastError,
+        facebookLeadsLast90Days: s.facebookLeads,
+        stepsSentThisWeek: s.sentThisWeek,
+        stepsWaiting: s.waiting,
+        page: "/app/insights/lead-sources/facebook",
+        note: s.on
+          ? "Steps go to Facebook within the hour. No name, email, phone or address is sent."
+          : "Off. The owner turns it on from the page with a dataset ID and an access token from Events Manager; the page has the three steps.",
+      };
+    },
+  },
+  {
+    decl: {
+      name: "set_facebook_ads",
+      description:
+        "Stop reporting lead steps to Facebook. 'off' removes the saved dataset and access token; what Facebook already counted stays counted. Needs a confirmation card. Turning it on is done on the page, because it needs an access token pasted from Facebook's Events Manager.",
+      parameters: {
+        type: "object",
+        properties: { action: { type: "string", enum: ["off"] } },
+        required: ["action"],
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args, ctx) => {
+      const action = str(args.action, 12);
+      if (action !== "off") return { error: "action must be off. Turning it on is done on the page: /app/insights/lead-sources/facebook" };
+      const s = await loadMetaAdsStatus(actor.companyId);
+      if (!s.on) return { error: "It is already off." };
+      return stage(ctx, {
+        kind: "set_facebook_ads",
+        title: "Stop reporting to Facebook",
+        lines: ["WorkBench stops telling Facebook what your leads did.", "What Facebook has already counted stays counted."],
+        endpoint: "/api/app/meta-ads",
+        method: "DELETE",
+        payload: {},
+        danger: true,
+        confirmLabel: "Turn off",
+      });
     },
   },
   {

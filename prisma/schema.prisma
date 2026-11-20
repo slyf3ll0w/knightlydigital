@@ -395,6 +395,9 @@ model Company {
   quickBooks            QuickBooksConnection?
   googleCalendars       GoogleCalendarConnection[]
   googleAds             GoogleAdsConnection?
+  metaAds               MetaConnection?
+  metaEventsSent        MetaEventSent[]
+  metaLeads             MetaLead[]
   inviteCode            InviteCode?
   application           AccessApplication?
   companyRequest        CompanyRequest?
@@ -3767,6 +3770,77 @@ model GoogleAdsConnection {
   needsReconnect       Boolean   @default(false) // Google refused the sign-in: nothing is sent until the owner connects again
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
+}
+
+// Facebook ads (lib/meta-ads.ts, docs/plans/facebook-ads-2026-11-20.md). One
+// row per company holds both halves: the dataset WorkBench reports lead steps
+// to (Conversions API; the owner pastes the id and a token from Events
+// Manager), and the Facebook Page whose instant-form leads arrive by webhook.
+// Either half can be set without the other.
+model MetaConnection {
+  id             String    @id @default(cuid())
+  companyId      String    @unique
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // results back
+  datasetId      String? // the dataset (pixel) id, digits
+  capiTokenEnc   String? // sealed (lib/secret-box.ts, scope "meta-capi")
+  capiNeedsToken Boolean   @default(false) // Facebook refused the token: nothing is sent until a new one is pasted
+  lastSendAt     DateTime?
+  lastSendCount  Int?
+  lastError      String? // most recent refusal in plain words; null = healthy
+  // lead forms in
+  connectedById  String?
+  fbUserName     String?
+  userTokenEnc   String? // sealed long-lived user token, kept only until a Page is picked
+  pageId         String?   @unique
+  pageName       String?
+  pageTokenEnc   String? // sealed (scope "meta-page")
+  needsReconnect Boolean   @default(false) // Facebook refused the Page sign-in: leads stop until the owner connects again
+  lastLeadAt     DateTime?
+  lastLeadError  String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// One row per lead step reported to Facebook, so a step is never sent twice
+// (Facebook does not reliably drop a repeat from a server-only source).
+// refId = the payment id for a paid step, "" otherwise. error = Facebook
+// refused this one event for good (kept so it is not retried every hour).
+model MetaEventSent {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contactId String
+  event     String
+  refId     String   @default("")
+  error     String?
+  sentAt    DateTime @default(now())
+
+  @@unique([contactId, event, refId])
+  @@index([companyId, sentAt])
+}
+
+// A lead Facebook told us about (webhook field `leadgen`). leadgenId is
+// Facebook's own id for it: unique, so a resent notification is a no-op, and
+// it is what later steps are matched on. fetchedAt null = the answers have not
+// been read from Facebook yet (the hourly cron retries).
+model MetaLead {
+  id        String    @id @default(cuid())
+  leadgenId String    @unique
+  companyId String
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  pageId    String
+  formId    String?
+  adId      String?
+  contactId String?
+  requestId String?
+  fetchedAt DateTime?
+  tries     Int       @default(0)
+  error     String?
+  createdAt DateTime  @default(now())
+
+  @@index([companyId, contactId])
+  @@index([fetchedAt])
 }
 
 enum CalendarEventKind {

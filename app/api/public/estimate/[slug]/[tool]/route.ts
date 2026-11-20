@@ -5,7 +5,7 @@ import { verifyCaptcha } from "@/lib/captcha";
 import { runCompiled, formatValue, visibleInputIds, type Value } from "@/lib/estimator";
 import { loadPriceBook, resolvePublicEstimator } from "@/lib/estimator-server";
 import { createEstimateLead } from "@/lib/estimator-lead";
-import { sanitizeArrival } from "@/lib/lead-source";
+import { sanitizeArrival, withUserAgent } from "@/lib/lead-source";
 import { PUBLIC_RUN_FAILED } from "@/lib/estimator-public";
 import { DEFAULT_OUT_OF_AREA, outOfServiceArea } from "@/lib/estimator-public";
 import { limit, clientIp } from "@/lib/rate-limit";
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     customer: { firstName, lastName, email, phone, address, message, smsConsent: phone ? body.smsConsent === true : undefined },
     page: page || undefined,
     src: src || undefined,
-    arrival: sanitizeArrival(body.arrival),
+    arrival: withUserAgent(sanitizeArrival(body.arrival), req.headers.get("user-agent")),
     usedPhoto: (config.photoAssist || spec.inputs.some((i) => i.askAtlas)) && body.usedPhoto === true,
     outOfArea,
   });

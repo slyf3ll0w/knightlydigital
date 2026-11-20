@@ -71,6 +71,9 @@ export const COMPANY_DELETE_ORDER = [
   "squareConnection",
   "googleCalendarConnection",
   "googleAdsConnection",
+  "metaEventSent",
+  "metaLead",
+  "metaConnection",
   "user",
 ] as const;
 

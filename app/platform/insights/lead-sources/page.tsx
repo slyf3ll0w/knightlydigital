@@ -37,7 +37,7 @@ export default async function LeadSourcesPage({ searchParams }: { searchParams: 
   const [report, picked, company] = await Promise.all([
     loadLeadSourceReport(companyId, { since }),
     sourceKey ? loadLeadsForSource(companyId, { since }, sourceKey) : Promise.resolve(null),
-    prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true, adsFeedToken: true } }),
+    prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true, adsFeedToken: true, metaAds: { select: { datasetId: true, pageId: true } } } }),
   ]);
   const timeZone = company?.timezone ?? "America/Chicago";
   const day = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone });
@@ -185,6 +185,11 @@ export default async function LeadSourcesPage({ searchParams }: { searchParams: 
       <Link prefetch={false} href="/app/insights/lead-sources/google-ads" className="ds-card mt-5 flex items-center gap-3 px-4 py-3.5 transition-colors active:bg-gray-50 lg:px-5 lg:hover:bg-gray-50" data-testid="ads-feed-link">
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">Report paid jobs to Google Ads</span>
         {company?.adsFeedToken ? <Chip tone="good">On</Chip> : <Chip>Off</Chip>}
+      </Link>
+      {/* Facebook ads: lead steps reported back, and leads from Facebook forms (lib/meta-ads.ts) */}
+      <Link prefetch={false} href="/app/insights/lead-sources/facebook" className="ds-card mt-3 flex items-center gap-3 px-4 py-3.5 transition-colors active:bg-gray-50 lg:px-5 lg:hover:bg-gray-50" data-testid="fb-ads-link">
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">Facebook ads</span>
+        {company?.metaAds?.datasetId || company?.metaAds?.pageId ? <Chip tone="good">On</Chip> : <Chip>Off</Chip>}
       </Link>
     </div>
   );
