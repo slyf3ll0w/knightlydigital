@@ -1,0 +1,222 @@
+/* ── Client portal, the "heavy" look (2026-11-20) ─────────────────────────
+   docs/site-design.md → "Carrying it into the client-facing pieces": one
+   solid band in the company's color (logo + greeting), white cards with a
+   ring + deep soft shadow on a neutral tinted ground, Lexend 700–800 with
+   tight tracking, one big number where it matters. No patterns, glows,
+   watermarks, chips or eyebrow labels. Everything scoped under .hub-heavy;
+   colors arrive as --hh-* custom properties from lib/client-band.ts on the
+   root's style (always light: ForceLightTheme).
+   ──────────────────────────────────────────────────────────────────────── */
+
+.hub-heavy {
+  --hh-ground: #f3f5f8;
+  --hh-ink: #0a1428;
+  --hh-ink-2: #374151;
+  --hh-muted: #5b6474;
+  --hh-rule: #e8ebf0;
+  --hh-good: #15803d;
+  --hh-warn: #b45309;
+  --hh-bad: #b91c1c;
+  --hh-shadow: 0 0 0 1px rgba(10, 20, 40, 0.08), 0 2px 0 rgba(10, 20, 40, 0.05),
+    0 18px 34px -22px rgba(10, 20, 40, 0.35);
+  --hh-font: var(--font-lexend), "Lexend", system-ui, sans-serif;
+  --hh-num: var(--font-inter), "Inter", system-ui, sans-serif;
+  background: var(--hh-ground);
+  color: var(--hh-ink);
+}
+
+/* ── The band ─────────────────────────────────────────────────────────── */
+.hub-heavy .hh-band {
+  background: var(--hh-band);
+  color: var(--hh-on-band);
+  font-family: var(--hh-font);
+  padding-top: env(safe-area-inset-top);
+}
+.hub-heavy .hh-logo {
+  height: 44px;
+  width: auto;
+  max-width: 160px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 0 0 1px rgba(10, 20, 40, 0.08);
+}
+.hub-heavy .hh-company {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--hh-on-band-quiet);
+}
+.hub-heavy .hh-hello {
+  font-size: 34px;
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+@media (min-width: 1024px) {
+  .hub-heavy .hh-hello { font-size: 44px; }
+}
+
+/* Desktop tabs on the band — underline marks the current one */
+.hub-heavy .hh-tab {
+  color: var(--hh-on-band);
+  font-family: var(--hh-font);
+  font-size: 15px;
+  font-weight: 600;
+  padding-bottom: 12px;
+  border-bottom: 3px solid transparent;
+  opacity: 0.72;
+  transition: opacity 0.15s ease;
+}
+.hub-heavy .hh-tab:hover { opacity: 1; }
+.hub-heavy .hh-tab[aria-current="page"] {
+  opacity: 1;
+  border-bottom-color: currentColor;
+}
+.hub-heavy .hh-tab-count {
+  margin-left: 6px;
+  display: inline-flex;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--hh-on-band);
+  color: var(--hh-band);
+  vertical-align: 1px;
+}
+
+/* ── Cards ────────────────────────────────────────────────────────────── */
+.hub-heavy .hh-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: var(--hh-shadow);
+}
+/* The other tabs' existing cards sit on the same ground with the same weight */
+.hub-heavy .card-ledger {
+  border-color: transparent;
+  border-radius: 12px;
+  box-shadow: var(--hh-shadow);
+}
+
+.hub-heavy .hh-home { font-family: var(--hh-font); }
+.hub-heavy .hh-title {
+  font-size: 19px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--hh-ink);
+}
+.hub-heavy .hh-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--hh-muted);
+}
+.hub-heavy .hh-line { font-size: 14px; line-height: 1.45; color: var(--hh-muted); }
+.hub-heavy .hh-big {
+  font-size: 48px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  color: var(--hh-ink);
+}
+@media (min-width: 1024px) {
+  .hub-heavy .hh-big { font-size: 60px; }
+}
+.hub-heavy .hh-num {
+  font-family: var(--hh-num);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.hub-heavy .hh-section {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--hh-ink);
+}
+
+/* Date block on visit cards: solid ink tile, month over day */
+.hub-heavy .hh-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 60px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--hh-ink);
+  color: #fff;
+}
+.hub-heavy .hh-date-m { font-size: 12px; font-weight: 600; line-height: 1; opacity: 0.8; }
+.hub-heavy .hh-date-d { font-size: 24px; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; }
+.hub-heavy .hh-date.is-small { width: 44px; height: 48px; border-radius: 8px; }
+.hub-heavy .hh-date.is-small .hh-date-d { font-size: 19px; }
+
+/* Rows inside a card */
+.hub-heavy .hh-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  min-height: 60px;
+}
+.hub-heavy .hh-row + .hh-row { border-top: 1px solid var(--hh-rule); }
+.hub-heavy a.hh-row { transition: background-color 0.12s ease; }
+.hub-heavy a.hh-row:hover { background: #f7f8fa; }
+.hub-heavy a.hh-row:active { background: #eef0f3; }
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
+.hub-heavy .hh-btn {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 20px;
+  border-radius: 8px;
+  font-family: var(--hh-font);
+  font-size: 16px;
+  font-weight: 700;
+  background: var(--hh-accent);
+  color: var(--hh-on-accent);
+  box-shadow: 0 1px 0 rgba(10, 20, 40, 0.12), 0 8px 18px -12px rgba(10, 20, 40, 0.5);
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+.hub-heavy .hh-btn:hover { background: var(--hh-accent-strong); }
+.hub-heavy .hh-btn:active { transform: scale(0.985); }
+.hub-heavy .hh-btn-2 {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: 8px;
+  font-family: var(--hh-font);
+  font-size: 15px;
+  font-weight: 700;
+  background: #eef0f4;
+  color: var(--hh-ink);
+  transition: background-color 0.15s ease;
+}
+.hub-heavy .hh-btn-2:hover { background: #e4e7ec; }
+@media (min-width: 640px) {
+  .hub-heavy .hh-btn, .hub-heavy .hh-btn-2 { width: auto; display: inline-flex; }
+}
+
+/* ── Motion: cards rise in, one after another ─────────────────────────── */
+@keyframes hh-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+.hub-heavy .hh-rise {
+  animation: hh-rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hub-heavy .hh-rise { animation: none; }
+}

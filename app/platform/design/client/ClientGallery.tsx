@@ -6,10 +6,12 @@ import { Card, Chip } from "@/components/ds";
 const DOCS = [
   { key: "quote", label: "Estimate", states: ["open", "approved", "expired", "withdrawn"] },
   { key: "invoice", label: "Invoice", states: ["open", "partial", "paid", "withdrawn"] },
+  { key: "hub", label: "Client portal", states: ["open", "clear"] },
 ] as const;
 const BRANDS = [
   { key: "navy", label: "Navy + orange" },
   { key: "default", label: "Unbranded" },
+  { key: "orange", label: "Bright orange" },
   { key: "yellow", label: "Yellow (light brand)" },
   { key: "black", label: "Black and white" },
 ] as const;

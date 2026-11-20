@@ -228,6 +228,15 @@ export async function sendInvoice(opts: {
     const { reportPath } = await import("@/lib/photos-shared");
     if (await clientMayOpenReport(invoice.companyId, invoice.job)) reportUrl = `${baseUrl()}${reportPath(contact.hubToken, invoice.job.id)}`;
   }
+  // The due date this send stamps (see the patch below) is the one the email prints.
+  const now = new Date();
+  const dueDate = dueDateOnSend({
+    status: invoice.status,
+    dueDate: invoice.dueDate,
+    createdAt: invoice.createdAt,
+    termsDays: contact.paymentTermsDays,
+    now,
+  });
   const { subject, html } = invoiceLinkEmail({
     brand: invoice.company,
     companyName: invoice.company.name,
@@ -238,6 +247,7 @@ export async function sendInvoice(opts: {
     serviceNames: invoice.lineItems.map((li) => li.name || li.description || "Service"),
     payable,
     reportUrl,
+    dueDate: dueDate ?? invoice.dueDate,
   });
 
   const emailed =
@@ -281,14 +291,7 @@ export async function sendInvoice(opts: {
   // draft) never got, so A/R aging, the PAST_DUE flip, and payment reminders
   // can see it. A draft's due date that only came from the client's terms
   // counts from the send (see dueDateOnSend); a hand-picked date is kept.
-  const now = new Date();
-  const dueDate = dueDateOnSend({
-    status: invoice.status,
-    dueDate: invoice.dueDate,
-    createdAt: invoice.createdAt,
-    termsDays: contact.paymentTermsDays,
-    now,
-  });
+  // (now + dueDate are worked out before the email, which prints the due date.)
   const patch = {
     ...(invoice.status === "DRAFT" ? { status: "AWAITING_PAYMENT" as const } : {}),
     ...(invoice.issuedAt ? {} : { issuedAt: now }),

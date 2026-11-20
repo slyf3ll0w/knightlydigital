@@ -17,6 +17,10 @@ import { reportError } from "@/lib/report-error";
  *                   message, then "Thanks, <company>" + phone and a quiet
  *                   "Sent with WorkBench". The button and links use the
  *                   company's accent (brandAccent semantics).
+ * - heavyClientShell() — the "heavy" client card (2026-11-20, for David's
+ *                   review): brand band + logo, white card on a tinted
+ *                   ground, big amount, one button. Only invoiceLinkEmail
+ *                   uses it so far; the others move over once he OKs it.
  * - wbShell()     — platform emails (notifications to businesses, invites,
  *                   password resets, console codes). Same letter, signed by
  *                   WorkBench, WorkBench blue button.
@@ -28,6 +32,7 @@ import { emailDomainsEnabled } from "@/lib/email-domains";
 import { SETUP_CALL_LABEL, setupCallUrl } from "@/lib/setup-call";
 import { isDemoAddress } from "@/lib/demo-company-shared";
 import { isDemoCompanyId } from "@/lib/demo-guard";
+import { clientBand, CLIENT_GROUND, CLIENT_CARD_SHADOW } from "@/lib/client-band";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM = process.env.EMAIL_FROM ?? "WorkBench <notifications@workbenchfsm.com>";
@@ -204,6 +209,87 @@ function clientShell({
 </div>`;
 }
 
+/* ------------------------------------------------------------------ */
+/* Heavy client card (2026-11-20, docs/site-design.md)                 */
+/* ------------------------------------------------------------------ */
+// The heavy look for client emails, built to be adopted one template at a
+// time (only invoiceLinkEmail wears it so far; the rest stay letters until
+// David signs off): a solid band in the company's color with their logo on
+// a white tile (or their name), one white card on a tinted ground, a big
+// bold amount, ONE full-width button, a short footer. Email-safe: nested
+// tables, inline styles, bgcolor attributes, no flex/grid/CSS variables,
+// and a button whose colored cell carries the padding for Outlook
+// (mso-padding-alt) so it never collapses to a bare link. Colors come from
+// lib/client-band.ts — the same band and button colors the portal uses.
+
+const HEAVY_FONT = `Lexend,${FONT}`;
+const HEAVY_INK = "#0A1428";
+const HEAVY_MUTED = "#5B6474";
+
+/** The amount block: a quiet label, the big number, one line under it (trusted markup). */
+function heavyAmount(label: string, amount: number, under?: string): string {
+  return `<p style="margin:0;color:${HEAVY_MUTED};font-size:15px;line-height:1.4;font-weight:600;font-family:${HEAVY_FONT};">${esc(label)}</p>
+      <p style="margin:6px 0 0;color:${HEAVY_INK};font-size:44px;line-height:1.05;font-weight:800;letter-spacing:-1px;font-family:${HEAVY_FONT};">${usd(amount)}</p>
+      ${under ? `<p style="margin:8px 0 0;color:${HEAVY_MUTED};font-size:15px;line-height:1.5;font-family:${HEAVY_FONT};">${under}</p>` : ""}`;
+}
+
+/** What it's for: the item names under a hairline, quiet and short. */
+function heavyItems(names: string[]): string {
+  if (names.length === 0) return "";
+  const rows = names
+    .map((n) => `<tr><td style="padding:5px 0;color:${TEXT};font-size:14px;line-height:1.45;font-family:${HEAVY_FONT};">${esc(n)}</td></tr>`)
+    .join("");
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:22px 0 0;border-collapse:collapse;border-top:1px solid ${HAIR};"><tr><td style="height:10px;line-height:10px;font-size:0;">&nbsp;</td></tr>${rows}</table>`;
+}
+
+/** The ONE button: full width, company accent, bulletproof in Outlook. */
+function heavyButton(href: string, label: string, brand: EmailBrand, companyName: string): string {
+  const { accent, onAccent } = clientBand({ ...brand, name: companyName });
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:26px 0 0;border-collapse:separate;">
+        <tr><td align="center" bgcolor="${accent}" style="background-color:${accent};border-radius:8px;mso-padding-alt:16px 24px;">
+          <a href="${esc(href)}" style="display:block;padding:16px 24px;color:${onAccent};background-color:${accent};border-radius:8px;text-decoration:none;font-size:17px;line-height:20px;font-weight:700;font-family:${HEAVY_FONT};text-align:center;">${label}</a>
+        </td></tr>
+      </table>`;
+}
+
+/** A quiet line under the button (a PDF link, the work report). Trusted markup. */
+const heavyAside = (html: string) =>
+  `<p style="margin:16px 0 0;color:${HEAVY_MUTED};font-size:14px;line-height:1.5;font-family:${HEAVY_FONT};">${html}</p>`;
+
+function heavyClientShell({
+  brand,
+  companyName,
+  inner,
+}: {
+  brand: EmailBrand;
+  companyName: string;
+  /** The card's content (trusted markup). */
+  inner: string;
+}): string {
+  const b = clientBand({ ...brand, name: companyName });
+  const mark = brand.logoUrl
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;"><tr><td bgcolor="#ffffff" style="background-color:#ffffff;border-radius:8px;padding:6px 8px;"><img src="${esc(absUrl(brand.logoUrl))}" alt="${esc(companyName)}" height="36" style="display:block;height:36px;width:auto;max-width:170px;border:0;outline:none;" /></td></tr></table>`
+    : `<p style="margin:0;color:${b.onBand};font-size:22px;line-height:1.2;font-weight:800;letter-spacing:-0.4px;font-family:${HEAVY_FONT};">${esc(companyName)}</p>`;
+  const contact = [esc(companyName), brand.phone ? esc(brand.phone) : ""].filter(Boolean).join(" · ");
+  return `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${CLIENT_GROUND}" style="background-color:${CLIENT_GROUND};border-collapse:collapse;">
+  <tr><td align="center" style="padding:28px 12px 36px;">
+    <!--[if mso]><table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;border-collapse:separate;">
+      <tr><td bgcolor="${b.band}" style="background-color:${b.band};border-radius:12px 12px 0 0;padding:24px 28px;">${mark}</td></tr>
+      <tr><td bgcolor="#ffffff" style="background-color:#ffffff;border-radius:0 0 12px 12px;padding:28px 28px 30px;border:1px solid #E3E7EE;border-top:0;box-shadow:${CLIENT_CARD_SHADOW};">
+        ${inner}
+      </td></tr>
+      <tr><td style="padding:20px 8px 0;text-align:center;">
+        <p style="margin:0;color:${HEAVY_MUTED};font-size:13px;line-height:1.5;font-family:${HEAVY_FONT};">${contact}</p>
+        <p style="margin:6px 0 0;color:#9CA3AF;font-size:12px;line-height:1.5;font-family:${HEAVY_FONT};">Sent with <a href="https://workbenchfsm.com" style="color:#9CA3AF;text-decoration:underline;">WorkBench</a></p>
+      </td></tr>
+    </table>
+    <!--[if mso]></td></tr></table><![endif]-->
+  </td></tr>
+</table>`;
+}
+
 /** WorkBench-blue button for platform emails. */
 const wbBtn = (href: string, label: string) =>
   `<p style="margin:4px 0 20px;"><a href="${esc(href)}" style="display:inline-block;background:${WB_BLUE};color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;font-family:${FONT};padding:11px 20px;border-radius:6px;">${label}</a></p>`;
@@ -248,7 +334,7 @@ const longDateTime = (d: Date) =>
  * carries a text part so the multipart looks like legitimate mail.
  * Tuned to this file's markup — not a general HTML-to-text converter.
  */
-function htmlToText(html: string): string {
+export function htmlToText(html: string): string {
   return (
     html
       // Links become "label: url" so the text part carries the same CTAs
@@ -1435,6 +1521,7 @@ export function invoiceLinkEmail({
   serviceNames,
   payable = true,
   reportUrl = null,
+  dueDate = null,
 }: {
   brand: EmailBrand;
   companyName: string;
@@ -1446,17 +1533,23 @@ export function invoiceLinkEmail({
   payable?: boolean;
   /** "Include the work report" on the invoice send: the job's report link (Gallery plan). */
   reportUrl?: string | null;
+  /** The invoice's due date (a calendar day stored at noon, read on its UTC day). Omitted = no due line. */
+  dueDate?: Date | null;
 }): { subject: string; html: string } {
-  const html = clientShell({
+  // The heavy card (heavyClientShell): band, the amount big, ONE button.
+  const due = dueDate
+    ? `Due ${dueDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}`
+    : "";
+  const html = heavyClientShell({
     brand,
     companyName,
     inner: `
-      ${hello(contactFirstName)}
-      ${p(`Here's invoice ${invoiceNumber}.`)}
-      ${ledger(serviceNames, { label: "Total", amount: total })}
-      ${button(payUrl, payable ? "Pay invoice" : "View invoice", brand)}
-      ${reportUrl ? aside(`${link(reportUrl, "See the work report", linkColor(brand))} — photos and the checklist from the visit.`) : ""}
-      ${aside(`Need a copy for your records? ${link(`${payUrl}/pdf`, "Download the PDF", QUIET)}.`)}`,
+      <p style="margin:0 0 22px;color:${HEAVY_INK};font-size:17px;line-height:1.5;font-family:${HEAVY_FONT};">${contactFirstName?.trim() ? `Hi ${esc(contactFirstName.trim())}, here's` : "Here's"} invoice ${invoiceNumber}.</p>
+      ${heavyAmount("Amount due", total, due || undefined)}
+      ${heavyItems(serviceNames)}
+      ${heavyButton(payUrl, payable ? "Pay invoice" : "View invoice", brand, companyName)}
+      ${reportUrl ? heavyAside(`The photos and checklist from the visit are in the ${link(reportUrl, "work report", linkColor(brand))}.`) : ""}
+      ${heavyAside(`Need a copy for your records? ${link(`${payUrl}/pdf`, "Download the PDF", HEAVY_MUTED)}.`)}`,
   });
   return { subject: `Invoice ${invoiceNumber} from ${companyName}`, html };
 }

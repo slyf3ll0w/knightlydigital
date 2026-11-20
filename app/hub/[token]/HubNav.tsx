@@ -19,7 +19,10 @@ export default function HubNav({
   color,
   badgeTextColor = "#111827",
   unreadMessages = 0,
+  currentPath,
 }: {
+  /** Review frames (/client-preview) aren't served under `base`: this stands in for the pathname. */
+  currentPath?: string;
   base: string;
   variant?: "top" | "bottom";
   /** Hero text color (top variant only). */
@@ -30,7 +33,8 @@ export default function HubNav({
   /** Company replies the client hasn't seen — badge on the Messages tab. */
   unreadMessages?: number;
 }) {
-  const pathname = usePathname();
+  const routerPath = usePathname();
+  const pathname = currentPath ?? routerPath;
   const nav = [
     { href: base, label: "Home", icon: Home },
     { href: `${base}/visits`, label: "Visits", icon: CalendarDays },
@@ -70,25 +74,23 @@ export default function HubNav({
     );
   }
 
+  // Top tabs sit on the heavy band (hub-heavy.css .hh-tab): the band's ink,
+  // a 3 px underline on the current tab, the count as an inverted badge.
   return (
-    <nav className="flex gap-5">
+    <nav className="flex gap-7">
       {nav.map((n) => {
         const active = isActive(n.href);
         return (
           <Link
             key={n.href}
             href={n.href}
+            aria-current={active ? "page" : undefined}
             style={{ color }}
-            className={`pb-2.5 text-sm font-medium border-b-2 transition-opacity ${
-              active ? "border-current" : "border-transparent opacity-60 hover:opacity-90"
-            }`}
+            className="hh-tab"
           >
             {n.label}
             {n.badge ? (
-              <span
-                className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold align-middle"
-                style={{ background: color, color: badgeTextColor }}
-              >
+              <span className="hh-tab-count" style={{ background: color, color: badgeTextColor }}>
                 {n.badge > 99 ? "99+" : n.badge}
               </span>
             ) : null}
