@@ -432,6 +432,10 @@ export async function runAssistant(
   // nothing changed). When it answers in plain text without a saved draft and
   // without asking a question, it gets one more round with a firm note.
   let designSaved = false;
+  // pieces the last draft_client_theme save refused (a color that failed the
+  // contrast check…): the reply must not claim them, so they get the same one
+  // extra round to be fixed.
+  let designRefused: string[] = [];
   let designNudged = false;
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const callOpts = {
@@ -490,7 +494,7 @@ export async function runAssistant(
       });
       if (
         opts.scope &&
-        !designSaved &&
+        (!designSaved || designRefused.length > 0) &&
         !designNudged &&
         round < MAX_TOOL_ROUNDS - 1 &&
         !text.trim().endsWith("?")
@@ -501,8 +505,9 @@ export async function runAssistant(
           role: "user",
           parts: [
             {
-              text:
-                "(Note from WorkBench, not from the person: nothing was saved. If the person asked for a change, call draft_client_theme now to save it, then tell them in one or two sentences what changed. If their request is unclear, ask them one short question instead. Never say something changed unless draft_client_theme saved it.)",
+              text: designSaved
+                ? `(Note from WorkBench, not from the person: these parts were refused and are NOT in the draft: ${designRefused.join(", ")}. Fix them with the suggested values and call draft_client_theme again, then tell the person what changed. Never say something changed unless it was saved.)`
+                : "(Note from WorkBench, not from the person: nothing was saved. If the person asked for a change, call draft_client_theme now to save it, then tell them in one or two sentences what changed. If their request is unclear, ask them one short question instead. Never say something changed unless draft_client_theme saved it.)",
             },
           ],
         });
@@ -543,7 +548,11 @@ export async function runAssistant(
         } else {
           try {
             response = await tool.run(actor, call.functionCall.args ?? {}, ctx);
-            if (tool.decl.name === "draft_client_theme" && response && typeof response === "object" && !("error" in (response as Record<string, unknown>))) designSaved = true;
+            if (tool.decl.name === "draft_client_theme" && response && typeof response === "object" && !("error" in (response as Record<string, unknown>))) {
+              designSaved = true;
+              const probs = (response as { problems?: { path?: string }[] }).problems;
+              designRefused = Array.isArray(probs) ? probs.map((p) => p.path ?? "a piece").slice(0, 6) : [];
+            }
             // A client's notes ride along with cards staged for them (and the
             // reads that precede an action) — once per client per turn.
             response = await withClientHeadsUp(actor, tool.decl.name, call.functionCall.args ?? {}, response, ctx);
