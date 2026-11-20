@@ -9,6 +9,7 @@ import { findHelpArticle, searchHelp } from "@/lib/help/search";
 import WBScribble from "@/components/wb/WBScribble";
 import { HELP_ICONS } from "./icons";
 import HelpFooterBand from "./HelpFooterBand";
+import WBHelpHomeSections from "@/components/wb/WBHelpHomeSections";
 
 /** Stagger index for the app's ds-rise entrance. */
 const rise = (i: number) => ({ "--ds-i": i }) as React.CSSProperties;
@@ -91,9 +92,11 @@ export default function HelpHome({
             inApp ? "pt-12 sm:pt-16" : "pt-[8rem] sm:pt-[10rem]"
           }`}
         >
-          <h1 className="text-4xl font-extrabold leading-[1.08] sm:text-5xl">
+          <h1 className={inApp ? "text-4xl font-extrabold leading-[1.08] sm:text-5xl" : "text-[2.8rem] leading-[1] tracking-[-0.04em] sm:text-[4.2rem]"}>
             <span className="ds-wipe">
-              <span className="ds-wipe-text">How can we help?</span>
+              <span className="ds-wipe-text">
+                {inApp ? "How can we help?" : <>How can we <span className="text-[#FF8B33]">help?</span></>}
+              </span>
               <span className="ds-wipe-bar" aria-hidden />
             </span>
           </h1>
@@ -151,6 +154,15 @@ export default function HelpHome({
           <span className="hidden lg:block" />
           </div>
 
+          {!inApp && (
+            <p className="ds-rise mt-5 text-[15px] font-semibold text-gray-500" style={rise(2)}>
+              {HELP_SECTIONS.reduce((n, s) => n + s.articles.length, 0)} step-by-step guides across {HELP_SECTIONS.length} topics.
+              <span className="hidden sm:inline">
+                {" "}Press <kbd className="rounded bg-white/15 px-1.5 py-0.5 font-sans text-[13px] text-white">/</kbd> to jump to search.
+              </span>
+            </p>
+          )}
+
           {!searching && (
             <div className="help-hero-popular ds-rise mt-5 hidden flex-wrap items-center justify-center gap-2 sm:flex" style={rise(2)}>
               <span className="mr-1 text-[13.5px] font-semibold text-gray-500">Popular:</span>
@@ -206,7 +218,9 @@ export default function HelpHome({
         </section>
       )}
 
-      {!searching && (
+      {!searching && !inApp && <WBHelpHomeSections base={base} />}
+
+      {!searching && inApp && (
         <>
           {/* ── Topics ──────────────────────────────────────── */}
           <section>

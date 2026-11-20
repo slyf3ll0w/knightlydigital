@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
+import WBAppJourney from "@/components/wb/WBAppJourney";
 import { Clock } from "lucide-react";
 import { WB_SHOTS } from "@/components/wb/WBSplitHero";
 import { WB_TRADE_PHOTOS } from "@/lib/wb-site";
@@ -60,6 +61,7 @@ const faq = [
 export default function TimeTrackingPage() {
   return (
     <WBFeaturePage
+      demo={<WBAppJourney steps={["sched", "done", "inv"]} />}
       eyebrow="Run the day"
       accent="orange"
       title={

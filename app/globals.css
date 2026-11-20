@@ -3611,3 +3611,8 @@ html[data-mode="dark"] .app-ui .wb-map-skeleton {
 /* A hero headline accent written as an inline blue (legal pages, status)
    turns orange on the navy, like the rest. */
 .wb-photo-panel :is(h1, h2) :is([style*="#0B57D8"], [style*="rgb(11, 87, 216)"]) { color: #FF8B33 !important; }
+.wb-stagger > :nth-child(7) { animation-delay: 0.48s; }
+.wb-stagger > :nth-child(8) { animation-delay: 0.56s; }
+.wb-stagger > :nth-child(9) { animation-delay: 0.64s; }
+.wb-stagger > :nth-child(10) { animation-delay: 0.72s; }
+.wb-stagger > :nth-child(n + 11) { animation-delay: 0.8s; }

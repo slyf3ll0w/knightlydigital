@@ -10,7 +10,7 @@ import WBCta from "@/components/wb/WBCta";
 import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
 import { APP_STORE_URL, sections } from "@/lib/wb-features";
 import { INCLUDED_SEATS, PLANS } from "@/lib/plans";
-import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
+import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, tokenCount } from "@/lib/atlas-pricing";
 import {
   CheckCircle2,
   ArrowRight,
@@ -133,9 +133,8 @@ export default function WBFeaturesPage() {
                   client is read back to you first.
                 </p>
                 <p className="mt-3 max-w-lg text-[14px] leading-relaxed text-gray-600">
-                  {tokenCount(ATLAS_FREE_TOKENS)} free tokens every month on every account. Atlas Full
-                  is {tokenCount(ATLAS_PLAN_TOKENS)} a month for {formatPlanPrice()} on its own, and included with
-                  {" "}{PLANS.SHOP.name}; it is the one thing with a meter.
+                  {tokenCount(ATLAS_FREE_TOKENS)} free tokens every month on every account. {PLANS.SHOP.name}
+                  includes {tokenCount(ATLAS_PLAN_TOKENS)} a month; it is the one thing with a meter.
                 </p>
                 <Link
                   href="/features/atlas"

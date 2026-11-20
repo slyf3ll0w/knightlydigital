@@ -281,3 +281,64 @@ html[data-mode="dark"] .app-ui .help-mark { background: color-mix(in srgb, var(-
 .help-public .help-hero path[stroke="#10244A"] { stroke: #fff; }
 .help-public .help-hero .ds-wipe-bar { display: none; }
 .help-public .help-hero-popular { display: none !important; }
+
+/* ═══ Public Help Center, "more life" pass (David 2026-11-19: "I feel like
+   I'm just looking at words"; uneven card rows). Solid white cards with the
+   site's layered shadow, navy icon tiles with orange icons, steps set in
+   one solid card like the app's lists, flat navy closing band. Public
+   only (.help-public); /app/help keeps its look. ═══ */
+.help-public .help-card {
+  border: 0; border-radius: 12px; background: #fff;
+  box-shadow: 0 0 0 1px rgba(10, 20, 40, 0.08), 0 2px 0 rgba(10, 20, 40, 0.05), 0 18px 34px -22px rgba(10, 20, 40, 0.35);
+}
+.help-public a.help-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.help-public a.help-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 1px rgba(10, 20, 40, 0.14), 0 2px 0 rgba(10, 20, 40, 0.05), 0 24px 40px -24px rgba(10, 20, 40, 0.45);
+}
+.help-public .help-tile { background: #0A1428; color: #FF8B33; }
+.help-public .help-hero .help-tile { background: #F86A0A; color: #fff; }
+.help-public .help-hero .help-pill-outline { background: rgba(255, 255, 255, 0.08); color: #fff; border-color: rgba(255, 255, 255, 0.45); }
+.help-public .help-hero .help-pill-outline:hover { background: rgba(255, 255, 255, 0.16); border-color: #fff; }
+.help-public .help-hero .help-search { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2), 0 24px 40px -20px rgba(0, 0, 0, 0.55); }
+.help-public .help-hero .help-search:focus-within { box-shadow: 0 0 0 3px #FF8B33, 0 24px 40px -20px rgba(0, 0, 0, 0.55); }
+
+/* Reading layout */
+.help-public .help-prose { font-size: 17px; line-height: 1.75; }
+.help-public .help-prose > * + * { margin-top: 20px; }
+.help-public .help-prose h2 { margin-top: 44px; font-size: 24px; font-weight: 900; letter-spacing: -0.02em; }
+.help-public .help-prose strong { color: #0A1428; }
+
+/* Steps: one solid card, a row per step */
+.help-public .help-steps {
+  border-radius: 12px; background: #fff; overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(10, 20, 40, 0.08), 0 2px 0 rgba(10, 20, 40, 0.05), 0 18px 34px -22px rgba(10, 20, 40, 0.35);
+}
+.help-public .help-steps > li { padding: 18px 22px 18px 66px; font-size: 16px; line-height: 1.65; }
+.help-public .help-steps > li + li { border-top: 1px solid #EEF1F5; }
+.help-public .help-steps > li:last-child { padding-bottom: 18px; }
+.help-public .help-steps > li::before { left: 20px; top: 17px; width: 30px; height: 30px; font-size: 14px; }
+
+/* Notes: solid cards with a colored edge */
+.help-public .help-note {
+  border: 0; border-radius: 12px; padding: 18px 22px 18px 24px; font-size: 15.5px;
+  box-shadow: inset 4px 0 0 var(--edge), 0 0 0 1px rgba(10, 20, 40, 0.06);
+}
+.help-public .help-note-tip { --edge: #0B57D8; background: #F5F8FF; color: #374151; }
+.help-public .help-note-warn { --edge: #F86A0A; background: #FFF6EE; color: #3F2E07; }
+.help-public .help-note-tip .help-note-title { color: #0B57D8; }
+.help-public .help-note-warn .help-note-title { color: #C2410C; }
+.help-public .help-video video { border-radius: 12px; }
+
+/* Sidebar: a solid card; the current guide gets an orange edge */
+.help-public .help-side {
+  padding: 14px 10px; border-radius: 12px; background: #fff;
+  box-shadow: 0 0 0 1px rgba(10, 20, 40, 0.08), 0 2px 0 rgba(10, 20, 40, 0.05), 0 18px 34px -22px rgba(10, 20, 40, 0.35);
+}
+.help-public .help-side a { border-radius: 8px; font-size: 14.5px; color: #374151; }
+.help-public .help-side a:hover { background: #F5F7FA; color: #0A1428; }
+.help-public .help-side a[aria-current="page"] { background: #F5F7FA; color: #0A1428; font-weight: 800; box-shadow: inset 3px 0 0 #F86A0A; }
+
+/* Closing band: the site's flat navy */
+.help-public .help-band { background-color: #0E1C3F; background-image: none; }
+.help-public .help-band h2 { font-size: clamp(2.2rem, 5vw, 3.2rem); font-weight: 900; letter-spacing: -0.03em; }

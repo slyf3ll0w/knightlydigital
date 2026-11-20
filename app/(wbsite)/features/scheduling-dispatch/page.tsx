@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
+import WBAppJourney from "@/components/wb/WBAppJourney";
 import { MapPin } from "lucide-react";
 import { WB_SHOTS } from "@/components/wb/WBSplitHero";
 import { WB_DAY_PHOTOS } from "@/lib/wb-site";
@@ -84,6 +85,7 @@ const faq = [
 export default function SchedulingDispatchPage() {
   return (
     <WBFeaturePage
+      demo={<WBAppJourney steps={["req", "sched", "done"]} />}
       eyebrow="Run the day"
       accent="orange"
       title={

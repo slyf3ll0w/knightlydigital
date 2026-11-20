@@ -9,7 +9,7 @@
  * sources the pages render — so a price change reaches both on one deploy.
  * No price is typed here (scripts/test-wb-site.ts scans this file).
  */
-import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "./atlas-pricing";
+import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, tokenCount } from "./atlas-pricing";
 import {
   ANNUAL_MONTHS,
   DISPATCH_SETUP_CENTS,
@@ -66,7 +66,6 @@ const jobsite = PLANS.JOBSITE;
 const seatPrice = formatCents(EXTRA_SEAT_CENTS);
 const freeTokens = tokenCount(ATLAS_FREE_TOKENS);
 const planTokens = tokenCount(ATLAS_PLAN_TOKENS);
-const atlasPrice = formatPlanPrice();
 const monthsFree = 12 - ANNUAL_MONTHS;
 
 const monthly = (cents: number) => `${formatCents(cents)}/month`;
@@ -123,7 +122,7 @@ ${freeGroups.map((g) => `**${g.label}**\n\n${bullets(g.items)}`).join("\n\n")}
 
 ${addOn(dispatch, `Plus ${formatCents(DISPATCH_SETUP_CENTS)} once, to buy the number and register it with the carriers so it can text. ${FAIR_USE_SENTENCE} ${FAIR_USE_FORBIDDEN}`)}
 
-${addOn(shop, `Atlas Full on its own is ${atlasPrice} a month; ${shop.name} includes its ${planTokens} tokens.`)}
+${addOn(shop, `Includes ${planTokens} Atlas tokens a month.`)}
 
 ${addOn(jobsite, "In the works now. The price is what it will be when it ships.")}
 
@@ -159,7 +158,7 @@ Atlas is metered in tokens. A quick question costs a couple hundred tokens; a bu
 | | Price | Tokens a month |
 | --- | --- | --- |
 | Atlas Free | ${formatCents(0)}, on every account | ${freeTokens} |
-| Atlas Full | ${atlasPrice}/month on its own; included with ${shop.name} and ${FULL_SHOP.name} | ${planTokens} |
+| With ${shop.name} or ${FULL_SHOP.name} | Included | ${planTokens} |
 
 Free tokens refill on the 1st of every month and are shared by the whole team.
 

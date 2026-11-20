@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import {
   Bell,
   Briefcase,
@@ -46,8 +46,8 @@ import {
  * under reduced motion. Demo company (Brightwire Electric) only.
  */
 
-type StepKey = "req" | "quote" | "ok" | "sched" | "done" | "inv" | "paid";
-const STEPS: { key: StepKey; label: string; icon: typeof Inbox; nav: string }[] = [
+export type StepKey = "req" | "quote" | "ok" | "sched" | "done" | "inv" | "paid";
+const ALL_STEPS: { key: StepKey; label: string; icon: typeof Inbox; nav: string }[] = [
   { key: "req", label: "Request", icon: Inbox, nav: "Requests" },
   { key: "quote", label: "Quote", icon: FileText, nav: "Quotes" },
   { key: "ok", label: "Approved", icon: FileSignature, nav: "Quotes" },
@@ -57,6 +57,37 @@ const STEPS: { key: StepKey; label: string; icon: typeof Inbox; nav: string }[] 
   { key: "paid", label: "Paid", icon: Wallet, nav: "Invoices" },
 ];
 const STEP_MS = 4600;
+
+/** The job the journey follows. Trade pages pass their own (built from the
+ *  trade's typical line items, lib/wb-tools.ts TRADE_TEMPLATES); the home
+ *  and feature pages use Grace Kim's ceiling fans. Deposit = 25%. */
+export type JourneyJob = {
+  client: string;
+  /** "Ceiling fan install" — the quote title. */
+  title: string;
+  /** Short, for the calendar block and job page: "Ceiling fans". */
+  short: string;
+  lines: { name: string; qty: number; unit: number }[];
+};
+export const DEFAULT_JOB: JourneyJob = {
+  client: "Grace Kim",
+  title: "Ceiling fan install",
+  short: "Ceiling fans",
+  lines: [
+    { name: "Ceiling fan install", qty: 2, unit: 190 },
+    { name: "Wiring + new fan-rated box", qty: 1, unit: 140 },
+  ],
+};
+const JobCtx = createContext(DEFAULT_JOB);
+const useJob = () => {
+  const j = useContext(JobCtx);
+  const total = j.lines.reduce((a, l) => a + l.qty * l.unit, 0);
+  const deposit = Math.round(total * 0.25);
+  const first = j.client.split(" ")[0];
+  const initials = j.client.split(" ").map((w) => w[0]).join("").slice(0, 2);
+  return { ...j, total, deposit, balance: total - deposit, first, initials };
+};
+const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 const NAVY = "#1D2E52";
 const FONT = { fontFamily: "var(--font-lexend), Lexend, system-ui, sans-serif" };
 
@@ -97,6 +128,7 @@ function Plane({ go }: { go: boolean }) {
 /* ── the screens ─────────────────────────────────────────────────────────── */
 
 function RequestsScreen({ on }: { on: boolean }) {
+  const job = useJob();
   const b = useBeat(on, [500, 2200]);
   const rows = [
     { who: "Hannah Brooks", what: "Smoke detectors, whole home", when: "Yesterday", src: "Website form" },
@@ -115,9 +147,9 @@ function RequestsScreen({ on }: { on: boolean }) {
       <div className="mt-3 overflow-hidden rounded-2xl border border-[#E3E6EC] bg-white">
         {b >= 1 && (
           <div className="wb-row-in flex items-center gap-3 border-b border-[#EEF0F3] bg-[#FFF7EF] px-4 py-3">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F86A0A] text-[10px] font-semibold text-white">GK</span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F86A0A] text-[10px] font-semibold text-white">{job.initials}</span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[12.5px] font-semibold text-gray-900">Grace Kim — Ceiling fan install x2</span>
+              <span className="block text-[12.5px] font-semibold text-gray-900">{job.client} — {job.title}</span>
               <span className="block text-[10.5px] text-[#C2410C]">Booked online just now · Thu or Fri morning</span>
             </span>
             <span className={`rounded-lg px-2.5 py-1 text-[10.5px] font-semibold text-white transition-transform ${b >= 2 ? "scale-105" : ""}`} style={{ background: NAVY }}>
@@ -146,24 +178,21 @@ function RequestsScreen({ on }: { on: boolean }) {
   );
 }
 
-const QUOTE_LINES: [string, string, number][] = [
-  ["Ceiling fan install", "2 × $190.00", 380],
-  ["Wiring + new fan-rated box", "1 × $140.00", 140],
-];
 
 function QuoteScreen({ on }: { on: boolean }) {
+  const job = useJob();
   const b = useBeat(on, [400, 1100, 1900, 3000]);
-  const total = (b >= 1 ? 380 : 0) + (b >= 2 ? 140 : 0);
+  const total = job.lines.reduce((a, l, k) => a + (b >= k + 1 ? l.qty * l.unit : 0), 0);
   return (
     <div>
-      <PageHead sub="Grace Kim · 412 Oak Ln, Plano" title="Quote #1051" right={b >= 4 ? <Chip tone="blue">Sent · Viewed</Chip> : <Chip tone="gray">Draft</Chip>} />
+      <PageHead sub={`${job.client} · 412 Oak Ln, Plano`} title="Quote #1051" right={b >= 4 ? <Chip tone="blue">Sent · Viewed</Chip> : <Chip tone="gray">Draft</Chip>} />
       <div className="mt-3 overflow-hidden rounded-2xl border border-[#E3E6EC] bg-white">
         <div className="grid grid-cols-[1fr_auto_auto] gap-x-6 border-b border-[#EEF0F3] px-4 py-2 text-[9.5px] font-semibold uppercase tracking-[0.1em] text-gray-400">
           <span>Product / Service</span>
           <span>Qty × price</span>
           <span>Total</span>
         </div>
-        {QUOTE_LINES.map(([a, q, t], k) =>
+        {job.lines.map(({ name: a, qty, unit }, k) => [a, `${qty} × ${usd(unit)}`, qty * unit] as const).map(([a, q, t], k) =>
           b >= k + 1 ? (
             <div key={a} className="wb-row-in grid grid-cols-[1fr_auto_auto] items-center gap-x-6 border-b border-[#EEF0F3] px-4 py-2.5 text-[12px]">
               <span className="font-semibold text-gray-900">{a}</span>
@@ -182,7 +211,7 @@ function QuoteScreen({ on }: { on: boolean }) {
       <div className="relative mt-3 flex justify-end">
         <span className={`relative flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[11.5px] font-semibold text-white transition-transform duration-200 ${b === 3 ? "scale-95" : ""}`} style={{ background: NAVY }}>
           <Send className="h-3.5 w-3.5" />
-          {b >= 4 ? "Sent to Grace" : "Send to client"}
+          {b >= 4 ? `Sent to ${job.first}` : "Send to client"}
         </span>
         <Plane go={b >= 3} />
       </div>
@@ -191,10 +220,11 @@ function QuoteScreen({ on }: { on: boolean }) {
 }
 
 function ApprovedScreen({ on }: { on: boolean }) {
+  const job = useJob();
   const b = useBeat(on, [300, 1500, 2500, 3400]);
   return (
     <div>
-      <PageHead sub="Grace Kim · Quote #1051" title="Ceiling fan install" right={b >= 2 ? <Chip tone="green">Approved</Chip> : <Chip tone="blue">Awaiting response</Chip>} />
+      <PageHead sub={`${job.client} · Quote #1051`} title={job.title} right={b >= 2 ? <Chip tone="green">Approved</Chip> : <Chip tone="blue">Awaiting response</Chip>} />
       <div className="relative mt-3 grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-[#E3E6EC] bg-white p-4">
           <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-400">Client signature</p>
@@ -221,7 +251,7 @@ function ApprovedScreen({ on }: { on: boolean }) {
             </span>
             <span>
               <span className="block text-[12px] font-semibold text-gray-900">Deposit {b >= 3 ? "paid" : "due"}</span>
-              <span className="block text-[10.5px] tabular-nums text-gray-500">$130.00 · card</span>
+              <span className="block text-[10.5px] tabular-nums text-gray-500">{usd(job.deposit)} · card</span>
             </span>
           </div>
           <div className={`flex items-center gap-2.5 rounded-2xl border border-[#E3E6EC] bg-white p-3.5 transition-opacity duration-500 ${b >= 4 ? "opacity-100" : "opacity-40"}`}>
@@ -245,6 +275,7 @@ function ApprovedScreen({ on }: { on: boolean }) {
 }
 
 function ScheduleScreen({ on }: { on: boolean }) {
+  const job = useJob();
   const b = useBeat(on, [700, 2400]);
   const days = ["Mon 26", "Tue 27", "Wed 28", "Thu 29", "Fri 30"];
   const hours = ["8a", "9a", "10a", "11a", "12p"];
@@ -297,14 +328,14 @@ function ScheduleScreen({ on }: { on: boolean }) {
               className="wb-drop-cal absolute rounded-md border-2 border-[#F86A0A] bg-[#FFF1E6] px-1.5 py-1 text-[9.5px] font-bold text-[#9A3412]"
               style={{ left: "calc(40px + (100% - 40px) * 3 / 5 + 3px)", width: "calc((100% - 40px) / 5 - 6px)", top: 1 * ROW + 3, height: 2 * ROW - 6 }}
             >
-              9:00a · Grace Kim
-              <span className="block font-semibold text-[#C2410C]">Ceiling fans · Sam</span>
+              9:00a · {job.client}
+              <span className="block font-semibold text-[#C2410C]">{job.short} · Sam</span>
             </div>
           )}
         </div>
         {b >= 2 && (
           <div className="wb-toast-in absolute bottom-3 right-3 flex items-center gap-2 rounded-xl bg-[#1D2E52] px-3 py-2 text-[10.5px] font-semibold text-white">
-            <Check className="h-3.5 w-3.5 text-green-300" strokeWidth={3} /> Reminder sent to Grace
+            <Check className="h-3.5 w-3.5 text-green-300" strokeWidth={3} /> Reminder sent to {job.first}
           </div>
         )}
       </div>
@@ -313,6 +344,7 @@ function ScheduleScreen({ on }: { on: boolean }) {
 }
 
 function JobScreen({ on }: { on: boolean }) {
+  const job = useJob();
   const b = useBeat(on, [500, 1700, 2300, 2900, 3700]);
   const [secs, setSecs] = useState(0);
   useEffect(() => {
@@ -331,7 +363,7 @@ function JobScreen({ on }: { on: boolean }) {
   const mm = String(Math.floor((secs % 3600) / 60)).padStart(2, "0");
   return (
     <div>
-      <PageHead sub="Grace Kim · Thu, Oct 29 · 9:00a" title="Job #318 · Ceiling fans" right={b >= 5 ? <Chip tone="green">Complete</Chip> : <Chip tone="blue">In progress</Chip>} />
+      <PageHead sub={`${job.client} · Thu, Oct 29 · 9:00a`} title={`Job #318 · ${job.short}`} right={b >= 5 ? <Chip tone="green">Complete</Chip> : <Chip tone="blue">In progress</Chip>} />
       <div className="relative mt-3 grid grid-cols-[1fr_1.2fr] gap-3">
         <div className="rounded-2xl border border-[#E3E6EC] bg-white p-4">
           <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-400">Time clock</p>
@@ -374,20 +406,20 @@ function JobScreen({ on }: { on: boolean }) {
 }
 
 function InvoiceScreen({ on, paid }: { on: boolean; paid?: boolean }) {
+  const job = useJob();
   const b = useBeat(on, paid ? [500, 1300] : [1400, 2400]);
   const sent = !paid && b >= 2;
   return (
     <div>
       <PageHead
-        sub="Grace Kim · Job #318"
+        sub={`${job.client} · Job #318`}
         title="Invoice #2490"
         right={paid ? (b >= 1 ? <Chip tone="green">Paid</Chip> : <Chip tone="amber">Awaiting payment</Chip>) : sent ? <Chip tone="amber">Sent</Chip> : <Chip tone="gray">Draft</Chip>}
       />
       <div className="relative mt-3 overflow-hidden rounded-2xl border border-[#E3E6EC] bg-white">
         {[
-          ["Ceiling fan install · 2 × $190.00", "$380.00"],
-          ["Wiring + new fan-rated box", "$140.00"],
-          ["Deposit paid Oct 26", "−$130.00"],
+          ...job.lines.map((l) => [l.qty > 1 ? `${l.name} · ${l.qty} × ${usd(l.unit)}` : l.name, usd(l.qty * l.unit)]),
+          ["Deposit paid Oct 26", `−${usd(job.deposit)}`],
         ].map(([a, v]) => (
           <div key={a} className="flex items-center justify-between border-b border-[#EEF0F3] px-4 py-2.5 text-[12px]">
             <span className="text-gray-700">{a}</span>
@@ -396,7 +428,7 @@ function InvoiceScreen({ on, paid }: { on: boolean; paid?: boolean }) {
         ))}
         <div className="flex items-center justify-between bg-[#F8F9FB] px-4 py-3">
           <span className="text-[12px] font-semibold text-gray-900">{paid && b >= 1 ? "Paid by card" : "Balance due"}</span>
-          <span className={`text-[16px] font-semibold tabular-nums ${paid && b >= 1 ? "text-[#17703B]" : "text-gray-900"}`}>$390.00</span>
+          <span className={`text-[16px] font-semibold tabular-nums ${paid && b >= 1 ? "text-[#17703B]" : "text-gray-900"}`}>{usd(job.balance)}</span>
         </div>
         {paid && b >= 1 && (
           <span className="wb-stamp-now pointer-events-none absolute right-[22%] top-[22%] rounded-lg border-[3px] border-[#17A34A] px-3 py-1 text-[26px] font-black tracking-[0.14em] text-[#17A34A]" style={{ transform: "rotate(-12deg)" }}>
@@ -406,12 +438,12 @@ function InvoiceScreen({ on, paid }: { on: boolean; paid?: boolean }) {
         {paid && b >= 1 && <Confetti />}
       </div>
       <div className="relative mt-3 flex items-center justify-between">
-        <span className="text-[11px] text-gray-500">{paid ? (b >= 2 ? "Collected on this job: $520.00" : "Pay link sent by text and email") : "Due on receipt"}</span>
+        <span className="text-[11px] text-gray-500">{paid ? (b >= 2 ? `Collected on this job: ${usd(job.total)}` : "Pay link sent by text and email") : "Due on receipt"}</span>
         {!paid && (
           <>
             <span className={`relative flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[11.5px] font-semibold text-white transition-transform duration-200 ${b === 1 ? "scale-95" : ""}`} style={{ background: NAVY }}>
               <Send className="h-3.5 w-3.5" />
-              {sent ? "Sent to Grace" : "Send invoice"}
+              {sent ? `Sent to ${job.first}` : "Send invoice"}
             </span>
             <Plane go={b >= 1} />
           </>
@@ -458,7 +490,8 @@ const NAV = [
   { icon: Receipt, label: "Invoices" },
 ];
 
-export default function WBAppJourney() {
+export default function WBAppJourney({ job = DEFAULT_JOB, steps: only }: { job?: JourneyJob; steps?: StepKey[] } = {}) {
+  const STEPS = only ? ALL_STEPS.filter((st) => only.includes(st.key)) : ALL_STEPS;
   const ref = useRef<HTMLDivElement>(null);
   const [i, setI] = useState(0);
   const [run, setRun] = useState(false);
@@ -477,12 +510,13 @@ export default function WBAppJourney() {
     if (!run) return;
     const t = setTimeout(() => setI((n) => (n + 1) % STEPS.length), i === STEPS.length - 1 ? STEP_MS + 1200 : STEP_MS);
     return () => clearTimeout(t);
-  }, [i, run]);
+  }, [i, run, STEPS.length]);
 
   const s = STEPS[i];
-  const pct = (i / (STEPS.length - 1)) * 100;
+  const pct = STEPS.length > 1 ? (i / (STEPS.length - 1)) * 100 : 100;
 
   return (
+    <JobCtx.Provider value={job}>
     <div ref={ref}>
       {/* the rail */}
       <div className="relative mx-2 sm:mx-6">
@@ -581,5 +615,6 @@ export default function WBAppJourney() {
         </div>
       </div>
     </div>
+    </JobCtx.Provider>
   );
 }

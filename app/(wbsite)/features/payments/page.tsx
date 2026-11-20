@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { RATES_SENTENCE, RATES_SHORT } from "@/lib/plans";
 import Link from "next/link";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
+import WBAppJourney from "@/components/wb/WBAppJourney";
 import { CreditCard } from "lucide-react";
 import { WB_SHOTS } from "@/components/wb/WBSplitHero";
 import { WB_PHOTOS } from "@/lib/wb-site";
@@ -80,6 +81,7 @@ const faq = [
 export default function PaymentsPage() {
   return (
     <WBFeaturePage
+      demo={<WBAppJourney steps={["ok", "inv", "paid"]} />}
       eyebrow="Get paid"
       accent="blue"
       title={

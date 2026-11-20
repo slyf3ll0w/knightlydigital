@@ -20,7 +20,7 @@ import WBVideo from "@/components/wb/WBVideo";
 import { FREE_PAGE_PATH } from "@/lib/wb-free";
 import { APP_STORE_URL, PLAY_STORE_URL, WB_PHONE } from "@/lib/wb-site";
 import { EXTRA_SEAT_CENTS, FREE_PLAN_NAME, INCLUDED_SEATS, PLANS, PROCESSING_RATES, RATES_SENTENCE, formatCents } from "@/lib/plans";
-import { loadVolume, volumeShowable } from "@/lib/wb-volume";
+import { loadVolume } from "@/lib/wb-volume";
 
 export const metadata: Metadata = {
   title: { absolute: "WorkBench FSM — Free field service management software" },
@@ -294,7 +294,7 @@ export default async function WBHomePage() {
       {/* ── 4. The assistant (blue band): what it handles, and a live demo that
            cycles through a dozen real requests. Name from lib/wb-assistant.ts. ── */}
       <section className="relative overflow-hidden text-white" style={{ background: BG.atlas }}>
-        <WBDoodle word="atlas" ink="#FFFFFF" opacity={0.09} className="-left-24 bottom-[-6rem] w-[560px] -rotate-12 max-lg:hidden" />
+        <WBDoodle word="voice" ink="#FFFFFF" opacity={0.1} className="-left-10 bottom-[-3rem] w-[460px] -rotate-6 max-lg:hidden" />
         <WBAtlasShowcase>
           <h2 className={H2}>
             Just say it. <span className="text-[#BFD6FF]">{ASSISTANT_NAME} gets it done.</span>
@@ -426,7 +426,9 @@ export default async function WBHomePage() {
 
       {/* ── 9. The counter (blue band): REAL totals from lib/wb-volume.ts. On the
            live home it renders only once volumeShowable() is true. ── */}
-      {volumeShowable(volume) && (
+      {/* SHOWN for now so David can see the live totals (2026-11-19); before
+          launch, gate it again: volumeShowable(volume) && … */}
+      {volume && (
         <section className="relative overflow-hidden text-white" style={{ background: BG.blue }}>
           <div className="relative mx-auto max-w-6xl px-5 py-24 text-center sm:px-8 sm:py-32">
             <h2 className={H2}>
@@ -456,9 +458,9 @@ export default async function WBHomePage() {
       )}
 
       {/* ── 10. Pricing (light gray): the bill printed as a receipt, over a faint
-           hand-drawn piggy bank. Every figure from lib/plans.ts. ── */}
+           hand-drawn coin stacks. Every figure from lib/plans.ts. ── */}
       <section className="relative overflow-hidden bg-[#F5F7FA]">
-        <WBDoodle word="piggy" paper="#F5F7FA" opacity={0.07} className="-left-10 -bottom-16 w-[420px] -rotate-6 max-lg:hidden" />
+        <WBDoodle word="coins" paper="#F5F7FA" opacity={0.07} className="-left-6 -bottom-6 w-[420px] -rotate-3 max-lg:hidden" />
         <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-5 py-24 sm:px-8 sm:py-32 lg:grid-cols-[1fr_440px]">
           <div>
             <h2 className={H2}>

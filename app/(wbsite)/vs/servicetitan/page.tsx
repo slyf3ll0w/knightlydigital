@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { EXTRA_SEAT_CENTS, INCLUDED_SEATS, PLANS, RATES_SHORT, formatCents } from "@/lib/plans";
+import { EXTRA_SEAT_CENTS, FULL_SHOP, INCLUDED_SEATS, PLANS, RATES_SHORT, formatCents } from "@/lib/plans";
 import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
 const seats = INCLUDED_SEATS;
 const seatPrice = formatCents(EXTRA_SEAT_CENTS);
@@ -22,7 +22,16 @@ export const metadata: Metadata = {
     "How WorkBench compares to ServiceTitan for home-service scheduling, dispatch, invoicing, and payments — free core software for small and growing teams, versus ServiceTitan's enterprise platform.",
 };
 
-const { rows, intro } = VS_PAGES["servicetitan"];
+const page = VS_PAGES["servicetitan"];
+const { intro } = page;
+// Atlas Full is not sold on its own any more on the site (David 2026-11-19):
+// the shared row text (lib/wb-vs.ts) still names its standalone price, so the
+// page says what Pro and Max include instead.
+const rows = page.rows.map((r) =>
+  r.label === "AI assistant"
+    ? { ...r, workbench: r.workbench.replace(`Atlas Full is ${planPrice}/month for ${planTokens}.`, `${PLANS.SHOP.name} and ${FULL_SHOP.name} include ${planTokens}.`) }
+    : r,
+);
 
 const differentiators: FeatureItem[] = [
   {
@@ -38,7 +47,7 @@ const differentiators: FeatureItem[] = [
   {
     icon: Bot,
     title: "Atlas, priced for what it costs to run",
-    body: `The AI assistant works your scheduling, quotes, invoices, and messages under your account's own permissions. Every account gets ${freeTokens} free tokens a month — real work, not a demo — and the ${planPrice} plan only exists for offices that want more.`,
+    body: `The AI assistant works your scheduling, quotes, invoices, and messages under your account's own permissions. Every account gets ${freeTokens} free tokens a month — real work, not a demo — and ${PLANS.SHOP.name} and ${FULL_SHOP.name} include ${planTokens} for offices that want more.`,
   },
   {
     icon: Users,

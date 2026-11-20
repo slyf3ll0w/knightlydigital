@@ -1,5 +1,5 @@
 import { EXTRA_SEAT_CENTS, INCLUDED_SEATS, PLANS, RATES_SHORT, formatCents } from "@/lib/plans";
-import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
+import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, tokenCount } from "@/lib/atlas-pricing";
 
 /**
  * The /vs/<competitor> comparison tables and intros, as data: the pages
@@ -17,7 +17,6 @@ const voicePrice = formatCents(PLANS.DISPATCH.monthlyCents);
 const proPrice = formatCents(PLANS.SHOP.monthlyCents);
 const freeTokens = tokenCount(ATLAS_FREE_TOKENS);
 const planTokens = tokenCount(ATLAS_PLAN_TOKENS);
-const planPrice = formatPlanPrice();
 
 const jobber: VsPage = {
   slug: "jobber",
@@ -46,7 +45,7 @@ const jobber: VsPage = {
     },
     {
       label: "AI assistant",
-      workbench: `Atlas — a built-in assistant you can talk to hands-free (or type to) that schedules, quotes, invoices, and messages on your behalf, always with a confirmation step. ${freeTokens} free tokens every month; Atlas Full is ${planPrice}/month for ${planTokens}.`,
+      workbench: `Atlas — a built-in assistant you can talk to hands-free (or type to) that schedules, quotes, invoices, and messages on your behalf, always with a confirmation step. ${freeTokens} free tokens every month; the Pro add-on includes ${planTokens} a month.`,
       competitor: "Has been rolling out AI features; check their current feature list for scope.",
     },
     {
@@ -94,7 +93,7 @@ const housecallPro: VsPage = {
     },
     {
       label: "AI assistant",
-      workbench: `Atlas — talk to it hands-free or type; it schedules, quotes, invoices, and messages on request, always with a confirmation step. ${freeTokens} free tokens every month; Atlas Full is ${planPrice}/month for ${planTokens}.`,
+      workbench: `Atlas — talk to it hands-free or type; it schedules, quotes, invoices, and messages on request, always with a confirmation step. ${freeTokens} free tokens every month; the Pro add-on includes ${planTokens} a month.`,
       competitor: "Check their current feature list for AI capabilities and availability.",
     },
     {
@@ -132,7 +131,7 @@ const servicetitan: VsPage = {
     },
     {
       label: "AI assistant",
-      workbench: `Atlas — talk to it hands-free or type; it schedules, quotes, invoices, and messages on request, always with a confirmation step. ${freeTokens} free tokens every month; Atlas Full is ${planPrice}/month for ${planTokens}.`,
+      workbench: `Atlas — talk to it hands-free or type; it schedules, quotes, invoices, and messages on request, always with a confirmation step. ${freeTokens} free tokens every month; the Pro add-on includes ${planTokens} a month.`,
       competitor: "Has invested in AI capabilities across its platform; check their current offering for scope.",
     },
     {

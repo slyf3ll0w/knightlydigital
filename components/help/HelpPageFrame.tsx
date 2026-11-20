@@ -66,18 +66,18 @@ export default function HelpPageFrame({
 
           <div className="mt-5 flex items-start gap-4">
             {onTopicPage && (
-              <span className="help-tile ds-rise mt-1 !h-12 !w-12">
-                <Icon className="h-6 w-6" strokeWidth={2} />
+              <span className={`help-tile ds-rise mt-1 ${inApp ? "!h-12 !w-12" : "!h-14 !w-14 sm:!h-[4.5rem] sm:!w-[4.5rem]"}`}>
+                <Icon className={inApp ? "h-6 w-6" : "h-7 w-7 sm:h-9 sm:w-9"} strokeWidth={2} />
               </span>
             )}
             <div className="min-w-0">
-              <h1 className="max-w-3xl text-3xl font-extrabold leading-[1.1] sm:text-[2.5rem]">
+              <h1 className={inApp ? "max-w-3xl text-3xl font-extrabold leading-[1.1] sm:text-[2.5rem]" : "max-w-3xl text-[2.3rem] leading-[1.04] tracking-[-0.035em] sm:text-[3.4rem]"}>
                 <span className="ds-wipe">
                   <span className="ds-wipe-text">{title}</span>
                   <span className="ds-wipe-bar" aria-hidden />
                 </span>
               </h1>
-              <p className="ds-rise mt-3 max-w-2xl text-[17px] leading-relaxed text-gray-600" style={{ "--ds-i": 1 } as React.CSSProperties}>
+              <p className={`ds-rise max-w-2xl leading-relaxed text-gray-600 ${inApp ? "mt-3 text-[17px]" : "mt-5 text-[17px] sm:text-[19px]"}`} style={{ "--ds-i": 1 } as React.CSSProperties}>
                 {summary}
               </p>
             </div>

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { ArrowRight, BarChart3, ClipboardList, Globe, Phone, Plug, UserRound, Workflow, Wrench, Zap } from "lucide-react";
+import { ArrowRight, ClipboardList, Phone, UserRound, Wrench } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
 import WBCta from "@/components/wb/WBCta";
+import WBCustomBuilds from "@/components/wb/WBCustomBuilds";
+import WBDoodle from "@/components/wb/WBDoodle";
 import WBEmbedForm from "@/components/wb/WBEmbedForm";
 import { WBFaqSection } from "@/components/wb/WBFaq";
 import WBMarker from "@/components/wb/WBMarker";
-import WBScribble from "@/components/wb/WBScribble";
 import WBSplitHero from "@/components/wb/WBSplitHero";
 import { WB_DAY_PHOTOS, WB_PHONE } from "@/lib/wb-site";
 
@@ -23,14 +24,6 @@ export const metadata: Metadata = {
  * (work-bench / custom-software-inquiry, lands in WorkBench's leads).
  */
 
-const builds = [
-  { icon: Workflow, title: "Workflows that match your process", body: "The steps, sign-offs and hand-offs your crew already follows, built in, so the app walks the job the way you do." },
-  { icon: ClipboardList, title: "Forms and checklists for your trade", body: "Inspection sheets, intake questions, job checklists and client fields with the exact wording you use." },
-  { icon: Plug, title: "Connections to your other tools", body: "Your supplier, your accounting, your ad accounts, or a system you already pay for, talking to WorkBench." },
-  { icon: Zap, title: "Automations that do the busywork", body: "Texts, reminders, follow-ups and task hand-offs that fire on the moments that matter in your business." },
-  { icon: BarChart3, title: "Reports you actually read", body: "The numbers you run the business by, in the shape you think about them, without exporting a spreadsheet." },
-  { icon: Globe, title: "Pieces your clients touch", body: "Request forms for your website, estimate tools, and pages that carry your name and your way of doing things." },
-];
 
 const steps = [
   { title: "Tell us how it works today", body: "A call about the job as you run it: what slows you down, what gets missed, what you do by hand." },
@@ -89,34 +82,21 @@ export default function WBCustomSoftwarePage() {
         </div>
       </WBSplitHero>
 
-      {/* ── What we build ── */}
-      <section className="bg-white">
-        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
-          <AnimateIn className="relative max-w-3xl">
-            <h2 className="text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
-              If you do it by hand today, <span className="text-gray-400">we can probably build it.</span>
+      {/* ── What we build: each kind as a before/after, by hand → a coded piece
+           of WorkBench playing out (WBCustomBuilds) ── */}
+      <section className="relative overflow-hidden bg-[#F5F7FA]">
+        <WBDoodle word="clipboard" paper="#F5F7FA" opacity={0.06} className="-right-10 top-10 w-[300px] rotate-6 max-lg:hidden" />
+        <div className="relative mx-auto max-w-6xl px-5 py-24 sm:px-8 sm:py-28">
+          <div className="relative max-w-3xl">
+            <h2 className="text-[2.2rem] leading-[1.05] sm:text-[3.2rem]">
+              If you do it by hand today, <span className="text-[#F86A0A]">we can probably build it.</span>
             </h2>
-            <div className="absolute -bottom-16 right-[-14rem] z-20 hidden items-end gap-1 xl:flex" aria-hidden>
-              <p className="pb-3 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
-                Some of what
-                <br />
-                we build
-              </p>
-              <WBScribble variant="droop" delay={0.5} className="h-[78px] w-[60px] flex-none" />
-            </div>
-          </AnimateIn>
-          <div className="mt-14 grid border-t-2 border-[#0A1428] md:grid-cols-2 md:gap-x-14 xl:mt-24">
-            {builds.map(({ icon: Icon, title, body }, i) => (
-              <AnimateIn key={title} delay={(i % 2) * 90} className="flex gap-5 border-b border-gray-200 py-7">
-                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-[#0A1428] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_6px_14px_-6px_rgba(10,20,40,0.5)]">
-                  <Icon className="h-5 w-5 text-[#FF8B33]" strokeWidth={2.1} />
-                </span>
-                <span>
-                  <span className="block text-[18px] font-extrabold text-gray-900">{title}</span>
-                  <span className="mt-1.5 block text-[15px] leading-relaxed text-gray-600">{body}</span>
-                </span>
-              </AnimateIn>
-            ))}
+            <p className="mt-6 max-w-xl text-[18px] leading-relaxed text-gray-600">
+              Some of what we build. Pick one to see the by-hand way next to what it looks like in WorkBench.
+            </p>
+          </div>
+          <div className="mt-14">
+            <WBCustomBuilds />
           </div>
         </div>
       </section>
@@ -141,17 +121,17 @@ export default function WBCustomSoftwarePage() {
       </section>
 
       {/* ── Three ways in, then the form ── */}
-      <section id="inquiry" className="scroll-mt-24 bg-[#F5F7FA]">
+      <section id="inquiry" className="scroll-mt-24 bg-white">
         <div className="mx-auto grid max-w-6xl gap-12 px-5 py-20 sm:px-8 sm:py-28 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
           <AnimateIn>
-            <h2 className="text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">Start with a conversation.</h2>
+            <h2 className="text-[2.2rem] leading-[1.05] sm:text-[3.2rem]">Start with <span className="text-[#0B57D8]">a conversation.</span></h2>
             <p className="mt-5 max-w-md text-[16.5px] leading-relaxed text-gray-600">
               However you reach us, the first step is a call about how your business runs. The first call is free.
             </p>
             <ul className="mt-9 space-y-6">
               <li className="flex gap-4">
-                <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-white wb-raised">
-                  <Phone className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />
+                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-[#0A1428] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_6px_14px_-6px_rgba(10,20,40,0.5)]">
+                  <Phone className="h-[18px] w-[18px] text-[#FF8B33]" strokeWidth={2.2} />
                 </span>
                 <span>
                   <span className="block text-[16.5px] font-extrabold text-gray-900">Call us</span>
@@ -161,8 +141,8 @@ export default function WBCustomSoftwarePage() {
                 </span>
               </li>
               <li className="flex gap-4">
-                <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-white wb-raised">
-                  <UserRound className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />
+                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-[#0A1428] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_6px_14px_-6px_rgba(10,20,40,0.5)]">
+                  <UserRound className="h-[18px] w-[18px] text-[#FF8B33]" strokeWidth={2.2} />
                 </span>
                 <span>
                   <span className="block text-[16.5px] font-extrabold text-gray-900">Already a client?</span>
@@ -172,8 +152,8 @@ export default function WBCustomSoftwarePage() {
                 </span>
               </li>
               <li className="flex gap-4">
-                <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-white wb-raised">
-                  <ClipboardList className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />
+                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-[#0A1428] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_6px_14px_-6px_rgba(10,20,40,0.5)]">
+                  <ClipboardList className="h-[18px] w-[18px] text-[#FF8B33]" strokeWidth={2.2} />
                 </span>
                 <span>
                   <span className="block text-[16.5px] font-extrabold text-gray-900">Send the form</span>
@@ -185,12 +165,14 @@ export default function WBCustomSoftwarePage() {
             </ul>
           </AnimateIn>
           <AnimateIn delay={110}>
-            <WBEmbedForm path="custom-software-inquiry" title="Custom Software Inquiry — WorkBench" />
+            <div className="rounded-xl bg-white p-5 shadow-[0_0_0_1px_rgba(10,20,40,0.08),0_2px_0_rgba(10,20,40,0.05),0_18px_34px_-22px_rgba(10,20,40,0.35)] sm:p-8">
+              <WBEmbedForm path="custom-software-inquiry" title="Custom Software Inquiry — WorkBench" />
+            </div>
           </AnimateIn>
         </div>
       </section>
 
-      <WBFaqSection items={faq} title="Custom work, answered" />
+      <WBFaqSection items={faq} title="Custom work, answered" tone="gray" />
 
       <WBCta
         title="Not ready for custom yet?"

@@ -1,25 +1,29 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ClipboardCheck, Scale } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
-import { ClipboardCheck } from "lucide-react";
 import WBSplitHero, { WB_SHOTS } from "@/components/wb/WBSplitHero";
 import WBScribble from "@/components/wb/WBScribble";
 import WBTestimonials from "@/components/wb/WBTestimonials";
+import WBOdometer from "@/components/wb/WBOdometer";
 import { WB_TRADE_PHOTOS } from "@/lib/wb-site";
 import WBCta from "@/components/wb/WBCta";
 import WBAgentLink from "@/components/wb/WBAgentLink";
 import { VS_LIST } from "@/lib/wb-vs";
+import { COMPETITORS } from "@/lib/wb-savings";
 import { WBFaqSection, type FaqItem } from "./WBFaq";
-import WBCompareTable, { CompareRow } from "./WBCompareTable";
+import WBCompareTable, { type CompareRow } from "./WBCompareTable";
+import WBVsCost, { typicalSavings } from "./WBVsCost";
+import WBVsSwitch from "./WBVsSwitch";
 import type { FeatureItem } from "@/lib/wb-features";
 import { EXTRA_SEAT_CENTS, INCLUDED_SEATS, formatCents } from "@/lib/plans";
 
 /**
  * Shared template for /vs/[competitor] pages. The goal is an honest,
  * checkable comparison — not a takedown — so every page keeps the same
- * shape: a factual table, a section that credits what the competitor does
- * well, WorkBench's actual differentiators, then FAQ + CTA. The hero is
- * the home page's split hero (a different trade photo per competitor).
+ * shape: a year of cost (when the competitor publishes prices; computed by
+ * lib/wb-savings.ts), the factual table, a card that credits what the
+ * competitor does well, WorkBench's actual differentiators, the switch,
+ * then FAQ + CTA. The hero is the home page's split hero.
  */
 
 const PHOTO: Record<string, { src: string; alt: string }> = {
@@ -27,6 +31,10 @@ const PHOTO: Record<string, { src: string; alt: string }> = {
   "Housecall Pro": WB_TRADE_PHOTOS.plumbing,
   ServiceTitan: WB_TRADE_PHOTOS.hvac,
 };
+const H2 = "text-[2.2rem] leading-[1.05] sm:text-[3.2rem]";
+const CARD = "rounded-xl bg-white shadow-[0_0_0_1px_rgba(10,20,40,0.08),0_2px_0_rgba(10,20,40,0.05),0_18px_34px_-22px_rgba(10,20,40,0.35)]";
+const BLUE = "linear-gradient(135deg, #0A45B8 0%, #0B57D8 55%, #2563EB 100%)";
+
 export default function WBComparePage({
   competitorName,
   title,
@@ -45,6 +53,8 @@ export default function WBComparePage({
   faq: FaqItem[];
 }) {
   const vs = VS_LIST.find((v) => v.name === competitorName);
+  const priced = COMPETITORS.find((c) => c.name === competitorName);
+  const kept = priced ? typicalSavings(priced.id).keptYearCents : 0;
   return (
     <>
       {/* Hero */}
@@ -70,62 +80,114 @@ export default function WBComparePage({
         </div>
         <p className="mx-auto mt-5 max-w-2xl text-[12.5px] text-gray-400 lg:mx-0">
           Pricing and features change over time on both sides — the {competitorName} details
-          here are general and public; check their site for current plans. WorkBench's numbers
+          here are general and public; check their site for current plans. WorkBench&apos;s numbers
           are exact and current.
         </p>
       </WBSplitHero>
 
+      {/* A year of cost — only where the competitor publishes a price */}
+      {priced && (
+        <section className="bg-white">
+          <div className="mx-auto grid max-w-6xl items-center gap-14 px-5 py-24 sm:px-8 sm:py-28 lg:grid-cols-[0.9fr_1.1fr]">
+            <AnimateIn>
+              <h2 className={H2}>
+                Same card fees. <span className="text-[#0B57D8]">No subscription on top.</span>
+              </h2>
+              <p className="mt-6 max-w-md text-[18px] leading-relaxed text-gray-600">
+                A card payment costs about the same on either one. The difference is the monthly bill {competitorName} adds for the
+                software; on WorkBench the core is free.
+              </p>
+              <div className="mt-10">
+                <p className="text-[16px] font-bold text-gray-500">A typical three-person shop keeps</p>
+                <p className="mt-1 text-[#F86A0A]">
+                  <WBOdometer value={kept / 100} money className="text-[4rem] font-black leading-none tracking-[-0.04em] sm:text-[5.2rem]" />
+                </p>
+                <p className="mt-2 text-[16px] font-bold text-[#0A1428]">a year on WorkBench.</p>
+              </div>
+            </AnimateIn>
+            <AnimateIn delay={120}>
+              <div className={`${CARD} p-6 sm:p-8`}>
+                <WBVsCost only={priced.id} />
+              </div>
+            </AnimateIn>
+          </div>
+        </section>
+      )}
+
       {/* Table */}
-      <section className="border-b border-gray-200 bg-[#F6F8FB]">
-        <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
-          <AnimateIn className="relative">
-            <div className="absolute -top-10 right-2 hidden items-end gap-1 lg:flex" aria-hidden>
-              <p className="pb-1 text-right text-[14.5px] font-extrabold leading-snug text-[#10244A]">
-                Side by side,
+      <section className={priced ? "bg-[#F5F7FA]" : "bg-white"}>
+        <div className="mx-auto max-w-6xl px-5 py-24 sm:px-8 sm:py-28">
+          <div className="relative">
+            <AnimateIn>
+              <h2 className={H2}>
+                Side by side, <span className="text-[#0B57D8]">topic by topic.</span>
+              </h2>
+            </AnimateIn>
+            <div className="absolute -top-4 right-2 hidden items-end gap-1 lg:flex" aria-hidden>
+              <p className="pb-1 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
+                No fine
                 <br />
-                no fine print
+                print
               </p>
               <WBScribble variant="droop" delay={0.4} className="h-[80px] w-[62px] flex-none" />
             </div>
+          </div>
+          <div className="mt-12">
             <WBCompareTable competitorName={competitorName} rows={rows} />
-          </AnimateIn>
+          </div>
         </div>
       </section>
 
-      {/* Fair point */}
-      <section className="mx-auto max-w-4xl px-5 py-16 sm:px-8">
-        <AnimateIn>
-          <div className="rounded-[1.5rem] border border-gray-200 bg-[#F6F8FB] px-6 py-7 sm:px-8">
-            <p className="text-[18px] font-black text-gray-900">
-              Fair's fair
+      {/* Fair point (blue band) */}
+      <section className="text-white" style={{ background: BLUE }}>
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-24 sm:px-8 sm:py-28 lg:grid-cols-[0.8fr_1.2fr]">
+          <AnimateIn>
+            <h2 className={H2}>
+              Fair&apos;s fair.
+            </h2>
+            <p className="mt-6 max-w-sm text-[18px] leading-relaxed text-white/85">
+              Where {competitorName} is strong, we say so. Pick the one that fits the way you work.
             </p>
-            <h2 className="mt-2 text-[18px] font-extrabold text-gray-900">{fairPoint.title}</h2>
-            <div className="mt-3 text-[14.5px] leading-relaxed text-gray-600">{fairPoint.body}</div>
-          </div>
-        </AnimateIn>
+          </AnimateIn>
+          <AnimateIn delay={120}>
+            <div className={`${CARD} p-7 text-[#0A1428] sm:p-9`}>
+              <div className="flex items-start gap-4">
+                <span className="flex h-12 w-12 flex-none items-center justify-center rounded-lg bg-[#0A1428]">
+                  <Scale className="h-6 w-6 text-[#FF8B33]" strokeWidth={2} />
+                </span>
+                <h3 className="pt-1 text-[22px] font-black leading-snug sm:text-[24px]">{fairPoint.title}</h3>
+              </div>
+              <div className="mt-5 text-[17px] leading-relaxed text-gray-600">{fairPoint.body}</div>
+            </div>
+          </AnimateIn>
+        </div>
       </section>
 
       {/* Differentiators */}
-      <section className="border-t border-gray-200 bg-white">
-        <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8">
+      <section className="bg-white">
+        <div className="mx-auto grid max-w-6xl gap-12 px-5 py-24 sm:px-8 sm:py-28 lg:grid-cols-[0.8fr_1.2fr]">
           <AnimateIn>
-            <h2 className="text-2xl font-extrabold sm:text-3xl">Where WorkBench is different</h2>
+            <h2 className={`${H2} lg:sticky lg:top-28`}>
+              Where WorkBench <span className="text-[#F86A0A]">is different.</span>
+            </h2>
           </AnimateIn>
-          <div className="mt-10 grid gap-x-10 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
-            {differentiators.map(({ icon: Icon, title: t, body }, i) => (
-              <AnimateIn key={t} delay={(i % 3) * 90}>
-                <div className="flex gap-4">
-                  <Icon className="mt-0.5 h-5 w-5 flex-none text-[#0B57D8]" strokeWidth={1.9} />
-                  <div>
-                    <h3 className="text-[15.5px] font-bold text-gray-900">{t}</h3>
-                    <p className="mt-1 text-[14px] leading-relaxed text-gray-600">{body}</p>
-                  </div>
+          <AnimateIn className={`wb-stagger ${CARD} divide-y divide-gray-100`}>
+            {differentiators.map(({ icon: Icon, title: t, body }) => (
+              <div key={t} className="flex gap-5 p-6 sm:p-7">
+                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-[#0A1428]">
+                  <Icon className="h-5 w-5 text-[#FF8B33]" strokeWidth={2} />
+                </span>
+                <div>
+                  <h3 className="text-[18px] font-black text-[#0A1428]">{t}</h3>
+                  <p className="mt-1.5 text-[16px] leading-relaxed text-gray-600">{body}</p>
                 </div>
-              </AnimateIn>
+              </div>
             ))}
-          </div>
+          </AnimateIn>
         </div>
       </section>
+
+      <WBVsSwitch from={competitorName} />
 
       <WBTestimonials />
 
@@ -134,7 +196,7 @@ export default function WBComparePage({
       {/* Related */}
       <section className="border-t border-gray-200 bg-white">
         <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8">
-          <p className="text-[13.5px] font-bold text-gray-500">Also compare</p>
+          <p className="text-[18px] font-black text-gray-900">Also compare</p>
           <div className="mt-5 grid gap-x-10 border-t-2 border-[#0A1428] sm:grid-cols-2 lg:grid-cols-3">
             {["jobber", "housecall-pro", "servicetitan"].map((slug) => (
               <Link

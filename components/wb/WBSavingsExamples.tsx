@@ -6,10 +6,10 @@ import { BENCHMARK, COMPETITORS, EXAMPLE_SHOPS, SAVINGS_AS_OF, dollars, estimate
 
 /**
  * Three worked examples from lib/wb-savings.ts, rendered on the server and
- * computed from the same math as the calculator: what each shop keeps in a
+ * computed from the same math as the pricing page's average: what each shop keeps in a
  * year when it pays the card fee itself, and when its clients pay the
- * service fee instead. Used on the free plan page; the calculator itself
- * lives on /pricing#savings.
+ * service fee instead. Used on the free plan page; the typical-shop
+ * average lives on /pricing#savings.
  */
 export default function WBSavingsExamples() {
   const rows = EXAMPLE_SHOPS.map((s) => ({
@@ -65,12 +65,12 @@ export default function WBSavingsExamples() {
       <p className="mt-3 text-[12.5px] leading-relaxed text-gray-500">
         Estimates. Published annual-commitment prices as of {asOf}, the cheapest plan that fits the team, and card processing costed at{" "}
         {BENCHMARK.label} for the others and at WorkBench&rsquo;s own {RATES.companyPaid.card} here. The last column adds the{" "}
-        {RATES.serviceFee.card} service fee at checkout so clients cover the processing, where your state allows it. The calculator has the
-        details and your own numbers.
+        {RATES.serviceFee.card} service fee at checkout so clients cover the processing, where your state allows it. The pricing page shows the
+        average shop&rsquo;s year in full.
       </p>
       <AnimateIn className="mt-4">
         <Link href="/pricing#savings" className="inline-flex items-center gap-1.5 text-[14.5px] font-bold text-[#0B57D8] hover:underline">
-          Run it for your shop
+          See the average shop&rsquo;s year
           <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
         </Link>
       </AnimateIn>

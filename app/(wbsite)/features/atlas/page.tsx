@@ -4,19 +4,19 @@ import { AudioLines, Compass, Mic, Plug, Sparkles } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
 import { WBAtlasVoiceSection } from "@/components/wb/WBAtlasVoice";
+import WBAtlasDemo from "@/components/wb/WBAtlasDemo";
 import { WB_SHOTS } from "@/components/wb/WBSplitHero";
 import { WB_DAY_PHOTOS } from "@/lib/wb-site";
 import type { FeatureItem } from "@/lib/wb-features";
-import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
+import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, tokenCount } from "@/lib/atlas-pricing";
 import { INCLUDED_SEATS } from "@/lib/plans";
 
 const freeTokens = tokenCount(ATLAS_FREE_TOKENS);
 const planTokens = tokenCount(ATLAS_PLAN_TOKENS);
-const planPrice = formatPlanPrice();
 
 export const metadata: Metadata = {
   title: "Atlas AI Assistant — talk to it, hands-free",
-  description: `Atlas is WorkBench's built-in AI assistant. Talk to it hands-free in a natural voice or type: it works the same scheduling, quotes, invoices, and messages your team does, with the same permissions, and reads anything client-facing back to you before it goes out. ${freeTokens} free tokens every month on every account; Atlas Full is ${planPrice}/month for ${planTokens}.`,
+  description: `Atlas is WorkBench's built-in AI assistant. Talk to it hands-free in a natural voice or type: it works the same scheduling, quotes, invoices, and messages your team does, with the same permissions, and reads anything client-facing back to you before it goes out. ${freeTokens} free tokens every month on every account; the Pro add-on includes ${planTokens} a month.`,
 };
 
 const atlasFeatures: FeatureItem[] = [
@@ -53,7 +53,7 @@ const atlasFeatures: FeatureItem[] = [
   {
     icon: Compass,
     title: `${freeTokens} free tokens a month, on every account`,
-    body: `No card, no sign-up step, no trial clock — the allowance refills on the 1st. Atlas Full is ${planTokens} tokens a month for ${planPrice} on its own, or included with the Pro add-on, refilled on your billing day. AI usage costs real money, so it's priced separately from the free core software instead of buried in it.`,
+    body: `No card, no sign-up step, no trial clock — the allowance refills on the 1st. The Pro add-on includes ${planTokens} tokens a month, refilled on your billing day. AI usage costs real money, so it's priced separately from the free core software instead of buried in it.`,
   },
 ];
 
@@ -78,7 +78,7 @@ const faq = [
       <p>
         No separate charge. A conversation uses a few Atlas tokens per minute
         of talk, out of the same allowance as the chat: {freeTokens} free every
-        month on every account, or Atlas Full for heavier use.
+        month on every account, or the larger allowance in the Pro add-on.
       </p>
     ),
   },
@@ -138,10 +138,10 @@ const faq = [
         Every account gets {freeTokens} Atlas tokens free every month —
         enough for roughly 25 to 60 messages, shared by your whole team, and
         it refills on the 1st with no card and no sign-up step. Heavier
-        users can move to Atlas Full: {planTokens} tokens a month for{" "}
-        {planPrice}. The core software stays free either way — see{" "}
-        <Link href="/pricing#atlas" className="font-semibold text-[#0B57D8] hover:underline">
-          Atlas pricing
+        users get {planTokens} tokens a month with the Pro add-on. The core
+        software stays free either way — see{" "}
+        <Link href="/pricing" className="font-semibold text-[#0B57D8] hover:underline">
+          pricing
         </Link>
         .
       </p>
@@ -165,6 +165,7 @@ const faq = [
 export default function AtlasPage() {
   return (
     <WBFeaturePage
+      demo={<WBAtlasDemo />}
       eyebrow="The AI assistant"
       accent="blue"
       title={
@@ -225,12 +226,12 @@ export default function AtlasPage() {
         { label: "Scheduling & dispatch", href: "/features/scheduling-dispatch" },
         { label: "See every feature", href: "/features" },
       ]}
-      ctaTitle={`${freeTokens} free tokens a month. ${planPrice} when you want more.`}
+      ctaTitle={`${freeTokens} free tokens a month, on every account.`}
       ctaBody={
         <>
           The core WorkBench software is free with full access for {INCLUDED_SEATS} users, not a trial. Atlas
-          comes with {freeTokens} free tokens every month on every account, voice included;
-          Atlas Full is {planTokens} a month for {planPrice}.
+          comes with {freeTokens} free tokens every month on every account, voice included,
+          and Pro includes {planTokens} a month.
         </>
       }
     />

@@ -5,6 +5,8 @@ import { AnimateIn } from "@/components/AnimateIn";
 import WBCta from "@/components/wb/WBCta";
 import WBEmbedForm from "@/components/wb/WBEmbedForm";
 import { WBFaqSection } from "@/components/wb/WBFaq";
+import WBBookSlot from "@/components/wb/WBBookSlot";
+import WBScribble from "@/components/wb/WBScribble";
 import WBSplitHero from "@/components/wb/WBSplitHero";
 import { WB_DAY_PHOTOS, WB_PHONE } from "@/lib/wb-site";
 
@@ -14,6 +16,14 @@ export const metadata: Metadata = {
     "Pick a time and talk to the people who build WorkBench. We walk through the software with your trade and your jobs, and set your company up on the call.",
   alternates: { canonical: "https://workbenchfsm.com/book-a-call" },
 };
+
+/**
+ * Book a call (redesign 2026-11-19, David: "besides the hero, needs some
+ * pizzazz"): what the call covers beside a coded copy of booking it
+ * (WBBookSlot), then the real booking calendar in its own panel.
+ */
+const CARD = "rounded-xl bg-white shadow-[0_0_0_1px_rgba(10,20,40,0.08),0_2px_0_rgba(10,20,40,0.05),0_18px_34px_-22px_rgba(10,20,40,0.35)]";
+const H2 = "text-[2.2rem] leading-[1.05] sm:text-[3.2rem]";
 
 const covers = [
   {
@@ -104,32 +114,64 @@ export default function WBBookCallPage() {
         </div>
       </WBSplitHero>
 
-      {/* ── What the call covers ── */}
-      <section className="bg-[#F6F8FB]">
-        <div className="mx-auto grid max-w-6xl gap-6 px-5 py-14 sm:px-8 sm:py-16 md:grid-cols-3">
-          {covers.map(({ icon: Icon, title, body }, i) => (
-            <AnimateIn key={title} delay={i * 110} className="rounded-[1.5rem] border border-gray-200 bg-white p-7">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
-                <Icon className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
-              </div>
-              <p className="mt-5 text-xl font-extrabold text-gray-900">{title}</p>
-              <p className="mt-2 text-[14.5px] leading-relaxed text-gray-600">{body}</p>
+      {/* ── What the call covers, beside a coded copy of booking it ── */}
+      <section className="overflow-x-clip bg-white">
+        <div className="mx-auto grid max-w-6xl items-center gap-14 px-5 py-24 sm:px-8 sm:py-28 lg:grid-cols-[1fr_auto] lg:gap-20">
+          <div>
+            <h2 className={H2}>
+              One call. <span className="text-[#F86A0A]">You leave set up.</span>
+            </h2>
+            <p className="mt-6 max-w-lg text-[18px] leading-relaxed text-gray-600">
+              Pick a time on the calendar below and it is booked on the spot, with a confirmation in your inbox. Here is what we
+              cover when we call.
+            </p>
+            <AnimateIn className="mt-10">
+              <ul className="wb-stagger space-y-7">
+                {covers.map(({ icon: Icon, title, body }) => (
+                  <li key={title} className="flex gap-5">
+                    <span className="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-[#0A1428] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_6px_14px_-6px_rgba(10,20,40,0.5)]">
+                      <Icon className="h-5 w-5 text-[#FF8B33]" strokeWidth={2.1} />
+                    </span>
+                    <span>
+                      <span className="block text-[19px] font-extrabold text-[#0A1428]">{title}</span>
+                      <span className="mt-1 block max-w-md text-[16px] leading-relaxed text-gray-600">{body}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </AnimateIn>
-          ))}
+          </div>
+          <div className="relative w-full lg:w-[460px]">
+            <WBBookSlot />
+          </div>
         </div>
       </section>
 
-      {/* ── The calendar ── */}
-      <section id="calendar" className="scroll-mt-24 bg-white">
-        <div className="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-16">
-          <h2 className="text-2xl font-extrabold sm:text-3xl">Pick a time that suits you</h2>
-          <p className="mt-3 text-[15.5px] leading-relaxed text-gray-600">
-            Times are shown in your time zone. You get a confirmation by email
-            with a link to reschedule, and a reminder before we call.
-          </p>
-          <div className="mt-7">
-            <WBEmbedForm path="phone-call" title="Phone call — WorkBench" />
+      {/* ── The calendar, in its own panel ── */}
+      <section id="calendar" className="scroll-mt-24 bg-[#F5F7FA]">
+        <div className="mx-auto max-w-6xl px-5 py-24 sm:px-8 sm:py-28">
+          <div className="relative max-w-3xl">
+            <h2 className={H2}>
+              Pick a time <span className="text-[#0B57D8]">that suits you.</span>
+            </h2>
+            <p className="mt-6 max-w-xl text-[18px] leading-relaxed text-gray-600">
+              Times are shown in your time zone. You get a confirmation by email with a link to reschedule, and a reminder before
+              we call.
+            </p>
           </div>
+          <AnimateIn className="relative mt-12">
+            <div className={`mx-auto max-w-3xl p-5 sm:p-8 ${CARD}`}>
+              <WBEmbedForm path="phone-call" title="Phone call — WorkBench" />
+            </div>
+            <div className="pointer-events-none absolute -top-[96px] right-[2%] z-20 hidden items-end gap-1 xl:flex" aria-hidden>
+              <p className="pb-3 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
+                Pick one
+                <br />
+                right here
+              </p>
+              <WBScribble variant="droop" delay={0.5} className="h-[78px] w-[60px] flex-none" />
+            </div>
+          </AnimateIn>
         </div>
       </section>
 

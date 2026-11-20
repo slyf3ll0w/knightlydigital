@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
+import WBAppJourney from "@/components/wb/WBAppJourney";
 import { FileSignature } from "lucide-react";
 import { WB_SHOTS } from "@/components/wb/WBSplitHero";
 import { WB_PHOTOS } from "@/lib/wb-site";
@@ -68,6 +69,7 @@ const faq = [
 export default function QuotesAndInvoicingPage() {
   return (
     <WBFeaturePage
+      demo={<WBAppJourney steps={["req", "quote", "ok", "inv", "paid"]} />}
       eyebrow="Win the work, get paid for it"
       accent="blue"
       title={

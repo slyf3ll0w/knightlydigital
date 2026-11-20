@@ -4,7 +4,8 @@ import { RATES_SHORT } from "@/lib/plans";
 import { useState } from "react";
 import Link from "next/link";
 import { Check, Sparkles } from "lucide-react";
-import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
+
+const CARD = "rounded-xl bg-white shadow-[0_0_0_1px_rgba(10,20,40,0.08),0_2px_0_rgba(10,20,40,0.05),0_18px_34px_-22px_rgba(10,20,40,0.35)]";
 import { freeGroups } from "@/lib/wb-free";
 import {
   ANNUAL_MONTHS,
@@ -24,6 +25,7 @@ import {
 /**
  * The WorkBench pricing grid: the free core (Core) up top — full access,
  * not a trial — then the optional add-ons (Voice, Pro, Gallery, Max) with a monthly/annual toggle. Every number comes from lib/plans.ts.
+ * Atlas Full is not shown as its own product (David 2026-11-19); Pro lists the tokens it includes.
  */
 
 
@@ -31,7 +33,7 @@ function PriceLine({ monthlyCents, annual }: { monthlyCents: number; annual: boo
   const yearly = annualCents(monthlyCents);
   return (
     <>
-      <p className="mt-4 text-4xl font-extrabold leading-none" style={{ fontFamily: '"Nunito", sans-serif' }}>
+      <p className="mt-4 text-4xl font-black leading-none tracking-[-0.03em]">
         {annual ? formatCents(yearly) : formatCents(monthlyCents)}
         <span className="text-base font-bold opacity-60">{annual ? "/year" : "/month"}</span>
       </p>
@@ -56,15 +58,11 @@ export default function WBPricing() {
   return (
     <div>
       {/* ── Core: the free plan ── */}
-      <div className="grid overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white lg:grid-cols-[350px_1fr]">
+      <div className={`grid overflow-hidden ${CARD} lg:grid-cols-[350px_1fr]`}>
         <div className="relative flex flex-col bg-[#0A1428] p-8 lg:p-10">
           <div className="relative flex h-full flex-col">
-            <p
-              className="mt-6 text-6xl font-extrabold leading-none text-white"
-              style={{ fontFamily: '"Nunito", sans-serif' }}
-            >
-              Free
-            </p>
+            <p className="text-[15px] font-black text-[#FF8B33]">{FREE_PLAN_NAME}</p>
+            <p className="mt-3 text-6xl font-black leading-none tracking-[-0.04em] text-white">Free</p>
             <p className="mt-3 text-[17px] font-bold text-white">Not a trial. Full access.</p>
             <p className="mt-2 text-[14px] leading-relaxed text-blue-100/80">
               $0 a month for {INCLUDED_SEATS} users. Every essential feature, on from day one, for as
@@ -124,16 +122,16 @@ export default function WBPricing() {
       <div className="mt-14">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h3 className="mt-3 text-2xl font-extrabold leading-tight sm:text-3xl">
-              Only if you want them.
+            <h3 className="text-[2rem] leading-[1.05] sm:text-[2.6rem]">
+              Add-ons, <span className="text-[#F86A0A]">only if you want them.</span>
             </h3>
-            <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-gray-600">
+            <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-gray-600">
               Each add-on is one flat price per company, not per user. Turn one on when the
               business is ready for it, and turn it off when it isn&apos;t.
             </p>
           </div>
           <div
-            className="inline-flex self-start rounded-full border border-gray-200 bg-white p-1 sm:self-auto"
+            className="inline-flex self-start rounded-lg bg-[#EDF0F5] p-1 shadow-[inset_0_1px_2px_rgba(10,20,40,0.08)] sm:self-auto"
             role="group"
             aria-label="Billing period"
           >
@@ -142,8 +140,8 @@ export default function WBPricing() {
                 key={period}
                 type="button"
                 onClick={() => setBilling(period)}
-                className={`rounded-full px-4 py-1.5 text-[12.5px] font-bold transition-colors ${
-                  billing === period ? "bg-[#0B57D8] text-white" : "text-gray-500 hover:text-gray-900"
+                className={`rounded-md px-4 py-2 text-[14px] font-bold transition-colors ${
+                  billing === period ? "bg-[#0A1428] text-white shadow-[0_1px_2px_rgba(10,20,40,0.3)]" : "text-gray-600 hover:text-[#0A1428]"
                 }`}
               >
                 {period === "monthly" ? "Monthly" : `Annual · ${12 - ANNUAL_MONTHS} months free`}
@@ -154,7 +152,8 @@ export default function WBPricing() {
 
         <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           {/* Voice (id DISPATCH) */}
-          <div className="flex flex-col rounded-[1.5rem] border border-gray-200 bg-white p-7">
+          <div className={`flex flex-col ${CARD} p-7`}>
+            <h4 className="text-[22px] font-black text-[#0A1428]">{dispatch.name}</h4>
             <p className="mt-2 text-[14px] leading-snug text-gray-600">{dispatch.tagline}</p>
             <div className="text-gray-900">
               <PriceLine monthlyCents={dispatch.monthlyCents} annual={annual} />
@@ -176,11 +175,10 @@ export default function WBPricing() {
           </div>
 
           {/* Pro (id SHOP) */}
-          <div className="flex flex-col rounded-[1.5rem] border-2 border-[#0B57D8] bg-white p-7">
+          <div className={`flex flex-col ${CARD} p-7 ring-2 ring-[#0B57D8]`}>
             <div className="flex items-center justify-between gap-3">
-              <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11.5px] font-bold text-[#0B57D8]">
-                Unlimited users
-              </span>
+              <h4 className="text-[22px] font-black text-[#0A1428]">{shop.name}</h4>
+              <span className="rounded-md bg-[#0B57D8] px-2 py-1 text-[11.5px] font-black text-white">Unlimited users</span>
             </div>
             <p className="mt-2 text-[14px] leading-snug text-gray-600">{shop.tagline}</p>
             <div className="text-gray-900">
@@ -194,18 +192,13 @@ export default function WBPricing() {
                 </li>
               ))}
             </ul>
-            <p className="mt-6 border-t border-gray-100 pt-4 text-[12.5px] leading-relaxed text-gray-500">
-              Atlas Full on its own is {formatPlanPrice()} a month; Pro includes its{" "}
-              {tokenCount(ATLAS_PLAN_TOKENS)} tokens.
-            </p>
           </div>
 
           {/* Gallery (id JOBSITE) — coming soon */}
-          <div className="flex flex-col rounded-[1.5rem] border border-dashed border-gray-300 bg-[#F6F8FB] p-7">
+          <div className={`flex flex-col ${CARD} p-7`}>
             <div className="flex items-center justify-between gap-3">
-              <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[11.5px] font-bold text-[#F86A0A]">
-                Coming soon
-              </span>
+              <h4 className="text-[22px] font-black text-[#0A1428]">{jobsite.name}</h4>
+              <span className="rounded-md bg-[#FFF1E6] px-2 py-1 text-[11.5px] font-black text-[#C2410C]">Coming soon</span>
             </div>
             <p className="mt-2 text-[14px] leading-snug text-gray-600">{jobsite.tagline}</p>
             <div className="text-gray-900">
@@ -219,16 +212,17 @@ export default function WBPricing() {
                 </li>
               ))}
             </ul>
-            <p className="mt-6 border-t border-gray-200 pt-4 text-[12.5px] leading-relaxed text-gray-500">
+            <p className="mt-6 border-t border-gray-100 pt-4 text-[12.5px] leading-relaxed text-gray-500">
               In the works now. The price above is what it will be when it ships.
             </p>
           </div>
 
           {/* Max (FULL_SHOP) */}
-          <div className="relative flex flex-col overflow-hidden rounded-[1.5rem] bg-[#0A1428] p-7 text-white">
+          <div className="relative flex flex-col overflow-hidden rounded-xl bg-[#0A1428] p-7 text-white shadow-[0_2px_0_rgba(10,20,40,0.15),0_18px_34px_-22px_rgba(10,20,40,0.6)]">
             <div className="flex items-center justify-between gap-3">
+              <h4 className="text-[22px] font-black text-white">{FULL_SHOP.name}</h4>
               {saveNow > 0 && (
-                <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11.5px] font-bold text-blue-100">
+                <span className="rounded-md bg-[#F86A0A] px-2 py-1 text-[11.5px] font-black text-white">
                   Save {formatCents(saveNow)}/mo
                 </span>
               )}

@@ -5,6 +5,7 @@ import type { HelpArticle, HelpBlock, HelpSection } from "@/lib/help/types";
 import Arrow from "@/components/ds/Arrow";
 import HelpText from "./HelpText";
 import HelpPageFrame from "./HelpPageFrame";
+import WBHelpFeedback from "@/components/wb/WBHelpFeedback";
 
 function Block({ block, base }: { block: HelpBlock; base: string }) {
   switch (block.type) {
@@ -145,8 +146,19 @@ export default function HelpArticleView({
             <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
           </Link>
         )}
-        {article.plan && <span className="help-chip">{article.plan}</span>}
-        {article.roles && <span className="help-chip help-chip-quiet">{article.roles}</span>}
+        {inApp ? (
+          <>
+            {article.plan && <span className="help-chip">{article.plan}</span>}
+            {article.roles && <span className="help-chip help-chip-quiet">{article.roles}</span>}
+          </>
+        ) : (
+          (article.plan || article.roles) && (
+            /* Public: plain words, not a row of chips */
+            <span className="text-[15px] font-semibold text-gray-500">
+              {[article.plan, article.roles].filter(Boolean).join(" · ")}
+            </span>
+          )
+        )}
       </>
     ) : undefined;
 
@@ -167,7 +179,9 @@ export default function HelpArticleView({
           ))}
         </div>
 
-        <div className="mt-14 grid gap-4 sm:grid-cols-2">
+        {!inApp && <WBHelpFeedback />}
+
+        <div className={`${inApp ? "mt-14" : "mt-6"} grid gap-4 sm:grid-cols-2`}>
           {prev ? (
             <Link prefetch={false} href={`${base}/${prev.slug}`} className="help-card group hidden p-5 sm:block">
               <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-gray-500">

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Check, CreditCard, HandCoins, Infinity as InfinityIcon, ShieldCheck, Sparkles, Users, X } from "lucide-react";
+import { ArrowRight, CalendarDays, CreditCard, HandCoins, Infinity as InfinityIcon, MessagesSquare, ShieldCheck, Sparkles, Users, Wallet } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
 import WBSplitHero from "@/components/wb/WBSplitHero";
 import { WBFaqSection } from "@/components/wb/WBFaq";
@@ -8,6 +8,9 @@ import WBFaqJsonLd from "@/components/wb/WBFaqJsonLd";
 import WBTestimonials from "@/components/wb/WBTestimonials";
 import WBCta from "@/components/wb/WBCta";
 import WBSavingsExamples from "@/components/wb/WBSavingsExamples";
+import WBDoodle from "@/components/wb/WBDoodle";
+import WBFreePlanCountdown from "@/components/wb/WBFreePlanCountdown";
+import WBScribble from "@/components/wb/WBScribble";
 import { BENCHMARK } from "@/lib/wb-savings";
 import { WB_SHOTS, WB_TRADE_PHOTOS } from "@/lib/wb-site";
 import { freeGroups } from "@/lib/wb-free";
@@ -23,6 +26,12 @@ import {
 } from "@/lib/plans";
 
 /**
+ * Redesign 2026-11-19 (David: "the free plan page could also look a lot
+ * better"): as strong as the home's "Free. Not a trial." section: the big
+ * $0 over a hand-drawn Free, what is included printed as $0 tickets, a trial
+ * counting down beside a plan with no end (WBFreePlanCountdown), and how we
+ * make money on a blue band.
+ *
  * /free-field-service-software: the page for "free field service
  * management software" searches. Every number on it is read from
  * lib/plans.ts and lib/atlas-pricing.ts, the same constants the pricing
@@ -104,6 +113,20 @@ const compare: { label: string; core: string; trial: string; coreGood: boolean; 
   { label: "When it ends", core: "It doesn't", trial: "Pay or lose access", coreGood: true, trialGood: false },
 ];
 
+const CARD = "rounded-xl bg-white shadow-[0_0_0_1px_rgba(10,20,40,0.08),0_2px_0_rgba(10,20,40,0.05),0_18px_34px_-22px_rgba(10,20,40,0.35)]";
+const H2 = "text-[2.2rem] leading-[1.05] sm:text-[3.2rem]";
+const BLUE = "linear-gradient(135deg, #0A45B8 0%, #0B57D8 55%, #2563EB 100%)";
+/** One per freeGroups entry, in order: run the work, get paid, grow & manage. */
+const GROUP_ICONS = [CalendarDays, Wallet, MessagesSquare];
+
+function Tile({ icon: Icon }: { icon: typeof CreditCard }) {
+  return (
+    <span className="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-[#0A1428] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_6px_14px_-6px_rgba(10,20,40,0.5)]">
+      <Icon className="h-5 w-5 text-[#FF8B33]" strokeWidth={2.1} />
+    </span>
+  );
+}
+
 export default function FreePage() {
   return (
     <>
@@ -134,210 +157,206 @@ export default function FreePage() {
         </div>
       </WBSplitHero>
 
-      {/* ── What free means here ── */}
-      <section className="border-y border-gray-200 bg-white">
-        <div className="mx-auto grid max-w-6xl gap-x-10 gap-y-8 px-5 py-14 sm:grid-cols-2 sm:px-8 lg:grid-cols-4">
-          {facts.map(({ icon: Icon, title, body }, i) => (
-            <AnimateIn key={title} delay={i * 80}>
-              <div className="flex gap-4">
-                <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-blue-50">
-                  <Icon className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
-                </span>
-                <div>
-                  <p className="text-[15.5px] font-bold text-gray-900">{title}</p>
-                  <p className="mt-1 text-[14px] leading-relaxed text-gray-600">{body}</p>
-                </div>
+      {/* ── Free, not a trial (white, over a faint hand-drawn "Free") ── */}
+      <section className="relative overflow-hidden bg-white">
+        <WBDoodle word="free" paper="#FFFFFF" opacity={0.06} className="right-4 top-1/2 w-[600px] -translate-y-1/2 -rotate-6 max-lg:hidden" />
+        <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 py-24 sm:px-8 sm:py-28 lg:grid-cols-[auto_1fr] lg:gap-20">
+          <AnimateIn>
+            <p className="wb-stamp text-center text-[9rem] font-black leading-none tracking-[-0.06em] text-[#F86A0A] sm:text-[13rem] lg:text-left">
+              {formatCents(0).replace(/\.00$/, "")}
+            </p>
+            <p className="-mt-2 text-center text-[17px] font-bold text-gray-500 lg:text-left">a month on {FREE_PLAN_NAME}, for {seats} users</p>
+          </AnimateIn>
+          <div>
+            <h2 className={H2}>
+              Free. <span className="text-[#64748B]">Not a trial.</span>
+            </h2>
+            <p className="mt-6 max-w-xl text-[18px] leading-relaxed text-gray-600">
+              {FREE_PLAN_NAME} is the full product, on from the day you sign up. We earn a small part of the card fee when your
+              clients pay you, so free stays free.
+            </p>
+            <AnimateIn className="mt-9">
+              <div className="wb-stagger grid gap-4 sm:grid-cols-2">
+                {facts.map(({ icon: Icon, title, body }) => (
+                  <div key={title} className={`flex gap-4 p-5 ${CARD}`}>
+                    <Tile icon={Icon} />
+                    <div>
+                      <p className="text-[16.5px] font-extrabold text-[#0A1428]">{title}</p>
+                      <p className="mt-1 text-[14.5px] leading-relaxed text-gray-600">{body}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </AnimateIn>
-          ))}
+          </div>
+          <div className="pointer-events-none absolute right-[30%] top-8 z-20 hidden items-end gap-1 xl:flex" aria-hidden>
+            <p className="pb-3 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
+              Really.
+              <br />
+              No catch.
+            </p>
+            <WBScribble variant="droop" delay={0.5} className="h-[78px] w-[60px] flex-none" />
+          </div>
         </div>
       </section>
 
-      {/* ── What's in it ── */}
-      <section className="bg-[#F6F8FB]">
-        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
-          <AnimateIn className="max-w-3xl">
-            <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
-              Everything a service business needs to run a day.
+      {/* ── What's in it: each group printed as a ticket, every line Included,
+           the subtotal $0 ── */}
+      <section className="relative overflow-hidden bg-[#F5F7FA]">
+        <WBDoodle word="clipboard" paper="#F5F7FA" opacity={0.06} className="-left-16 bottom-0 w-[300px] -rotate-6 max-lg:hidden" />
+        <div className="relative mx-auto max-w-6xl px-5 py-24 sm:px-8 sm:py-28">
+          <div className="max-w-3xl">
+            <h2 className={H2}>
+              Everything a service business needs <span className="text-[#0B57D8]">to run a day.</span>
             </h2>
-            <p className="mt-4 text-[16px] leading-relaxed text-gray-600">
+            <p className="mt-6 text-[18px] leading-relaxed text-gray-600">
               The same list the pricing page shows, because it is the same list. The{" "}
               <Link href="/features" className="font-semibold text-[#0B57D8] hover:underline">
                 features page
               </Link>{" "}
               has every item in detail.
             </p>
+          </div>
+          <AnimateIn className="mt-14">
+            <div className="wb-stagger grid gap-6 md:grid-cols-3">
+              {freeGroups.map((g, i) => {
+                const Icon = GROUP_ICONS[i % GROUP_ICONS.length];
+                return (
+                  <div key={g.label} className={`flex flex-col overflow-hidden ${CARD}`}>
+                    <div className="flex items-center gap-3 px-6 pb-4 pt-6">
+                      <Tile icon={Icon} />
+                      <p className="text-[20px] font-black tracking-[-0.02em] text-[#0A1428]">{g.label}</p>
+                    </div>
+                    <ul className="flex-1 border-t-2 border-dashed border-gray-200 px-6 py-3">
+                      {g.items.map((item) => (
+                        <li key={item} className="flex items-baseline justify-between gap-4 py-2 text-[15px]">
+                          <span className="font-semibold text-gray-800">{item}</span>
+                          <span className="flex-none text-[13px] font-bold text-gray-400">Included</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="flex items-baseline justify-between border-t-2 border-dashed border-gray-200 bg-[#FAFBFC] px-6 py-4">
+                      <span className="text-[14px] font-bold text-gray-500">Subtotal</span>
+                      <span className="text-[24px] font-black tabular-nums text-[#F86A0A]">{formatCents(0)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </AnimateIn>
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {freeGroups.map((g, i) => (
-              <AnimateIn key={g.label} delay={i * 90}>
-                <div className={`h-full rounded-[1.25rem] border border-gray-200 border-t-4 bg-white p-6 ${g.accent}`}>
-                  <p className="text-[13px] font-bold uppercase tracking-wide text-gray-500">{g.label}</p>
-                  <ul className="mt-4 space-y-2.5">
-                    {g.items.map((item) => (
-                      <li key={item} className="flex items-start gap-2.5 text-[15px] text-gray-800">
-                        <Check className="mt-[3px] h-4 w-4 flex-none text-[#15803d]" strokeWidth={2.5} />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </AnimateIn>
-            ))}
-          </div>
         </div>
       </section>
 
-      {/* ── Free plan vs. free trial ── */}
-      <section className="border-t border-gray-200 bg-white">
-        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
-          <div className="grid gap-10 lg:grid-cols-[1fr_1.2fr] lg:gap-16">
-            <AnimateIn>
-              <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
-                Most &ldquo;free&rdquo; software is a countdown.
-              </h2>
-              <p className="mt-4 text-[16px] leading-relaxed text-gray-600">
-                A free trial gives you the product for a few weeks and then asks for a card. A
-                free plan with the good parts removed makes you upgrade the first time you need
-                to invoice. {FREE_PLAN_NAME} is neither: the essentials are free, on from day one,
-                and they stay that way.
-              </p>
-            </AnimateIn>
-            <AnimateIn delay={120}>
-              <div className="overflow-hidden rounded-[1.25rem] border border-gray-200">
-                <table className="w-full text-left text-[14.5px]">
-                  <thead className="bg-[#F6F8FB] text-[12.5px] font-bold uppercase tracking-wide text-gray-500">
-                    <tr>
-                      <th className="px-4 py-3 font-bold" scope="col">
-                        &nbsp;
-                      </th>
-                      <th className="px-4 py-3 font-bold text-gray-900" scope="col">
-                        WorkBench {FREE_PLAN_NAME}
-                      </th>
-                      <th className="px-4 py-3 font-bold" scope="col">
-                        A typical free trial
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {compare.map((r) => (
-                      <tr key={r.label}>
-                        <th className="px-4 py-3 align-top font-semibold text-gray-700" scope="row">
-                          {r.label}
-                        </th>
-                        <td className="px-4 py-3 align-top text-gray-900">
-                          <span className="flex items-start gap-2">
-                            <Check className="mt-[3px] h-4 w-4 flex-none text-[#15803d]" strokeWidth={2.5} />
-                            {r.core}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 align-top text-gray-600">
-                          <span className="flex items-start gap-2">
-                            <X className="mt-[3px] h-4 w-4 flex-none text-gray-400" strokeWidth={2.5} />
-                            {r.trial}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </AnimateIn>
-          </div>
-        </div>
-      </section>
-
-      {/* ── What costs money ── */}
-      <section className="bg-[#F6F8FB]">
-        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
-          <AnimateIn className="max-w-3xl">
-            <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
-              Three things, all optional, all on the pricing page.
+      {/* ── Free plan vs. free trial: a trial counting down beside a plan with no end ── */}
+      <section className="bg-white">
+        <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-5 py-24 sm:px-8 sm:py-28 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+          <div>
+            <h2 className={H2}>
+              Most &ldquo;free&rdquo; software <span className="text-[#F86A0A]">is a countdown.</span>
             </h2>
+            <p className="mt-6 max-w-lg text-[18px] leading-relaxed text-gray-600">
+              A free trial gives you the product for a few weeks and then asks for a card. A free plan with the good parts removed
+              makes you upgrade the first time you need to invoice. {FREE_PLAN_NAME} is neither: the essentials are free, on from
+              day one, and they stay that way.
+            </p>
+          </div>
+          <AnimateIn>
+            <WBFreePlanCountdown rows={compare} planName={FREE_PLAN_NAME} monthly={formatCents(0)} />
           </AnimateIn>
-          <div className="mt-12 grid gap-6 lg:grid-cols-3">
-            <AnimateIn>
-              <div className="h-full rounded-[1.25rem] border border-gray-200 bg-white p-6">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
-                  <CreditCard className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
-                </span>
-                <h3 className="mt-4 text-[17px] font-bold text-gray-900">Payment processing</h3>
-                <p className="mt-2 text-[14.5px] leading-relaxed text-gray-600">
+        </div>
+      </section>
+
+      {/* ── How we make money (blue band, white cards) ── */}
+      <section className="relative overflow-hidden text-white" style={{ background: BLUE }}>
+        <WBDoodle word="piggy" ink="#FFFFFF" paper="#0B57D8" opacity={0.08} className="-right-16 -top-10 w-[420px] rotate-6 max-lg:hidden" />
+        <div className="relative mx-auto max-w-6xl px-5 py-24 sm:px-8 sm:py-28">
+          <div className="max-w-3xl">
+            <h2 className={H2}>
+              How we make money. <span className="text-[#BFD6FF]">Three things, all optional.</span>
+            </h2>
+            <p className="mt-6 max-w-xl text-[18px] leading-relaxed text-white/85">
+              All three are on the{" "}
+              <Link href="/pricing" className="font-bold text-white underline decoration-white/40 underline-offset-4 hover:decoration-white">
+                pricing page
+              </Link>
+              . None of them is the price of getting started.
+            </p>
+          </div>
+          <AnimateIn className="mt-14">
+            <div className="wb-stagger grid gap-6 text-[#0A1428] lg:grid-cols-3">
+              <div className={`p-7 ${CARD}`}>
+                <Tile icon={CreditCard} />
+                <h3 className="mt-5 text-[20px] font-black tracking-[-0.02em]">Payment processing</h3>
+                <p className="mt-3 text-[15px] leading-relaxed text-gray-600">
                   Only when a client pays you through WorkBench. Pay the fee yourself at{" "}
                   <span className="font-bold text-gray-900">{RATES.companyPaid.card}</span> per card payment and{" "}
-                  <span className="font-bold text-gray-900">{RATES.companyPaid.ach}</span> per ACH transfer, or add a
-                  service fee your client pays at checkout ({RATES.serviceFee.card} card, {RATES.serviceFee.ach} ACH) and
-                  keep the full invoice amount. No monthly fees, no minimums, no charge on failed payments.
+                  <span className="font-bold text-gray-900">{RATES.companyPaid.ach}</span> per ACH transfer, or add a service fee your
+                  client pays at checkout ({RATES.serviceFee.card} card, {RATES.serviceFee.ach} ACH) and keep the full invoice amount. No
+                  monthly fees, no minimums, no charge on failed payments.
                 </p>
-                <p className="mt-3 text-[14.5px] leading-relaxed text-gray-600">
-                  This is the fee you pay already: online card payments cost about {BENCHMARK.label} almost anywhere.
-                  The difference is that here there is no subscription underneath it.
+                <p className="mt-3 text-[15px] leading-relaxed text-gray-600">
+                  This is the fee you pay already: online card payments cost about {BENCHMARK.label} almost anywhere. The difference is
+                  that here there is no subscription underneath it.
                 </p>
               </div>
-            </AnimateIn>
-            <AnimateIn delay={90}>
-              <div className="h-full rounded-[1.25rem] border border-gray-200 bg-white p-6">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50">
-                  <HandCoins className="h-5 w-5 text-[#F86A0A]" strokeWidth={2} />
-                </span>
-                <h3 className="mt-4 text-[17px] font-bold text-gray-900">Add-ons, flat per company</h3>
+              <div className={`p-7 ${CARD}`}>
+                <Tile icon={HandCoins} />
+                <h3 className="mt-5 text-[20px] font-black tracking-[-0.02em]">Add-ons, flat per company</h3>
                 <ul className="mt-3 divide-y divide-gray-100">
                   {addOns.map((p) => (
-                    <li key={p.id} className="flex items-baseline justify-between gap-3 py-2 text-[14.5px]">
+                    <li key={p.id} className="flex items-baseline justify-between gap-3 py-2.5 text-[15px]">
                       <span className="text-gray-800">
                         <span className="font-bold text-gray-900">{p.name}</span>
-                        {p.comingSoon && <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-500">Coming soon</span>}
+                        {p.comingSoon && <span className="ml-2 rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-500">Coming soon</span>}
                         <span className="block text-[13px] text-gray-500">{p.tagline}</span>
                       </span>
-                      <span className="shrink-0 font-bold text-gray-900">{formatCents(p.monthlyCents)}/mo</span>
+                      <span className="shrink-0 font-black text-gray-900">{formatCents(p.monthlyCents)}/mo</span>
                     </li>
                   ))}
-                  <li className="flex items-baseline justify-between gap-3 py-2 text-[14.5px]">
+                  <li className="flex items-baseline justify-between gap-3 py-2.5 text-[15px]">
                     <span className="text-gray-800">
                       <span className="font-bold text-gray-900">{FULL_SHOP.name}</span>
                       <span className="block text-[13px] text-gray-500">{FULL_SHOP.tagline}</span>
                     </span>
-                    <span className="shrink-0 font-bold text-gray-900">{formatCents(FULL_SHOP.monthlyCents)}/mo</span>
+                    <span className="shrink-0 font-black text-gray-900">{formatCents(FULL_SHOP.monthlyCents)}/mo</span>
                   </li>
                 </ul>
-                <p className="mt-3 text-[13px] text-gray-500">Extra users on {FREE_PLAN_NAME} are {seatPrice} a month each; {PLANS.SHOP.name} has no per-user charge.</p>
+                <p className="mt-3 text-[13.5px] text-gray-500">
+                  Extra users on {FREE_PLAN_NAME} are {seatPrice} a month each; {PLANS.SHOP.name} has no per-user charge.
+                </p>
               </div>
-            </AnimateIn>
-            <AnimateIn delay={180}>
-              <div className="h-full rounded-[1.25rem] border border-gray-200 bg-white p-6">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
-                  <Sparkles className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
-                </span>
-                <h3 className="mt-4 text-[17px] font-bold text-gray-900">Atlas, past the free allowance</h3>
-                <p className="mt-2 text-[14.5px] leading-relaxed text-gray-600">
-                  Every account gets {freeTokens} Atlas tokens free each month, refilled on the 1st. AI usage costs
-                  real money, so it is the one metered thing instead of being buried in the price of everything
-                  else. Heavier users can move to Atlas Full, on its own or with {PLANS.SHOP.name};{" "}
-                  <Link href="/pricing#atlas" className="font-semibold text-[#0B57D8] hover:underline">
-                    Atlas pricing
+              <div className={`p-7 ${CARD}`}>
+                <Tile icon={Sparkles} />
+                <h3 className="mt-5 text-[20px] font-black tracking-[-0.02em]">Atlas, past the free allowance</h3>
+                <p className="mt-3 text-[15px] leading-relaxed text-gray-600">
+                  Every account gets {freeTokens} Atlas tokens free each month, refilled on the 1st. AI usage costs real money, so it is
+                  the one metered thing instead of being buried in the price of everything else. Heavier users get a much larger
+                  allowance with {PLANS.SHOP.name};{" "}
+                  <Link href="/pricing" className="font-semibold text-[#0B57D8] hover:underline">
+                    pricing
                   </Link>{" "}
                   has the numbers.
                 </p>
               </div>
-            </AnimateIn>
-          </div>
+            </div>
+          </AnimateIn>
         </div>
       </section>
 
       {/* ── What three shops keep ── */}
-      <section className="border-t border-gray-200 bg-white">
-        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
-          <div className="grid gap-10 lg:grid-cols-[1fr_1.3fr] lg:gap-16">
-            <AnimateIn>
-              <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
-                The card fee is the same bill you pay now. The subscription isn&rsquo;t.
+      <section className="bg-white">
+        <div className="mx-auto max-w-6xl px-5 py-24 sm:px-8 sm:py-28">
+          <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1fr_1.3fr] lg:gap-16">
+            <div>
+              <h2 className={H2}>
+                The card fee is the same bill you pay now. <span className="text-[#0B57D8]">The subscription isn&rsquo;t.</span>
               </h2>
-              <p className="mt-4 text-[16px] leading-relaxed text-gray-600">
-                Three shops, their card volume, and what each keeps in a year next to the cheapest published plan
-                at Jobber and Housecall Pro, with everyone&rsquo;s processing counted.
+              <p className="mt-6 text-[18px] leading-relaxed text-gray-600">
+                Three shops, their card volume, and what each keeps in a year next to the cheapest published plan at Jobber and
+                Housecall Pro, with everyone&rsquo;s processing counted.
               </p>
-            </AnimateIn>
-            <AnimateIn delay={120}>
+            </div>
+            <AnimateIn>
               <WBSavingsExamples />
             </AnimateIn>
           </div>

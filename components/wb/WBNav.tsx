@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, ChevronDown, Menu, Phone, X } from "lucide-react";
 import { WB_PHONE } from "@/lib/wb-site";
 import { MARK_BAR, MARK_LEG_LEFT, MARK_LEG_RIGHT, MARK_ORANGE, MARK_ROUND, MARK_W, MARK_WHITE } from "@/lib/brand-mark";
@@ -82,6 +82,8 @@ function barColor(t: number) {
 export default function WBNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [menusShut, setMenusShut] = useState(false);
+  const firstPath = useRef(true);
   const [scrolled, setScrolled] = useState(false);
   const [hidden, setHidden] = useState(false);
   // 0 at the top of the page → 1 at the bottom (the immersive bar's color).
@@ -90,6 +92,15 @@ export default function WBNav() {
   // Close the phone menu on navigation.
   useEffect(() => {
     setOpen(false);
+    // A dropdown link was clicked: the menu stays open while it has focus or
+    // the pointer, so drop the focus and hold the menus shut until the
+    // pointer leaves the bar (David 2026-11-19: the menu didn't go away).
+    if (firstPath.current) {
+      firstPath.current = false;
+      return;
+    }
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    setMenusShut(true);
   }, [pathname]);
 
   useEffect(() => {
@@ -207,7 +218,7 @@ export default function WBNav() {
             {links.map((l) => {
               const active = isActive(l);
               return (
-                <div key={l.label} className="group relative flex items-stretch">
+                <div key={l.label} className="group relative flex items-stretch" onMouseLeave={() => setMenusShut(false)}>
                   <Link
                     href={l.href}
                     aria-current={active && pathname === l.href ? "page" : undefined}
@@ -222,7 +233,7 @@ export default function WBNav() {
                     )}
                   </Link>
                   {l.menu && (
-                    <div className="invisible absolute left-0 top-full z-50 origin-top-left translate-y-1.5 scale-[0.98] pt-2 opacity-0 transition-[opacity,transform,visibility] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:scale-100 group-focus-within:opacity-100 group-hover:visible group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100">
+                    <div className={`${menusShut ? "!invisible !opacity-0" : ""} invisible absolute left-0 top-full z-50 origin-top-left translate-y-1.5 scale-[0.98] pt-2 opacity-0 transition-[opacity,transform,visibility] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:scale-100 group-focus-within:opacity-100 group-hover:visible group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100`}>
                       <ul className={`wb-navmenu rounded-xl bg-white p-2 ${l.wide ? "grid w-[40rem] grid-cols-2 gap-1" : "w-[19rem]"}`}>
                         {l.menu.map((m) => (
                           <li key={m.href}>

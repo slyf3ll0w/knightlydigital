@@ -5,10 +5,13 @@ import { AnimateIn } from "@/components/AnimateIn";
 import WBSplitHero from "@/components/wb/WBSplitHero";
 import WBScribble from "@/components/wb/WBScribble";
 import WBTestimonials from "@/components/wb/WBTestimonials";
-import { WB_DAY_PHOTOS } from "@/lib/wb-site";
+import { WB_DAY_PHOTOS, WB_PHONE } from "@/lib/wb-site";
 import ApplyForm from "@/components/ApplyForm";
 import { socialSignInFor } from "@/lib/sign-in-options";
-import { ClipboardList, ShieldCheck, Wrench } from "lucide-react";
+import { ClipboardList, FileText, ShieldCheck, Wrench } from "lucide-react";
+import Link from "next/link";
+import WBApplyPreview from "@/components/wb/WBApplyPreview";
+import WBDoodle from "@/components/wb/WBDoodle";
 import { paymentsGateEnabled, paymentsSetupGateEnabled } from "@/lib/payments-gate";
 import { RATES } from "@/lib/plans";
 import { draftPrefill } from "@/lib/tool-drafts";
@@ -19,6 +22,8 @@ export const metadata: Metadata = {
   description:
     `Open your WorkBench account in minutes: tell us about your business and start setting up. Free with full access for ${INCLUDED_SEATS} users, not a trial.`,
 };
+
+const CARD = "rounded-xl bg-white shadow-[0_0_0_1px_rgba(10,20,40,0.08),0_2px_0_rgba(10,20,40,0.05),0_18px_34px_-22px_rgba(10,20,40,0.35)]";
 
 const verifySteps = [
   {
@@ -125,40 +130,73 @@ export default async function WBApplyPage({ searchParams }: { searchParams: Prom
         </div>
       </WBSplitHero>
 
-      {/* ── The three steps ── */}
-      <section className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
-        <div className="grid gap-6 md:grid-cols-3">
-          {steps.map(({ icon: Icon, step, title, body }, i) => (
-            <AnimateIn key={title} delay={i * 110}>
-              <div className="h-full rounded-[1.5rem] border border-gray-200 bg-white p-7">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${i === 1 ? "bg-orange-50" : "bg-blue-50"}`}>
-                  <Icon className={`h-[18px] w-[18px] ${i === 1 ? "text-[#F86A0A]" : "text-[#0B57D8]"}`} strokeWidth={2} />
-                </div>
-                <p className="mt-5 text-[13px] font-bold text-gray-500">{step}</p>
-                <h2 className="mt-1 text-[16px] font-bold text-gray-900">{title}</h2>
-                <p className="mt-2 text-[14.5px] leading-relaxed text-gray-600">{body}</p>
+      {/* ── The steps and a peek at the account beside the form, on one
+           light band (facelift 2026-11-19) ── */}
+      <section className="relative overflow-hidden bg-[#F5F7FA]">
+        <WBDoodle word="clipboard" paper="#F5F7FA" opacity={0.05} className="-left-20 bottom-10 w-[300px] -rotate-6 max-lg:hidden" />
+        <div className="relative mx-auto grid max-w-6xl items-start gap-10 px-5 py-16 sm:px-8 sm:py-24 lg:grid-cols-[380px_1fr] lg:gap-14">
+          <aside className="space-y-6 lg:sticky lg:top-28">
+            <AnimateIn>
+              <div className={`p-6 sm:p-7 ${CARD}`}>
+                <p className="text-[22px] font-black tracking-[-0.02em] text-[#0A1428]">How it goes</p>
+                <ol className="wb-stagger mt-6">
+                  {steps.map(({ icon: Icon, step, title, body }, i) => (
+                    <li key={title} className="relative flex gap-4 pb-7 last:pb-0">
+                      {i < steps.length - 1 && <span className="absolute left-[21px] top-12 bottom-1 w-[2px] rounded bg-[#E3E6EC]" aria-hidden />}
+                      <span
+                        className={`relative flex h-11 w-11 flex-none items-center justify-center rounded-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_6px_14px_-6px_rgba(10,20,40,0.5)] ${i === 0 ? "bg-[#F86A0A]" : "bg-[#0A1428]"}`}
+                      >
+                        <Icon className={`h-5 w-5 ${i === 0 ? "text-white" : "text-[#FF8B33]"}`} strokeWidth={2.1} />
+                      </span>
+                      <span className="min-w-0 pt-0.5">
+                        <span className="sr-only">{step}: </span>
+                        <span className="block text-[16.5px] font-extrabold text-[#0A1428]">{title}</span>
+                        <span className="mt-1 block text-[14.5px] leading-relaxed text-gray-600">{body}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ol>
               </div>
             </AnimateIn>
-          ))}
-        </div>
-      </section>
+            <AnimateIn className="hidden sm:block" delay={120}>
+              <p className="mb-3 px-1 text-[15px] font-extrabold text-[#10244A]">The first thing you see when you&apos;re in</p>
+              <WBApplyPreview />
+            </AnimateIn>
+          </aside>
 
-      {/* ── Application form ── */}
-      <section className="mx-auto max-w-3xl px-5 pb-20 sm:px-8">
-        <AnimateIn>
-          {draft && (
-            <p className="mb-4 rounded-xl border border-[#0B57D8]/20 bg-blue-50/60 px-4 py-3 text-[14px] text-gray-700">
-              Your {draft.kind === "estimate" ? "estimate" : "invoice"} is coming with you. It will be waiting in the account the moment it opens.
+          <div className="min-w-0">
+            {draft && (
+              <p className={`mb-5 flex items-center gap-3 px-5 py-4 text-[15px] text-gray-700 ${CARD}`}>
+                <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-[#0A1428]">
+                  <FileText className="h-[18px] w-[18px] text-[#FF8B33]" strokeWidth={2.1} />
+                </span>
+                Your {draft.kind === "estimate" ? "estimate" : "invoice"} is coming with you. It will be waiting in the account the moment it opens.
+              </p>
+            )}
+            {/* The form keeps its own markup and logic (components/ApplyForm.tsx);
+                only its outer surface is restyled here to match the solid cards. */}
+            <div className="[&>div]:!rounded-xl [&>div]:!border-transparent [&>div]:shadow-[0_0_0_1px_rgba(10,20,40,0.08),0_2px_0_rgba(10,20,40,0.05),0_30px_50px_-26px_rgba(10,20,40,0.4)] [&>form]:!rounded-xl [&>form]:!border-transparent [&>form]:shadow-[0_0_0_1px_rgba(10,20,40,0.08),0_2px_0_rgba(10,20,40,0.05),0_30px_50px_-26px_rgba(10,20,40,0.4)]">
+              <ApplyForm
+                social={socialSignInFor(ua)}
+                verifyPayments={verifyPayments}
+                setupPayments={setupPayments}
+                initial={draft ? { companyName: draft.companyName, email: draft.email, phone: draft.phone } : toolSender ? { email: toolSender.email } : undefined}
+                draftId={draft?.id}
+              />
+            </div>
+            <p className="mt-5 px-1 text-[15px] text-gray-600">
+              Rather talk it through first?{" "}
+              <Link href="/book-a-call" className="font-bold text-[#0B57D8] hover:underline">
+                Book a free setup call
+              </Link>{" "}
+              or call{" "}
+              <a href={WB_PHONE.href} className="font-bold text-[#0B57D8] hover:underline">
+                {WB_PHONE.display}
+              </a>
+              .
             </p>
-          )}
-          <ApplyForm
-            social={socialSignInFor(ua)}
-            verifyPayments={verifyPayments}
-            setupPayments={setupPayments}
-            initial={draft ? { companyName: draft.companyName, email: draft.email, phone: draft.phone } : toolSender ? { email: toolSender.email } : undefined}
-            draftId={draft?.id}
-          />
-        </AnimateIn>
+          </div>
+        </div>
       </section>
 
       <WBTestimonials />

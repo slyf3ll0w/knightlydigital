@@ -32,6 +32,7 @@ export default function WBFeaturePage({
   title,
   intro,
   screenshot,
+  demo,
   photo,
   phone,
   chip,
@@ -53,6 +54,10 @@ export default function WBFeaturePage({
   title: React.ReactNode;
   intro: string;
   screenshot: { src: string; alt: string; kind?: "desktop" | "mobile"; caption?: string };
+  /** A live, animated coded copy of the app shown in place of the screenshot
+   *  (2026-11-19: WBAppJourney with this page's steps or trade's job,
+   *  WBAtlasDemo…). Falls back to the screenshot. */
+  demo?: React.ReactNode;
   /** Job-site photo behind the phone in the hero. */
   photo: { src: string; alt: string };
   /** Real phone screenshot for the hero (see WB_SHOTS in WBSplitHero). */
@@ -91,17 +96,19 @@ export default function WBFeaturePage({
         <section className="border-b border-gray-200 bg-[#F6F8FB]">
           <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
             <AnimateIn className="relative">
-              <div className="absolute -top-9 right-0 hidden items-end gap-1 lg:flex" aria-hidden>
+              <div className={`absolute -top-9 right-0 hidden items-end gap-1 ${demo ? "" : "lg:flex"}`} aria-hidden>
                 <p className="pb-1 text-right text-[14.5px] font-extrabold leading-snug text-[#10244A]">
-                  The real screen,
+                  {demo ? "The real app," : "The real screen,"}
                   <br />
-                  not a mockup
+                  {demo ? "doing the job" : "not a mockup"}
                 </p>
                 <WBScribble variant="droop" delay={0.4} className="h-[80px] w-[62px] flex-none" />
               </div>
-              <div className="mx-auto max-w-4xl">
-                <WBScreenshotFrame {...screenshot} />
-              </div>
+              {demo ? <div className="mx-auto max-w-5xl">{demo}</div> : (
+                <div className="mx-auto max-w-4xl">
+                  <WBScreenshotFrame {...screenshot} />
+                </div>
+              )}
             </AnimateIn>
           </div>
         </section>
@@ -131,41 +138,39 @@ export default function WBFeaturePage({
 
       {extra}
 
-      {/* Feature grid */}
+      {/* What's included: a spec sheet — the title holds still on the left,
+          the features rise in as a ruled list on the right (2026-11-19: the
+          9-card icon grid read as AI-made). */}
       <section className="bg-white">
-        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
-          <AnimateIn>
+        <div className="mx-auto grid max-w-6xl gap-12 px-5 py-20 sm:px-8 sm:py-28 lg:grid-cols-[340px_1fr] lg:gap-16">
+          <div className="lg:sticky lg:top-28 lg:self-start">
             <h2 className="text-[2.2rem] leading-[1.05] sm:text-[3.2rem]">
               What&apos;s <span className="text-[#F86A0A]">included.</span>
             </h2>
-            <p className="mt-4 text-[16px] font-semibold text-gray-500">
+            <p className="mt-4 text-[17px] leading-relaxed text-gray-600">
               {features.some((f) => f.plan)
-                ? `In ${FREE_PLAN_NAME}, the free plan, unless marked with an add-on.`
+                ? `In ${FREE_PLAN_NAME}, the free plan, unless it says otherwise.`
                 : `All of it is in ${FREE_PLAN_NAME}, the free plan.`}
             </p>
-          </AnimateIn>
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map(({ icon: Icon, title: t, body, plan }, i) => (
-              <AnimateIn key={t} delay={(i % 3) * 90} className="h-full">
-                <div className="flex h-full gap-4 rounded-xl bg-white p-6 shadow-[0_0_0_1px_rgba(10,20,40,0.08),0_2px_0_rgba(10,20,40,0.05),0_18px_34px_-22px_rgba(10,20,40,0.35)]">
-                  <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-[#0A1428]">
-                    <Icon className="h-5 w-5 text-[#FF8B33]" strokeWidth={2} />
-                  </span>
-                  <div>
-                    <h3 className="flex flex-wrap items-center gap-2 text-[17px] font-extrabold text-gray-900">
-                      {t}
-                      {plan && (
-                        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-[#0B57D8]">
-                          {PLANS[plan].name}
-                        </span>
-                      )}
-                    </h3>
-                    <p className="mt-1.5 text-[14.5px] leading-relaxed text-gray-600">{body}</p>
-                  </div>
-                </div>
-              </AnimateIn>
-            ))}
+            <Link href="/apply" className="wb-pill wb-pill-orange mt-8 !px-6 !py-3.5">
+              Get started free
+              <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+            </Link>
           </div>
+          <AnimateIn className="wb-stagger grid border-t-2 border-[#0A1428] sm:grid-cols-2 sm:gap-x-10">
+            {features.map(({ icon: Icon, title: t, body, plan }) => (
+              <div key={t} className="flex gap-4 border-b border-gray-200 py-6">
+                <Icon className="mt-1 h-5 w-5 flex-none text-[#F86A0A]" strokeWidth={2.2} />
+                <div>
+                  <h3 className="flex flex-wrap items-baseline gap-x-2 text-[17.5px] font-extrabold text-gray-900">
+                    {t}
+                    {plan && <span className="text-[13px] font-bold text-[#0B57D8]">with {PLANS[plan].name}</span>}
+                  </h3>
+                  <p className="mt-1.5 text-[15px] leading-relaxed text-gray-600">{body}</p>
+                </div>
+              </div>
+            ))}
+          </AnimateIn>
         </div>
       </section>
 

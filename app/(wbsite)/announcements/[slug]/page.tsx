@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
+import { Fragment } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, BookOpen, ChevronRight } from "lucide-react";
+import { AnimateIn } from "@/components/AnimateIn";
+import WBAnnounceVisual from "@/components/wb/WBAnnounceVisual";
 import WBCta from "@/components/wb/WBCta";
 import WBHero from "@/components/wb/WBHero";
+import { findHelpArticle } from "@/lib/help/search";
 import { ANNOUNCEMENTS, ANNOUNCEMENTS_PATH, announcementDate, announcementPath, findAnnouncement, type AnnouncementBlock } from "@/lib/wb-announcements";
 
 const BASE = "https://workbenchfsm.com";
@@ -37,10 +41,15 @@ function wordCount(blocks: AnnouncementBlock[]): number {
   return text.split(/\s+/).filter(Boolean).length;
 }
 
+const CARD =
+  "rounded-xl bg-white shadow-[0_0_0_1px_rgba(10,20,40,0.08),0_2px_0_rgba(10,20,40,0.05),0_18px_34px_-22px_rgba(10,20,40,0.35)]";
+
 /* One release announcement. The words live in lib/wb-announcements.ts; this
    template lays out any post the same way (header, article with its own
    table of contents, the Help guide, the next/previous post), so a new post
-   needs no layout work. */
+   needs no layout work. Restyled 2026-11-19 (David: "looks super
+   AI-generated"): solid cards, no small-caps labels, and the screen the
+   post is about (WBAnnounceVisual) after the opening paragraph. */
 export default async function AnnouncementPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const a = findAnnouncement(slug);
@@ -51,6 +60,10 @@ export default async function AnnouncementPage({ params }: { params: Promise<{ s
   const older = i < ANNOUNCEMENTS.length - 1 ? ANNOUNCEMENTS[i + 1] : null;
   const headings = a.blocks.filter((b): b is Extract<AnnouncementBlock, { type: "h" }> => b.type === "h");
   const minutes = Math.max(1, Math.round(wordCount(a.blocks) / 220));
+  const guide = findHelpArticle(a.help.slug);
+  const pager = [older ? { a: older, dir: "Older" as const } : null, newer ? { a: newer, dir: "Newer" as const } : null].filter(
+    (x): x is { a: typeof ANNOUNCEMENTS[number]; dir: "Older" | "Newer" } => x !== null,
+  );
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -69,49 +82,48 @@ export default async function AnnouncementPage({ params }: { params: Promise<{ s
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <WBHero>
-        <nav className="flex items-center gap-1.5 text-[14px] font-semibold text-gray-500" aria-label="Breadcrumb">
-          <Link href={ANNOUNCEMENTS_PATH} className="hover:text-gray-900">
+        <nav className="flex items-center gap-1.5 text-[14px] font-semibold text-white/60" aria-label="Breadcrumb">
+          <Link href={ANNOUNCEMENTS_PATH} className="hover:text-white">
             Announcements
           </Link>
-          <ChevronRight className="h-3.5 w-3.5 text-gray-300" strokeWidth={2.5} />
-          <span className="truncate text-gray-700">{a.title}</span>
+          <ChevronRight className="h-3.5 w-3.5 flex-none text-white/35" strokeWidth={2.5} />
+          <span className="truncate text-white/85">{a.title}</span>
         </nav>
-        <div className="mt-8 max-w-3xl">
-          <p className="flex flex-wrap items-center gap-3">
-            <span className="inline-block rounded-sm border border-[#0B57D8] px-2 py-0.5 text-[11.5px] font-extrabold uppercase tracking-[0.12em] text-[#0B57D8]">
-              {a.tag}
-            </span>
-            <time dateTime={a.date} className="text-[14px] font-semibold text-gray-500">
-              {announcementDate(a.date)}
-            </time>
-            <span className="text-[14px] text-gray-400" aria-hidden>
+        <div className="mt-8 max-w-4xl">
+          <p className="text-[15px] font-semibold text-gray-500">
+            <time dateTime={a.date}>{announcementDate(a.date)}</time>
+            <span className="mx-2 opacity-50" aria-hidden>
               ·
             </span>
-            <span className="text-[14px] font-semibold text-gray-500">{minutes} min read</span>
+            <span className="text-[#FF8B33]">{a.tag}</span>
+            <span className="mx-2 opacity-50" aria-hidden>
+              ·
+            </span>
+            {minutes} min read
           </p>
-          <h1 className="mt-5 text-4xl font-extrabold leading-[1.06] text-gray-900 sm:text-[3.2rem]">{a.title}</h1>
-          <span className="wb-bar" aria-hidden />
-          <p className="mt-6 text-[18px] leading-relaxed text-gray-600 sm:text-[19px]">{a.summary}</p>
+          <h1 className="mt-5 text-[2.6rem] leading-[1.02] tracking-[-0.04em] sm:text-[4rem]">{a.title}</h1>
+          <p className="mt-6 max-w-3xl text-[18px] leading-relaxed text-gray-600 sm:text-[20px]">{a.summary}</p>
         </div>
       </WBHero>
 
       <section className="bg-white">
-        <div className="mx-auto grid max-w-6xl gap-12 px-5 py-14 sm:px-8 sm:py-16 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-20">
+        <div className="mx-auto grid max-w-6xl gap-12 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-20">
           <article className="wb-prose min-w-0 max-w-[44rem]">
             {a.blocks.map((b, n) => {
+              let el: React.ReactNode;
               if (b.type === "h") {
-                return (
-                  <h2 key={n} id={anchor(b.text)} className="scroll-mt-28">
+                el = (
+                  <h2 id={anchor(b.text)} className="scroll-mt-28 !text-[1.9rem] !font-black !tracking-[-0.02em]">
                     {b.text}
                   </h2>
                 );
-              }
-              if (b.type === "p") return <p key={n}>{b.text}</p>;
-              if (b.type === "steps") {
-                return (
-                  <ol key={n} className="!mt-6 border-t border-gray-200">
+              } else if (b.type === "p") {
+                el = <p>{b.text}</p>;
+              } else if (b.type === "steps") {
+                el = (
+                  <ol className={`${CARD} !mt-6 overflow-hidden`}>
                     {b.items.map((s, k) => (
-                      <li key={k} className="flex gap-4 border-b border-gray-200 py-4">
+                      <li key={k} className="flex gap-4 border-t border-gray-100 px-5 py-4 first:border-t-0 sm:px-6">
                         <span className="flex h-8 w-8 flex-none items-center justify-center rounded-md bg-[#0A1428] text-[14px] font-extrabold text-white">
                           {k + 1}
                         </span>
@@ -120,43 +132,68 @@ export default async function AnnouncementPage({ params }: { params: Promise<{ s
                     ))}
                   </ol>
                 );
+              } else if (b.items.every((i) => i.title)) {
+                // Titled points: one solid card each, stacked
+                el = (
+                  <ul className="!mt-6 space-y-4">
+                    {b.items.map((item, k) => (
+                      <li key={k} className={`${CARD} p-5 sm:p-6`}>
+                        <strong className="block text-[18px] font-extrabold leading-snug">{item.title}</strong>
+                        <span className="mt-1.5 block text-[16px] leading-relaxed">{item.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                );
+              } else {
+                el = (
+                  <ul className="!mt-5 space-y-3">
+                    {b.items.map((item, k) => (
+                      <li key={k} className="flex gap-3.5">
+                        <span className="mt-[0.8em] h-[3px] w-3.5 flex-none rounded-full bg-[#F86A0A]" aria-hidden />
+                        <span>
+                          {item.title && <strong>{item.title} </strong>}
+                          {item.text}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                );
               }
               return (
-                <ul key={n} className="!mt-6 space-y-5">
-                  {b.items.map((item, k) => (
-                    <li key={k} className="border-l-[3px] border-[#F86A0A] pl-5">
-                      {item.title && <strong className="block text-[17.5px] font-extrabold">{item.title}</strong>}
-                      <span className={item.title ? "mt-1 block" : ""}>{item.text}</span>
-                    </li>
-                  ))}
-                </ul>
+                <Fragment key={n}>
+                  {el}
+                  {/* The screen the post is about, after the opening paragraph */}
+                  {n === 0 && (
+                    <AnimateIn className="!mt-10 !mb-4">
+                      <WBAnnounceVisual announcement={a} />
+                    </AnimateIn>
+                  )}
+                </Fragment>
               );
             })}
 
-            <Link
-              href={`/help/${a.help.slug}`}
-              className="group !mt-14 flex items-center gap-5 rounded-lg bg-[#0A1428] p-6 text-white no-underline sm:p-7"
-            >
-              <span className="flex h-12 w-12 flex-none items-center justify-center rounded-md bg-white/10">
-                <BookOpen className="h-6 w-6 text-[#FF8B33]" strokeWidth={2} />
+            <Link href={`/help/${a.help.slug}`} className={`${CARD} group !mt-14 flex items-center gap-5 p-6 no-underline transition-transform duration-200 hover:-translate-y-1 sm:p-7`}>
+              <span className="flex h-14 w-14 flex-none items-center justify-center rounded-lg bg-[#0A1428]">
+                <BookOpen className="h-7 w-7 text-[#FF8B33]" strokeWidth={2} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-extrabold uppercase tracking-[0.12em] text-[#9DBBF7]">Step by step in the Help Center</span>
-                <span className="mt-1 block text-[18px] font-extrabold leading-snug">{a.help.label}</span>
+                <span className="block text-[14px] font-semibold text-gray-500">The step-by-step guide</span>
+                <span className="mt-0.5 block text-[19px] font-extrabold leading-snug text-[#0A1428] group-hover:text-[#0B57D8]">{a.help.label}</span>
+                {guide && <span className="mt-1 block text-[15px] leading-relaxed text-gray-600">{guide.article.summary}</span>}
               </span>
-              <ArrowRight className="h-5 w-5 flex-none text-[#FF8B33] transition-transform group-hover:translate-x-1" strokeWidth={2.5} />
+              <ArrowRight className="h-5 w-5 flex-none text-[#F86A0A] transition-transform group-hover:translate-x-1" strokeWidth={2.5} />
             </Link>
           </article>
 
           <aside className="hidden lg:block">
-            <div className="sticky top-28 space-y-8">
+            <div className="sticky top-28 space-y-6">
               {headings.length > 0 && (
                 <nav aria-label="On this page">
-                  <p className="text-[12.5px] font-extrabold uppercase tracking-[0.12em] text-gray-500">On this page</p>
+                  <p className="text-[15px] font-extrabold text-[#0A1428]">On this page</p>
                   <ul className="mt-3 border-l-2 border-gray-200">
                     {headings.map((h) => (
                       <li key={h.text}>
-                        <a href={`#${anchor(h.text)}`} className="-ml-[2px] block border-l-2 border-transparent py-1.5 pl-4 text-[14.5px] font-semibold text-gray-600 hover:border-[#0B57D8] hover:text-gray-900">
+                        <a href={`#${anchor(h.text)}`} className="-ml-[2px] block border-l-2 border-transparent py-1.5 pl-4 text-[14.5px] font-semibold text-gray-600 hover:border-[#F86A0A] hover:text-gray-900">
                           {h.text}
                         </a>
                       </li>
@@ -164,14 +201,14 @@ export default async function AnnouncementPage({ params }: { params: Promise<{ s
                   </ul>
                 </nav>
               )}
-              <div className="border-t-2 border-[#0A1428] pt-5">
-                <p className="text-[16px] font-extrabold text-gray-900">Try it in your account</p>
+              <div className={`${CARD} p-6`}>
+                <p className="text-[17px] font-extrabold text-[#0A1428]">Try it in your account</p>
                 <p className="mt-1.5 text-[14.5px] leading-relaxed text-gray-600">Already live. Log in and it is there.</p>
-                <div className="mt-4 flex flex-col gap-2.5">
-                  <Link href="/app/login" className="wb-pill wb-pill-primary wb-pill-sm">
+                <div className="mt-5 flex flex-col gap-2.5">
+                  <Link href="/app/login" className="wb-pill wb-pill-dark wb-pill-sm">
                     Log in
                   </Link>
-                  <Link href="/apply" className="wb-pill wb-pill-outline wb-pill-sm">
+                  <Link href="/apply" className="wb-pill wb-pill-orange wb-pill-sm">
                     Get started free
                   </Link>
                 </div>
@@ -181,31 +218,28 @@ export default async function AnnouncementPage({ params }: { params: Promise<{ s
         </div>
       </section>
 
-      {/* Older / newer posts */}
-      <section className="border-t border-gray-200 bg-[#F5F7FA]">
-        <div className="mx-auto grid max-w-6xl gap-4 px-5 py-10 sm:grid-cols-2 sm:px-8">
-          {older ? (
-            <Link href={announcementPath(older)} className="group rounded-lg border border-gray-200 bg-white p-5 hover:border-gray-400">
-              <span className="flex items-center gap-1.5 text-[13px] font-bold text-gray-500">
-                <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2.5} /> Older
+      {/* Older / newer posts, or the way back to the list */}
+      <section className="bg-[#F5F7FA]">
+        <div className={`mx-auto grid max-w-6xl gap-5 px-5 py-14 sm:px-8 ${pager.length === 2 ? "sm:grid-cols-2" : ""}`}>
+          {pager.length === 0 ? (
+            <Link href={ANNOUNCEMENTS_PATH} className={`${CARD} group flex items-center justify-between gap-4 p-6`}>
+              <span>
+                <span className="block text-[14px] font-semibold text-gray-500">Back to</span>
+                <span className="mt-0.5 block text-[18px] font-extrabold text-[#0A1428] group-hover:text-[#0B57D8]">All announcements</span>
               </span>
-              <span className="mt-1 block text-[16px] font-extrabold text-gray-900 group-hover:text-[#0B57D8]">{older.title}</span>
+              <ArrowLeft className="h-5 w-5 flex-none text-[#F86A0A]" strokeWidth={2.5} />
             </Link>
           ) : (
-            <Link href={ANNOUNCEMENTS_PATH} className="group rounded-lg border border-gray-200 bg-white p-5 hover:border-gray-400">
-              <span className="flex items-center gap-1.5 text-[13px] font-bold text-gray-500">
-                <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2.5} /> Back to
-              </span>
-              <span className="mt-1 block text-[16px] font-extrabold text-gray-900 group-hover:text-[#0B57D8]">All announcements</span>
-            </Link>
-          )}
-          {newer && (
-            <Link href={announcementPath(newer)} className="group rounded-lg border border-gray-200 bg-white p-5 text-right hover:border-gray-400">
-              <span className="flex items-center justify-end gap-1.5 text-[13px] font-bold text-gray-500">
-                Newer <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-              </span>
-              <span className="mt-1 block text-[16px] font-extrabold text-gray-900 group-hover:text-[#0B57D8]">{newer.title}</span>
-            </Link>
+            pager.map(({ a: p, dir }) => (
+              <Link key={p.slug} href={announcementPath(p)} className={`${CARD} group block p-6 ${dir === "Newer" ? "sm:text-right" : ""}`}>
+                <span className={`flex items-center gap-1.5 text-[14px] font-semibold text-gray-500 ${dir === "Newer" ? "sm:justify-end" : ""}`}>
+                  {dir === "Older" && <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2.5} />}
+                  {dir} · {announcementDate(p.date)}
+                  {dir === "Newer" && <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />}
+                </span>
+                <span className="mt-1 block text-[18px] font-extrabold text-[#0A1428] group-hover:text-[#0B57D8]">{p.title}</span>
+              </Link>
+            ))
           )}
         </div>
       </section>

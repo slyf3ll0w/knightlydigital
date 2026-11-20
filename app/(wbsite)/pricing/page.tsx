@@ -9,11 +9,12 @@ import WBScribble from "@/components/wb/WBScribble";
 import { WBFaqSection } from "@/components/wb/WBFaq";
 import WBAgentLink from "@/components/wb/WBAgentLink";
 import WBPricing from "@/components/wb/WBPricing";
-import WBSavings from "@/components/wb/WBSavings";
-import WBCompareSimple from "@/components/wb/WBCompareSimple";
+import WBPriceAverage from "@/components/wb/WBPriceAverage";
+import WBPriceForever from "@/components/wb/WBPriceForever";
+import WBDoodle from "@/components/wb/WBDoodle";
 import { BENCHMARK } from "@/lib/wb-savings";
-import { ArrowRight, Compass, CreditCard, HandCoins, Puzzle, ShieldCheck, Sparkles } from "lucide-react";
-import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
+import { ArrowRight, CreditCard, HandCoins, ShieldCheck } from "lucide-react";
+import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, tokenCount } from "@/lib/atlas-pricing";
 import {
   ANNUAL_MONTHS,
   DISPATCH_SETUP_CENTS,
@@ -30,7 +31,8 @@ import { WB_PHONE, WB_TRADE_PHOTOS } from "@/lib/wb-site";
 
 const freeTokens = tokenCount(ATLAS_FREE_TOKENS);
 const planTokens = tokenCount(ATLAS_PLAN_TOKENS);
-const planPrice = formatPlanPrice();
+const H2 = "text-[2.2rem] leading-[1.05] sm:text-[3.2rem]";
+const CARD = "rounded-xl bg-white shadow-[0_0_0_1px_rgba(10,20,40,0.08),0_2px_0_rgba(10,20,40,0.05),0_18px_34px_-22px_rgba(10,20,40,0.35)]";
 const dispatch = PLANS.DISPATCH;
 const shop = PLANS.SHOP;
 const jobsite = PLANS.JOBSITE;
@@ -47,9 +49,9 @@ const pricingFaq = [
         software is free. Or add a service fee your client pays at checkout and the processing costs you
         nothing. The{" "}
         <a href="#savings" className="font-semibold text-[#0B57D8] hover:underline">
-          estimate above
+          average above
         </a>{" "}
-        puts numbers on it for your shop.
+        puts numbers on it for a typical shop.
       </p>
     ),
   },
@@ -158,9 +160,9 @@ const pricingFaq = [
       <p>
         A unit of AI work. A quick question costs a couple hundred tokens; a big job like
         rescheduling a whole day or editing forty records costs more, and every reply shows
-        what it used. Your {freeTokens} free tokens refill on the 1st of every month. Atlas Full
-        is {planTokens} tokens a month, {planPrice} on its own or included with {shop.name}, and
-        Atlas never spends past either allowance.
+        what it used. Your {freeTokens} free tokens refill on the 1st of every month.{" "}
+        {shop.name} and {FULL_SHOP.name} include {planTokens} tokens a month, and Atlas never
+        spends past your allowance.
       </p>
     ),
   },
@@ -212,242 +214,107 @@ export default function WBPricingPage() {
       </WBSplitHero>
 
       {/* ── The plans ── */}
-      <section className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-16">
-        <AnimateIn>
-          <WBPricing />
-        </AnimateIn>
-        <WBAgentLink href="/pricing.md" what="this pricing" />
-      </section>
-
-      {/* ── How it's free ── */}
-      <section className="border-t border-gray-200 bg-white">
-        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
-          <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr] lg:gap-20">
-            <AnimateIn>
-              <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
-                So how is the core free?
-              </h2>
-              <p className="mt-5 max-w-lg text-[15.5px] leading-relaxed text-gray-600">
-                Payments. WorkBench has card and ACH processing built into
-                every quote, invoice, and booking. Pay the fee yourself at{" "}
-                <span className="font-bold text-gray-900">
-                  {RATES.companyPaid.card} per card transaction
-                </span>{" "}
-                and{" "}
-                <span className="font-bold text-gray-900">
-                  {RATES.companyPaid.ach} per ACH bank transfer
-                </span>
-                , or pass it on as a service fee your client pays at checkout
-                ({RATES.serviceFee.card} per card, {RATES.serviceFee.ach} ACH) and keep
-                the full invoice amount. When your clients pay you through
-                WorkBench, a small slice of that processing fee is what funds
-                the software.
-              </p>
-              <p className="mt-4 max-w-lg text-[15.5px] leading-relaxed text-gray-600">
-                That means we mostly make money when you do. The add-ons are
-                priced flat per company, not per seat, because our real
-                incentive is that WorkBench runs your day so well that
-                getting paid through it is the obvious move.
-              </p>
-            </AnimateIn>
-            <ul className="grid content-center gap-5">
-              {[
-                {
-                  icon: CreditCard,
-                  title: "Two ways to pay for processing",
-                  body: `Company-paid: ${RATES.companyPaid.card} per card transaction, ${RATES.companyPaid.achShort} per ACH transfer. Or a service fee your client pays: ${RATES.serviceFee.card} card, ${RATES.serviceFee.achShort} ACH. No monthly fees, no minimums, no charge on failed payments.`,
-                },
-                {
-                  icon: HandCoins,
-                  title: "Aligned incentives",
-                  body: "We earn when a job gets paid — the same moment you do. Software that costs you nothing until it's working.",
-                },
-                {
-                  icon: ShieldCheck,
-                  title: "Your money lands with you",
-                  body: "Payouts go to your bank account, with records clean enough for your bookkeeper.",
-                },
-              ].map(({ icon: Icon, title, body }, i) => (
-                <AnimateIn key={title} delay={i * 100}>
-                  <li className="flex gap-4">
-                    <div className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-blue-50">
-                      <Icon className="h-[18px] w-[18px] text-[#0B57D8]" strokeWidth={2} />
-                    </div>
-                    <div>
-                      <p className="text-[15px] font-bold text-gray-900">{title}</p>
-                      <p className="mt-0.5 text-[14px] leading-relaxed text-gray-500">{body}</p>
-                    </div>
-                  </li>
-                </AnimateIn>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* ── You're paying card fees already ── */}
-      <section id="savings" className="scroll-mt-24 border-t border-gray-200 bg-[#F6F8FB]">
-        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
-          <div className="grid items-center gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
-            <AnimateIn>
-              <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
-                You pay card fees anywhere. <span className="text-gray-400">Here, there&rsquo;s no subscription on top.</span>
-              </h2>
-              <p className="mt-5 text-[16.5px] leading-relaxed text-gray-600">
-                Every payments company takes a cut of each card payment. Jobber and Housecall Pro also charge a
-                monthly subscription. On WorkBench the {FREE_PLAN_NAME} plan is free, so the card fee is the bill.
-              </p>
-            </AnimateIn>
-            <AnimateIn delay={120}>
-              <WBCompareSimple />
-            </AnimateIn>
-          </div>
-          <details data-wb-toggle className="group mt-10 rounded-xl border border-gray-200 bg-white">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5 text-[16.5px] font-extrabold text-gray-900 [&::-webkit-details-marker]:hidden">
-              Try your own numbers
-              <span className="text-[14px] font-bold text-[#0B57D8] group-open:hidden">Open the calculator</span>
-              <span className="hidden text-[14px] font-bold text-[#0B57D8] group-open:inline">Close</span>
-            </summary>
-            <div className="border-t border-gray-200 p-5 sm:p-6">
-              <WBSavings />
-            </div>
-          </details>
-        </div>
-      </section>
-
-      {/* ── The core stays free ── */}
-      <section className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
-        <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:gap-20">
+      <section className="bg-white">
+        <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
           <AnimateIn>
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50">
-              <Puzzle className="h-5 w-5 text-[#F86A0A]" strokeWidth={2} />
-            </div>
-            <h2 className="mt-5 text-3xl font-extrabold leading-tight sm:text-4xl">
-              The essentials are free. Forever. Not a trial.
+            <WBPricing />
+          </AnimateIn>
+          <WBAgentLink href="/pricing.md" what="this pricing" />
+        </div>
+      </section>
+
+      {/* ── How it's free (light gray) ── */}
+      <section className="bg-[#F5F7FA]">
+        <div className="mx-auto grid max-w-6xl gap-12 px-5 py-24 sm:px-8 sm:py-28 lg:grid-cols-[1.05fr_1fr] lg:gap-20">
+          <AnimateIn>
+            <h2 className={H2}>
+              So how is <span className="text-[#0B57D8]">the core free?</span>
             </h2>
-          </AnimateIn>
-          <AnimateIn delay={120}>
-            <p className="text-[15.5px] leading-relaxed text-gray-600">
-              Everything a service business needs to run — clients, booking,
-              scheduling, quotes, invoices, payments, the client portal, team
-              chat, the iPhone app — is in {FREE_PLAN_NAME}, and that&apos;s
-              permanent. There is no trial clock, no card on file, and no
-              day when the essentials stop working. Nothing you use gets
-              taken away: if packaging ever changes, existing customers are
-              grandfathered in.
+            <p className="mt-6 max-w-lg text-[18px] leading-relaxed text-gray-600">
+              Payments. WorkBench has card and ACH processing built into every quote, invoice, and booking. Pay the fee yourself at{" "}
+              <span className="font-bold text-[#0A1428]">{RATES.companyPaid.card} per card transaction</span> and{" "}
+              <span className="font-bold text-[#0A1428]">{RATES.companyPaid.ach} per ACH bank transfer</span>, or pass it on as a service fee
+              your client pays at checkout ({RATES.serviceFee.card} per card, {RATES.serviceFee.ach} ACH) and keep the full invoice amount.
             </p>
-            <p className="mt-4 text-[15.5px] leading-relaxed text-gray-600">
-              The add-ons are extra tools, not the product with the good
-              parts taken out. {dispatch.name} is a phone line. {shop.name} is
-              unlimited users plus the ops tools a growing crew reaches for:
-              the estimator, routes, automations, agreements, the team map,
-              timesheets, and QuickBooks. {jobsite.name} will be job photos.
-            </p>
-            <p className="mt-4 text-[15.5px] leading-relaxed text-gray-600">
-              <span className="font-bold text-gray-900">Atlas</span>, the AI
-              assistant, is the one metered thing: every account gets{" "}
-              {freeTokens} Atlas tokens free every month, and heavier users
-              can move up to Atlas Full, on its own or as part of {shop.name}.
-              AI usage has a real cost to us, so it&apos;s priced separately
-              from the free core software instead of quietly built into it.
+            <p className="mt-4 max-w-lg text-[18px] leading-relaxed text-gray-600">
+              When your clients pay you through WorkBench, a small slice of that processing fee funds the software. We make money when you do.
             </p>
           </AnimateIn>
-        </div>
-      </section>
-
-      {/* ── Atlas tiers ── */}
-      <section id="atlas" className="scroll-mt-24 border-t border-gray-200 bg-white">
-        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
-          <AnimateIn>
-            <div className="flex items-center gap-3">
-              <Compass className="h-6 w-6 text-[#0B57D8]" strokeWidth={1.9} />
-              <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
-                Atlas, the AI assistant
-              </h2>
-            </div>
-            <p className="mt-4 max-w-2xl text-[15.5px] leading-relaxed text-gray-600">
-              Atlas is metered in tokens because every request is real AI
-              work. A quick question is a couple hundred tokens; a bulk edit
-              across forty records is a couple thousand. Every reply shows
-              what it used, and Atlas never spends past your allowance.
-            </p>
-          </AnimateIn>
-          <div className="mt-10 grid gap-6 lg:grid-cols-2">
-            <AnimateIn>
-              <div className="flex h-full flex-col rounded-[1.5rem] border border-gray-200 bg-white p-8">
-                <p className="text-[17px] font-extrabold text-gray-900">
-                  Atlas Free
-                </p>
-                <p
-                  className="mt-4 text-5xl font-extrabold leading-none text-gray-900"
-                  style={{ fontFamily: 'var(--font-nunito), "Nunito", sans-serif' }}
-                >
-                  $0
-                </p>
-                <p className="mt-3 text-[15px] font-bold text-gray-900">
-                  {freeTokens} tokens every month
-                </p>
-                <p className="mt-2 text-[14px] leading-relaxed text-gray-500">
-                  Included with every account, no card and no sign-up step.
-                  Refills on the 1st of the month.
-                </p>
-                <ul className="mt-6 flex flex-col gap-2.5 text-[14px] text-gray-600">
-                  {[
-                    "Every Atlas tool — schedule, money, clients, routes",
-                    "Roughly 25–60 messages a month",
-                    "Shared by your whole team",
-                  ].map((item) => (
-                    <li key={item} className="flex items-start gap-2.5">
-                      <Sparkles className="mt-0.5 h-4 w-4 flex-none text-[#0B57D8]" strokeWidth={2.5} />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </AnimateIn>
-            <AnimateIn delay={120}>
-              <div className="relative flex h-full flex-col overflow-hidden rounded-[1.5rem] bg-[#0A1428] p-8 text-white">
-                <div className="relative flex h-full flex-col">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-[17px] font-extrabold text-white">
-                      Atlas Full
-                    </p>
-                    <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11.5px] font-bold text-blue-100">
-                      Included with {shop.name}
-                    </span>
-                  </div>
-                  <p
-                    className="mt-4 text-5xl font-extrabold leading-none text-white"
-                    style={{ fontFamily: 'var(--font-nunito), "Nunito", sans-serif' }}
-                  >
-                    {planPrice}
-                    <span className="text-xl font-bold text-blue-200">/month</span>
-                  </p>
-                  <p className="mt-3 text-[15px] font-bold text-white">
-                    {planTokens} tokens every month
-                  </p>
-                  <p className="mt-2 text-[14px] leading-relaxed text-blue-100/80">
-                    Fifteen times the free allowance, refilled on your billing
-                    day. For the office that hands Atlas the whole day. On its
-                    own for {planPrice}, or part of {shop.name} and{" "}
-                    {FULL_SHOP.name}.
-                  </p>
-                  <ul className="mt-6 flex flex-col gap-2.5 text-[14px] text-white">
-                    {[
-                      "Everything in Atlas Free",
-                      "Room for bulk work — a hundred records at a time",
-                      "Cancel any time; your free tokens stay",
-                    ].map((item) => (
-                      <li key={item} className="flex items-start gap-2.5">
-                        <Sparkles className="mt-0.5 h-4 w-4 flex-none text-[#FF8B33]" strokeWidth={2.5} />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
+          <AnimateIn delay={120} className={`wb-stagger self-center ${CARD} divide-y divide-gray-100`}>
+            {[
+              {
+                icon: CreditCard,
+                title: "Two ways to pay for processing",
+                body: `Company-paid: ${RATES.companyPaid.card} per card transaction, ${RATES.companyPaid.achShort} per ACH transfer. Or a service fee your client pays: ${RATES.serviceFee.card} card, ${RATES.serviceFee.achShort} ACH. No monthly fees, no minimums, no charge on failed payments.`,
+              },
+              {
+                icon: HandCoins,
+                title: "Aligned incentives",
+                body: "We earn when a job gets paid — the same moment you do. Software that costs you nothing until it's working.",
+              },
+              {
+                icon: ShieldCheck,
+                title: "Your money lands with you",
+                body: "Payouts go to your bank account, with records clean enough for your bookkeeper.",
+              },
+            ].map(({ icon: Icon, title, body }) => (
+              <div key={title} className="flex gap-5 p-6 sm:p-7">
+                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-[#0A1428]">
+                  <Icon className="h-5 w-5 text-[#FF8B33]" strokeWidth={2} />
+                </span>
+                <div>
+                  <p className="text-[17px] font-black text-[#0A1428]">{title}</p>
+                  <p className="mt-1 text-[15.5px] leading-relaxed text-gray-600">{body}</p>
                 </div>
               </div>
-            </AnimateIn>
-          </div>
+            ))}
+          </AnimateIn>
+        </div>
+      </section>
+
+      {/* ── What the average shop keeps (blue band) ── */}
+      <WBPriceAverage />
+
+      {/* ── Free forever, not a trial (white, over a faint hand-drawn "Free") ── */}
+      <section className="relative overflow-hidden bg-white">
+        <WBDoodle word="free" paper="#FFFFFF" opacity={0.06} className="-right-10 top-10 w-[520px] rotate-6 max-lg:hidden" />
+        <div className="relative mx-auto max-w-6xl px-5 py-24 sm:px-8 sm:py-32">
+          <AnimateIn>
+            <h2 className={`max-w-3xl ${H2}`}>
+              Free forever. <span className="text-[#F86A0A]">Not a trial.</span>
+            </h2>
+            <p className="mt-6 max-w-2xl text-[18px] leading-relaxed text-gray-600">
+              Everything a service business needs to run (clients, booking, scheduling, quotes, invoices, payments, the client portal, team
+              chat, the phone apps) is in {FREE_PLAN_NAME}, and that&apos;s permanent. No trial clock, no card on file, no day when the
+              essentials stop working.
+            </p>
+          </AnimateIn>
+          <AnimateIn delay={100} className="mt-12">
+            <WBPriceForever planName={FREE_PLAN_NAME} seats={INCLUDED_SEATS} />
+          </AnimateIn>
+          <AnimateIn className="wb-stagger mt-12 grid gap-10 md:grid-cols-3">
+            <div>
+              <h3 className="text-[20px] font-black text-[#0A1428]">Nothing gets taken away</h3>
+              <p className="mt-2 text-[16.5px] leading-relaxed text-gray-600">
+                If our pricing or packaging ever changes, existing customers are grandfathered in: the features you use stay where they are,
+                at the price you signed up for.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-[20px] font-black text-[#0A1428]">Add-ons are extras, not ransom</h3>
+              <p className="mt-2 text-[16.5px] leading-relaxed text-gray-600">
+                {dispatch.name} is a phone line. {shop.name} is unlimited users plus the ops tools a growing crew reaches for: the estimator,
+                routes, automations, agreements, the team map, timesheets, and QuickBooks. {jobsite.name} will be job photos.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-[20px] font-black text-[#0A1428]">Atlas, with a free allowance</h3>
+              <p className="mt-2 text-[16.5px] leading-relaxed text-gray-600">
+                The AI assistant is the one metered thing, because AI work costs real money. Every account gets {freeTokens} Atlas tokens free
+                each month; {shop.name} and {FULL_SHOP.name} include {planTokens}.
+              </p>
+            </div>
+          </AnimateIn>
         </div>
       </section>
 
@@ -456,29 +323,22 @@ export default function WBPricingPage() {
       <WBFaqSection items={pricingFaq} title="Pricing questions, answered" />
 
       {/* ── CTA ── */}
-      <section className="border-t border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-5 py-16 sm:px-8 md:flex-row md:items-center">
+      <section className="bg-[#F5F7FA]">
+        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-8 px-5 py-20 sm:px-8 md:flex-row md:items-center">
           <AnimateIn>
-            <h2 className="text-2xl font-extrabold sm:text-3xl">
-              Questions about pricing?
+            <h2 className="text-[2rem] leading-[1.05] sm:text-[2.6rem]">
+              Questions about <span className="text-[#0B57D8]">pricing?</span>
             </h2>
-            <p className="mt-2 text-[15px] text-gray-500">
-              Book a call and we will walk through it with you, or sign up and
-              your account opens today. Or call {WB_PHONE.display}.
+            <p className="mt-3 max-w-xl text-[17px] leading-relaxed text-gray-600">
+              Book a call and we will walk through it with you, or sign up and your account opens today. Or call {WB_PHONE.display}.
             </p>
           </AnimateIn>
-          <AnimateIn delay={120} className="flex flex-wrap items-center gap-4">
-            <Link
-              href="/apply"
-              className="wb-pill wb-pill-primary"
-            >
-              Get started
-              <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+          <AnimateIn delay={120} className="flex flex-wrap items-center gap-3">
+            <Link href="/apply" className="wb-pill wb-pill-orange !px-7 !py-4 !text-[16px]">
+              Get started free
+              <ArrowRight className="h-[18px] w-[18px]" strokeWidth={2.5} />
             </Link>
-            <Link
-              href="/book-a-call"
-              className="wb-pill wb-pill-outline"
-            >
+            <Link href="/book-a-call" className="wb-pill wb-pill-outline !px-7 !py-4 !text-[16px]">
               Book a call
             </Link>
           </AnimateIn>

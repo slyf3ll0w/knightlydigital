@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
+import WBAppJourney from "@/components/wb/WBAppJourney";
 import { UserCheck } from "lucide-react";
 import { WB_SHOTS } from "@/components/wb/WBSplitHero";
 import { WB_DAY_PHOTOS } from "@/lib/wb-site";
@@ -70,6 +71,7 @@ const faq = [
 export default function ClientPortalPage() {
   return (
     <WBFeaturePage
+      demo={<WBAppJourney steps={["ok", "inv", "paid"]} />}
       eyebrow="Keep clients close"
       accent="orange"
       title={
