@@ -35,6 +35,12 @@ import {
   seatLimit,
 } from "../lib/plans";
 
+// The page designer is archived (lib/plans.ts pageDesignerOpen): off by default,
+// even for Pro; the checks below run it switched on, as it will be when resumed.
+delete process.env.PAGE_DESIGNER;
+if (featureAllowed({ planGrants: ["SHOP"], paidPlans: [], addonActiveAt: null, isTest: false } as never, "page_designer", true)) throw new Error("page designer should be archived (off) without PAGE_DESIGNER=1");
+process.env.PAGE_DESIGNER = "1";
+
 // ── Catalog sanity: the numbers the site prints ──
 assert.equal(PLANS.DISPATCH.monthlyCents, 3_500);
 assert.equal(PLANS.SHOP.monthlyCents, 8_900);

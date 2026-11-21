@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
-import { PLAN_HOLDER_SELECT, featureAllowed } from "@/lib/plans";
+import { notFound } from "next/navigation";
+import { pageDesignerOpen, PLAN_HOLDER_SELECT, featureAllowed } from "@/lib/plans";
 import { getThemeState, themeStateJson } from "@/lib/client-theme-store";
 import { themeContextFor } from "@/lib/client-theme-load";
 import { themeBookingItems } from "@/lib/client-theme-route";
@@ -21,6 +22,7 @@ export const dynamic = "force-dynamic";
  * shows the upsell over a preview of the booking page as it is.
  */
 export default async function ClientPagesPage() {
+  if (!pageDesignerOpen()) notFound(); // archived 2026-11-20 (lib/plans.ts pageDesignerOpen())
   const actor = await requirePageActor((a) => isManager(a.role));
   const company = await prisma.company.findUnique({
     where: { id: actor.companyId },

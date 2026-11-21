@@ -1,5 +1,7 @@
 # AI page designer: Atlas (or an outside AI) designs a company's client pages (2026-11-20)
 
+> **ARCHIVED 2026-11-20 (David: "still not quite there, let's archive this for now, we'll resume once we clean up the rest of the app").** Everything below is built and on main, switched OFF: `pageDesignerOpen()` in lib/plans.ts is false unless `PAGE_DESIGNER=1`. Off = Settings → Client pages 404s and leaves the Settings list, the four design tools leave Atlas and the connector (and the prompt line), the Pro card drops "Custom client pages", and featureAllowed(page_designer) is false, so no saved theme is applied: client pages wear the normal branded heavy look. To resume: set PAGE_DESIGNER=1 on staging first; last round of work = in-page Atlas (scope client-pages) + 4 basics + More options (commits d55fd7ff..f4b28059).
+
 A Pro feature. A company says "make my booking page and portal look like my
 truck wraps: dark green, big logo, my crew photo up top" to Atlas, or to
 Claude / ChatGPT through the Workbench connector, and gets a **preview** in
