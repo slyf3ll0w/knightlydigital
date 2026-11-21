@@ -437,6 +437,7 @@ export default async function DashboardPage() {
       id: `j-${job.id}`,
       href: `/app/jobs/${job.id}`,
       apptType: null as string | null,
+      meetingLink: null as string | null,
       time:
         job.scheduledAt && !job.scheduledAnytime ? fmtTime(new Date(job.scheduledAt)) : "Anytime",
       primary: `${job.contact.firstName} ${job.contact.lastName} — ${job.title}`,
@@ -468,6 +469,7 @@ export default async function DashboardPage() {
       id: `a-${a.id}`,
       href: `/app/appointments/${a.id}`,
       apptType: a.type as string | null,
+      meetingLink: a.type === "VIDEO_CALL" ? a.meetingLink : null,
       time: a.scheduledAnytime ? "Anytime" : fmtTime(new Date(a.scheduledAt)),
       primary: `${a.contact.firstName} ${a.contact.lastName} — ${a.title}`,
       detail: [
@@ -598,6 +600,7 @@ export default async function DashboardPage() {
         }
         canClock={upNextJob?.status === "ACTIVE" && actor.role !== "SALES" && timesheetsAllowed}
         apptType={upNext.apptType}
+        meetingLink={upNext.meetingLink}
       />
     </div>
   );

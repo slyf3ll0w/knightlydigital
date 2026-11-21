@@ -71,9 +71,25 @@ export function getSoftphoneState(): SoftphoneState {
   return state;
 }
 
+/** Call rows whose call ended on this tab's softphone, and when (ms). */
+const endedHere = new Map<string, number>();
+/** How long a row counts as "just ended here": well past the hang-up webhook's lag. */
+const ENDED_HERE_MS = 60_000;
+
+export function callEndedHere(callId: string, now: number = Date.now()): boolean {
+  const at = endedHere.get(callId);
+  return at !== undefined && now - at < ENDED_HERE_MS;
+}
+
 export function setSoftphoneState(patch: Partial<SoftphoneState>): void {
   const prev = state;
   state = { ...state, ...patch };
+  // The call this tab was on is over (hung up here, or the other side did)
+  if (prev.call?.callId && prev.call.callId !== state.call?.callId) {
+    const now = Date.now();
+    for (const [id, at] of endedHere) if (now - at >= ENDED_HERE_MS) endedHere.delete(id);
+    endedHere.set(prev.call.callId, now);
+  }
   // Every status change in the console, so a pasted console says where the
   // line was when a call went the wrong way (ready / connecting / off + why).
   if (prev.status !== state.status || prev.reason !== state.reason) {
@@ -94,6 +110,15 @@ function subscribe(l: () => void): () => void {
 
 export function useSoftphone(): SoftphoneState {
   return useSyncExternalStore(subscribe, getSoftphoneState, () => INITIAL);
+}
+
+/** True when this row's call just ended on this tab's softphone (its webhook may not have landed yet). */
+export function useCallEndedHere(callId: string): boolean {
+  return useSyncExternalStore(
+    subscribe,
+    () => callEndedHere(callId),
+    () => false
+  );
 }
 
 /*

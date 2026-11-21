@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { callLogStamp } from "@/lib/call-pulse";
 import { getActor, canSell } from "@/lib/permissions";
 
 /**
@@ -13,13 +13,8 @@ export async function GET() {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const agg = await prisma.call.aggregate({
-    where: { companyId: actor.companyId },
-    _max: { updatedAt: true },
-    _count: { _all: true },
-  });
   return NextResponse.json(
-    { stamp: `${agg._max.updatedAt?.toISOString() ?? ""}|${agg._count._all}` },
+    { stamp: await callLogStamp(actor.companyId) },
     { headers: { "Cache-Control": "no-store" } }
   );
 }

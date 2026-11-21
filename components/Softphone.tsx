@@ -15,6 +15,7 @@ import { MIC_CHOICE_KEY, MIC_SILENT_PEAK, MicWatchdog, levelFromSamples, micLabe
 import {
   fmtElapsed,
   getSoftphoneState,
+  waitForSoftphone,
   patchSoftphoneCall,
   registerSoftphoneController,
   setMicLevel,
@@ -93,8 +94,16 @@ type RtcCall = ReturnType<TelnyxRTCType["newCall"]>;
 
 const HEARTBEAT_MS = 30_000;
 const REMOTE_AUDIO_ID = "wb-softphone-audio";
-/** An outbound INVITE that hasn't shown up this long after the POST means the registration dropped. */
-const OUTBOUND_INVITE_WAIT_MS = 25_000;
+/**
+ * An outbound INVITE that hasn't shown up this long after the POST means the
+ * registration dropped: a live socket delivers it in about a second. Was
+ * 25 s, longer than the 20 s the server rings this browser
+ * (APP_OUTBOUND_RING_SECS), so the call had already failed as "Didn't
+ * connect" before the tab noticed (ticket #j1tdg6).
+ */
+const OUTBOUND_INVITE_WAIT_MS = 8_000;
+/** After that miss: how long the fresh registration gets before the call goes to the cell instead. */
+const REDIAL_READY_WAIT_MS = 10_000;
 /**
  * After a socket drop, how long the SDK's own reconnect gets before we start
  * over with a fresh token. 45 s left the dialer saying "reconnecting" for
@@ -1133,7 +1142,17 @@ export default function Softphone() {
         if (heard && getSoftphoneState().micWarning) setSoftphoneState({ micWarning: null });
         return { heard, label, osMuted, error: metered ? null : "This browser can't meter the microphone." };
       },
-      placeCall: async (target: PlaceCallTarget) => {
+      placeCall: (target: PlaceCallTarget) => place(target, false),
+    });
+
+    /**
+     * Place a call from this browser. `redial` = this is the automatic second
+     * try after the first one never reached the tab (a registration that had
+     * gone stale without the socket saying so): one reconnect, one more try,
+     * then the cell.
+     */
+    async function place(target: PlaceCallTarget, redial: boolean): Promise<void> {
+      {
         if (!clientRef.current || getSoftphoneState().status !== "ready") throw new Error("The softphone isn't connected.");
         if (callRef.current || getSoftphoneState().call) throw new Error("You're already on a call.");
         // Microphone BEFORE the server dials this tab, so the INVITE isn't answered late (or never) behind the prompt —
@@ -1189,11 +1208,44 @@ export default function Softphone() {
         inviteWatch = setTimeout(() => {
           if (pendingOutbound.current?.callId !== placedId) return;
           pendingOutbound.current = null;
-          if (!callRef.current) {
+          if (!callRef.current && !redial && outboundTarget.current) {
             // Our registration is stale (the INVITE went to a socket that is
-            // gone): ring the cell for the same person right away and start
-            // the browser over — one press, one ringing phone (David
-            // 2026-10-01: "at first it told me that it couldn't connect").
+            // gone). Reconnect with a fresh registration and place the same
+            // call again from here, so one press still ends in a call from
+            // the browser; only if that misses too does the cell ring.
+            console.info("[softphone] outbound INVITE never arrived; reconnecting and calling again from the browser", placedId);
+            dropStaged();
+            const again = outboundTarget.current;
+            // A late INVITE for the cancelled attempt is declined, never answered
+            cancelled.current.add(placedId);
+            setTimeout(() => cancelled.current.delete(placedId), 60_000);
+            const cancelledServerSide = hangupServerSide(placedId);
+            setSoftphoneState({ call: null, error: "Reconnecting the line, then calling again…" });
+            attempt = 0;
+            restart(0);
+            void cancelledServerSide.then(async () => {
+              await new Promise((r) => setTimeout(r, 300)); // let the restart begin (status → connecting)
+              const ready = await waitForSoftphone(REDIAL_READY_WAIT_MS);
+              if (unmounted) return;
+              if (callRef.current || getSoftphoneState().call) return; // a call came in meanwhile
+              if (ready) {
+                try {
+                  await place(again, true);
+                  return;
+                } catch (err) {
+                  console.info("[softphone] the second try from the browser failed:", err instanceof Error ? err.message : err);
+                }
+              }
+              setSoftphoneState({ error: null });
+              void callViaCell(again, "The browser lost the line.");
+            });
+            return;
+          }
+          if (!callRef.current) {
+            // The second try never arrived either: ring the cell for the
+            // same person right away and start the browser over — one
+            // press, one ringing phone (David 2026-10-01: "at first it told
+            // me that it couldn't connect").
             console.info("[softphone] outbound INVITE never arrived; cancelling, ringing the cell instead", placedId);
             dropStaged();
             const t = outboundTarget.current;
@@ -1215,8 +1267,8 @@ export default function Softphone() {
             }
           }
         }, OUTBOUND_INVITE_WAIT_MS);
-      },
-    });
+      }
+    }
 
     const goodbye = () => {
       try {
@@ -1565,7 +1617,7 @@ function CallCard({ call }: { call: SoftphoneCall }) {
       role="dialog"
       aria-live="polite"
       aria-label={ringing ? `Incoming call from ${call.label}` : `Call with ${call.label}`}
-      className={`${GLASS} fixed inset-x-3 z-[70] rounded-2xl lg:inset-x-0 lg:mx-auto lg:w-[460px] ${DOCK_TOP} ${ringing ? "ring-4 ring-[color:var(--ds-primary-soft)]" : ""}`}
+      className={`${GLASS} ds-glass-strong fixed inset-x-3 z-[70] rounded-2xl lg:inset-x-0 lg:mx-auto lg:w-[460px] ${DOCK_TOP} ${ringing ? "ring-4 ring-[color:var(--ds-primary-soft)]" : ""}`}
     >
       <div className="flex items-center gap-3 px-3.5 pt-3 pb-2.5">
         <span
@@ -1632,7 +1684,9 @@ function CallCard({ call }: { call: SoftphoneCall }) {
         </div>
       ) : (
         <>
-          <div className="flex items-center gap-2 px-3.5 pb-3">
+          {/* One row that always fits a phone: round icon buttons spread edge to edge, End last.
+              With Speaker and End spelled out the row ran past the card on an iPhone (ticket #z0noag). */}
+          <div className="flex items-center justify-between gap-2 px-3.5 pb-3 sm:justify-start">
             <button
               type="button"
               onClick={() => softphone.toggleMute()}
@@ -1671,33 +1725,32 @@ function CallCard({ call }: { call: SoftphoneCall }) {
               {held ? <Play size={18} /> : <Pause size={18} />}
             </button>
             {speaker !== null && (
-              // iPhone: speakerphone. The button says which way it is — a lit dot and "On" — so you don't have to listen for it.
+              // iPhone: speakerphone. Lit in the company color with a dot when it is on, so you don't have to listen for it.
               <button
                 type="button"
                 onClick={() => softphone.toggleSpeaker()}
                 disabled={dialing}
-                className={`relative flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition-colors disabled:opacity-50 ${
-                  speaker ? BRAND_DISC : quiet
-                }`}
+                className={`relative ${round} ${speaker ? BRAND_DISC : quiet}`}
                 title={speaker ? "Speaker is on — switch to the earpiece" : "Speaker is off — switch to speakerphone"}
                 aria-label={speaker ? "Speaker on" : "Speaker off"}
                 aria-pressed={speaker}
               >
                 <Volume2 size={18} />
-                <span>{speaker ? "On" : "Speaker"}</span>
-                {speaker && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[color:var(--ds-primary)] ring-2 ring-white/80 dark:ring-black/40" aria-hidden />}
+                {speaker && <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full bg-[color:var(--ds-primary)] ring-2 ring-white/80 dark:ring-black/40" aria-hidden />}
               </button>
             )}
             <button
               type="button"
               onClick={() => softphone.hangup()}
-              className="ml-auto flex h-10 shrink-0 items-center gap-2 rounded-full bg-red-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-red-600"
+              className="flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-red-500 text-sm font-semibold text-white transition-colors hover:bg-red-600 sm:ml-auto sm:w-auto sm:px-4"
+              title={dialing ? "Cancel" : "End the call"}
               aria-label="Hang up"
             >
-              <PhoneOff size={18} /> {dialing ? "Cancel" : "End"}
+              <PhoneOff size={18} /> <span className="hidden sm:inline">{dialing ? "Cancel" : "End"}</span>
             </button>
           </div>
-          <div className="px-3.5 pb-3">
+          {/* Empty in the phone app (the native engine owns the mic): no blank band under the buttons */}
+          <div className="px-3.5 pb-3 empty:hidden">
             <MicRow />
             <MicWarning className="mt-2" />
           </div>
