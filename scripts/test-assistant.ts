@@ -23,6 +23,9 @@ import { withClientHeadsUp, HEADS_UP_RULE } from "../lib/assistant/heads-up";
 import { quoted, QUOTE_OPEN, QUOTE_CLOSE, QUOTED_TEXT_RULE } from "../lib/assistant/untrusted";
 import type { Actor } from "../lib/permissions";
 
+// The page designer is archived unless PAGE_DESIGNER=1 (lib/plans.ts); test it switched on.
+process.env.PAGE_DESIGNER = "1";
+
 const base = { id: "u1", name: "Test", companyId: "c1", salesSeePayments: true };
 const owner: Actor = { ...base, role: "OWNER" };
 const tech: Actor = { ...base, role: "TECH" };

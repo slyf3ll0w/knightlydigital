@@ -126,14 +126,18 @@ export const SETTINGS_LINK_GROUPS: readonly SettingsLinkGroup[] = [
         hueKey: "forms",
         icon: "Globe",
       },
-      {
-        // The AI page designer (Pro, page_designer): the page shows the upsell off Pro
-        href: "/app/settings/client-pages",
-        label: "Client pages",
-        sub: "The look of your portal, sign-in, booking page and forms — or ask Atlas to design it",
-        hueKey: "forms",
-        icon: "Palette",
-      },
+      ...(process.env.PAGE_DESIGNER === "1"
+        ? ([
+          {
+            // The AI page designer (Pro, page_designer): the page shows the upsell off Pro
+            href: "/app/settings/client-pages",
+            label: "Client pages",
+            sub: "The look of your portal, sign-in, booking page and forms — or ask Atlas to design it",
+            hueKey: "forms",
+            icon: "Palette",
+          },
+          ] as SettingsLink[])
+        : []),
       {
         href: "/app/settings/website",
         label: "Website",

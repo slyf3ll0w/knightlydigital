@@ -1,4 +1,17 @@
 import { ATLAS_PLAN_TOKENS } from "./atlas-pricing";
+
+/**
+ * The AI page designer (Settings → Client pages, the design tools, custom
+ * client-page themes) is ARCHIVED (David 2026-11-20: "still not quite there,
+ * let's archive this for now, we'll resume once we clean up the rest of the
+ * app"). Off unless PAGE_DESIGNER=1: the page 404s, its Settings link, Atlas
+ * tools and Pro-card line are hidden, and featureAllowed(page_designer) is
+ * false everywhere, so no theme is applied and client pages wear the normal
+ * branded look. The code stays; docs/plans/ai-portal-designer-2026-11-20.md.
+ */
+export function pageDesignerOpen(): boolean {
+  return process.env.PAGE_DESIGNER === "1";
+}
 /**
  * WorkBench plans — the one catalog the marketing site, the app, and the
  * superadmin console all read, so a price or a plan name can never drift
@@ -132,7 +145,7 @@ export const PLANS: Record<PlanId, Plan> = {
       "QuickBooks Online sync",
       "Tasks you can hand to your team",
       "Team sticky notes everyone sees",
-      "Custom client pages: your look on the portal, booking page and forms",
+      ...(pageDesignerOpen() ? ["Custom client pages: your look on the portal, booking page and forms"] : []),
       `Atlas Full: ${ATLAS_PLAN_TOKENS.toLocaleString("en-US")} Atlas tokens a month`,
     ],
   },
@@ -423,6 +436,7 @@ export function planGatingLive(env: Record<string, string | undefined> = process
  * hasPlan DISPATCH in lib/business-line.ts). Otherwise: on the plan.
  */
 export function featureAllowed(company: PlanHolder, feature: GatedFeature, live: boolean = planGatingLive()): boolean {
+  if (feature === "page_designer" && !pageDesignerOpen()) return false;
   if (!live) return true;
   if (company.isTest) return true;
   return hasPlan(company, featurePlan(feature));

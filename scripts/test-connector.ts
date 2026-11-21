@@ -14,6 +14,9 @@ import { CONNECTOR_DRAFT, CONNECTOR_NEVER, CONNECTOR_PREPARE, CONNECTOR_READ, LI
 import { pkceMatches, redirectAllowed, validRedirectUri, connectBlock } from "../lib/connector/oauth";
 import { authorizationServerMetadata, protectedResourceMetadata } from "../lib/connector/metadata";
 
+// The page designer is archived unless PAGE_DESIGNER=1 (lib/plans.ts); test it switched on.
+process.env.PAGE_DESIGNER = "1";
+
 const owner: Actor = { id: "u1", name: "Pat Owner", role: "OWNER", companyId: "c1", salesSeePayments: true };
 const all = toolsForActor(owner).map((t) => t.decl.name);
 
