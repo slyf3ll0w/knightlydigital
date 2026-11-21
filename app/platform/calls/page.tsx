@@ -6,6 +6,8 @@ import PageTitle from "@/components/PageTitle";
 import EmptyState from "@/components/EmptyState";
 import CallRow, { isMissed } from "@/components/CallRow";
 import CallsLive from "@/components/CallsLive";
+import CallRowSettling from "@/components/CallRowSettling";
+import { callLogStamp } from "@/lib/call-pulse";
 import { LinePanel, LineSub, KeypadFab, type LineStats } from "@/components/LineCard";
 import { FilterRow, FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
 import { markCallsSeen, resolveCallContacts, type ResolvedCallContact } from "@/lib/voice";
@@ -66,6 +68,8 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
         ],
       };
 
+  // Read BEFORE the rows: a change that lands in between then shows up as a newer pulse, never a missed one.
+  const builtWith = await callLogStamp(actor.companyId);
   const [company, rows] = await Promise.all([
     prisma.company.findUnique({
       where: { id: actor.companyId },
@@ -98,6 +102,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
         createdAt: true,
         endedAt: true,
         endedBy: true,
+        answeredAt: true,
         contact: { select: { id: true, firstName: true, lastName: true, status: true } },
         participants: { select: { status: true, label: true } },
         user: { select: { name: true } },
@@ -215,9 +220,27 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
         ) : (
           // One list, newest first, like a phone's Recents: each row dates itself (CallRow recentsStamp), no day groups or counts (ticket #seej3a).
           <div className="ds-card mt-4 divide-y divide-[color:var(--ds-line)] overflow-hidden lg:mt-0">
-            {visible.map((c) => (
-              <CallRow key={c.id} call={{ ...c, events: events.get(c.id) }} tz={tz} canCall={routed} canText={smsReady} />
-            ))}
+            {visible.map((c) => {
+              const row = <CallRow key={c.id} call={{ ...c, events: events.get(c.id) }} tz={tz} canCall={routed} canText={smsReady} />;
+              if (c.status !== "RINGING" && c.status !== "IN_PROGRESS") return row;
+              // Still live on the server: if it just ended in this tab, show it finished while the hang-up webhook catches up.
+              const talked = c.answeredAt ? Math.max(0, Math.round((now.getTime() - c.answeredAt.getTime()) / 1000)) : 0;
+              return (
+                <CallRowSettling
+                  key={c.id}
+                  callId={c.id}
+                  live={row}
+                  ended={
+                    <CallRow
+                      call={{ ...c, status: "COMPLETED", durationSec: talked, endedAt: now, events: events.get(c.id) }}
+                      tz={tz}
+                      canCall={routed}
+                      canText={smsReady}
+                    />
+                  }
+                />
+              );
+            })}
           </div>
         )}
       </>
@@ -225,7 +248,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="mx-auto max-w-6xl p-4 lg:p-8">
-      {hasLine && <CallsLive />}
+      {hasLine && <CallsLive builtWith={builtWith} />}
       <div className="flex items-start justify-between gap-3">
         <PageTitle
           section="chat"

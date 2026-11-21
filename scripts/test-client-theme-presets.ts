@@ -3,6 +3,7 @@
  * (lib/client-theme-presets.ts, lib/assistant/design-scope.ts).
  *   npx tsx scripts/test-client-theme-presets.ts
  */
+import { stripRecapEcho } from "../lib/assistant/recap-echo";
 import assert from "node:assert/strict";
 import {
   STYLE_PRESETS,
@@ -129,4 +130,12 @@ console.log("client-theme-presets: all checks passed");
   const two = designHonestReply(true, ["colors.band", "portal.welcome"]);
   if (!/band color and the welcome line/.test(two)) throw new Error("honest reply: two pieces " + two);
   console.log("client-theme-presets: honest replies ok");
+}
+
+// A reply that copies the "[Behind this reply: …]" habit loses the note before anyone sees it (ticket #ia3q5e)
+{
+  assert.equal(stripRecapEcho("Press Confirm.\n\n[Behind this reply: help_search({\"q\":\"x\"}) → [1, 2]]"), "Press Confirm.");
+  assert.equal(stripRecapEcho("Nothing to cut here."), "Nothing to cut here.");
+  assert.equal(stripRecapEcho("[Behind this reply: get_document → {}]"), "");
+  console.log("  ok  a recap note the model wrote itself is cut from the reply");
 }
