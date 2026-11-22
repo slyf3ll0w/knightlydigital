@@ -79,7 +79,7 @@ export const jobsSection: HelpSection = {
             "**Checklist**: tick items off, or skip one with a reason.",
             "**Notes & Activity**: notes for the team and a history of everything that happened.",
             "`Collect signature` for the client's sign-off on the finished work.",
-            "`Ask for review` sends your Google review link. Add the link under Settings → Branding & client experience → Review Requests first.",
+            "`Ask for review` sends your Google review link. Add the link under Settings → Brand & client pages → Review Requests first.",
           ],
         },
         {
@@ -203,7 +203,7 @@ export const scheduleSection: HelpSection = {
             "**Drag** a visit to move it, drag its bottom edge to change its length, or drag across empty space to create something. Hold `Shift` while dragging to copy. Everything snaps to 15 minutes.",
             "After every move you get an **Undo**, plus `Text client` / `Email client` to tell them about the change.",
             "`Block time` marks time off or shop days so nobody books over them. Tick **Repeats every week** and pick the days for things that happen every week (lunch, a standing appointment, Fridays off); booking forms show those times as taken, with your business hours left as they are. `Move the day` shifts a whole day's work. A block with an address is a stop on that person's route; errands and lunch added from **Routes** are blocks too, and show here once Optimize gives them a time.",
-            "Open one day of a repeating block to change or remove just that day. **Edit every time** changes the whole rule, and **Remove → Every time** clears every day of it. The same list lives under Settings → Booking & forms → Scheduling rules → **Repeating blocks**.",
+            "Open one day of a repeating block to change or remove just that day. **Edit every time** changes the whole rule, and **Remove → Every time** clears every day of it. The same list lives under Business → Booking & forms → Scheduling rules → **Repeating blocks**.",
             "Chips flag anything that needs a look: **Awaiting approval**, **Double-booked**, **Unassigned**, **Subcontractor**.",
           ],
         },
@@ -212,7 +212,7 @@ export const scheduleSection: HelpSection = {
           items: [
             {
               q: "Today's date or times look off.",
-              a: "The schedule runs on the company timezone in Settings → Company, not your device's. Fix it there.",
+              a: "The schedule runs on the company timezone in Settings → Business, not your device's. Fix it there.",
             },
             {
               q: "I see grey \"Busy in Google Calendar\" blocks.",
@@ -353,7 +353,7 @@ export const scheduleSection: HelpSection = {
           items: [
             "**Places** (the warehouse button on the map, or `/app/routes/places`): save your supply houses, the dump and the yard once. They show up first when anyone adds a stop. Anyone can add a place; owners and admins archive them.",
             "**Tick it off:** errands, breaks and tasks have a circle on the route — tap it when it's done. `Remove` takes an errand off the day; `Skip` drops today's lunch.",
-            "**Lunch on the route:** Settings → Booking & forms → Scheduling rules sets the length and window (30 minutes between 11:30 and 1:00 unless you change it; \"No automatic lunch\" turns it off). Someone who already has a break on the day keeps theirs.",
+            "**Lunch on the route:** Business → Booking & forms → Scheduling rules sets the length and window (30 minutes between 11:30 and 1:00 unless you change it; \"No automatic lunch\" turns it off). Someone who already has a break on the day keeps theirs.",
             "**Where the day ends:** on the Team page each person can end at the shop, back where they started (their start address), or wherever the last stop is. Optimize counts the drive back accordingly.",
             "**Tasks with a place:** a task with an address (Tasks → `Add a place`) shows on that person's route on its due day. A task with a time holds that time; one set to Anytime gets slotted by Optimize.",
           ],

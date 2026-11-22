@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { isQuickBooksConfigured, quickBooksEnvironment } from "@/lib/quickbooks";
 
-/** Connection state + sync health for the Settings → QuickBooks page. */
+/** Connection state + sync health for the Settings → Money → QuickBooks page. */
 export async function GET() {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

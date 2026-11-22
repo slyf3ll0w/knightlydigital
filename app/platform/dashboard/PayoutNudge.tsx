@@ -19,7 +19,7 @@ export default function PayoutNudge({ className = "" }: { className?: string }) 
         pay you, but Square can&apos;t pay you out until a bank account is linked.
       </p>
       <div className="flex shrink-0 items-center gap-2">
-        <Link prefetch={false} href="/app/settings?s=payments" className="btn-secondary btn-sm">
+        <Link prefetch={false} href="/app/settings?s=money" className="btn-secondary btn-sm">
           Details
         </Link>
         <a href={SQUARE_BANK_ACCOUNTS_URL} target="_blank" rel="noopener noreferrer" className="btn-primary btn-sm">

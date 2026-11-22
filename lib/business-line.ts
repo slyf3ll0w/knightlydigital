@@ -704,7 +704,7 @@ export async function optInFormUrl(companyId: string): Promise<string> {
 
 export const OPT_IN_FORM_MESSAGE =
   "Carrier reviewers open your public booking page to see the text-message consent checkbox, which sits under the phone number field. " +
-  "Add an item to your booking page (Settings → Booking & forms) that is shown on the page and asks for a phone number, then register.";
+  "Add an item to your booking page (Business → Booking & forms) that is shown on the page and asks for a phone number, then register.";
 
 /**
  * Pre-flight, same spirit as the website check: a filing whose form URL has

@@ -195,7 +195,7 @@ export const leadsSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Go to **Settings → Booking & forms**.",
+            "Go to **Business → Booking & forms**.",
             "Add what customers can book or ask for. Under **Book a time**: a Phone call, Video call, Visit (like a \"Free estimate\") or Service from your price book. Under **Just ask**: a Message form.",
             "For each item choose **Customer picks a time** or **They ask, you follow up**, and **Confirm instantly** or **Hold for approval**.",
             "Optional: take a deposit or full payment at booking.",
@@ -224,7 +224,7 @@ export const leadsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "A Video call item takes **Meeting links**, one per line. With one link, every booking gets it. With several, each booking takes the next one in turn and skips a room another video call already has at that time, so two calls back to back never share a room. A person's own meeting link (Settings → Team & roles) is used instead whenever they are the one assigned.",
+          text: "A Video call item takes **Meeting links**, one per line. With one link, every booking gets it. With several, each booking takes the next one in turn and skips a room another video call already has at that time, so two calls back to back never share a room. A person's own meeting link (Business → Team & roles) is used instead whenever they are the one assigned.",
         },
         {
           type: "p",
@@ -239,11 +239,11 @@ export const leadsSection: HelpSection = {
           items: [
             {
               q: "Customers see a request form instead of open times.",
-              a: "Nobody on your team is bookable. Go to Settings → Team & roles and turn on **Bookable online** for the people who take these appointments, and check their **Working hours**.",
+              a: "Nobody on your team is bookable. Go to Business → Team & roles and turn on **Bookable online** for the people who take these appointments, and check their **Working hours**.",
             },
             {
               q: "The times offered look wrong.",
-              a: "Times come from each bookable person's working hours, their existing jobs and appointments, blocked time (one-off and repeating), and (if they connected it) busy time in their Google Calendar. Check the company timezone in Settings → Company too.",
+              a: "Times come from each bookable person's working hours, their existing jobs and appointments, blocked time (one-off and repeating), and (if they connected it) busy time in their Google Calendar. Check the company timezone in Settings → Business too.",
             },
             {
               q: "I can't choose Hold for approval.",
@@ -274,7 +274,7 @@ export const leadsSection: HelpSection = {
         },
         {
           type: "tip",
-          text: "New website leads go to whoever is set in **Website leads go to** under Settings → Team & roles (the owner by default).",
+          text: "New website leads go to whoever is set in **Website leads go to** under Business → Team & roles (the owner by default).",
         },
       ],
     },

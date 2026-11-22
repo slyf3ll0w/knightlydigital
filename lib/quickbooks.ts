@@ -297,7 +297,7 @@ async function freshAccessToken(connection: QuickBooksConnection): Promise<strin
         .catch(() => {});
     }
     throw new Error(
-      `QuickBooks session expired — reconnect from Settings → QuickBooks. (${message})`
+      `QuickBooks session expired — reconnect from Settings → Money → QuickBooks. (${message})`
     );
   }
   const data = tokenDataFromResponse(tokens);
@@ -321,7 +321,7 @@ async function freshAccessToken(connection: QuickBooksConnection): Promise<strin
           { companyId: connection.companyId, error: err }
         );
         throw new Error(
-          "QuickBooks session couldn't be saved — reconnect from Settings → QuickBooks."
+          "QuickBooks session couldn't be saved — reconnect from Settings → Money → QuickBooks."
         );
       }
       await new Promise((resolve) => setTimeout(resolve, 200 * (attempt + 1)));

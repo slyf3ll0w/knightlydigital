@@ -34,7 +34,7 @@ export default async function SquareConnectedPage({ searchParams }: { searchPara
   const outcome = SQUARE_OUTCOME[key];
   const ok = outcome.tone === "good";
   const body = ok
-    ? "You're all set. Close this and go back to WorkBench — Settings → Online Payments shows the connection within a few seconds."
+    ? "You're all set. Close this and go back to WorkBench — Settings → Money → Online Payments shows the connection within a few seconds."
     : `${outcome.text} Go back to WorkBench and press Connect Square again.`;
 
   return (

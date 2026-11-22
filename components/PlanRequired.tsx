@@ -6,7 +6,7 @@ import { PLANS, featureBlurb, featureLabel, featurePlan, formatCents, type Gated
  * What a gated PAGE renders instead of its content once PLAN_GATING is live
  * and the company isn't on the plan (lib/plans.ts featureAllowed). One card
  * for every Pro feature: the feature's name, one line of what it does, the
- * plan's price, "See plans" (Settings → Plans, where an owner can add it in
+ * plan's price, "See plans" (Settings → Money → Your WorkBench plan, where an owner can add it in
  * two taps) and a way back. Server-safe — no hooks — so pages can return it
  * straight from the gate check:
  *

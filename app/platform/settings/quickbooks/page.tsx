@@ -8,7 +8,7 @@ import QuickBooksSettingsClient from "./QuickBooksSettingsClient";
 export const dynamic = "force-dynamic";
 
 /**
- * Settings → QuickBooks: connect QBO, watch sync health, sync now.
+ * Settings → Money → QuickBooks: connect QBO, watch sync health, sync now.
  *
  * Plan gate: QuickBooks sync is Pro, but a company that already connected
  * keeps its connection and its nightly sync (grandfathered — the normal card

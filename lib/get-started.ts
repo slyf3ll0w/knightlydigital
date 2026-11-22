@@ -118,7 +118,7 @@ export async function loadGetStarted(companyId: string): Promise<GetStarted | nu
   });
   // Finished is finished: every tick is a live count, so deleting the only
   // client later would otherwise bring the card back to Home. The same stamp
-  // Hide writes; Settings → Company → Show on Home clears it.
+  // Hide writes; the Get started switch at the bottom of Home clears it.
   if (result.complete) await prisma.company.updateMany({ where: { id: companyId, getStartedHiddenAt: null }, data: { getStartedHiddenAt: new Date() } });
   return result;
 }
@@ -146,7 +146,7 @@ export function buildGetStarted(f: GetStartedFacts): GetStarted {
             key: "bank",
             title: "Link your bank account in Square",
             sub: "Square pays you out to it. Until then, money waits in your Square balance.",
-            href: "/app/settings?s=payments",
+            href: "/app/settings?s=money",
             // VERIFIED, or UNKNOWN (an older grant we can't read) — PENDING,
             // NONE and "never checked" all still need the person.
             done: connected && (f.payoutStatus === "VERIFIED" || f.payoutStatus === "UNKNOWN"),
@@ -168,7 +168,7 @@ export function buildGetStarted(f: GetStartedFacts): GetStarted {
       key: "details",
       title: "Fill in your business details",
       sub: "Phone, address, logo and brand color — on your booking page and every document.",
-      href: "/app/settings?s=company",
+      href: "/app/settings?s=business",
       done: Boolean(company.phone?.trim()) && Boolean(company.address?.trim()),
     },
     {

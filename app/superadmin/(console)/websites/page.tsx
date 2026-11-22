@@ -7,7 +7,7 @@ import WebsitesClient, { type WebsiteRow } from "./WebsitesClient";
 export const dynamic = "force-dynamic";
 
 /**
- * The studio queue: every company that opened Settings → Website, newest
+ * The studio queue: every company that opened Business → Website, newest
  * brief first. Status, domain, Pages project, preview, studio notes,
  * "Rebuild now". The brief itself opens in a drawer; the site data link is
  * what a build reads.

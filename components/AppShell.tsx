@@ -52,7 +52,8 @@ import {
   HandCoins,
   Mic,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import SettingsPopup from "@/components/SettingsPopup";
 import Avatar from "@/components/Avatar";
 import SwipeBack from "@/components/SwipeBack";
 import PullToRefresh from "@/components/PullToRefresh";
@@ -1739,9 +1740,9 @@ interface AppShellProps {
   sidebarLogoSize?: number | null;
   brandColor?: string | null;
   brandColorSecondary?: string | null;
-  /** Company.brandFont — app-wide Google Font override (Settings → Branding & client experience) */
+  /** Company.brandFont — app-wide Google Font override (Settings → Brand & client pages) */
   brandFont?: string | null;
-  /** Company.sectionColors — per-section hue overrides (Settings → Branding & client experience) */
+  /** Company.sectionColors — per-section hue overrides (Settings → Brand & client pages) */
   sectionColors?: unknown;
   teamCount?: number;
   needsTour?: boolean;
@@ -1763,7 +1764,7 @@ interface AppShellProps {
   /** Company.isTest: show "Suggest a change" (More sheet + user menu) — fires
    *  SUGGEST_CHANGE_EVENT for components/SuggestChange.tsx. Testers only for now. */
   suggestChanges?: boolean;
-  /** Company.isTest: Settings → Website (the studio-built site) is still
+  /** Company.isTest: Business → Website (the studio-built site) is still
    *  being finished and shows for test accounts only (2026-10-30 request);
    *  live accounts never see the door. */
   websiteStudio?: boolean;
@@ -2617,11 +2618,11 @@ export default function AppShell({
       })()
     : undefined;
 
-  // Custom section colors (Settings → Branding & client experience → Section colors): four
+  // Custom section colors (Settings → Brand & client pages → Section colors): four
   // theme-guarded vars per overridden section; defaults live in globals.css.
   const sectionVars = sectionColorVars(sanitizeSectionColors(sectionColors));
 
-  // App-wide brand font (Settings → Branding & client experience): any Google Font, loaded on the
+  // App-wide brand font (Settings → Brand & client pages): any Google Font, loaded on the
   // fly exactly like the booking forms do. Overrides body + display vars on
   // the shell root; .numeral-ledger and .stamp pin Lexend explicitly in
   // globals.css, so ledger numerals keep their character.
@@ -2652,6 +2653,10 @@ export default function AppShell({
           <link rel="stylesheet" href={fontHref} />
         </>
       )}
+      {/* Settings opens as a pop-up over the current page (?settings=…) */}
+      <Suspense fallback={null}>
+        <SettingsPopup enabled={manager && !isAuthPage} />
+      </Suspense>
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
       <aside
         className="hidden lg:flex flex-col w-[232px] shrink-0 rail-gray border-r border-[color:var(--rail-line)]"

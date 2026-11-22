@@ -66,7 +66,7 @@ import type { ThemeRowJson, ThemeStateJson } from "@/lib/client-theme-store";
 import type { ThemeBookingItem } from "@/lib/client-theme-route";
 
 /**
- * Settings → Client pages (the AI page designer, Pro). Simplified 2026-11-20
+ * Settings → Brand & client pages → Client pages (the AI page designer, Pro). Simplified 2026-11-20
  * (David: "very confusing… could Atlas design it within the Client Page
  * section"):
  *
@@ -681,7 +681,7 @@ export default function ClientPagesClient({
           info={
             <>
               How your sign-in page, client portal, booking page and forms look. Tell {atlasName} what you want, or adjust it yourself. Changes save as a
-              draft only you can see; Publish puts them live. Quotes, invoices and emails keep your brand colors from Settings → Branding. Form questions are
+              draft only you can see; Publish puts them live. Quotes, invoices and emails keep your brand colors from Settings → Brand & client pages. Form questions are
               edited in Booking &amp; forms.
             </>
           }

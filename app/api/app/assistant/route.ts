@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
 
   const body = (await req.json().catch(() => ({}))) as { messages?: unknown; voice?: unknown; scope?: unknown };
   const voice = body.voice === true;
-  // A page's own Atlas (Settings → Client pages): same meter, only that page's tools
+  // A page's own Atlas (Settings → Brand & client pages → Client pages): same meter, only that page's tools
   const scope = isAssistantScope(body.scope) ? body.scope : undefined;
   if (body.scope !== undefined && !scope) return NextResponse.json({ error: "Unknown scope." }, { status: 400 });
   if (scope) {

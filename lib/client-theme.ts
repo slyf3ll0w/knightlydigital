@@ -24,7 +24,7 @@ export type ClientBrand = {
   brandColor?: string | null;
   brandColorSecondary?: string | null;
   documentColor?: string | null;
-  /** Optional Google Font family the company chose (Settings → Branding). */
+  /** Optional Google Font family the company chose (Settings → Brand & client pages). */
   brandFont?: string | null;
 };
 

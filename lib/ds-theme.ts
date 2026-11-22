@@ -1,7 +1,7 @@
 /**
  * WorkBench design system ("ds") — brand tokens.
  *
- * Every company picks two colors (Settings → Branding): PRIMARY drives the
+ * Every company picks two colors (Settings → Brand & client pages): PRIMARY drives the
  * app (buttons, active states, links, the Up-next hero, charts) and
  * SECONDARY is the occasional highlight (appointment markers, the hero's
  * status pill, today's bar in a chart, the orange sparks on hand-drawn

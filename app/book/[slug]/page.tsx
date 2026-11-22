@@ -23,7 +23,7 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
   const { slug } = await params;
   const sp = await searchParams;
   const preview = sp.preview === "1";
-  // Settings → Client pages previews a DRAFT look here (owner only, lib/booking-public.ts)
+  // Settings → Brand & client pages → Client pages previews a DRAFT look here (owner only, lib/booking-public.ts)
   const themeToken = preview ? sp.theme : undefined;
   const page = await loadBookingPage(slug, { preview, themeToken });
   if (!page) notFound();

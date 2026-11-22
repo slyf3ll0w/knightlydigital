@@ -12,7 +12,7 @@ import ClientPagesClient from "./ClientPagesClient";
 export const dynamic = "force-dynamic";
 
 /**
- * Settings → Client pages: the AI page designer (Pro, page_designer;
+ * Settings → Brand & client pages → Client pages: the AI page designer (Pro, page_designer;
  * docs/plans/ai-portal-designer-2026-11-20.md → "In-app UI"). The look of
  * the portal sign-in, the client portal, the booking page and its forms —
  * edited here, by Atlas, or by a connected AI app, always as a draft that
@@ -35,7 +35,7 @@ export default async function ClientPagesPage() {
       <DsPage>
         <PageHeader eyebrow="Settings" title="Client pages" info="The look of your portal sign-in, client portal, booking page and forms. Without Pro they use your logo and colors from Branding." />
         <div className="mt-6">
-          <PlanRequired compact feature="page_designer" back={{ href: "/app/settings?s=branding", label: "Branding" }} />
+          <PlanRequired compact feature="page_designer" back={{ href: "/app/settings?s=brand", label: "Brand & client pages" }} />
         </div>
         <div className="mx-auto mt-6 hidden max-w-4xl lg:block">
           <iframe src={`/book/${company.slug}?preview=1&thumb=1`} title="Your booking page today" className="ds-card h-[620px] w-full" />

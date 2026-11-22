@@ -139,11 +139,11 @@ export default function EmailClientButton({
                   </label>
                 ) : (
                   <span className="text-xs text-gray-500">
-                    Add a logo in Settings → Branding &amp; client experience to include it here.
+                    Add a logo in Settings → Brand &amp; client pages to include it here.
                   </span>
                 )}
                 <span className="text-xs text-gray-500">
-                  Save a default in Settings → My Profile
+                  Save a default in My Profile
                 </span>
               </div>
             </div>

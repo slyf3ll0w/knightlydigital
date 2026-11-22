@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 
 /**
- * POST — bring the Get started checklist back to Home (Settings → Company).
+ * POST — bring the Get started checklist back to Home (Settings → Business).
  * Clears getStartedHiddenAt, the stamp Hide set. The card still hides
  * itself once every core item is done.
  */

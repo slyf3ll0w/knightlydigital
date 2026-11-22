@@ -1,6 +1,6 @@
 /**
  * Client websites — the pieces both the server module (lib/website.ts, which
- * imports Prisma) and the owner's Settings → Website client component need.
+ * imports Prisma) and the owner's Business → Website client component need.
  * Pure: no Prisma, no React, so a "use client" file can import it.
  */
 

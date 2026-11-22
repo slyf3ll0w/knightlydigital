@@ -11,7 +11,7 @@ import { postJson } from "@/lib/safe-fetch";
 import type { Proposal } from "@/lib/assistant";
 
 /**
- * Settings → Connected apps (docs/plans/workbench-connector-2026-11-17.md).
+ * Settings → Notifications & AI → Connected apps (docs/plans/workbench-connector-2026-11-17.md).
  *
  * Laid out like the rest of the app (docs/design-system.md): the thing to do
  * comes first, explanations live in (i) bubbles, one card and one row style.

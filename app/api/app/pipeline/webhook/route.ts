@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 
 /**
- * The company's lead-intake webhook (Settings → Lead Pipeline). POST mints
+ * The company's lead-intake webhook (Settings → Clients & documents → Lead pipeline). POST mints
  * (or rotates) the endpoint token — rotation kills any integration using the
  * old URL instantly. DELETE turns intake off.
  */

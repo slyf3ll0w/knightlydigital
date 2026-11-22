@@ -8,7 +8,7 @@ import { Button, Card, Chip, InfoTip } from "@/components/ds";
  * The company's client-pages look (AI page designer, Pro): what is live and
  * a Reset theme button that puts the portal, sign-in, booking page and forms
  * back on the default look (their colors + logo). History is kept, so the
- * owner can put a version back from Settings → Client pages.
+ * owner can put a version back from Settings → Brand & client pages → Client pages.
  */
 export function ThemeControl({ companyId, live, versions, hasDraft }: { companyId: string; live: { version: number; note: string | null; publishedAt: string | null } | null; versions: number; hasDraft: boolean }) {
   const router = useRouter();

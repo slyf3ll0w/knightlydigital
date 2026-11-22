@@ -121,7 +121,7 @@ export async function handleRpc(caller: ConnectorCaller, msg: RpcRequest, header
 }
 
 /**
- * The activity list on Settings → Connected apps: which tool an app used and
+ * The activity list on Settings → Notifications & AI → Connected apps: which tool an app used and
  * when. Tool names only — never the arguments or what came back. Best
  * effort; rows older than 90 days are cleared as new ones arrive.
  */

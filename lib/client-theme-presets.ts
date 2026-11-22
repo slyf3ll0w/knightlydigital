@@ -1,7 +1,7 @@
 import { DEFAULT_OVERLAY, OVERLAY_MAX, photoBandPasses, type BandStyle, type ButtonStyle, type ClientThemeSpec, type CornerStyle } from "./client-theme-spec";
 
 /**
- * Settings → Client pages, the simple controls (David 2026-11-20: "very
+ * Settings → Brand & client pages → Client pages, the simple controls (David 2026-11-20: "very
  * confusing… could we simplify it?"). Pure, so the rules are unit-tested
  * (scripts/test-client-theme-presets.ts):
  *

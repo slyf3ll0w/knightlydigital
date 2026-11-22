@@ -1,7 +1,7 @@
 import type { PublishTarget } from "@/lib/client-theme-store";
 
 /**
- * Pure request rules for the Settings → Client pages routes
+ * Pure request rules for the Settings → Brand & client pages → Client pages routes
  * (app/api/app/client-theme/*), unit-tested in
  * scripts/test-client-theme-requests.ts. No Prisma.
  */

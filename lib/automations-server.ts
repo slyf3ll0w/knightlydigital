@@ -723,7 +723,7 @@ export async function automationWarnings(companyId: string, compiled: CompiledAu
   }
   if ((has("email_client") || has("email_address") || has("send_quote_link") || has("send_pay_link") || has("send_payment_reminder")) && !emailEnabled()) out.push("Email isn't configured on this server yet — email steps will be skipped until it is.");
   if ((has("text_client") || has("send_appointment_reminder")) && !(await companyCanSendSms(companyId))) out.push("Texting isn't live on your business line yet — text steps will be skipped (reminders fall back to email).");
-  if (has("request_review") && !company?.reviewLink) out.push("No review link is set (Settings → Branding & client experience) — review requests will be skipped until one is.");
+  if (has("request_review") && !company?.reviewLink) out.push("No review link is set (Settings → Brand & client pages) — review requests will be skipped until one is.");
   if (has("push_to_quickbooks")) {
     const conn = isQuickBooksConfigured() ? await prisma.quickBooksConnection.findUnique({ where: { companyId }, select: { id: true } }) : null;
     if (!conn) out.push("QuickBooks isn't connected — the push will be skipped.");

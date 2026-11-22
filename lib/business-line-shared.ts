@@ -63,7 +63,7 @@ export type VoiceSummary = {
   /** CNAM listing on the number (outbound caller-ID name); null = none. */
   callerIdName: string | null;
   defaultCallerIdName: string;
-  /** The signed-in user has a cell on file to place calls from (Settings → My Profile). */
+  /** The signed-in user has a cell on file to place calls from (My Profile). */
   canCall: boolean;
 };
 export type RegistrationKind = "10DLC" | "TOLL_FREE";
@@ -301,7 +301,7 @@ export const REGISTRATION_CHECKLIST: Record<BrandEntityType, ChecklistItem[]> = 
     },
     {
       title: "A booking form that asks for a phone number",
-      detail: "An item on your booking page (Settings → Booking & forms), shown on the page, with the phone field on. The text-message consent checkbox sits under that field.",
+      detail: "An item on your booking page (Business → Booking & forms), shown on the page, with the phone field on. The text-message consent checkbox sits under that field.",
       why: "Carrier reviewers open that page to see how customers opt in. A page without the checkbox is sent back, and every re-file is a carrier fee.",
     },
   ],
@@ -328,7 +328,7 @@ export const REGISTRATION_CHECKLIST: Record<BrandEntityType, ChecklistItem[]> = 
     },
     {
       title: "A booking form that asks for a phone number",
-      detail: "An item on your booking page (Settings → Booking & forms), shown on the page, with the phone field on. The text-message consent checkbox sits under that field.",
+      detail: "An item on your booking page (Business → Booking & forms), shown on the page, with the phone field on. The text-message consent checkbox sits under that field.",
       why: "Carrier reviewers open that page to see how customers opt in. A page without the checkbox is sent back, and every re-file is a carrier fee.",
     },
   ],

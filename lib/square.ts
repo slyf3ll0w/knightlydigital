@@ -63,7 +63,7 @@ function squareApplicationSecret(): string {
 }
 
 /** Square's partner sign-up link for sellers who have no Square account yet
- *  (Settings → Online Payments "Create a Square account"). Unset = the card
+ *  (Settings → Money → Online Payments "Create a Square account"). Unset = the card
  *  just says to create one on Square first. Set SQUARE_SIGNUP_URL to the
  *  link Square's partnerships team issues so new sellers are attributed to
  *  WorkBench; anything but an https URL is ignored. */

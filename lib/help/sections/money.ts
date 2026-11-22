@@ -291,7 +291,7 @@ export const paymentsSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Connect Square first (Settings → Payments & accounting → Online Payments). If the card there says **Reconnect Square to turn on Tap to Pay**, press `Reconnect Square` — Square needs one extra permission for in-person payments. On the phone, Square opens in your browser; sign in to WorkBench there if it asks, approve, and come back to the app.",
+            "Connect Square first (Settings → Money → Online Payments). If the card there says **Reconnect Square to turn on Tap to Pay**, press `Reconnect Square` — Square needs one extra permission for in-person payments. On the phone, Square opens in your browser; sign in to WorkBench there if it asks, approve, and come back to the app.",
             "On the phone app, open the same card: **Tap to Pay on this phone** → `Set up`.",
             "Allow **location** when asked. Square requires it for every in-person payment.",
             "iPhone only: Apple shows its Tap to Pay terms — sign in with your Apple ID and accept. Done when the card says **Ready**.",
@@ -318,7 +318,7 @@ export const paymentsSection: HelpSection = {
           items: [
             {
               q: "I don't see a Tap to Pay button.",
-              a: "It only exists in the WorkBench phone app (not Safari or Chrome), on a phone that can take contactless payments, once Square is connected and your app is up to date. If Settings → Online Payments says **Reconnect Square to turn on Tap to Pay**, the account owner needs to do that first.",
+              a: "It only exists in the WorkBench phone app (not Safari or Chrome), on a phone that can take contactless payments, once Square is connected and your app is up to date. If Settings → Money → Online Payments says **Reconnect Square to turn on Tap to Pay**, the account owner needs to do that first.",
             },
             {
               q: "It said \"Cancelled — nothing was charged\".",
@@ -410,7 +410,7 @@ export const paymentsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "Payouts need a bank account on your Square account. If there isn't one yet, Home and **Settings → Payments & accounting → Online Payments** show **Add your bank account to Square** with a button to the right page in Square (Settings → Account & Settings → Banking → Bank Accounts). Clients can still pay in the meantime; the money waits in your Square balance until the account is verified.",
+          text: "Payouts need a bank account on your Square account. If there isn't one yet, Home and **Settings → Money → Online Payments** show **Add your bank account to Square** with a button to the right page in Square (Settings → Account & Settings → Banking → Bank Accounts). Clients can still pay in the meantime; the money waits in your Square balance until the account is verified.",
         },
         {
           type: "list",
@@ -491,7 +491,7 @@ export const paymentsSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Go to **Settings → Services** and add or open a **Product** (a service can't be sold this way — it's booked).",
+            "Go to **Business → Services** and add or open a **Product** (a service can't be sold this way — it's booked).",
             "Tick **Sell online**, save, then add a photo for the shop page. The price is the product's unit price; your default sales tax applies if you have one.",
             "Press the link button on the product's row to copy its **buy link** — text it, email it, put it on your website. **Your shop** at the top of the page is the link to everything.",
           ],
@@ -552,7 +552,7 @@ export const paymentsSection: HelpSection = {
         {
           type: "list",
           items: [
-            `**Settings → Payments & accounting → Service fee** is one switch — the same choice as on the payment-setup screen. Turning it off means you pay the processing fee yourself at your Square plan's rate — for an account set up on the service-fee plan that is the higher one, **${FEE_CARD}** per card payment. To move the account to the company-paid plan, message us from the Help Center.`,
+            `**Settings → Money → Service fee** is one switch — the same choice as on the payment-setup screen. Turning it off means you pay the processing fee yourself at your Square plan's rate — for an account set up on the service-fee plan that is the higher one, **${FEE_CARD}** per card payment. To move the account to the company-paid plan, message us from the Help Center.`,
             "Choosing the service fee (on the setup screen or with the switch) means confirming that surcharging is allowed where you do business. Card networks and some states regulate it, and that responsibility is yours, not WorkBench's.",
             "Square's sign-up link sets the rate plan a new Square account lands on, so create the account from the link for the model you chose: the payment-setup screen offers the matching one, and the Online Payments card in Settings lists both with **Your setting** on the one that matches the switch.",
           ],

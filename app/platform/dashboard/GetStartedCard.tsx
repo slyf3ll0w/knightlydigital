@@ -14,7 +14,7 @@ import type { GetStarted } from "@/lib/get-started";
  * on phones and desktops alike. Every row ticks itself from real data
  * (lib/get-started.ts); tapping a row opens the place where that step gets
  * done. Hide stamps Company.getStartedHiddenAt so it stays gone on every device;
- * Settings → Company brings it back. The card also leaves on its own once
+ * the Get started switch at the bottom of Home brings it back. The card also leaves on its own once
  * every core item is done.
  */
 export default function GetStartedCard({ data }: { data: GetStarted }) {
@@ -36,7 +36,7 @@ export default function GetStartedCard({ data }: { data: GetStarted }) {
         <p className="flex items-center gap-1 text-[15px] font-semibold text-[color:var(--ds-ink)]">
           Get started
           <InfoTip>
-            Each step ticks itself off as you go. Hide it any time — Settings → Company brings it back.
+            Each step ticks itself off as you go. Hide it any time — the Get started switch at the bottom of Home brings it back.
           </InfoTip>
         </p>
         <div className="flex items-center gap-3">

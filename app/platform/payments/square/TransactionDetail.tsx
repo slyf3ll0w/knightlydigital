@@ -183,7 +183,7 @@ export default async function TransactionDetail({ companyId, tz, paymentId, canR
             {ours
               ? "This charge came through WorkBench — the items are on the invoice."
               : orderError === "missing_scope"
-                ? "Reconnect Square (Settings → Payments & accounting) to see the items behind this sale."
+                ? "Reconnect Square (Settings → Money) to see the items behind this sale."
                 : orderError
                   ? "Square didn't answer with the order just now."
                   : "Square kept no itemized order for this payment."}

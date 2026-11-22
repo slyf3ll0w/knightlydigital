@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * The Leads pipeline board — a kanban over contacts with a pipeline stage.
  * Cards arrive from web forms, the lead webhook, and manual creates; they
  * leave through Won (→ active client) or Lost. Stage columns are the
- * company's own (Settings → Lead Pipeline).
+ * company's own (Settings → Clients & documents → Lead pipeline).
  */
 // The Converted section shows only recent wins — older ones live in Clients
 const CONVERTED_SHOWN = 25;

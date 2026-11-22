@@ -8,7 +8,7 @@ import { EXTRA_SEAT_CENTS, INCLUDED_SEATS, PLANS, PLAN_HOLDER_SELECT, canAddPers
  * Pro and Max have no cap, nor do test accounts, nor anyone while
  * PLAN_GATING is dark. Adding a person or reactivating one past the cap is
  * refused with 402 SEATS_REQUIRED — the client shows the message with a link
- * to Settings → Plans, where one more person is two taps.
+ * to Settings → Money → Your WorkBench plan, where one more person is two taps.
  */
 export const SEATS_REQUIRED_CODE = "SEATS_REQUIRED";
 

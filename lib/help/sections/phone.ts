@@ -57,7 +57,7 @@ export const phoneSection: HelpSection = {
             },
             {
               q: "The card says my plan ended and the number will be released.",
-              a: "Your subscription ended. Add Voice (or Max) again on Settings → Plans before the date shown and the number stays; or email us before then if you want to move it to another provider.",
+              a: "Your subscription ended. Add Voice (or Max) again on Settings → Money → Your WorkBench plan before the date shown and the number stays; or email us before then if you want to move it to another provider.",
             },
           ],
         },

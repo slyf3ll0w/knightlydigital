@@ -13,7 +13,7 @@ import { sendEmail, signInMethodLinkedEmail } from "@/lib/email";
  *
  *   1. Known identity (provider + subject id)  → that Account.
  *   2. Unknown identity, LINK intent           → the signed-in caller's Account
- *                                                (Settings → My Profile only).
+ *                                                (My Profile only).
  *   3. Unknown identity, verified email match  → link it to that Account.
  *   4. Unknown identity, nobody home           → open a password-less Account.
  *

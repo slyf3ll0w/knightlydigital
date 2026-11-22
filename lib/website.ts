@@ -266,7 +266,7 @@ export function publicLegalName(c: { legalName: string | null; showLegalNameOnDo
   return c.showLegalNameOnDocs ? c.legalName : null;
 }
 
-// ─── Owner-side summary (Settings → Website) ─────────────────────────────────
+// ─── Owner-side summary (Business → Website) ─────────────────────────────────
 
 export type WebsiteSummary = {
   status: WebsiteStatus;

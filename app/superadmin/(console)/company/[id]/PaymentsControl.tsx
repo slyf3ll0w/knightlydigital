@@ -68,7 +68,7 @@ export function PaymentsControl({
           <h2 className="ds-h2">Online payments</h2>
           <InfoTip>
             {processor === "square"
-              ? "Payments run through the company's own Square account, which the owner connects from Settings → Payments & accounting — or, for a self-serve sign-up, on the payment-setup step the app holds them at until it's connected. Nothing to approve on our side: connected means their pay links take cards and bank payments; not connected means pay pages are view-only and invoice emails say View. Waive payment setup to let a held company in without connecting (testers, comps); Require puts the step back."
+              ? "Payments run through the company's own Square account, which the owner connects from Settings → Money — or, for a self-serve sign-up, on the payment-setup step the app holds them at until it's connected. Nothing to approve on our side: connected means their pay links take cards and bank payments; not connected means pay pages are view-only and invoice emails say View. Waive payment setup to let a held company in without connecting (testers, comps); Require puts the step back."
               : "The platform processor is manual: nothing moves money anywhere. Set PAYMENT_PROCESSOR=square on Railway to turn online payments back on."}
           </InfoTip>
         </div>

@@ -4,7 +4,7 @@ import { getActor, isManager } from "@/lib/permissions";
 import { buildAuthorizeUrl, isQuickBooksConfigured } from "@/lib/quickbooks";
 
 /**
- * Starts the QuickBooks OAuth dance: the Settings → QuickBooks "Connect"
+ * Starts the QuickBooks OAuth dance: the Settings → Money → QuickBooks "Connect"
  * button lands here and bounces to Intuit's consent screen. The signed state
  * carries the company AND the manager, so the callback can finish without a
  * session (the native shell hands Intuit to Safari/Chrome).

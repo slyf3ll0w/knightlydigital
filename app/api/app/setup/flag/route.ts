@@ -7,7 +7,7 @@ import { getActor, isManager } from "@/lib/permissions";
  * its own. Idempotent: the first stamp wins, later calls are no-ops.
  *
  *   bookingLinkShared — the booking link / embed snippet was copied once
- *                       (Settings → Booking & forms).
+ *                       (Business → Booking & forms).
  */
 export async function POST(req: Request) {
   const actor = await getActor();

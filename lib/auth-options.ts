@@ -281,7 +281,7 @@ export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAut
           return `${ctx.reauthReturnTo}${sep}reauth=wrong-account`;
         }
 
-        // Linking from Settings → My Profile means a full (company) session
+        // Linking from My Profile means a full (company) session
         // that just verified itself (password, or a connected provider);
         // anything else (signed out, a company-less session bouncing through
         // the login page, or a session with no fresh proof) is a plain

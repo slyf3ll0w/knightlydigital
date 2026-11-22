@@ -31,7 +31,7 @@ function linkErrorMessage(code: string, provider: string): string {
 }
 
 /**
- * Settings → My Profile → Sign-in methods: the ways this login opens, as one
+ * My Profile → Sign-in methods: the ways this login opens, as one
  * list — Password, Google, Apple — each with its own set / change / connect
  * / disconnect, the way Google, GitHub and Apple lay theirs out. Every
  * change here goes through "verify it's you" first

@@ -21,7 +21,7 @@ import type { BusinessHours } from "@/lib/business-hours";
 /**
  * Team management — add members (seats priced per lib/plans.ts; once
  * PLAN_GATING is live a Core company at its limit gets 402 SEATS_REQUIRED
- * and a link to Settings → Plans), change roles,
+ * and a link to Settings → Money → Your WorkBench plan), change roles,
  * deactivate, reset passwords; plus the company's lead-routing and
  * sales-payments policies.
  */

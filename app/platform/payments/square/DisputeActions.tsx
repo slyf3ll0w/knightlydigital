@@ -53,7 +53,7 @@ export default function DisputeActions({
   const base = `/api/app/payments/square/disputes/${encodeURIComponent(disputeId)}`;
 
   function fail(data: { error?: string; code?: string } | null, fallback: string) {
-    if (data?.code === "MISSING_SCOPES") setError("Reconnect Square in Settings → Payments & accounting first.");
+    if (data?.code === "MISSING_SCOPES") setError("Reconnect Square in Settings → Money first.");
     else setError(data?.error ?? fallback);
   }
 

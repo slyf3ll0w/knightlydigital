@@ -158,7 +158,7 @@ export const atlasSection: HelpSection = {
         },
         {
           type: "tip",
-          text: `Every account gets ${ATLAS_FREE} Atlas tokens a month free. **Atlas Full** (${ATLAS_FULL} a month) comes with ${PRO} and ${MAX}. See [Atlas tokens and limits](/help/atlas-tokens). Owners can rename the assistant in Settings → Automations & assistant.`,
+          text: `Every account gets ${ATLAS_FREE} Atlas tokens a month free. **Atlas Full** (${ATLAS_FULL} a month) comes with ${PRO} and ${MAX}. See [Atlas tokens and limits](/help/atlas-tokens). Owners can rename the assistant in Settings → Notifications & AI.`,
         },
         {
           type: "p",
@@ -231,7 +231,7 @@ export const atlasSection: HelpSection = {
             "Each reply shows how many tokens it used, and the meter above the message box shows what's left. On a phone a small pill at the top of the drawer shows the same number.",
             "Call notes, building estimate tools and drafting automation text also use tokens.",
             "When they're gone, Atlas says so and opens again when the meter refills. Everything else in WorkBench keeps working.",
-            `Using Atlas every day? Atlas Full is the way to stop running out. It comes with **${PRO}**, which the owner adds on [Settings → Plans](/app/settings/plans) (see [Manage your plan](/help/manage-your-plan)).`,
+            `Using Atlas every day? Atlas Full is the way to stop running out. It comes with **${PRO}**, which the owner adds on [Settings → Money → Your WorkBench plan](/app/settings/plans) (see [Manage your plan](/help/manage-your-plan)).`,
           ],
         },
         {

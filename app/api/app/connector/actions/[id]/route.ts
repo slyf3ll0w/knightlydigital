@@ -4,7 +4,7 @@ import { getActor } from "@/lib/permissions";
 
 /**
  * POST { status: "done" | "dismissed" } — the person answered a card an
- * outside AI prepared (Settings → Connected apps). This only records the
+ * outside AI prepared (Settings → Notifications & AI → Connected apps). This only records the
  * answer. The work itself is done by the page calling the card's own app
  * route with the person's session, exactly as an Atlas card is confirmed —
  * so every role and ownership check runs again there.

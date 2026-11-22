@@ -153,7 +153,7 @@ export function PlanControl({
             <h3 className="text-[14px] font-semibold text-[color:var(--ds-ink)]">Billing (WorkBench)</h3>
             <InfoTip>
               What the company pays WorkBench — one row per recurring series on its client record in the WorkBench
-              account, read off the invoices. Read-only here: the owner changes these on Settings → Plans; the
+              account, read off the invoices. Read-only here: the owner changes these on Settings → Money → Your WorkBench plan; the
               WorkBench account changes them under Clients → Recurring. Paid seats: {paidSeats}.
             </InfoTip>
             {card && <span className="ds-small">{card}</span>}

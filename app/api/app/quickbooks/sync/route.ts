@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getActor, isManager } from "@/lib/permissions";
 import { syncCompany } from "@/lib/quickbooks";
 
-/** Manual "Sync now" from Settings → QuickBooks. */
+/** Manual "Sync now" from Settings → Money → QuickBooks. */
 export async function POST() {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
