@@ -31,8 +31,11 @@ export default function PageTitle({
   children,
   sub,
   info,
+  heavy,
   className,
 }: {
+  /** The heavy-look title (bigger, weight 800, tighter) — pilot on invoice detail, 2026-11-21. */
+  heavy?: boolean;
   /** Optional since the calm-stage pass — kept for old call sites. */
   section?: SectionKey;
   icon?: LucideIcon;
@@ -55,7 +58,7 @@ export default function PageTitle({
         : undefined;
   return (
     <div className={`min-w-0 ${className ?? ""}`}>
-      <h1 className="ds-title flex items-center gap-2">
+      <h1 className={`ds-title ${heavy ? "ds-title-heavy" : ""} flex items-center gap-2`}>
         {text && <TitleSentinel title={text} />}
         <span className="ds-wipe min-w-0">
           <span className="ds-wipe-text">{children}</span>

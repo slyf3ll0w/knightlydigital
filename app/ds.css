@@ -691,3 +691,41 @@ html[data-mode="dark"] .ds { --rail-news: var(--ds-secondary); }
   .ds .ds-sticky-in, .ds .ds-notes-strip-in { animation: none; }
 }
 
+
+/* ── Heavy look, app pilot (invoice detail, 2026-11-21) ─────────────────────
+   docs/site-design.md "What heavy means": solid raised cards on the tinted
+   canvas, Lexend 800 titles, one strong brand band per screen, motion only
+   where something real arrives (the balance rolls, the paid bar grows). */
+.ds .ds-title-heavy { font-size: 34px; line-height: 1.05; font-weight: 800; letter-spacing: -0.032em; }
+@media (min-width: 1024px) { .ds .ds-title-heavy { font-size: 44px; } }
+.ds .ds-heavy-h2 { font-size: 18px; line-height: 1.2; font-weight: 750; letter-spacing: -0.016em; color: var(--ds-ink); }
+
+.ds-band-number { font-size: 50px; line-height: 1; font-weight: 800; letter-spacing: -0.04em; }
+@media (min-width: 1024px) { .ds-band-number { font-size: 64px; } }
+.ds-band-pill {
+  display: inline-flex; align-items: center; height: 27px; padding: 0 12px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 700; letter-spacing: 0;
+}
+.ds-band-pill.is-secondary { background: var(--ds-secondary); color: var(--ds-on-secondary); }
+.ds-band-pill.is-good { background: #FFFFFF; color: #15803D; }
+.ds-band-pill.is-bad { background: #FFFFFF; color: #DC2626; }
+.ds-band-pill.is-quiet { background: color-mix(in srgb, currentColor 18%, transparent); color: inherit; }
+
+.ds-band-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 28px; }
+@media (min-width: 1024px) { .ds-band-facts { grid-template-columns: repeat(3, auto); gap: 16px 40px; padding-top: 6px; } }
+.ds-band-facts dt { font-size: 12.5px; font-weight: 600; opacity: 0.72; }
+.ds-band-facts dd { margin-top: 2px; font-size: 15px; font-weight: 700; }
+@media (min-width: 1024px) { .ds-band-facts dd { white-space: nowrap; } }
+.ds-band-link {
+  color: inherit; text-decoration: underline; text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+.ds-band-link:hover { text-decoration-color: currentColor; }
+
+.ds-band-track { height: 10px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, currentColor 20%, transparent); }
+.ds-band-fill {
+  height: 100%; border-radius: inherit; background: currentColor; transform-origin: left center;
+  animation: ds-band-grow 900ms var(--ds-ease) 180ms both;
+}
+@keyframes ds-band-grow { from { transform: scaleX(0); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ds-band-fill { animation: none; } }
