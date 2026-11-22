@@ -9,22 +9,30 @@ import { useSoftphone } from "@/lib/softphone-client";
  * triggers, both ending in router.refresh():
  *
  *   · the softphone's call changes (placed, answered, ended) — refresh
- *     right away, and once more a couple of seconds later so the webhook
- *     that closes the row (durations, voicemail) has landed;
+ *     right away, then again at one, two and a half and five seconds so the
+ *     webhook that closes the row (durations, voicemail) is picked up as
+ *     soon as it lands;
  *   · GET /api/app/calls/pulse says the company's log changed — polled
  *     every few seconds while the tab is visible, so calls that ring the
  *     cell, missed calls and voicemails appear too.
  *
  * The pulse is a fingerprint, not the data: nothing re-renders while
- * nothing happened.
+ * nothing happened. The page hands over the fingerprint it was built with
+ * (`builtWith`), so a change that landed between the render and the first
+ * poll is caught too: without it a row could sit on "On the line" until
+ * the next call (ticket #7iyuu2).
  */
 const POLL_MS = 4_000;
-const SETTLE_MS = 2_500;
+const SETTLE_MS = [1_000, 2_500, 5_000];
 
-export default function CallsLive() {
+export default function CallsLive({ builtWith = null }: { builtWith?: string | null }) {
   const router = useRouter();
   const sp = useSoftphone();
-  const stamp = useRef<string | null>(null);
+  const stamp = useRef<string | null>(builtWith);
+  // A fresh render of the page carries a fresh fingerprint
+  useEffect(() => {
+    if (builtWith !== null) stamp.current = builtWith;
+  }, [builtWith]);
   const callKey = sp.call ? `${sp.call.callId ?? "?"}:${sp.call.state}` : "none";
 
   useEffect(() => {
@@ -67,8 +75,8 @@ export default function CallsLive() {
       return;
     }
     router.refresh();
-    const t = setTimeout(() => router.refresh(), SETTLE_MS);
-    return () => clearTimeout(t);
+    const timers = SETTLE_MS.map((ms) => setTimeout(() => router.refresh(), ms));
+    return () => timers.forEach(clearTimeout);
   }, [callKey, router]);
 
   return null;

@@ -1,3 +1,4 @@
+import { stripRecapEcho } from "@/lib/assistant/recap-echo";
 import { reportError } from "@/lib/report-error";
 import { pageDesignerOpen } from "@/lib/plans";
 import { prisma } from "../db";
@@ -259,7 +260,7 @@ Actions:
 - When the user wants a link to share themselves: quote approval and invoice pay links come from get_document (clientLink / payLink), agreement signing links from list_agreements, form links and website embed code from manage_web_form, statement PDFs from get_statement, CSV exports from export_data — paste them directly in your reply.
 - Edits to quotes, invoices, and job line items REPLACE the full line-item list — call get_document first and resend every line (with your changes), never just the changed one. The exception is add_job_line_items, which APPENDS to a job. Copying a document is duplicate_document.
 - Chain lookups yourself — if the user says "cancel Tuesday's appointment with Ben", find it (get_schedule or search + activity) and stage the cancellation; don't ask them for ids.
-- CONTINUITY: your earlier replies in this conversation may end with a "[Behind this reply: …]" note listing the tool calls behind them and the gist of what came back (ids, names, dates). When the user says "it", "that one", "the call", "what's it about", they mean the record you just talked about — take the id and facts from that note and, if you need more detail, fetch THAT record (get_document / get_client_activity with its id). Never answer a follow-up about one record with a fresh search that lands on a different one.
+- CONTINUITY: your earlier replies in this conversation may end with a "[Behind this reply: …]" note listing the tool calls behind them and the gist of what came back (ids, names, dates). When the user says "it", "that one", "the call", "what's it about", they mean the record you just talked about — take the id and facts from that note and, if you need more detail, fetch THAT record (get_document / get_client_activity with its id). Never answer a follow-up about one record with a fresh search that lands on a different one. That note is added for you after the fact: never write a "[Behind this reply: …]" note, or any list of the tools you called, in a reply of your own.
 - "Today's job", "this morning's appointment", "the job" are lookups, not questions: check get_schedule for that day (add_job_line_items does this itself); when exactly one fits, use it without asking which client. Ask only when several could fit, and then ask by client name.
 - Prices: never ask what a service or product costs before the price book has been checked. Send line items WITHOUT unitPrice and the tool prices them from the price book by name (typos are fine) and links the line to the entry. Ask for a price only when a tool reports nothing matched, offering the closest entries it lists.
 - FINISH THE WHOLE JOB. Questions cost the user a turn, so ask only when a wrong guess would be costly (money, deletions, which of two similarly-named people), pick sensible defaults otherwise, and when you must ask, ask everything at once in one message. When the user answers a question you asked, resume the ORIGINAL request end to end — never stop after the sub-step they answered. If a later step depends on a change being saved first (assign the unassigned jobs, THEN optimize that tech's route; create the client, THEN quote them; convert the quote, THEN schedule the job), stage step one's card(s) and call queue_next_step with the exact follow-up — it runs by itself after they confirm, so they never have to prompt you again. Say so in one line: "Once you confirm, I'll build Mike's route for Tuesday."
@@ -481,10 +482,12 @@ export async function runAssistant(
     // they ran — silent drops here surfaced as bulk updates missing records
     const overflow = allCalls.slice(MAX_CALLS_PER_ROUND);
     if (allCalls.length === 0) {
-      const text = parts
-        .map((p) => ("text" in p ? p.text : ""))
-        .join("")
-        .trim();
+      const text = stripRecapEcho(
+        parts
+          .map((p) => ("text" in p ? p.text : ""))
+          .join("")
+          .trim()
+      );
       const done = (reply: string): AssistantResult => ({
         reply,
         proposals: mergeBulkProposals(ctx.proposals),

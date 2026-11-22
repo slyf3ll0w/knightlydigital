@@ -12,8 +12,9 @@ import { reportError } from "@/lib/report-error";
  * read-only in the app (the edit route refuses them) and the push side
  * (lib/google-calendar.ts) never sends them back out, so nothing loops.
  *
- * What stays out: events Workbench itself pushed (private property `wb`),
- * anything marked Free (Google's default for all-day events), cancelled
+ * What stays out: events THIS company's Workbench pushed (private property
+ * `wb`; a copy pushed by another Workbench company the same person belongs
+ * to is busy time like any other event, ticket #wz9j1r), anything marked Free (Google's default for all-day events), cancelled
  * events, invitations the user declined, and anything outside the window.
  *
  * How it stays fresh: Google's incremental sync — the first pull reads the
@@ -45,6 +46,11 @@ export const PULL_PAST_DAYS = 7;
 export const PULL_FUTURE_DAYS = 180;
 /** Label a mirrored block carries unless the user shares event names. */
 export const PRIVATE_TITLE = "Busy";
+/**
+ * Connections last read before this moment do one full window read, so
+ * events the older rules left out (another company's pushed copies) come in.
+ */
+export const PULL_RULES_CHANGED_AT = new Date("2026-11-22T12:00:00Z");
 
 // ─── Pure: what one Google event means for the schedule ──────────────────────
 
@@ -74,12 +80,14 @@ export type BusySpan = {
  */
 export function classifyGoogleEvent(
   item: GoogleEventItem,
-  opts: { tz: string; from: Date; to: Date; shareTitles: boolean }
+  opts: { tz: string; from: Date; to: Date; shareTitles: boolean; otherCompanies?: ReadonlySet<string> }
 ): BusySpan | null {
   if (!item.id) return null;
   if (item.status === "cancelled") return null;
-  // Our own pushed copies of Workbench work
-  if (item.extendedProperties?.private?.wb === "1") return null;
+  // Our own pushed copies of Workbench work. A copy another Workbench
+  // company pushed to the same Google account (`otherCompanies`, by Google
+  // event id) is real busy time here.
+  if (item.extendedProperties?.private?.wb === "1" && !opts.otherCompanies?.has(item.id)) return null;
   // Google's own "shows as Free" — the default for all-day events, and how
   // people mark reminders, birthdays, working-location notes
   if (item.transparency === "transparent") return null;
@@ -118,6 +126,56 @@ export function classifyGoogleEvent(
     endAt,
     allDay,
   };
+}
+
+export type PushedRecord = { kind: "job" | "appointment" | "block"; id: string };
+
+/** The Workbench record a pushed event stands for (its uid mark), or null. */
+export function pushedRecord(item: GoogleEventItem): PushedRecord | null {
+  const mark = item.extendedProperties?.private;
+  if (mark?.wb !== "1") return null;
+  const m = /^wb-(job|appointment|block)-([^@]+)@/.exec(mark.workbench ?? "");
+  return m ? { kind: m[1] as PushedRecord["kind"], id: m[2] } : null;
+}
+
+/**
+ * Google event ids of pushed copies that belong to ANOTHER company. Pure:
+ * `owners` maps "kind:id" → the company that record lives in. A record we
+ * can't find (deleted, its Google copy not cleaned up yet) stays out.
+ */
+export function otherCompanyEvents(
+  items: GoogleEventItem[],
+  owners: ReadonlyMap<string, string>,
+  companyId: string
+): Set<string> {
+  const out = new Set<string>();
+  for (const item of items) {
+    const rec = pushedRecord(item);
+    if (!rec || !item.id) continue;
+    const owner = owners.get(`${rec.kind}:${rec.id}`);
+    if (owner && owner !== companyId) out.add(item.id);
+  }
+  return out;
+}
+
+async function pushedRecordOwners(items: GoogleEventItem[]): Promise<Map<string, string>> {
+  const ids = { job: [] as string[], appointment: [] as string[], block: [] as string[] };
+  for (const item of items) {
+    if (item.status === "cancelled") continue;
+    const rec = pushedRecord(item);
+    if (rec) ids[rec.kind].push(rec.id);
+  }
+  const owners = new Map<string, string>();
+  const pick = { select: { id: true, companyId: true } } as const;
+  const [jobs, appointments, blocks] = await Promise.all([
+    ids.job.length ? prisma.job.findMany({ where: { id: { in: ids.job } }, ...pick }) : [],
+    ids.appointment.length ? prisma.appointment.findMany({ where: { id: { in: ids.appointment } }, ...pick }) : [],
+    ids.block.length ? prisma.timeBlock.findMany({ where: { id: { in: ids.block } }, ...pick }) : [],
+  ]);
+  for (const r of jobs) owners.set(`job:${r.id}`, r.companyId);
+  for (const r of appointments) owners.set(`appointment:${r.id}`, r.companyId);
+  for (const r of blocks) owners.set(`block:${r.id}`, r.companyId);
+  return owners;
 }
 
 // ─── Pull ────────────────────────────────────────────────────────────────────
@@ -169,20 +227,28 @@ async function runPull(userId: string): Promise<PullSummary> {
   const to = new Date(now.getTime() + PULL_FUTURE_DAYS * DAY);
 
   try {
-    let { items, nextSyncToken, full } = await listChanges(token, connection, from, to);
+    // Rules changed since this account was last read → read the window again
+    const rulesStale = !!connection.lastPullAt && connection.lastPullAt < PULL_RULES_CHANGED_AT && now >= PULL_RULES_CHANGED_AT;
+    let { items, nextSyncToken, full } = await listChanges(
+      token,
+      rulesStale ? { ...connection, pullSyncToken: null } : connection,
+      from,
+      to
+    );
     if (full === "expired") {
       // Token expired at Google → start over with a window read
       ({ items, nextSyncToken, full } = await listChanges(token, { ...connection, pullSyncToken: null }, from, to));
     }
     summary.full = full === true;
     summary.seen = items.length;
+    const otherCompanies = otherCompanyEvents(items, await pushedRecordOwners(items), companyId);
 
     if (summary.full) {
       // A full read is authoritative for the window: anything we mirror that
       // Google no longer lists in it is gone
       const keep = new Set<string>();
       for (const item of items) {
-        const span = classifyGoogleEvent(item, { tz, from, to, shareTitles: connection.shareTitles });
+        const span = classifyGoogleEvent(item, { tz, from, to, shareTitles: connection.shareTitles, otherCompanies });
         if (span) {
           keep.add(span.externalId);
           await upsertBlock(userId, companyId, span);
@@ -199,7 +265,7 @@ async function runPull(userId: string): Promise<PullSummary> {
       }
     } else {
       for (const item of items) {
-        const span = classifyGoogleEvent(item, { tz, from, to, shareTitles: connection.shareTitles });
+        const span = classifyGoogleEvent(item, { tz, from, to, shareTitles: connection.shareTitles, otherCompanies });
         if (span) {
           await upsertBlock(userId, companyId, span);
           summary.upserted++;

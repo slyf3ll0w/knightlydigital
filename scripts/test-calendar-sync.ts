@@ -18,7 +18,7 @@ import {
 } from "../lib/calendar-event-shape";
 import { buildIcsCalendar } from "../lib/ics";
 import { GoogleApiError, isTransientGoogleError, toGoogleEvent, transientNeedsReport } from "../lib/google-calendar";
-import { classifyGoogleEvent } from "../lib/google-calendar-pull";
+import { classifyGoogleEvent, otherCompanyEvents, pushedRecord } from "../lib/google-calendar-pull";
 
 const TZ = "America/Chicago";
 const contact = { firstName: "Ray", lastName: "Delgado", phone: "214-555-0100", address: "1 Main St, Allen, TX" };
@@ -216,6 +216,29 @@ test("Google → Workbench: busy timed event becomes a block; free/cancelled/our
   assert.equal(classifyGoogleEvent({ ...timed, attendees: [{ self: true, responseStatus: "declined" }] }, opts), null);
   assert.equal(classifyGoogleEvent({ ...timed, start: { dateTime: "2027-03-01T14:00:00Z" }, end: { dateTime: "2027-03-01T15:00:00Z" } }, opts), null, "outside window");
   assert.equal(classifyGoogleEvent({ id: "g2", start: { dateTime: "2026-09-15T15:00:00Z" }, end: { dateTime: "2026-09-15T14:00:00Z" } }, opts), null, "ends before start");
+});
+
+test("Google → Workbench: a copy another Workbench company pushed is busy time, ours is not (ticket #wz9j1r)", () => {
+  const opts = { tz: TZ, from: new Date("2026-09-10T00:00:00Z"), to: new Date("2026-12-01T00:00:00Z"), shareTitles: false };
+  const pushed = (id: string, uid: string) => ({
+    id,
+    summary: "Meeting with Ryan",
+    start: { dateTime: "2026-09-15T13:00:00-05:00" },
+    end: { dateTime: "2026-09-15T14:00:00-05:00" },
+    extendedProperties: { private: { wb: "1", workbench: uid } },
+  });
+  const theirs = pushed("g-theirs", "wb-appointment-a1@workbenchfsm.com");
+  const ours = pushed("g-ours", "wb-job-j1@workbenchfsm.com");
+  const gone = pushed("g-gone", "wb-block-b1@workbenchfsm.com");
+  assert.deepEqual(pushedRecord(theirs), { kind: "appointment", id: "a1" });
+  assert.equal(pushedRecord({ id: "x", extendedProperties: { private: { wb: "1" } } }), null, "no uid mark");
+  assert.equal(pushedRecord({ id: "x", extendedProperties: { private: { workbench: "wb-job-j1@x" } } }), null, "not marked as pushed");
+  const owners = new Map([["appointment:a1", "other-co"], ["job:j1", "this-co"]]);
+  const otherCompanies = otherCompanyEvents([theirs, ours, gone], owners, "this-co");
+  assert.deepEqual([...otherCompanies], ["g-theirs"]);
+  assert.equal(classifyGoogleEvent(theirs, { ...opts, otherCompanies })!.title, "Busy");
+  assert.equal(classifyGoogleEvent(ours, { ...opts, otherCompanies }), null, "our own push");
+  assert.equal(classifyGoogleEvent(gone, { ...opts, otherCompanies }), null, "a record nobody has any more stays out");
 });
 
 test("Google → Workbench: all-day busy event spans local midnight to 23:59:59 on the last day", () => {

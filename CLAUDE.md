@@ -1235,7 +1235,7 @@ Built 2026-10-15 on branch `square-payments` (worktree
   `Company.surchargeRate` is a legacy column nobody reads and Settings has
   no rate field. The switch confirms both ways (on = the business owns the
   legality of surcharging; off = they pay the service-fee plan's rate
-  themselves). Staff `Charge card`, gift cards, cash and checks never carry
+  themselves). Staff `Charge card`, cash and checks never carry
   it. Recorded as `Payment.surchargeAmount` / `Invoice.surcharge`, shown as
   "Service fee" on the invoice page, PDF, receipt and transaction detail.
 - **Tests:** `npx tsx scripts/test-square.ts` (state, secret box, webhook
@@ -1285,7 +1285,7 @@ Built 2026-10-15 on branch `square-payments` (worktree
   email, else made with leadSource "Online store"; an
   `InvoiceKind.STORE_ORDER` invoice, qty × unit price + the company's
   default sales tax, AWAITING_PAYMENT, due today) → the pay page does the
-  rest (card / bank / gift card, service fee). The paid invoice IS the
+  rest (card / bank, service fee). The paid invoice IS the
   order. `runStoreOrderSweep` (cron step `storeOrders`) archives unpaid
   orders after `STORE_ORDER_HOLD_HOURS` (48). Rules are pure in
   `lib/store-rules.ts` (`npx tsx scripts/test-store.ts`). Photos:
@@ -1295,34 +1295,27 @@ Built 2026-10-15 on branch `square-payments` (worktree
   `/api/public/store/[slug]` carries the booking form's spam guards. Not
   built (lanes 2–3): cart, pickup / shipping, stock, variants, the embed
   widget and a block on the WorkBench-built client sites.
-- **Gift cards are SUSPENDED for live accounts (David 2026-11-02: may
-  never ship).** Everything below still exists and works, but only for test
-  accounts (`Company.isTest`) — `lib/gift-cards-preview.ts giftCardsOpen`
-  gates the Gift cards screen and row, Settings link (`testOnly`), the
-  invoice ⋯ Redeem, the pay page's Gift card method, the client-page card
-  and every `/api/app/payments/square/gift-cards/*` + invoice gift-card
-  route (404 otherwise); the Help guide is written but `hidden`.
-  `GIFT_CARDS_OPEN=1` on Railway opens it to everyone again.
-- **Square products built in — transactions and gift cards (2026-10-30,
+- **Gift cards were REMOVED (David 2026-11-21: "we can just code that
+  ourselves later").** Square gift cards (redeem / look up / the Payments tab /
+  the client-page card) and WorkBench gift card sales (`lib/gift-cards.ts`,
+  the cron step, webhook + refund hooks, the pay page's Gift card method) are
+  gone; `SQUARE_SCOPES` no longer asks for `GIFTCARDS_*`. KEPT on purpose:
+  the `GiftCardSale` model + `PaymentMethod.GIFT_CARD` in the schema (a
+  drop needs `scripts/db-push-prod.mjs --accept-data-loss` first), the
+  "Gift card" payment-method label for old payments, and company-delete /
+  demo-reset clearing GiftCardSale rows. Git history has the feature
+  (commit 4ed76d3c removed it) if it ever comes back.
+- **Square products built in — transactions (2026-10-30,
   `docs/plans/square-products-2026-10-30.md`).** `SQUARE_SCOPES` gained
-  `ORDERS_READ`, `GIFTCARDS_READ/WRITE` (one reconnect per existing seller;
-  each tab shows Reconnect in place). Seller-token
-  calls + pure mappers: `lib/square-products.ts`
-  (`npx tsx scripts/test-square-products.ts`). *Transaction detail*:
-  `/app/payments?payment=<square id>` (`TransactionDetail.tsx` — GetPayment,
-  its refunds, RetrieveOrder's items when the sale carried an order,
-  Square's hosted receipt). *Gift cards* (`lib/gift-cards.ts`, model
-  `GiftCardSale`): Sell = a DIGITAL Square card (PENDING) + a QUICK_CHARGE
-  invoice; `recordPayment` → `activateGiftCardForInvoice` loads it when the
-  invoice is PAID (cron step `giftCards` retries) and emails the number
-  (`giftCardEmail`); redeem = CreatePayment with the card as `source_id`,
-  recorded as `PaymentMethod.GIFT_CARD` (invoice ⋯ → Redeem a gift card;
-  pay page method `GIFT_CARD` + `gan`); no surcharge. Tab `giftcards` on
-  /app/payments, a Gift cards card on the contact page. *Loyalty was built
-  and removed the same day* (David: it needs a Square Loyalty subscription
-  WorkBench won't promote) along with the Square Online deep link — the
-  "In Square" row list is just Square's transactions. e2e:
-  `e2e/specs/square-gift-cards.spec.ts` (sandbox).
+  `ORDERS_READ` (one reconnect per existing seller; each tab shows
+  Reconnect in place). Seller-token calls + pure mappers:
+  `lib/square-products.ts` (`npx tsx scripts/test-square-products.ts`).
+  *Transaction detail*: `/app/payments?payment=<square id>`
+  (`TransactionDetail.tsx` — GetPayment, its refunds, RetrieveOrder's items
+  when the sale carried an order, Square's hosted receipt). *Loyalty was
+  built and removed the same day* (David: it needs a Square Loyalty
+  subscription WorkBench won't promote) along with the Square Online deep
+  link — the "In Square" row list is just Square's transactions.
 - **"Add your bank account" nudge (2026-10-23):** `SQUARE_SCOPES` includes
   `BANK_ACCOUNTS_READ`; `refreshSquarePayoutStatus()` (lib/square-connection.ts,
   ListBankAccounts) stores `SquareConnection.payoutStatus` VERIFIED | PENDING |

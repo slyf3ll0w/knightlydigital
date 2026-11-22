@@ -11,6 +11,7 @@ import {
   Play,
   Square,
   MessageSquare,
+  Video,
 } from "lucide-react";
 import { smsHref, telHref, isApplePlatform, canSendSms, fillEta } from "@/lib/messaging";
 import { sendOrQueue } from "@/lib/outbox";
@@ -28,7 +29,8 @@ type ClockEntry = { id: string; startedAt: string };
  *
  * - before a job:  On My Way · Directions · Clock In
  * - on the clock:  Clock Out (live timer) · Photos · Checklist
- * - appointment:   Call · Directions
+ * - appointment:   Join (a video call with a link) · Call · Text ·
+ *                  Directions (an in-person visit) — ticket #63s0wr
  *
  * Clock punches reuse the ClockCard machinery (outbox-queued offline, GPS
  * stamp at the tap, idempotent clientKey); On My Way reuses the job page's
@@ -44,6 +46,7 @@ export default function UpNextActions({
   clockEntry,
   canClock,
   apptType,
+  meetingLink = null,
 }: {
   kind: "job" | "appointment";
   id: string;
@@ -54,6 +57,8 @@ export default function UpNextActions({
   clockEntry: ClockEntry | null; // my open entry ON THIS job
   canClock: boolean;
   apptType: string | null;
+  /** A video call's link (Appointment.meetingLink); only an http(s) address becomes a Join button. */
+  meetingLink?: string | null;
 }) {
   const router = useRouter();
   // "Call" dials from the business line when the company has one (lib/line-calling.ts).
@@ -171,7 +176,10 @@ export default function UpNextActions({
 
   let actions: Action[] = [];
   if (kind === "appointment") {
+    const link = (meetingLink ?? "").trim();
+    const joinHref = apptType === "VIDEO_CALL" && /^https?:\/\//i.test(link) ? link : null;
     actions = [
+      ...(joinHref ? [{ key: "join", label: "Join", icon: Video, href: joinHref, external: true }] : []),
       ...(phone
         ? [lineCalling ? { key: "call", label: "Call", icon: Phone, onClick: () => void callFromLine({ to: phone }) } : { key: "call", label: "Call", icon: Phone, href: telHref(phone) }]
         : []),

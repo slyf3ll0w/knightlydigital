@@ -552,7 +552,11 @@ export default function CallScreenLive({
       )}
       {live && !ringing && (
         <>
-          <div className="mx-auto mt-7 grid w-fit grid-cols-3 gap-x-7 gap-y-4 sm:grid-cols-6 sm:gap-x-5">
+          {/* Five controls, six on an iPhone (Speaker): a centered wrap, three
+              to a row on phones and one row at a desk. A fixed six-column
+              grid sat a column left of the hang-up button with five
+              (ticket #tz5eye). */}
+          <div className="mx-auto mt-7 flex max-w-[250px] flex-wrap justify-center gap-x-7 gap-y-4 sm:max-w-none sm:flex-nowrap sm:gap-x-5">
             <Control icon={live.muted ? MicOff : Mic} label={live.muted ? "Unmute" : "Mute"} on={live.muted} disabled={dialing} onClick={() => softphone.toggleMute()} />
             <Control icon={held ? Play : Pause} label={held ? "Resume" : "Hold"} on={held} disabled={dialing} onClick={() => softphone.toggleHold()} title={leaveMode ? "Hold — everyone else hears the music" : held ? "Resume" : "Hold"} />
             {sp.speaker !== null && (

@@ -128,7 +128,7 @@ export const phoneSection: HelpSection = {
         },
         {
           type: "p",
-          text: `Filter by **All**, **Missed**, **Voicemail** and **Outgoing**. Missed calls and new voicemails are bold with a red dot, and voicemails play right in the list. Each row shows how long the call lasted and, for a finished call, who ended it: **They hung up**, **You hung up**, or **Call dropped** when the network cut it. On a phone, the Create sheet's **Call** tile opens a search box instead: type a name and tap it to call them, type a full number to call that, or press **Keypad** to dial by hand. Not on the **${VOICE}** yet? The page says so in one line — the Call buttons still ring from your own phone, but those calls aren't logged here.`,
+          text: `Filter by **All**, **Missed**, **Voicemail** and **Outgoing**. Missed calls and new voicemails are bold with a red dot, and voicemails play right in the list. Each row shows how long the call lasted. Open a call to see who ended it: **They hung up**, **You hung up**, or **Call dropped** when the network cut it. On a phone, the Create sheet's **Call** tile opens a search box instead: type a name and tap it to call them, type a full number to call that, or press **Keypad** to dial by hand. Not on the **${VOICE}** yet? The page says so in one line — the Call buttons still ring from your own phone, but those calls aren't logged here.`,
         },
         {
           type: "faq",
