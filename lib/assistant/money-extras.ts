@@ -134,7 +134,7 @@ export const moneyExtraTools: Tool[] = [
       const dom = num(args.dayOfMonth); if (dom !== null && dom >= 1 && dom <= 31) { payload.dayOfMonth = Math.round(dom); lines.push(`Posts on day ${payload.dayOfMonth}`); }
       if (typeof args.active === "boolean") { payload.active = args.active; lines.push(args.active ? "Resume" : "Pause"); }
       if (!lines.length) return { error: "Nothing to change." };
-      return stage(ctx, { kind: "update_recurring_expense", title: `Update recurring expense "${rec.description}"`, lines, endpoint: `/api/app/expenses/recurring/${rec.id}`, method: "PATCH", payload, confirmLabel: "Save changes", href: "/app/business" });
+      return stage(ctx, { kind: "update_recurring_expense", title: `Update recurring expense "${rec.description}"`, lines, endpoint: `/api/app/expenses/recurring/${rec.id}`, method: "PATCH", payload, confirmLabel: "Save changes", href: "/app/expenses" });
     },
   },
   {

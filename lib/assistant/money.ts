@@ -990,7 +990,7 @@ export const moneyTools: Tool[] = [
         method: "POST",
         payload: { description, amount, category: category || undefined, incurredAt: dateStr, ...(repeat ? { repeatMonthly: true } : {}) },
         confirmLabel: "Log expense",
-        href: "/app/business",
+        href: "/app/expenses",
       });
     },
   },
