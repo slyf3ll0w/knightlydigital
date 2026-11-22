@@ -3,7 +3,6 @@
  *   lib/payment-source.ts  — the Square token decides card vs bank
  *   lib/canonical-host.ts  — one hostname per deployment
  *   lib/login-return.ts    — where the login page may send someone
- *   lib/gift-cards.ts      — when a sold card may actually be loaded
  *   lib/team-login.ts      — which passwords are provisional
  *   lib/rate-limit.ts      — the visitor address off Cloudflare
  *   npx tsx scripts/test-security-nov.ts
@@ -19,7 +18,6 @@ import { clientIp } from "../lib/rate-limit";
 process.env.DATABASE_URL ??= "postgresql://u:p@localhost:5432/unused";
 
 async function main() {
-const { classifyGiftCardPayments } = await import("../lib/gift-cards");
 const { isProvisionalPassword } = await import("../lib/team-login");
 let passed = 0;
 function test(name: string, fn: () => void) {
@@ -94,29 +92,6 @@ test("never an open redirect", () => {
   assert.equal(safeLoginReturn("/api/app/square/callbackx"), DEFAULT_LOGIN_RETURN);
   assert.equal(safeLoginReturn("/api/app/square/callback\\@evil"), DEFAULT_LOGIN_RETURN);
   assert.equal(loginUrlReturningTo("/api/app/square/callback?code=a&state=b"), "/app/login?callbackUrl=%2Fapi%2Fapp%2Fsquare%2Fcallback%3Fcode%3Da%26state%3Db");
-});
-
-console.log("gift cards: when the money is real");
-test("a card charge settles at once", () => {
-  assert.equal(classifyGiftCardPayments([{ method: "CARD", processorRef: "sq1" }], false), "settled");
-  assert.equal(classifyGiftCardPayments([{ method: "GIFT_CARD", processorRef: "sq1" }], false), "settled");
-});
-test("a bank transfer waits for Square's COMPLETED", () => {
-  assert.equal(classifyGiftCardPayments([{ method: "ACH", processorRef: "sq1", squareStatus: "PENDING" }], false), "pending_ach");
-  assert.equal(classifyGiftCardPayments([{ method: "ACH", processorRef: "sq1", squareStatus: null }], false), "pending_ach");
-  assert.equal(classifyGiftCardPayments([{ method: "ACH", processorRef: "sq1", squareStatus: "COMPLETED" }], false), "settled");
-});
-test("a typed-in payment needs an owner; the owner's OK does not skip a clearing transfer", () => {
-  assert.equal(classifyGiftCardPayments([{ method: "CASH", processorRef: null }], false), "needs_owner");
-  assert.equal(classifyGiftCardPayments([{ method: "CASH", processorRef: null }], true), "settled");
-  assert.equal(
-    classifyGiftCardPayments([{ method: "CHECK", processorRef: null }, { method: "ACH", processorRef: "sq1", squareStatus: "PENDING" }], false),
-    "needs_owner"
-  );
-  assert.equal(
-    classifyGiftCardPayments([{ method: "CHECK", processorRef: null }, { method: "ACH", processorRef: "sq1", squareStatus: "PENDING" }], true),
-    "pending_ach"
-  );
 });
 
 console.log("team-login");

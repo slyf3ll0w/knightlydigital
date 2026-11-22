@@ -1,22 +1,12 @@
 /**
  * Unit tests for the pure parts of the Square products build
- * (lib/square-products.ts, lib/gift-cards.ts, docs/plans/square-products-2026-10-30.md):
- * order / payment / gift card mappers and gift card number helpers.
+ * (lib/square-products.ts, docs/plans/square-products-2026-10-30.md):
+ * the order and payment detail mappers.
  *   npx tsx scripts/test-square-products.ts
  * Plain assertions, no test framework (repo has none). No database.
  */
 import assert from "node:assert/strict";
-import {
-  formatGan,
-  ganTail,
-  giftCardActivityDelta,
-  mapSellerGiftCardActivity,
-  mapSellerOrder,
-  mapSellerPaymentDetail,
-  normalizeGan,
-  productIdempotencyKey,
-} from "../lib/square-products";
-import { giftCardAmountIssue, GIFT_CARD_MAX_CENTS, GIFT_CARD_MIN_CENTS } from "../lib/gift-cards";
+import { mapSellerOrder, mapSellerPaymentDetail } from "../lib/square-products";
 
 let passed = 0;
 function test(name: string, fn: () => void) {
@@ -114,45 +104,6 @@ test("a bank payment takes the account suffix as its last 4; total falls back to
   assert.equal(p.bankName, "Chase");
   assert.equal(p.totalCents, 5000);
   assert.deepEqual(p.refundIds, []);
-});
-
-console.log("gift cards");
-
-test("numbers: normalize strips dressing, tail shows the last four, format groups by four", () => {
-  assert.equal(normalizeGan(" 7783 3200 0000 1234 "), "7783320000001234");
-  assert.equal(normalizeGan("7783-3200-0000-1234"), "7783320000001234");
-  assert.equal(normalizeGan("12345"), null);
-  assert.equal(normalizeGan(""), null);
-  assert.equal(ganTail("7783320000001234"), "•••• 1234");
-  assert.equal(ganTail(null), "••••");
-  assert.equal(formatGan("7783320000001234"), "7783 3200 0000 1234");
-});
-
-test("sale amounts: $5 to $2,000 in whole cents", () => {
-  assert.equal(giftCardAmountIssue(GIFT_CARD_MIN_CENTS), null);
-  assert.equal(giftCardAmountIssue(GIFT_CARD_MAX_CENTS), null);
-  assert.match(giftCardAmountIssue(499) ?? "", /start at \$5/);
-  assert.match(giftCardAmountIssue(GIFT_CARD_MAX_CENTS + 1) ?? "", /caps/);
-  assert.match(giftCardAmountIssue(0) ?? "", /amount/i);
-  assert.match(giftCardAmountIssue(1000.5) ?? "", /whole cents/i);
-});
-
-test("activities: money onto the card is positive, off it negative, with the payment that used it", () => {
-  assert.equal(giftCardActivityDelta({ id: "a", type: "ACTIVATE", activate_activity_details: { amount_money: usd(5000) } }), 5000);
-  assert.equal(giftCardActivityDelta({ id: "a", type: "LOAD", load_activity_details: { amount_money: usd(2500) } }), 2500);
-  assert.equal(giftCardActivityDelta({ id: "a", type: "REDEEM", redeem_activity_details: { amount_money: usd(1200), payment_id: "p9" } }), -1200);
-  assert.equal(giftCardActivityDelta({ id: "a", type: "REFUND", refund_activity_details: { amount_money: usd(1200) } }), 1200);
-  assert.equal(giftCardActivityDelta({ id: "a", type: "ADJUST_DECREMENT", adjust_decrement_activity_details: { amount_money: usd(100) } }), -100);
-  assert.equal(giftCardActivityDelta({ id: "a", type: "DEACTIVATE" }), 0);
-  const m = mapSellerGiftCardActivity({ id: "a", type: "REDEEM", created_at: "2026-10-30T00:00:00Z", gift_card_balance_money: usd(3800), redeem_activity_details: { amount_money: usd(1200), payment_id: "p9" } });
-  assert.deepEqual(m, { id: "a", type: "REDEEM", createdAt: "2026-10-30T00:00:00Z", deltaCents: -1200, balanceAfterCents: 3800, paymentId: "p9", reason: null });
-});
-
-test("idempotency keys stay within Square's 45 characters and are stable", () => {
-  const long = `gc-activate:${"x".repeat(60)}`;
-  assert.ok(productIdempotencyKey(long).length <= 45);
-  assert.equal(productIdempotencyKey(long), productIdempotencyKey(long));
-  assert.equal(productIdempotencyKey("short"), "short");
 });
 
 console.log(`\n${passed} passed`);

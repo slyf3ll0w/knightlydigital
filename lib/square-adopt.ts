@@ -30,8 +30,7 @@ const ADOPT_WINDOW_MS = 2 * 86_400_000;
 /** The invoice a Square payment was taken for, from its reference_id. */
 function invoiceIdFromReference(referenceId: string | null | undefined): string | null {
   if (!referenceId) return null;
-  // cuid / cuid2 invoice ids; the gift-card flows use "inv-<number>" and are
-  // not adopted (they record their own rows and are test-only)
+  // cuid / cuid2 invoice ids only
   return /^c[a-z0-9]{20,}$/i.test(referenceId) ? referenceId : null;
 }
 

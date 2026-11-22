@@ -785,17 +785,6 @@ export async function recordPayment(params: RecordPaymentParams) {
     }, { event: "payments" }
   );
 
-  // Square products (docs/plans/square-products-2026-10-30.md), best effort:
-  // a gift card sold through WorkBench loads once its invoice is paid AND the
-  // money is real — lib/gift-cards.ts waits for a bank transfer to settle and
-  // for an owner to stand behind a typed-in payment (the recorder counts
-  // when they are one). Can't fail the recording; a no-op without the product.
-  if (result.fullyPaid) {
-    import("@/lib/gift-cards")
-      .then((m) => m.activateGiftCardForInvoice(params.invoiceId, { approvedByUserId: params.recordedById ?? null }))
-      .catch((e) => reportError("[payments] gift card activation failed", params.invoiceId, e));
-  }
-
   // Push the invoice + payment to QuickBooks when the company has a
   // connection (instant no-op otherwise; never blocks or fails recording).
   queueQuickBooksPaymentSync({

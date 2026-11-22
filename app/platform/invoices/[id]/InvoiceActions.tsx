@@ -18,7 +18,6 @@ import {
   Archive,
   X,
   CreditCard,
-  Gift,
   
 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -62,7 +61,6 @@ export default function InvoiceActions({
   scheduled = false,
   tz,
   tapToPay = null,
-  giftCards = false,
   reportJob = null,
 }: {
   invoiceId: string;
@@ -94,8 +92,6 @@ export default function InvoiceActions({
   tz?: string;
   /** Tap to Pay in the phone app (lib/tap-to-pay.ts tapToPayOffer); null = not offered here. */
   tapToPay?: TapToPayOffer;
-  /** Square gift cards can be redeemed on this invoice (Square connected, balance open). */
-  giftCards?: boolean;
   /** The finished job this invoice bills, when its work report can ride along (Gallery plan). */
   reportJob?: { shown: number; sent: boolean } | null;
 }) {
@@ -137,13 +133,6 @@ export default function InvoiceActions({
   const square = pay?.processor === "square" ? pay : null;
   const squareRef = useRef<SquareCardFieldsHandle>(null);
   const [squareReady, setSquareReady] = useState(false);
-  // Redeem a gift card (Square): type the number, see the balance, take it
-  const [giftOpen, setGiftOpen] = useState(false);
-  const [giftGan, setGiftGan] = useState("");
-  const [giftBusy, setGiftBusy] = useState<"check" | "redeem" | null>(null);
-  const [giftError, setGiftError] = useState("");
-  const [giftFound, setGiftFound] = useState<{ tail: string; state: string; balanceCents: number } | null>(null);
-  const openInvoice = status !== "PAID" && status !== "ARCHIVED";
 
   // The chargeable options: SavedCard rows, or the legacy single-card mirror
   const cardOptions: SavedCardOption[] =
@@ -272,51 +261,6 @@ export default function InvoiceActions({
       confirmLabel: "Archive invoice",
     });
     if (ok) await setStatus("ARCHIVED");
-  }
-
-  async function giftCheck() {
-    setGiftBusy("check");
-    setGiftError("");
-    setGiftFound(null);
-    try {
-      const res = await fetch("/api/app/payments/square/gift-cards/lookup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gan: giftGan }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setGiftError(data?.error ?? GENERIC_ERROR);
-        return;
-      }
-      setGiftFound(data.giftCard);
-    } catch {
-      setGiftError(GENERIC_ERROR);
-    } finally {
-      setGiftBusy(null);
-    }
-  }
-
-  async function giftRedeem() {
-    setGiftBusy("redeem");
-    setGiftError("");
-    const take = Math.min(balance, (giftFound?.balanceCents ?? 0) / 100);
-    setGiftOpen(false);
-    setCharge({ state: "processing", label: `gift card ${giftFound?.tail ?? ""}`, amount: take });
-    const started = Date.now();
-    const { ok, data } = await postJson<{ amount: number; remaining: number; fullyPaid: boolean; tail: string }>(`/api/app/invoices/${invoiceId}/gift-card`, { gan: giftGan });
-    await new Promise((r) => setTimeout(r, Math.max(0, 1100 - (Date.now() - started))));
-    setGiftBusy(null);
-    if (!ok || !data) {
-      setCharge({ state: "declined", label: "gift card", amount: take, error: data?.error ?? GENERIC_ERROR });
-      return;
-    }
-    hapticImpact("MEDIUM");
-    setCharge({ state: "approved", label: `gift card ${data.tail}`, amount: data.amount });
-    setTimeout(() => {
-      setCharge(null);
-      router.refresh();
-    }, 1600);
   }
 
   // Charge the remaining balance to a card: the dialog lists the client's
@@ -661,21 +605,6 @@ export default function InvoiceActions({
                 </span>
               </button>
             )}
-            {giftCards && openInvoice && balance > 0 && (
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  setGiftGan("");
-                  setGiftFound(null);
-                  setGiftError("");
-                  setGiftOpen(true);
-                }}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                <Gift size={14} className="text-gray-400" />
-                Redeem a gift card
-              </button>
-            )}
             <button
               onClick={duplicateInvoice}
               disabled={busy}
@@ -804,66 +733,6 @@ export default function InvoiceActions({
                 Delete invoice
               </button>
             </div>
-          </>
-        )}
-      </Modal>
-
-      <Modal open={giftOpen} onClose={() => giftBusy === null && setGiftOpen(false)}>
-        {giftOpen && (
-          <>
-            <div className="flex items-start justify-between mb-3">
-              <h2 className="text-lg font-bold text-gray-900">Redeem a gift card</h2>
-              <button onClick={() => setGiftOpen(false)} disabled={giftBusy !== null} className="p-1 text-gray-400 hover:text-gray-600">
-                <X size={16} />
-              </button>
-            </div>
-            <p className="text-sm text-gray-600 mb-3">
-              The card pays up to <strong className="numeral-ledger">{money(balance)}</strong> — whatever it holds. Anything left stays on the card.
-            </p>
-            <form
-              className="flex items-center gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void giftCheck();
-              }}
-            >
-              <input
-                value={giftGan}
-                onChange={(e) => {
-                  setGiftGan(e.target.value);
-                  setGiftFound(null);
-                }}
-                inputMode="numeric"
-                autoFocus
-                placeholder="7783 3200 0000 0000"
-                aria-label="Gift card number"
-                className="numeral-ledger w-full px-3 py-2 border border-gray-300 rounded-lg text-sm tracking-wider focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-              />
-              <button type="submit" className="btn-secondary" disabled={giftBusy !== null || giftGan.replace(/\D/g, "").length < 10}>
-                {giftBusy === "check" ? <Loader2 size={13} className="animate-spin" /> : null} Check
-              </button>
-            </form>
-            {giftError && (
-              <div role="alert" className="form-error mt-3">
-                {giftError}
-              </div>
-            )}
-            {giftFound && (
-              <div className="mt-3 rounded-lg border border-gray-200 px-3.5 py-3 text-sm">
-                <p className="text-gray-900">
-                  Card {giftFound.tail} · <span className="numeral-ledger font-semibold">{money(giftFound.balanceCents / 100)}</span> on it
-                  {giftFound.state !== "ACTIVE" && <span className="text-[color:var(--ds-bad)]"> · {giftFound.state === "PENDING" ? "not paid for yet" : "can't be used"}</span>}
-                </p>
-              </div>
-            )}
-            <button
-              onClick={giftRedeem}
-              disabled={giftBusy !== null || !giftFound || giftFound.state !== "ACTIVE" || giftFound.balanceCents <= 0}
-              className="btn-primary w-full justify-center mt-4"
-            >
-              {giftBusy === "redeem" ? <Loader2 size={14} className="animate-spin" /> : <Gift size={14} />}
-              Take {giftFound ? money(Math.min(balance, giftFound.balanceCents / 100)) : ""} from the card
-            </button>
           </>
         )}
       </Modal>

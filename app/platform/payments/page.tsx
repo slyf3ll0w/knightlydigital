@@ -38,7 +38,6 @@ import { squareEnvironment } from "@/lib/square";
 import { squareStatusForCompany } from "@/lib/square-connection";
 import { isOnlinePayment } from "@/lib/payment-ref";
 import SquarePayments from "./square/SquarePayments";
-import { giftCardsOpenFor } from "@/lib/gift-cards-preview";
 import PdfLink from "@/components/PdfLink";
 
 /**
@@ -66,7 +65,7 @@ const PAGE_SIZE = 25;
 export default async function PaymentsDashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; tab?: string; range?: string; show?: string; payout?: string; dispute?: string; period?: string; payment?: string; giftcard?: string; cursor?: string; all?: string }>;
+  searchParams: Promise<{ page?: string; tab?: string; range?: string; show?: string; payout?: string; dispute?: string; period?: string; payment?: string; cursor?: string; all?: string }>;
 }) {
   const actor = await requirePageActor(canSeeMoney);
   const companyId = actor.companyId;
@@ -134,7 +133,6 @@ export default async function PaymentsDashboardPage({
           missingScopes={status.connected ? status.missingScopes : []}
           unreadable={status.connected && status.unreadable}
           isOwner={actor.role === "OWNER"}
-          giftCards={await giftCardsOpenFor(actor.companyId)}
           params={params}
         />
       </div>

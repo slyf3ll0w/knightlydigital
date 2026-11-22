@@ -18,7 +18,6 @@ import {
 import { runAutoChargeRetries, runCardExpiryNudges } from "@/lib/auto-charge";
 import { runQuickBooksNightlySync } from "@/lib/quickbooks";
 import { runSquareTokenSweep } from "@/lib/square-connection";
-import { runGiftCardActivationSweep } from "@/lib/gift-cards";
 import { runPlanEntitlementSweep } from "@/lib/plan-billing";
 import { runGoogleCalendarSweep } from "@/lib/google-calendar";
 import { runGoogleCalendarPullSweep } from "@/lib/google-calendar-pull";
@@ -201,10 +200,6 @@ export async function POST(req: NextRequest) {
     // Square OAuth tokens: refresh any older than 7 days (they live 30),
     // page when one has gone 8 days without. No-op unless SQUARE_* are set.
     await step("squareTokens", () => runSquareTokenSweep(now));
-    // Gift cards sold in WorkBench whose activation Square refused (or that
-    // missed the payment hook) load here once their invoice is paid. No-op
-    // without Square.
-    await step("giftCards", () => runGiftCardActivationSweep(now));
     // Shop orders nobody paid within the hold window are archived (lib/store.ts).
     await step("storeOrders", () => runStoreOrderSweep(now));
     // Free-tool documents nobody signed up with (lib/tool-drafts.ts).

@@ -2,7 +2,6 @@ import { fmtPhone } from "@/lib/format";
 import { arrivalLines, sanitizeArrival } from "@/lib/lead-source";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { giftCardsOpenFor } from "@/lib/gift-cards-preview";
 import { requirePageActor, canSell, canSeeMoney, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import SectionHeader from "@/components/SectionHeader";
@@ -28,8 +27,6 @@ import EmailClientButton from "./EmailClientButton";
 import AddressesCard from "./AddressesCard";
 import PeopleCard from "./PeopleCard";
 import SavedCardsCard from "./SavedCardsCard";
-import SquareClientCard from "./SquareClientCard";
-import { Suspense } from "react";
 import PipelineCard from "./PipelineCard";
 import { getActiveFieldDefs } from "@/lib/contact-fields";
 import { invoiceBalance } from "@/lib/payments";
@@ -531,12 +528,6 @@ export default async function ContactDetailPage({
               canManage={isManager(actor.role)}
               pay={clientPayConfig(contact.company)}
             />
-          )}
-          {canSeeMoney(actor) && (await giftCardsOpenFor(companyId)) && (
-            // Reads Square (gift cards; test accounts only while suspended) — streamed so the page never waits on it
-            <Suspense fallback={null}>
-              <SquareClientCard contactId={contact.id} companyId={companyId} />
-            </Suspense>
           )}
 
           <AddressesCard
