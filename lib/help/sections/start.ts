@@ -12,7 +12,7 @@ export const startSection: HelpSection = {
       title: "Turn on online payments (connect Square)",
       summary: "Sign-up ends with a short payment setup: pick who pays the card fee and connect Square, and clients can pay from their pay links.",
       keywords: ["square", "connect square", "online payments", "turn on payments", "pay button", "card payments", "ach", "bank payments", "activate", "verify", "verification", "square account", "bank account", "link bank", "payout account", "set up payments", "payment setup", "sign up", "create a square account", "who pays the card fee"],
-      where: { label: "Settings → Payments & accounting", href: "/app/settings" },
+      where: { label: "Settings → Money", href: "/app/settings" },
       roles: "Account owner",
       blocks: [
         {
@@ -27,7 +27,7 @@ export const startSection: HelpSection = {
           type: "steps",
           note: "A couple of minutes, owner only",
           items: [
-            "**Who pays the card fee?** Pick one of the two cards. **Your client pays a service fee** — added at checkout and shown before they pay, so the full invoice amount reaches you. **You pay the processing fee** — your clients see no fee and Square's fee comes out of each payment. Each card shows its rates and what a $500 payment looks like; see [The service fee](/help/card-surcharging). You can change this later under **Settings → Payments & accounting → Service fee**.",
+            "**Who pays the card fee?** Pick one of the two cards. **Your client pays a service fee** — added at checkout and shown before they pay, so the full invoice amount reaches you. **You pay the processing fee** — your clients see no fee and Square's fee comes out of each payment. Each card shows its rates and what a $500 payment looks like; see [The service fee](/help/card-surcharging). You can change this later under **Settings → Money → Service fee**.",
             "**Create your Square account.** Press `Create your Square account`. It opens Square's free sign-up on WorkBench's rates for the model you just picked, in a new tab — a few minutes; Square asks for your business details, the owner's identity and the bank account to pay you out to. Your money goes to this account, so it's yours, made for your business. Then come back to WorkBench.",
             "**Finish setup.** Press `Finish setup` and sign in to the Square account you just made. On the phone this opens in your browser rather than inside the app; if it asks you to sign in to WorkBench first, do that and it carries on.",
             "Approve the access Square lists. WorkBench needs to take payments, issue refunds, keep cards on file for your clients, and read your payouts and disputes so they show on the Payments page; it never sees card numbers.",
@@ -52,7 +52,7 @@ export const startSection: HelpSection = {
           items: [
             {
               q: "Why can't my clients see a Pay button?",
-              a: "Square isn't connected yet, or it was disconnected. Open **Settings → Payments & accounting** and press `Connect Square`. You can still record cash, check and other payments with `Collect payment` in the meantime.",
+              a: "Square isn't connected yet, or it was disconnected. Open **Settings → Money** and press `Connect Square`. You can still record cash, check and other payments with `Collect payment` in the meantime.",
             },
             {
               q: "I signed up and WorkBench keeps bringing me back to the payment-setup screen.",
@@ -88,7 +88,7 @@ export const startSection: HelpSection = {
       blocks: [
         {
           type: "p",
-          text: "A new account opens with a **Get started** checklist at the top of **Home**. Each step links to the right page and ticks itself off as you go: nothing to mark done by hand. `Hide` takes it off Home; **Settings → Company → `Show on Home`** brings it back. Once the core steps are done it leaves on its own.",
+          text: "A new account opens with a **Get started** checklist at the top of **Home**. Each step links to the right page and ticks itself off as you go: nothing to mark done by hand. `Hide` takes it off Home; **Settings → Business → `Show on Home`** brings it back. Once the core steps are done it leaves on its own.",
         },
         {
           type: "steps",
@@ -96,9 +96,9 @@ export const startSection: HelpSection = {
           items: [
             "**Set up online payments**: pick who pays the card fee and connect your Square account — done already if you did it when you signed up. See [Turn on online payments](/help/activate-payments).",
             "**Link your bank account in Square**: Square pays you out to it; until then money waits in your Square balance. The step ticks itself once Square confirms the account.",
-            "**Add your services** (or **Review your prices** if your price book came pre-loaded): Settings → Services, so quotes, jobs and invoices fill themselves in.",
-            "**Fill in your business details**: phone, address, logo and brand color under Settings → Company. They go on your booking page and every document. The timezone there decides what \"today\" means on your schedule.",
-            "**Set your business hours**: they live in Settings → Booking & forms. Booking and scheduling use them to know when you're open. Times you're busy every week inside those hours (lunch, a standing appointment) go under **Repeating blocks** right below.",
+            "**Add your services** (or **Review your prices** if your price book came pre-loaded): Business → Services, so quotes, jobs and invoices fill themselves in.",
+            "**Fill in your business details**: phone, address, logo and brand color under Settings → Business. They go on your booking page and every document. The timezone there decides what \"today\" means on your schedule.",
+            "**Set your business hours**: they live in Business → Booking & forms. Booking and scheduling use them to know when you're open. Times you're busy every week inside those hours (lunch, a standing appointment) go under **Repeating blocks** right below.",
             "**Add your first client**: type one in, or bring your list over with a CSV. See [Import your clients](/help/import-clients).",
             "**Send your first quote**. See [Create and send a quote](/help/create-and-send-a-quote).",
             "**Schedule your first job**: it lands on your calendar and your phone.",
@@ -201,7 +201,7 @@ export const startSection: HelpSection = {
         },
         {
           type: "p",
-          text: "A reminder arrives as a push notification and as a card in the bell, with a tap that opens the task. If none of your devices has notifications on, it comes to your login email instead (your **Email me too** choice in Settings → My Profile wins either way). For a task with a date but no time, \"at the due time\" means 9:00 AM that day in your company's timezone. Reminders land within about five minutes of the time you picked.",
+          text: "A reminder arrives as a push notification and as a card in the bell, with a tap that opens the task. If none of your devices has notifications on, it comes to your login email instead (your **Email me too** choice in My Profile wins either way). For a task with a date but no time, \"at the due time\" means 9:00 AM that day in your company's timezone. Reminders land within about five minutes of the time you picked.",
         },
         {
           type: "h",
@@ -221,11 +221,11 @@ export const startSection: HelpSection = {
           items: [
             {
               q: "I didn't get the reminder.",
-              a: "Reminders go to the devices where you've turned notifications on (Settings → My Profile, or the bell on your phone); with no such device they're emailed to your login address, unless you or your company turned notification emails off. If the task was already marked done before its time, no reminder is sent. The card still shows in the bell.",
+              a: "Reminders go to the devices where you've turned notifications on (My Profile, or the bell on your phone); with no such device they're emailed to your login address, unless you or your company turned notification emails off. If the task was already marked done before its time, no reminder is sent. The card still shows in the bell.",
             },
             {
               q: "Can I give a task to someone?",
-              a: `Owners and admins can, on the ${PRO} plan (or Max). Without it the **Team** tab and the who-it's-for picker don't show, and the menu marks Tasks with a small **${PRO}** chip; the owner adds ${PRO} on Settings → Plans. Sales + Tech, Sales and Tech roles create tasks for themselves only.`,
+              a: `Owners and admins can, on the ${PRO} plan (or Max). Without it the **Team** tab and the who-it's-for picker don't show, and the menu marks Tasks with a small **${PRO}** chip; the owner adds ${PRO} on Settings → Money → Your WorkBench plan. Sales + Tech, Sales and Tech roles create tasks for themselves only.`,
             },
             {
               q: "Where did my finished task go?",

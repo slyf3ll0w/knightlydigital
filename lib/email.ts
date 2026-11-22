@@ -834,7 +834,7 @@ export function welcomeEmail({
           "<strong>Finish setting up payments</strong> — pick who pays the card fee and connect your Square account. That is what lets clients pay you online.",
         ]
       : []),
-    "<strong>Check your price book</strong> under Settings → Services, so quotes and invoices fill themselves in.",
+    "<strong>Check your price book</strong> under Business → Services, so quotes and invoices fill themselves in.",
     "<strong>Add a client and send a quote</strong> — they approve it online and it becomes a job on your calendar.",
     "<strong>Get the app</strong> on your phone for calls, texts and the day's jobs.",
   ];

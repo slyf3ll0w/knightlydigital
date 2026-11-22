@@ -945,6 +945,37 @@ a.ds-flow-box:hover { box-shadow: inset 0 0 0 1.5px var(--ds-primary); }
   .ds-sheet:hover, .ds-lane-person:hover { transform: none; }
 }
 
+/* ── Settings pop-up (components/SettingsPopup.tsx + SettingsClient,
+   2026-11-21) ──────────────────────────────────────────────────────────
+   Settings opens over the current page. Desktop: a large centered card
+   with the six groups down the left and the open group's solid cards on
+   the right. Phones: a full-height bottom sheet (the index, then a group).
+   The pop-up surface is glass (a floating surface); the cards inside are
+   solid. The selected group is a solid white row, like the sidebar puck. */
+.app-ui .modal-pop > .modal-card.ds-settings-pop {
+  width: 100%; max-width: 1040px; height: min(860px, calc(100dvh - 48px));
+  display: flex; flex-direction: column; overflow: hidden; padding: 0;
+}
+@media (max-width: 1023px) {
+  .app-ui .modal-pop > .modal-card.ds-settings-pop { max-width: none; height: 94dvh; max-height: 94dvh; padding-bottom: 0; }
+}
+.ds-settings-pop > .ds-settings { flex: 1 1 auto; }
+.ds .ds-settings-title { font-size: 20px; line-height: 1.15; font-weight: 800; letter-spacing: -0.025em; color: var(--ds-ink); }
+@media (min-width: 1024px) { .ds .ds-settings-title { font-size: 22px; } }
+.ds .ds-settings-h { font-size: 26px; line-height: 1.1; font-weight: 800; letter-spacing: -0.03em; color: var(--ds-ink); }
+.ds .ds-settings-group {
+  display: flex; width: 100%; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 10px; text-align: left;
+  font-size: 14px; font-weight: 600; color: var(--ds-ink-2);
+  transition: background-color var(--ds-dur) var(--ds-ease), color var(--ds-dur) var(--ds-ease);
+}
+.ds .ds-settings-group:hover { background: color-mix(in srgb, var(--ds-surface) 60%, transparent); color: var(--ds-ink); }
+.ds .ds-settings-group.is-on {
+  background: var(--ds-surface); color: var(--ds-ink); font-weight: 800;
+  box-shadow: 0 1px 2px rgba(10, 19, 40, 0.1), 0 4px 12px -6px rgba(10, 19, 40, 0.25);
+}
+.ds .ds-settings-group.is-on > svg { color: var(--ds-primary); }
+
 /* ── Estimates: tools as a shelf of solid cards (2026-11-21) ─────────────── */
 .ds-tool-card {
   display: flex; flex-direction: column; height: 100%; padding: 18px 18px 14px;

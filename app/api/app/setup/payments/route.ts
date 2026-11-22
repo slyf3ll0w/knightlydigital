@@ -7,7 +7,7 @@ import { getActor } from "@/lib/permissions";
  * fee. POST { serviceFee: boolean } sets Company.surchargeEnabled — ON = the
  * client pays the service fee at checkout, OFF = the company pays Square's
  * processing fee (lib/service-fee.ts, lib/plans.ts PROCESSING_RATES). The
- * same switch lives in Settings → Payments & accounting; this is the
+ * same switch lives in Settings → Money; this is the
  * sign-up-time door to it. Owner only: it decides what every client is
  * charged, and which Square sign-up link the step offers next.
  */

@@ -14,7 +14,7 @@ import {
 } from "@/lib/plan-billing";
 
 /**
- * Settings → Plans (lib/plan-billing.ts).
+ * Settings → Money → Your WorkBench plan (lib/plan-billing.ts).
  *
  * GET  — the page's read model: every plan card, seats, the card on file.
  *        Managers may look; only the OWNER may act.

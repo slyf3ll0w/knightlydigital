@@ -176,7 +176,7 @@ const pricingFaq = [
         </Link>{" "}
         — you're in the app the same day. To take payments, connect your own Square account
         from Settings (a few minutes, no paperwork with us). Add-ons are switched on from
-        Settings → Plans afterwards, or we set them up with you.
+        Settings → Money → Your WorkBench plan afterwards, or we set them up with you.
       </p>
     ),
   },

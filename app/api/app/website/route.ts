@@ -6,7 +6,7 @@ import { appBaseUrl, loadWebsiteSummary, scheduleSiteRebuild } from "@/lib/websi
 import { alertOperator } from "@/lib/ops-alert";
 
 /**
- * Settings → Website.
+ * Business → Website.
  *   GET                       — the owner-side summary (status, brief, gaps, photos)
  *   PATCH { brief }           — save the brief (autosave; any status)
  *   POST { action: "submit" } — "Send to the studio": BRIEF_SUBMITTED + operator email

@@ -13,7 +13,7 @@ import { verifyGoogleIdToken } from "@/lib/google-id-token";
 import { verifyAppleIdToken } from "@/lib/apple-id-token";
 
 /**
- * The signed-in person's connected sign-in methods (Settings → My Profile →
+ * The signed-in person's connected sign-in methods (My Profile →
  * Sign-in methods).
  *
  * On the web, connecting is NOT done here — that's the normal OAuth

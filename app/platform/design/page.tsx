@@ -31,7 +31,7 @@ export default async function DesignSystemPage() {
       <PageHeader
         eyebrow="WorkBench design system"
         title="One look for the whole app"
-        info="Every piece here follows your company's two brand colors (Settings → Branding). Primary drives the app; secondary is the occasional highlight. Green, amber and red always mean good, heads-up and problem."
+        info="Every piece here follows your company's two brand colors (Settings → Brand & client pages). Primary drives the app; secondary is the occasional highlight. Green, amber and red always mean good, heads-up and problem."
         actions={
           <>
             <Button variant="outline" icon={CalendarDays}>Secondary action</Button>

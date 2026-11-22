@@ -561,8 +561,8 @@ export async function markSquareRevoked(merchantId: string, reason: string): Pro
       title: "Square was disconnected",
       body:
         reason === "refresh_rejected"
-          ? "Your Square connection expired, so online payments are paused. Reconnect it in Settings → Online Payments."
-          : "Square access for WorkBench was removed, so online payments are paused. Reconnect it in Settings → Online Payments.",
+          ? "Your Square connection expired, so online payments are paused. Reconnect it in Settings → Money → Online Payments."
+          : "Square access for WorkBench was removed, so online payments are paused. Reconnect it in Settings → Money → Online Payments.",
       url: "/app/settings",
       tag: "square-revoked",
     }

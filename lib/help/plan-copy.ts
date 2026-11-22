@@ -69,9 +69,9 @@ export const ATLAS_FULL_PRICE = `${formatCents(ATLAS_PLAN_PRICE_CENTS)}/month`;
 export const PRO_CHIP = `${PRO} plan · ${formatCents(PLANS.SHOP.monthlyCents)}/mo`;
 export const VOICE_CHIP = `${VOICE} plan · ${formatCents(PLANS.DISPATCH.monthlyCents)}/mo`;
 
-/** Where plans are bought and managed (Settings → Plans). */
+/** Where plans are bought and managed (Settings → Money → Your WorkBench plan). */
 export const PLANS_PAGE = "/app/settings/plans";
-export const PLANS_PAGE_LINK = `[Settings → Plans](${PLANS_PAGE})`;
+export const PLANS_PAGE_LINK = `[Settings → Money → Your WorkBench plan](${PLANS_PAGE})`;
 
 /** How a Pro/Max account gets switched on: self-serve, with us as the fallback. */
 export const HOW_TO_ADD_PRO = `The account owner adds it on ${PLANS_PAGE_LINK}: pick **Monthly** or **Annual**, add a card, done (see [Manage your plan](/help/manage-your-plan)). Or message us from the Help Center and we switch it on for you.`;
@@ -84,10 +84,10 @@ export const PAYMENT_GRACE = `${PAYMENT_GRACE_DAYS} days`;
 
 /**
  * Where a company's plan invoices, receipts and card live: its client hub in
- * the WorkBench account, linked from the bottom of Settings → Plans. Plans are
+ * the WorkBench account, linked from the bottom of Settings → Money → Your WorkBench plan. Plans are
  * billed by WorkBench itself (lib/plan-billing.ts), never by Square directly.
  */
-export const BILLING_PAGE = "**your billing page** (the link at the bottom of Settings → Plans)";
+export const BILLING_PAGE = "**your billing page** (the link at the bottom of Settings → Money → Your WorkBench plan)";
 export const BILLED_BY_LINE = `Plans are billed by WorkBench — the same way you bill a client's recurring plan — to the card on file. Every charge is a WorkBench invoice, and the invoices, receipts and the card are on ${BILLING_PAGE}. Card charges carry WorkBench's ${RATES.serviceFee.card} card service fee, itemized on each invoice and shown on the Plans page before you confirm.`;
 
 /**

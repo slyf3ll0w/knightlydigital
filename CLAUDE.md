@@ -213,6 +213,8 @@ All job manager API routes are scoped to `session.user.companyId` for multi-tena
 - `/api/app/invoices/[id]/status` — PATCH invoice status
 - `/api/app/invoices/[id]/pay` — Record payment (calls payment processor)
 - `/api/app/settings` — PATCH company settings
+- `/api/app/settings/view` — GET the Settings pop-up's data (`lib/settings-view.ts`, managers only)
+- **Settings is a pop-up** (2026-11-21, `components/SettingsPopup.tsx`, mounted in AppShell): `?settings=<group>` on any /app URL opens it over that page; groups = `business | brand | phone | money | documents | ai` (`lib/settings-nav.ts`; old `?s=` keys map via `LEGACY_SECTION_KEYS`). In-app clicks on `/app/settings` links are caught and open it in place; the `/app/settings` route itself redirects to `/app/dashboard?settings=<group>` carrying every other param (e.g. `square=<outcome>`). Settings holds setup only: Services, Booking & forms, Website and Team live in the sidebar's Business group; My Profile is in the avatar menu; the Get started switch (`GetStartedRow`) is at the bottom of Home. Sub-pages (`/app/settings/<page>`) are still full pages.
 - `/api/public/*` — Public booking, payment, quote acceptance
 
 ## Data layer

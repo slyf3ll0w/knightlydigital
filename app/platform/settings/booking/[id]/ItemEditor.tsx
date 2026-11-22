@@ -649,8 +649,8 @@ export default function ItemEditor({
               {!company.paymentsReady ? (
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
                   Online payments aren&apos;t live for your account yet — finish payment setup under{" "}
-                  <Link href="/app/settings?s=payments" className="font-semibold underline">
-                    Settings → Payments &amp; accounting
+                  <Link href="/app/settings?s=money" className="font-semibold underline">
+                    Settings → Money
                   </Link>{" "}
                   and this turns on.
                 </div>

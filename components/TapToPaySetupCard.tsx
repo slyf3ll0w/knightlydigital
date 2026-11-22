@@ -9,7 +9,7 @@ import { GENERIC_ERROR } from "@/lib/safe-fetch";
 import ConnectSquareButton from "@/components/ConnectSquareButton";
 
 /**
- * Settings → Online Payments → "Tap to Pay on this phone". Lives under the
+ * Settings → Money → Online Payments → "Tap to Pay on this phone". Lives under the
  * Connected row and renders ONLY inside the phone app (no plugin = nothing,
  * so a desktop never sees a card it can't use). One-time setup per phone:
  * location permission → authorize the SDK with the seller's token → the

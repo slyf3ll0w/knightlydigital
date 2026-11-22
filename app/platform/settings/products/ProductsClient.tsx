@@ -565,7 +565,7 @@ export default function ProductsClient({
         </div>
         <p className="text-xs text-gray-500">
           {form.depositType === "NONE"
-            ? "Falls back to your company-wide default deposit (Settings → Payments & accounting)."
+            ? "Falls back to your company-wide default deposit (Settings → Money)."
             : form.depositType === "FULL"
               ? "The whole price is collected up front when the client approves the quote."
               : "Collected as a deposit invoice when the client approves a quote containing this service."}

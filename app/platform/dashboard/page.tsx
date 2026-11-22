@@ -30,6 +30,7 @@ import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-win
 import { startOfDayIn, startOfMonthIn, startOfWeekIn, zonedMidnight, zonedParts } from "@/lib/timezone";
 import CountUp from "@/components/CountUp";
 import GetStartedCard from "./GetStartedCard";
+import GetStartedRow from "../settings/GetStartedRow";
 import PayoutNudge from "./PayoutNudge";
 import TalkToAtlas from "@/components/TalkToAtlas";
 import { loadGetStarted } from "@/lib/get-started";
@@ -740,12 +741,21 @@ export default async function DashboardPage() {
   );
 
   const footer = (
+    <>
+    {/* The Get started switch (moved from Settings, 2026-11-21): once the
+        checklist is hidden, managers can bring it back from here. */}
+    {isManager(actor.role) && !getStarted && (
+      <div className="mx-auto mt-10 max-w-xl">
+        <GetStartedRow />
+      </div>
+    )}
     <div className="mt-12 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-[color:var(--ds-line)] pt-5 text-center">
       <Link prefetch={false} href="/app/support" className="ds-small inline-flex items-center gap-1.5 hover:text-[color:var(--ds-primary)]">
         <LifeBuoy size={12} />
         Found a bug or have an idea? Tell us
       </Link>
     </div>
+    </>
   );
 
   const greetingTitle = (

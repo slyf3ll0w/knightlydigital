@@ -5,7 +5,7 @@ import { discardDraft, getThemeState, saveDraft, themeRowJson, themeStateJson } 
 import { themeActor, themeBookingItems, themeErrorResponse, themePreviewPaths } from "@/lib/client-theme-route";
 
 /**
- * Settings → Client pages, the draft (AI page designer,
+ * Settings → Brand & client pages → Client pages, the draft (AI page designer,
  * docs/plans/ai-portal-designer-2026-11-20.md). Owners/admins on Pro.
  *
  * GET    — published look, the draft, history, the allowed values (guide),

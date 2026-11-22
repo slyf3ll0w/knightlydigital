@@ -62,7 +62,7 @@ export default function WebsitesClient({
       <PageHeader
         eyebrow={`${queue} in the studio · ${rows.filter((r) => r.status === "LIVE").length} live`}
         title="Websites"
-        info="Every company that opened Settings → Website. A brief that was sent in is the queue. The site itself is built in the workbench-sites repo (one Astro project per client, deployed to Cloudflare Pages) from the company's site data; Rebuild now sends a GitHub dispatch that rebuilds and redeploys it. Mark a site Live with its domain to show the owner and to fill the company's website field."
+        info="Every company that opened Business → Website. A brief that was sent in is the queue. The site itself is built in the workbench-sites repo (one Astro project per client, deployed to Cloudflare Pages) from the company's site data; Rebuild now sends a GitHub dispatch that rebuilds and redeploys it. Mark a site Live with its domain to show the owner and to fill the company's website field."
       />
       {!dispatchConfigured && (
         <p className="mt-4 text-[13px] text-[color:var(--ds-warn)]">
@@ -78,7 +78,7 @@ export default function WebsitesClient({
       <div className="mt-6 space-y-3">
         {sorted.length === 0 && (
           <Card className="px-6 py-9 text-center">
-            <p className="ds-small">Nobody has opened Settings → Website yet.</p>
+            <p className="ds-small">Nobody has opened Business → Website yet.</p>
           </Card>
         )}
         {sorted.map((r) => (

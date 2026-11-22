@@ -1,6 +1,6 @@
 /**
  * What the Square OAuth callback's `?square=<outcome>` means to the owner
- * (app/api/app/square/callback/route.ts lands on Settings → Online Payments
+ * (app/api/app/square/callback/route.ts lands on Settings → Money → Online Payments
  * or on the payment-setup step, whichever started the connect). Client-safe:
  * plain strings, no server imports.
  */

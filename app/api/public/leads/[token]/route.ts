@@ -14,7 +14,7 @@ const s = (v: unknown, max = 200): string =>
 
 /**
  * Generic lead-intake webhook — the company-specific URL lives in
- * Settings → Lead Pipeline. Built for Zapier/Make/ad-platform connectors
+ * Settings → Clients & documents → Lead pipeline. Built for Zapier/Make/ad-platform connectors
  * (Meta Lead Ads, Google Ads lead forms, Angi, …): POST a JSON lead and it
  * lands on the pipeline board, deduped against existing clients, assigned
  * like a website lead, with the team notified.

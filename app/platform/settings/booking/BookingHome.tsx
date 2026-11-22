@@ -23,7 +23,7 @@ import { KIND_ICON } from "@/lib/booking-icons";
 import type { BookingPageLook } from "@/lib/booking-page";
 
 /**
- * Settings → Booking & forms. Two ideas: the company's booking page (its link,
+ * Business → Booking & forms. Two ideas: the company's booking page (its link,
  * its look, the scheduling rules every item shares) and the list of things
  * people can book — calls, visits, services, and plain message forms — each
  * with its own link and embed. The page card opens with a live thumbnail of

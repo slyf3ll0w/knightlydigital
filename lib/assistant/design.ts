@@ -38,7 +38,7 @@ import {
  *
  * Photos: the drawer has no attachment channel, and outside AIs cannot upload
  * or point at a URL, so a theme can only use photos already uploaded in
- * Settings → Client pages (their ids come back from get_client_theme).
+ * Settings → Brand & client pages → Client pages (their ids come back from get_client_theme).
  */
 
 /** What every design tool answers off Pro (lib/plans.ts "page_designer"). */
@@ -272,7 +272,7 @@ export const designTools: Tool[] = [
           ...(company?.hubBookingTypeId === i.id ? { clientPortalForm: true } : {}),
         })),
         photos: photos.map((p) => ({ id: p.id, width: p.width, height: p.height, added: p.createdAt.toISOString().slice(0, 10) })),
-        note: `Photos are added in Settings → Client pages (${SETTINGS_PATH}); a theme can only use these ids. Form questions are edited with manage_booking_item, not here.`,
+        note: `Photos are added in Settings → Brand & client pages → Client pages (${SETTINGS_PATH}); a theme can only use these ids. Form questions are edited with manage_booking_item, not here.`,
       };
     },
   },

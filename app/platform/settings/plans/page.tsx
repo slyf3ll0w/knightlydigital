@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Plans" };
 export const dynamic = "force-dynamic";
 
 /**
- * Settings → Plans: what the company is on, the plans it could add (Voice,
+ * Settings → Money → Your WorkBench plan: what the company is on, the plans it could add (Voice,
  * Pro, Max; Gallery coming soon), extra people, and the card on file — all
  * billed through WorkBench's own Square account (lib/plan-billing.ts).
  * Managers can look; the owner acts. Replaces the Voice-only

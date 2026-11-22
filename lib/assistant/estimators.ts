@@ -213,7 +213,7 @@ const WEBSITE_PARAM = {
     disclaimer: { type: "string", description: "fine print under the estimate; a sensible default exists" },
     successMessage: { type: "string", description: "thank-you text; default fits onSubmit" },
     photoAssist: { type: "boolean", description: "visitors may attach a photo / describe the job and Atlas fills in the answers — spends the OWNER's tokens (capped per day); needs the tool's assist; default false (turns on by itself when a change turns the tool's assist on). Offer it only when the owner asks for photos or the tool already uses assist." },
-    serviceArea: { type: "boolean", description: "check the service address against the company's service ZIPs (Settings → Booking & forms); an out-of-area address still lands as a request, no quote, and the visitor sees outOfAreaMessage instead of a price. Needs askAddress. Default false." },
+    serviceArea: { type: "boolean", description: "check the service address against the company's service ZIPs (Business → Booking & forms); an out-of-area address still lands as a request, no quote, and the visitor sees outOfAreaMessage instead of a price. Needs askAddress. Default false." },
     outOfAreaMessage: { type: "string", description: "thank-you text for an out-of-area visitor; a sensible default exists" },
   },
 } as const;

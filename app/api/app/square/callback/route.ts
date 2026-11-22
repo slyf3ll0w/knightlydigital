@@ -22,7 +22,7 @@ import { loginUrlReturningTo } from "@/lib/login-return";
  */
 export const dynamic = "force-dynamic";
 
-/** Where the outcome lands: Settings → Online Payments, or the payment-setup
+/** Where the outcome lands: Settings → Money → Online Payments, or the payment-setup
  *  step for a company still being held there (sign-up, 2026-11-03). */
 type LandingPage = "/app/settings" | "/app/setup/payments";
 

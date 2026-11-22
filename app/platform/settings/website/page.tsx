@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Website" };
 
 /**
- * Settings → Website: a custom site built for the business by the studio
+ * Business → Website: a custom site built for the business by the studio
  * (docs/plans/client-websites-2026-10-05.md). The owner fills the brand
  * brief, adds photos, sends it in, and watches the status here. The site
  * itself reads this brief plus the company's public facts at build time.

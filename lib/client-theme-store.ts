@@ -7,7 +7,7 @@ import { mergeThemePatch, parseClientTheme, type ClientThemeSpec, type ResolvedC
 /**
  * Drafts, publishing and history for a company's client-page theme (the AI
  * page designer, docs/plans/ai-portal-designer-2026-11-20.md). The ONE write
- * path: the Settings → Client pages routes, the Atlas / connector design
+ * path: the Settings → Brand & client pages → Client pages routes, the Atlas / connector design
  * tools and the superadmin reset all go through here, so the rules (spec
  * checks, one draft per company, versions, rate limits, cache invalidation)
  * live in one place.

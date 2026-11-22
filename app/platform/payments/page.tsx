@@ -406,11 +406,11 @@ export default async function PaymentsDashboardPage({
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--ds-line)] bg-[color:var(--ds-surface-2)] px-5 py-3 sm:px-6">
             <p className="text-xs text-[color:var(--ds-muted)]">
               {processor.name === "square"
-                ? "Connect your Square account in Settings → Payments & accounting."
-                : "A short application in Settings → Payments & accounting starts it."}
+                ? "Connect your Square account in Settings → Money."
+                : "A short application in Settings → Money starts it."}
             </p>
             <Link
-              href="/app/settings?s=payments"
+              href="/app/settings?s=money"
               className="btn-primary"
             >
               {processor.name === "square" ? "Connect Square" : "Set up payments"} <ArrowUpRight size={14} />

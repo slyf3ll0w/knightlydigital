@@ -5,8 +5,8 @@ import ConnectSquareButton from "@/components/ConnectSquareButton";
 
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { NETWORK_ERROR } from "@/lib/safe-fetch";
-import { Fragment, useState, useRef, useEffect, useMemo, type KeyboardEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useRef, useEffect, useMemo, type KeyboardEvent } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import {
@@ -21,28 +21,26 @@ import {
   ChevronRight,
   Copy,
   CreditCard,
-  Package,
   Palette,
   FileSignature,
   Filter,
-  Globe,
-  MonitorSmartphone,
   Phone,
   PhoneCall,
   RefreshCw,
   Search,
   Tags,
   Sparkles,
-  UserRound,
-  Users,
   Zap,
   Landmark,
+  FileText,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import {
   ADDON_LINK,
   QUICKBOOKS_LINK,
-  SETTINGS_LINK_GROUPS,
+  SETTINGS_PARAM,
+  SETTINGS_SECTION_LINKS,
   SETTINGS_SECTIONS,
   normalizeSettingsSection,
   settingsHref,
@@ -60,14 +58,12 @@ import { textOn } from "@/lib/branding";
 import { GOOGLE_FONT_RE } from "@/lib/booking-page";
 import { resolveWallpaper } from "@/lib/wallpapers";
 import { confirmSheet } from "@/components/ConfirmSheet";
-import PageTitle from "@/components/PageTitle";
 import SectionHeader from "@/components/SectionHeader";
 import { Chip, InfoTip } from "@/components/ds";
 import { SQUARE_BANK_ACCOUNTS_URL } from "@/lib/square-links";
 import { slugify } from "@/lib/slugify";
 import SmsNotificationsCard from "./SmsNotificationsCard";
 import BusinessLineCard from "./BusinessLineCard";
-import GetStartedRow from "./GetStartedRow";
 import type { LineSummary } from "@/lib/business-line-shared";
 import {
   SECTION_HUE_DEFAULTS,
@@ -249,11 +245,11 @@ function SettingsLinkRow({
   );
 }
 
-/** The icon tile on a settings row — one brand tint, not a hue per section. */
+/** The glyph on a settings row — bold, in the brand color, no tinted tile. */
 function RowIcon({ icon: Icon }: { icon: LucideIcon }) {
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]">
-      <Icon size={17} strokeWidth={2.25} />
+    <span className="flex h-9 w-7 shrink-0 items-center justify-center text-[color:var(--ds-primary)]">
+      <Icon size={19} strokeWidth={2.3} />
     </span>
   );
 }
@@ -277,39 +273,19 @@ const SECTION_ICONS: Record<SettingsSection["icon"], LucideIcon> = {
   Palette,
   Phone,
   CreditCard,
-  Zap,
+  FileText,
+  Sparkles,
 };
 
 const LINK_ICONS: Record<SettingsLink["icon"], LucideIcon> = {
-  Package,
   FileSignature,
   Tags,
   Filter,
-  Globe,
-  Users,
   Upload,
-  UserRound,
   RefreshCw,
   Sparkles,
-  MonitorSmartphone,
   Palette,
 };
-
-/** Desktop rail entry for a standalone page. */
-function RailLink({ link }: { link: SettingsLink }) {
-  const Icon = LINK_ICONS[link.icon];
-  return (
-    <Link
-      href={link.href}
-      className="flex w-full items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-sm font-medium text-[color:var(--ds-ink-2)] transition-colors hover:bg-[color:var(--ds-surface-2)] hover:text-[color:var(--ds-ink)]"
-    >
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-[color:var(--ds-surface-2)] text-[color:var(--ds-muted)]">
-        <Icon size={14} strokeWidth={2.25} />
-      </span>
-      <span className="min-w-0 flex-1 truncate">{link.label}</span>
-    </Link>
-  );
-}
 
 /** Phone index / in-panel row for a standalone page. */
 function LinkRow({ link }: { link: SettingsLink }) {
@@ -1106,7 +1082,7 @@ function DangerZone({ companyName, signInMethods }: { companyName: string; signI
   const nameMatches = confirmName === companyName;
   const { verify, flash, setFlash, pending, clearPending, dialog } = useVerifyIdentity(
     signInMethods,
-    settingsHref("company")
+    settingsHref("business")
   );
   // Back from a Google verification: reopen the card they were on.
   useEffect(() => {
@@ -1223,7 +1199,10 @@ export default function SettingsClient({
   signInMethods,
   line = null,
   lastNumbers = { quote: 0, invoice: 0 },
+  onClose,
 }: {
+  /** Closes the pop-up (components/SettingsPopup.tsx). */
+  onClose?: () => void;
   company: Company;
   isOwner?: boolean;
   initialSection?: string;
@@ -1250,8 +1229,8 @@ export default function SettingsClient({
   const normalizedSection: Section = normalizeSettingsSection(initialSection) ?? "home";
   const [section, setSection] = useState<Section>(normalizedSection);
   useEffect(() => setSection(normalizedSection), [normalizedSection]);
-  // Desktop always shows a panel — "home" (the phone index) reads as Company
-  const active: SectionId = section === "home" ? "company" : section;
+  // Desktop always shows a panel — "home" (the phone index) reads as Business
+  const active: SectionId = section === "home" ? "business" : section;
   // Rail search (desktop): filters sections and standalone pages by name or blurb.
   const [navQ, setNavQ] = useState("");
   const nq = navQ.trim().toLowerCase();
@@ -1259,14 +1238,19 @@ export default function SettingsClient({
   const railSections = SETTINGS_SECTIONS.filter((s) => navMatch(s.label, s.sub));
   // Test-only doors (Website, while the studio feature is unfinished — 2026-10-30) show for test accounts only.
   const visibleLink = (l: SettingsLink) => !l.testOnly || Boolean(company.isTest);
-  const indexGroups = SETTINGS_LINK_GROUPS.map((g) => ({ ...g, links: g.links.filter(visibleLink) })).filter((g) => g.links.length > 0);
-  const railGroups = SETTINGS_LINK_GROUPS.map((g) => ({ ...g, links: g.links.filter((l) => visibleLink(l) && navMatch(l.label, l.sub)) })).filter((g) => g.links.length > 0);
+  const sectionLinks = (SETTINGS_SECTION_LINKS[active] ?? []).filter(visibleLink);
   const activeSection = SETTINGS_SECTIONS.find((s) => s.key === active);
   const ActiveIcon = activeSection ? SECTION_ICONS[activeSection.icon] : Building2;
   const show = (s: SectionId) => active === s;
+  // The open group rides in the URL (?settings=<key> on whatever page the
+  // pop-up is over), so a reload or a shared link lands on the same group.
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   function goSection(s: Section) {
     setSection(s);
-    router.push(s === "home" ? settingsHref() : settingsHref(s));
+    const params = new URLSearchParams(searchParams.toString());
+    params.set(SETTINGS_PARAM, s === "home" ? "open" : s);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
   const [form, setForm] = useState({
     name: company.name,
@@ -1583,38 +1567,31 @@ export default function SettingsClient({
   }
 
   return (
-    <div className="p-4 lg:p-8 max-w-5xl mx-auto">
-      {/* Header — on phones inside a section, the back control and the
-          section's own title take the h1's place (the h1 belongs to the
-          index screen and to desktop). */}
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className={section === "home" ? "" : "hidden lg:block"}>
-            <PageTitle info="Changes save automatically.">
-              Settings
-            </PageTitle>
-          </div>
-          {section !== "home" && (
-            <div className="lg:hidden">
-              <button
-                type="button"
-                onClick={() => goSection("home")}
-                className="-ml-1.5 flex items-center gap-0.5 text-[15px] font-medium text-[color:var(--ds-primary)]"
-              >
-                <ChevronLeft size={19} />
-                Settings
-              </button>
-              <h2 className="mt-1 text-[22px] font-semibold tracking-tight text-[color:var(--ds-ink)]">
-                {SETTINGS_SECTIONS.find((s) => s.key === section)?.label}
-              </h2>
-            </div>
-          )}
-          {saveError && <p className="mt-1 text-sm text-[color:var(--ds-bad)]">{saveError}</p>}
+    <div className="ds-settings flex h-full min-h-0 flex-col">
+      {/* The pop-up's header: title, save status, close. On phones inside a
+          group, a back chevron and the group's name take the title's place. */}
+      <div className="flex shrink-0 items-center gap-2 border-b border-[color:var(--ds-line)] px-4 py-3 lg:px-6 lg:py-4">
+        {section !== "home" && (
+          <button
+            type="button"
+            onClick={() => goSection("home")}
+            aria-label="All settings"
+            className="-ml-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[color:var(--ds-primary)] lg:hidden"
+          >
+            <ChevronLeft size={22} strokeWidth={2.4} />
+          </button>
+        )}
+        <div className="min-w-0 flex-1">
+          <h2 className="ds-settings-title flex items-center gap-1.5 truncate">
+            <span className={section === "home" ? "" : "hidden lg:inline"}>Settings</span>
+            {section !== "home" && <span className="truncate lg:hidden">{activeSection?.label}</span>}
+            <span className="hidden lg:inline-flex">
+              <InfoTip label="How settings save">Changes save automatically as you go.</InfoTip>
+            </span>
+          </h2>
+          {saveError && <p className="mt-0.5 text-sm text-[color:var(--ds-bad)]">{saveError}</p>}
         </div>
-        <span
-          className="flex shrink-0 items-center gap-1.5 pt-2 text-xs font-medium text-[color:var(--ds-muted)]"
-          aria-live="polite"
-        >
+        <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-[color:var(--ds-muted)]" aria-live="polite">
           {saving ? (
             <>
               <Loader2 size={12} className="animate-spin" /> Saving…
@@ -1625,14 +1602,23 @@ export default function SettingsClient({
             </>
           ) : null}
         </span>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close settings"
+            className="ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color:var(--ds-surface)] text-[color:var(--ds-ink-2)] shadow-[var(--ds-shadow-1)] transition-colors hover:text-[color:var(--ds-ink)]"
+          >
+            <X size={17} strokeWidth={2.4} />
+          </button>
+        )}
       </div>
 
-      <div className="lg:grid lg:grid-cols-[264px_minmax(0,1fr)] lg:items-start lg:gap-8">
-        {/* Desktop: the settings nav rail. Voice rides with Phone &
-            texting (the business line is what it unlocks). */}
-        <nav className="ds-card sticky top-8 hidden p-2 lg:block">
+      <div className="flex min-h-0 flex-1">
+        {/* Desktop: the six groups, the selected one a solid white row */}
+        <nav aria-label="Settings groups" className="hidden w-[256px] shrink-0 flex-col overflow-y-auto border-r border-[color:var(--ds-line)] p-3 lg:flex">
           {/* Whose settings: logo or initial, name, portal handle */}
-          <div className="mb-2 flex items-center gap-2.5 border-b border-[color:var(--ds-line)] px-1.5 pb-3 pt-1">
+          <div className="mb-3 flex items-center gap-2.5 px-2 pt-1">
             {form.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={form.logoUrl} alt="" className="theme-fixed h-9 w-9 shrink-0 rounded-[10px] bg-white object-contain p-1" />
@@ -1640,7 +1626,7 @@ export default function SettingsClient({
               <span className="ds-tile ds-tile-a !h-9 !w-9 !rounded-[10px] text-[13px] font-bold">{(form.name.trim()[0] ?? "W").toUpperCase()}</span>
             )}
             <div className="min-w-0">
-              <p className="truncate text-[13.5px] font-semibold text-[color:var(--ds-ink)]">{form.name || "Your business"}</p>
+              <p className="truncate text-[13.5px] font-bold text-[color:var(--ds-ink)]">{form.name || "Your business"}</p>
               <p className="ds-small truncate">/portal/{company.slug}</p>
             </div>
           </div>
@@ -1652,57 +1638,35 @@ export default function SettingsClient({
               onChange={(e) => setNavQ(e.target.value)}
               placeholder="Search settings"
               aria-label="Search settings"
-              className="w-full rounded-[10px] bg-[color:var(--ds-surface-2)] py-1.5 pl-8 pr-2 text-[13px] text-[color:var(--ds-ink)] outline-none placeholder:text-[color:var(--ds-faint)] focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+              className="w-full rounded-[10px] bg-[color:var(--ds-surface)] py-1.5 pl-8 pr-2 text-[13px] text-[color:var(--ds-ink)] shadow-[inset_0_0_0_1px_var(--ds-line)] outline-none placeholder:text-[color:var(--ds-faint)] focus:shadow-[inset_0_0_0_2px_var(--ds-primary)]"
             />
           </label>
-          {nq && railSections.length === 0 && railGroups.length === 0 && (
+          {nq && railSections.length === 0 && (
             <p className="px-2 py-3 text-[13px] text-[color:var(--ds-muted)]">Nothing matches “{navQ.trim()}”.</p>
           )}
           <div className="space-y-0.5">
             {railSections.map((s) => {
               const Icon = SECTION_ICONS[s.icon];
+              const on = active === s.key;
               return (
-                <Fragment key={s.key}>
-                  <button
-                    type="button"
-                    onClick={() => goSection(s.key)}
-                    className={`flex w-full items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-left text-sm transition-colors ${
-                      active === s.key
-                        ? "bg-[color:var(--ds-primary-soft)] font-semibold text-[color:var(--ds-primary)]"
-                        : "font-medium text-[color:var(--ds-ink-2)] hover:bg-[color:var(--ds-surface-2)] hover:text-[color:var(--ds-ink)]"
-                    }`}
-                  >
-                    <span
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] ${
-                        active === s.key
-                          ? "bg-[color:var(--ds-primary)] text-[color:var(--ds-on-primary)]"
-                          : "bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]"
-                      }`}
-                    >
-                      <Icon size={14} strokeWidth={2.25} />
-                    </span>
-                    <span className="min-w-0 flex-1 truncate">{s.label}</span>
-                  </button>
-                  {s.key === "phone" && <RailLink link={ADDON_LINK} />}
-                </Fragment>
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => goSection(s.key)}
+                  aria-current={on ? "page" : undefined}
+                  className={`ds-settings-group ${on ? "is-on" : ""}`}
+                >
+                  <Icon size={18} strokeWidth={on ? 2.6 : 2.3} className="shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{s.label}</span>
+                </button>
               );
             })}
           </div>
-          {railGroups.map((g) => (
-            <div key={g.key}>
-              <p className="ds-eyebrow mb-1 mt-5 px-2">{g.label}</p>
-              <div className="space-y-0.5">
-                {g.links.map((l) => (
-                  <RailLink key={l.href} link={l} />
-                ))}
-              </div>
-            </div>
-          ))}
         </nav>
 
-        {/* Phones: the settings index — grouped rows, the iOS Settings idiom */}
+        {/* Phones: the index — one card of the six groups */}
         {section === "home" && (
-          <div className="space-y-6 lg:hidden">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 lg:hidden">
             <div className="flex items-center gap-3 px-1">
               {form.logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -1711,7 +1675,7 @@ export default function SettingsClient({
                 <span className="ds-tile ds-tile-a !h-11 !w-11 !rounded-[12px] text-[15px] font-bold">{(form.name.trim()[0] ?? "W").toUpperCase()}</span>
               )}
               <div className="min-w-0">
-                <p className="truncate text-[15px] font-semibold text-[color:var(--ds-ink)]">{form.name || "Your business"}</p>
+                <p className="truncate text-[15px] font-bold text-[color:var(--ds-ink)]">{form.name || "Your business"}</p>
                 <p className="ds-small truncate">/portal/{company.slug}</p>
               </div>
             </div>
@@ -1719,56 +1683,38 @@ export default function SettingsClient({
               {SETTINGS_SECTIONS.map((s) => {
                 const Icon = SECTION_ICONS[s.icon];
                 return (
-                  <Fragment key={s.key}>
-                    <button
-                      type="button"
-                      onClick={() => goSection(s.key)}
-                      className="ds-row w-full text-left active:bg-[color:var(--ds-line)]"
-                    >
-                      <RowIcon icon={Icon} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[15px] font-medium text-[color:var(--ds-ink)]">{s.label}</span>
-                        <span className="ds-small block truncate">{s.sub}</span>
-                      </span>
-                      <ChevronRight size={16} className="shrink-0 text-[color:var(--ds-faint)]" />
-                    </button>
-                    {s.key === "phone" && <LinkRow link={ADDON_LINK} />}
-                  </Fragment>
+                  <button
+                    key={s.key}
+                    type="button"
+                    onClick={() => goSection(s.key)}
+                    className="ds-row w-full text-left active:bg-[color:var(--ds-line)]"
+                  >
+                    <RowIcon icon={Icon} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[15px] font-semibold text-[color:var(--ds-ink)]">{s.label}</span>
+                      <span className="ds-small block truncate">{s.sub}</span>
+                    </span>
+                    <ChevronRight size={16} className="shrink-0 text-[color:var(--ds-faint)]" />
+                  </button>
                 );
               })}
             </div>
-            {indexGroups.map((g) => (
-              <div key={g.key}>
-                <p className="ds-label mb-2 px-1">{g.label}</p>
-                <div className="ds-card ds-divide overflow-hidden">
-                  {g.links.map((l) => (
-                    <LinkRow key={l.href} link={l} />
-                  ))}
-                </div>
-              </div>
-            ))}
           </div>
         )}
 
-        {/* The open section's cards — hidden on phones while the index shows */}
-        <div className={section === "home" ? "hidden lg:block" : ""}>
+        {/* The open group's cards — hidden on phones while the index shows */}
+        <div className={`min-h-0 flex-1 overflow-y-auto p-4 lg:p-6 ${section === "home" ? "hidden lg:block" : ""}`}>
       {activeSection && (
-        <div className="mb-5 hidden items-center gap-3 lg:flex">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]">
-            <ActiveIcon size={20} strokeWidth={2.2} />
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-[20px] font-semibold tracking-tight text-[color:var(--ds-ink)]">{activeSection.label}</h2>
-            <p className="ds-small mt-0.5">{activeSection.sub}</p>
-          </div>
+        <div className="mb-5 hidden lg:block">
+          <h3 className="ds-settings-h">{activeSection.label}</h3>
+          <p className="ds-small mt-1">{activeSection.sub}</p>
         </div>
       )}
-      {show("company") && <PortalLinkCard slug={company.slug} />}
-      {show("company") && <GetStartedRow />}
+      {show("brand") && <PortalLinkCard slug={company.slug} />}
 
-      <div className="space-y-6">
+      <div className="space-y-5">
         {/* Business info */}
-        {show("company") && (
+        {show("business") && (
         <div className="ds-card p-5 space-y-4">
           <SectionHeader title="Business info" />
           <div>
@@ -1851,26 +1797,6 @@ export default function SettingsClient({
             </div>
           </div>
           <div>
-            <FieldLabel info="Where new requests, bookings, and client messages are emailed to you. Leave blank to use the business email.">
-              Notifications inbox <span className="font-normal text-gray-400">(optional)</span>
-            </FieldLabel>
-            <Input type="email" value={form.notifyEmail} onChange={(e) => set("notifyEmail", e.target.value)}
-              placeholder={form.email || "Same as the business email"}
-              className="w-full focus:ring-2" />
-            <label className="mt-3 flex items-center gap-3 cursor-pointer">
-              <div
-                onClick={() => set("notifyEmailOff", !form.notifyEmailOff)}
-                className={`relative w-10 h-6 rounded-full transition-colors cursor-pointer ${
-                  !form.notifyEmailOff ? "bg-[color:var(--ds-primary)]" : "bg-gray-300"
-                }`}
-              >
-                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${!form.notifyEmailOff ? "translate-x-5" : "translate-x-1"}`} />
-              </div>
-              <span className="text-sm text-gray-700">Email these notifications</span>
-              <InfoTip>Off, nothing about new requests, bookings or client messages is emailed — the phone and desktop notifications and the bell still carry them. For a team that already gets them on their phones.</InfoTip>
-            </label>
-          </div>
-          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Street address</label>
             <AddressAutocomplete
               endpoint="/api/app/geocode/suggest"
@@ -1933,7 +1859,7 @@ export default function SettingsClient({
             )}
           </div>
           <div>
-            <FieldLabel info="Used to describe your business when you register your number for texting. While that registration is under review, this description plus your address, phone and email appear at the bottom of your public booking page, because carriers read it as your website — unless you give a website of your own on the registration form. They come off the page by themselves once texting is approved. You can also show them any time from Settings → Booking & forms → Look.">
+            <FieldLabel info="Used to describe your business when you register your number for texting. While that registration is under review, this description plus your address, phone and email appear at the bottom of your public booking page, because carriers read it as your website — unless you give a website of your own on the registration form. They come off the page by themselves once texting is approved. You can also show them any time from Business → Booking & forms → Look.">
               About your business
             </FieldLabel>
             <textarea value={form.about} onChange={(e) => set("about", e.target.value)}
@@ -1971,13 +1897,13 @@ export default function SettingsClient({
         )}
 
         {/* Custom sending domain — invisible until EMAIL_DOMAINS_ENABLED */}
-        {show("company") && <EmailDomainCard isOwner={isOwner} />}
+        {show("business") && <EmailDomainCard isOwner={isOwner} />}
 
         {/* Per-device light/dark lives on My Profile (components/AppearanceCard.tsx)
             — it's a personal choice, not a company one. */}
 
         {/* Branding */}
-        {show("branding") && (
+        {show("brand") && (
         <div className="ds-card p-5 space-y-4">
           <SectionHeader
             title="Branding"
@@ -2208,7 +2134,7 @@ export default function SettingsClient({
         )}
 
         {/* Sidebar — desktop-only chrome, so the card hides on phones */}
-        {show("branding") && (
+        {show("brand") && (
         <div className="hidden lg:block ds-card p-5 space-y-4">
           <SectionHeader title="Sidebar" hint="How the desktop navigation rail looks for your whole team." />
           {/* Rail color follows the app theme (light/dark) since the calm-
@@ -2273,7 +2199,7 @@ export default function SettingsClient({
         {/* What your clients see — live branding preview of the client-facing
             surfaces. Client pages are always light, so the mock pins its own
             colors (arbitrary values dodge the dark-theme utility remap). */}
-        {show("branding") && (
+        {show("brand") && (
         <div className="hidden lg:block ds-card p-5 space-y-4">
           <SectionHeader
             title="What Your Clients See"
@@ -2343,10 +2269,10 @@ export default function SettingsClient({
         )}
 
         {/* Online payments (Finix) */}
-        {show("payments") && <PaymentsOnlineCard isOwner={isOwner} />}
+        {show("money") && <PaymentsOnlineCard isOwner={isOwner} />}
 
         {/* Client service fee — one switch; the rates are the billing plan's (lib/service-fee.ts) */}
-        {show("payments") && (
+        {show("money") && (
         <div className="ds-card p-5 space-y-4">
           <SectionHeader
             title="Service fee"
@@ -2387,7 +2313,7 @@ export default function SettingsClient({
         )}
 
         {/* Default deposit */}
-        {show("payments") && (
+        {show("money") && (
         <div className="ds-card p-5 space-y-4">
           <SectionHeader
             title="Default Deposit"
@@ -2435,7 +2361,7 @@ export default function SettingsClient({
         )}
 
         {/* Default sales tax */}
-        {show("payments") && (
+        {show("money") && (
         <div className="ds-card p-5 space-y-4">
           <SectionHeader
             title="Sales Tax"
@@ -2455,7 +2381,7 @@ export default function SettingsClient({
         )}
 
         {/* Starting quote / invoice numbers (lib/doc-numbers.ts) */}
-        {show("payments") && (
+        {show("documents") && (
         <div className="ds-card p-5 space-y-4">
           <SectionHeader
             title="Numbering"
@@ -2486,15 +2412,43 @@ export default function SettingsClient({
         )}
 
         {/* Accounting — QuickBooks Online lives on its own page. */}
-        {show("payments") && (
+        {show("money") && (
         <div className="ds-card ds-divide overflow-hidden">
           <LinkRow link={QUICKBOOKS_LINK} />
+          <LinkRow link={ADDON_LINK} />
+        </div>
+        )}
+
+        {/* Email notifications — moved here from Business info (2026-11-21) */}
+        {show("ai") && (
+        <div className="ds-card p-5 space-y-4">
+          <SectionHeader title="Email notifications" />
+          <div>
+            <FieldLabel info="Where new requests, bookings, and client messages are emailed to you. Leave blank to use the business email.">
+              Notifications inbox <span className="font-normal text-gray-400">(optional)</span>
+            </FieldLabel>
+            <Input type="email" value={form.notifyEmail} onChange={(e) => set("notifyEmail", e.target.value)}
+              placeholder={form.email || "Same as the business email"}
+              className="w-full focus:ring-2" />
+            <label className="mt-3 flex items-center gap-3 cursor-pointer">
+              <div
+                onClick={() => set("notifyEmailOff", !form.notifyEmailOff)}
+                className={`relative w-10 h-6 rounded-full transition-colors cursor-pointer ${
+                  !form.notifyEmailOff ? "bg-[color:var(--ds-primary)]" : "bg-gray-300"
+                }`}
+              >
+                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${!form.notifyEmailOff ? "translate-x-5" : "translate-x-1"}`} />
+              </div>
+              <span className="text-sm text-gray-700">Email these notifications</span>
+              <InfoTip>Off, nothing about new requests, bookings or client messages is emailed — the phone and desktop notifications and the bell still carry them. For a team that already gets them on their phones.</InfoTip>
+            </label>
+          </div>
         </div>
         )}
 
         {/* Automation rules — the Atlas-built "when this happens, do that"
             list has its own page; this is the one way in from Settings */}
-        {show("automations") && (
+        {show("ai") && (
         <div className="ds-card ds-divide overflow-hidden">
           <SettingsLinkRow
             href="/app/automations"
@@ -2512,7 +2466,7 @@ export default function SettingsClient({
         )}
 
         {/* AI assistant */}
-        {show("automations") && (
+        {show("ai") && (
         <div className="ds-card p-5 space-y-4">
           <SectionHeader title="AI Assistant" hint="The chat helper in the corner of every page." />
           <div>
@@ -2579,7 +2533,7 @@ export default function SettingsClient({
         )}
 
         {/* Review requests — part of what clients experience after they pay */}
-        {show("branding") && (
+        {show("brand") && (
         <div className="ds-card p-5 space-y-4">
           <SectionHeader title="Review Requests" hint="Automatically ask for a Google review after payment." />
           <div>
@@ -2591,9 +2545,17 @@ export default function SettingsClient({
           </div>
         </div>
         )}
+        {/* This group's standalone setup pages (lib/settings-nav.ts) */}
+        {sectionLinks.length > 0 && (
+        <div className="ds-card ds-divide overflow-hidden">
+          {sectionLinks.map((l) => (
+            <LinkRow key={l.href} link={l} />
+          ))}
+        </div>
+        )}
       </div>
 
-      {isOwner && show("company") && (
+      {isOwner && show("business") && (
         <DangerZone companyName={company.name} signInMethods={signInMethods} />
       )}
         </div>

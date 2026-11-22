@@ -24,7 +24,7 @@ import { APPLE_USER_COOKIE } from "@/lib/sign-in-options";
  *   sent them through the provider to prove they hold the login. If the
  *   identity belongs to the session's account, the callback asks for a
  *   grant and we stamp it on NextAuth's response below.
- * - LINK ("Connect Google/Apple" from Settings → My Profile): only with a
+ * - LINK ("Connect Google/Apple" from My Profile): only with a
  *   fresh grant. A cookie alone is not enough — NextAuth's signin endpoint
  *   is a form POST anyone can submit, so the holder of a copied cookie could
  *   otherwise weld their own identity to the login and keep it after the

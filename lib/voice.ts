@@ -1442,7 +1442,7 @@ export async function startOutboundCall(
         : (await userSoftphoneOnline(userId)) ?? (await voipRegisteredSoftphone(userId));
   if (via === "app" && !softphone) throw new VoiceError("Your softphone isn't connected — reload the page, or call from your cell.", 409);
   const agentNumber = via === "app" ? null : (toE164(user?.phone) ?? company.lineForwardTo);
-  if (via === "cell" && !agentNumber) throw new VoiceError("Add your cell number under Settings → My Profile so we can ring you first.", 409);
+  if (via === "cell" && !agentNumber) throw new VoiceError("Add your cell number under My Profile so we can ring you first.", 409);
 
   let customerNumber: string | null = null;
   let contactId: string | null = null;

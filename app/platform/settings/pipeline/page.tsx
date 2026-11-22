@@ -5,7 +5,7 @@ import PipelineSettingsClient from "./PipelineSettingsClient";
 
 export const dynamic = "force-dynamic";
 
-/** Settings → Lead Pipeline: customize board stages + the lead-intake webhook. */
+/** Settings → Clients & documents → Lead pipeline: customize board stages + the lead-intake webhook. */
 export default async function PipelineSettingsPage() {
   const actor = await requirePageActor((a) => isManager(a.role));
 

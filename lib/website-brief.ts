@@ -1,6 +1,6 @@
 /**
  * The website brand brief — what the owner tells the studio about their
- * business that the app doesn't already know (Settings → Website). Pure:
+ * business that the app doesn't already know (Business → Website). Pure:
  * no Prisma, no React, so the site repo's data loader and
  * scripts/test-website.ts can share the shape.
  *

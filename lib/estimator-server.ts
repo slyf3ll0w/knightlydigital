@@ -79,7 +79,7 @@ export async function checkSpec(companyId: string, rawSpec: unknown): Promise<Sp
   if (missing.length > 0) {
     return {
       ok: false,
-      errors: [`Not in the price book: ${missing.join(", ")}. Add them under Settings → Services (or create_service) first, or use a plain unitPrice.`],
+      errors: [`Not in the price book: ${missing.join(", ")}. Add them under Business → Services (or create_service) first, or use a plain unitPrice.`],
     };
   }
   return { ok: true, compiled: c.compiled, book };

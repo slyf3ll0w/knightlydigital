@@ -144,7 +144,7 @@ async function warningsFor(companyId: string, spec: AutomationSpec, facts: Await
     if (s.type === "move_lead" && typeof s.stageName === "string" && !names.has(s.stageName.toLowerCase())) warnings.push(`No pipeline stage named "${s.stageName}" — the move will be skipped until one exists.`);
     if ((s.type === "email_client" || s.type === "email_address" || s.type === "send_quote_link" || s.type === "send_pay_link" || s.type === "send_payment_reminder") && !facts.emailLive) warnings.push("Email isn't configured on this server yet — email steps will be skipped until it is.");
     if (s.type === "text_client" && !facts.smsLive) warnings.push("The business line can't text yet — text steps will be skipped until its registration is active.");
-    if (s.type === "request_review" && !facts.reviewLinkSet) warnings.push("No review link is set (Settings → Branding & client experience) — review requests will be skipped until one is.");
+    if (s.type === "request_review" && !facts.reviewLinkSet) warnings.push("No review link is set (Settings → Brand & client pages) — review requests will be skipped until one is.");
     if (s.type === "push_to_quickbooks" && !facts.quickbooksConnected) warnings.push("QuickBooks isn't connected — that step will be skipped.");
     if ((s.type === "notify_user" || s.type === "assign_job") && typeof s.userId === "string" && !facts.users.some((u) => u.id === s.userId)) warnings.push(`No active team member with id ${s.userId} — pick one from 'guide'.`);
     if (s.type === "create_agreement" && typeof s.templateId === "string" && !facts.agreementTemplates.some((t) => t.id === s.templateId)) warnings.push(`No agreement template with id ${s.templateId}.`);

@@ -14,7 +14,7 @@ import { toast } from "@/lib/toast";
  * survives re-mounts and Fast Refresh) and watches same-origin /api/app/*
  * responses: a 402 whose body carries one of the two codes becomes a quiet
  * toast — the body's own `error` sentence ("The Estimator is part of the Pro
- * plan.") — that opens Settings → Plans when tapped. Identical toasts within
+ * plan.") — that opens Settings → Money → Your WorkBench plan when tapped. Identical toasts within
  * DEDUPE_MS collapse (a page that fires three gated requests at once says it
  * once). Background beats (location pings, presence) are skipped: a 402 there
  * is the gate doing its job, not something the person just asked for.

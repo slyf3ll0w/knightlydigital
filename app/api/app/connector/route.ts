@@ -5,7 +5,7 @@ import { connectorUrl, revokeGrant } from "@/lib/connector/oauth";
 import { toolTitle } from "@/lib/connector/tools";
 
 /**
- * Settings → Connected apps (docs/plans/workbench-connector-2026-11-17.md).
+ * Settings → Notifications & AI → Connected apps (docs/plans/workbench-connector-2026-11-17.md).
  *
  * GET    — the company's connections, the cards waiting for THIS person's
  *          approval, the owner's switch, and the address to paste into an AI app.

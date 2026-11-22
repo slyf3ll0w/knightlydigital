@@ -108,7 +108,7 @@ export const quotesSection: HelpSection = {
         },
         {
           type: "p",
-          text: "Choose **No deposit**, **Percent of total**, **Fixed amount** or **Full payment upfront** on the quote. Services in your price book can carry their own deposit rule, and everything else uses the default in Settings → Payments & accounting. You can also press `Collect deposit` before approval. The final invoice subtracts any deposit already paid, shown as **Deposit applied**.",
+          text: "Choose **No deposit**, **Percent of total**, **Fixed amount** or **Full payment upfront** on the quote. Services in your price book can carry their own deposit rule, and everything else uses the default in Settings → Money. You can also press `Collect deposit` before approval. The final invoice subtracts any deposit already paid, shown as **Deposit applied**.",
         },
         {
           type: "faq",
@@ -181,7 +181,7 @@ export const quotesSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Go to **Settings → Payments & accounting → Numbering**.",
+            "Go to **Settings → Money → Numbering**.",
             "Set **Quotes start at** and **Invoices start at**. The hint shows the next number you'll get.",
             "Save.",
           ],

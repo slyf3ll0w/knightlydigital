@@ -1,7 +1,7 @@
 import { ATLAS_PLAN_TOKENS } from "./atlas-pricing";
 
 /**
- * The AI page designer (Settings → Client pages, the design tools, custom
+ * The AI page designer (Settings → Brand & client pages → Client pages, the design tools, custom
  * client-page themes) is ARCHIVED (David 2026-11-20: "still not quite there,
  * let's archive this for now, we'll resume once we clean up the rest of the
  * app"). Off unless PAGE_DESIGNER=1: the page 404s, its Settings link, Atlas

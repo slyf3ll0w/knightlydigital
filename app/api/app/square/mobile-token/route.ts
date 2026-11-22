@@ -44,7 +44,7 @@ export async function GET() {
     const grant = await prisma.squareConnection.findUnique({ where: { companyId: actor.companyId }, select: { scopes: true } });
     if (!hasInPersonScope(grant?.scopes)) {
       return NextResponse.json(
-        { error: "Reconnect Square in Settings → Online Payments to turn on Tap to Pay.", code: "needs_reconnect" },
+        { error: "Reconnect Square in Settings → Money → Online Payments to turn on Tap to Pay.", code: "needs_reconnect" },
         { status: 409 }
       );
     }
@@ -77,7 +77,7 @@ export async function GET() {
     );
   } catch (err) {
     if (err instanceof SquareNotConnectedError) {
-      return NextResponse.json({ error: "Connect Square in Settings → Online Payments first." }, { status: 409 });
+      return NextResponse.json({ error: "Connect Square in Settings → Money → Online Payments first." }, { status: 409 });
     }
     return NextResponse.json({ error: "Square didn't answer. Try again." }, { status: 424 });
   }

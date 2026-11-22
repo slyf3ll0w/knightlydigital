@@ -942,7 +942,7 @@ export default function ScheduleClient({
         return;
       }
       setBlockSheet(null);
-      showToast({ text: `Blocked ${f.title.trim() || "time"}, ${describeRule(data as SeriesDTO).toLowerCase()}`, sub: "Change or remove every time from Settings → Booking & forms, or from any day of it here." });
+      showToast({ text: `Blocked ${f.title.trim() || "time"}, ${describeRule(data as SeriesDTO).toLowerCase()}`, sub: "Change or remove every time from Business → Booking & forms, or from any day of it here." });
       startTransition(() => router.refresh());
       return;
     }
@@ -2208,7 +2208,7 @@ export default function ScheduleClient({
                     />
                     Repeats every week
                   </label>
-                  <InfoTip>Blocks these days every week from the date above — lunch, a standing appointment, Fridays off. Booking forms show the times as taken. Change or remove every day of it from Settings → Booking &amp; forms, or open any day of it here.</InfoTip>
+                  <InfoTip>Blocks these days every week from the date above — lunch, a standing appointment, Fridays off. Booking forms show the times as taken. Change or remove every day of it from Business → Booking &amp; forms, or open any day of it here.</InfoTip>
                 </div>
                 {blockSheet.form.repeat && (
                   <RepeatPicker

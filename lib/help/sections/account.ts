@@ -43,7 +43,7 @@ export const settingsSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Go to **Settings → Branding & client experience**.",
+            "Go to **Settings → Brand & client pages**.",
             "Upload your logo and pick your **primary** color (buttons, headers) and **secondary** color (small highlights). You can also pick a font.",
             "Add your Google review link here so `Ask for review` works.",
           ],
@@ -59,7 +59,7 @@ export const settingsSection: HelpSection = {
       title: "Your business name, legal name and web address",
       summary: "What clients see you as, the entity on paper, and the address in your links.",
       keywords: ["business name", "legal name", "DBA", "doing business as", "trade name", "own name", "sole proprietor", "web address", "slug", "booking link", "portal link", "rename"],
-      where: { label: "Business info", href: "/app/settings?s=company" },
+      where: { label: "Business info", href: "/app/settings?s=business" },
       roles: "Owners and admins",
       blocks: [
         {
@@ -73,7 +73,7 @@ export const settingsSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Go to **Settings → Company → Business info**.",
+            "Go to **Settings → Business → Business info**.",
             "Type the name clients should see under **Business name**, and the registered entity under **Legal business name** (or leave it blank).",
             "Optional: switch on **Show the legal name on quotes, invoices and agreements**.",
             "Optional: change **Web address**, the last part of your booking and portal links. Old links keep working — they forward to the new address.",
@@ -94,13 +94,13 @@ export const settingsSection: HelpSection = {
       title: "Keep your email off client pages",
       summary: "Stop showing your business email to clients while their replies still reach you.",
       keywords: ["hide email", "business email", "private email", "email public", "don't show email", "remove email", "contact email", "personal email"],
-      where: { label: "Business info", href: "/app/settings?s=company" },
+      where: { label: "Business info", href: "/app/settings?s=business" },
       roles: "Owners and admins",
       blocks: [
         {
           type: "steps",
           items: [
-            "Go to **Settings → Company → Business info**.",
+            "Go to **Settings → Business → Business info**.",
             "Under **Business email**, switch on **Keep my email off client pages**.",
           ],
         },
@@ -170,7 +170,7 @@ export const settingsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "Separate from the **Email** switches above (which write to you personally), new requests, client messages and bookings also go to your company's notification inbox by email. Once a device of yours has notifications on, that email is skipped so you don't hear the same thing twice. **My Profile → Email me too** changes this for you: `Only when push is off` (the default), `Always`, or `Never`. To stop these emails for the whole company — a team that reads them on their phones — switch off **Email these notifications** under **Settings → Company → Business info → Notifications inbox**; pushes and the bell carry on.",
+          text: "Separate from the **Email** switches above (which write to you personally), new requests, client messages and bookings also go to your company's notification inbox by email. Once a device of yours has notifications on, that email is skipped so you don't hear the same thing twice. **My Profile → Email me too** changes this for you: `Only when push is off` (the default), `Always`, or `Never`. To stop these emails for the whole company — a team that reads them on their phones — switch off **Email these notifications** under **Settings → Notifications & AI → Email notifications**; pushes and the bell carry on.",
         },
         {
           type: "faq",
@@ -278,14 +278,14 @@ export const settingsSection: HelpSection = {
     {
       slug: "manage-your-plan",
       title: "Manage your plan",
-      summary: "Add Voice, Pro or Max, pay monthly or yearly, add people, change the card, cancel or resume — all on Settings → Plans.",
+      summary: "Add Voice, Pro or Max, pay monthly or yearly, add people, change the card, cancel or resume — all on Settings → Money → Your WorkBench plan.",
       keywords: ["subscribe", "subscription", "buy", "checkout", "upgrade", "downgrade", "annual", "yearly", "monthly", "cancel plan", "resume", "keep it", "card on file", "replace card", "card failed", "card didn't go through", "receipt", "invoice for my plan", "billing page", "billed by workbench", "add a person", "seat", "extra user", "switch to max", "prorated", "proration", "setup fee", "included", "pay by invoice", "discount"],
       where: { label: "Plans", href: PLANS_PAGE },
       roles: "Account owner (admins can look)",
       blocks: [
         {
           type: "p",
-          text: `**Settings → Plans** is the one place for plans. The top card says what you're on — **${CORE}** always, plus **${VOICE}**, **${PRO}** or **${MAX}** when you have them. **Included** next to a plan means we switched it on for your account at no charge; **previous billing** means an older ${VOICE} subscription that still runs through our earlier billing system. Only the account owner can add or change plans; admins can see the page. What each plan adds is in [Plans and pricing](/help/plans-and-pricing).`,
+          text: `**Settings → Money → Your WorkBench plan** is the one place for plans. The top card says what you're on — **${CORE}** always, plus **${VOICE}**, **${PRO}** or **${MAX}** when you have them. **Included** next to a plan means we switched it on for your account at no charge; **previous billing** means an older ${VOICE} subscription that still runs through our earlier billing system. Only the account owner can add or change plans; admins can see the page. What each plan adds is in [Plans and pricing](/help/plans-and-pricing).`,
         },
         {
           type: "p",
@@ -299,7 +299,7 @@ export const settingsSection: HelpSection = {
           type: "steps",
           note: "Two taps once the card is in",
           items: [
-            `Go to **Settings → Plans**. Pick **Monthly** or **Annual · 2 months free** at the top — annual is ${ANNUAL_TERM}, and each card shows the price per term.`,
+            `Go to **Settings → Money → Your WorkBench plan**. Pick **Monthly** or **Annual · 2 months free** at the top — annual is ${ANNUAL_TERM}, and each card shows the price per term.`,
             `Press \`Add ${VOICE}\`, \`Add ${PRO}\` or \`Add ${MAX}\` (\`Switch to ${MAX}\` when you already have one of the two).`,
             "The first time, type your card into the sheet. It's a secure card form — the number goes straight to the card processor and WorkBench never sees it. Later plans just confirm against the card on file.",
             `Press \`Start …\`. The first invoice is charged to the card right then, the plan is on at once — the card reads **On** with its renewal date — and the receipt is emailed to you.`,
@@ -331,7 +331,7 @@ export const settingsSection: HelpSection = {
         },
         {
           type: "p",
-          text: `${CORE} includes ${SEATS_INCLUDED} people. The **People** card shows how many you have of how many. \`Add a person · ${EXTRA_SEAT_MO}\` buys one more seat, billed monthly on the same card; \`Remove\` ends a paid seat at the close of its month. On ${PRO} and ${MAX} people are unlimited and the buttons disappear. Adding or reactivating someone on **Settings → Team & roles** past the limit shows the same message, with an \`Add a person\` link that brings you here.`,
+          text: `${CORE} includes ${SEATS_INCLUDED} people. The **People** card shows how many you have of how many. \`Add a person · ${EXTRA_SEAT_MO}\` buys one more seat, billed monthly on the same card; \`Remove\` ends a paid seat at the close of its month. On ${PRO} and ${MAX} people are unlimited and the buttons disappear. Adding or reactivating someone on **Business → Team & roles** past the limit shows the same message, with an \`Add a person\` link that brings you here.`,
         },
         {
           type: "h",

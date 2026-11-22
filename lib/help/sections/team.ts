@@ -18,7 +18,7 @@ export const teamSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Go to **Settings → Team & roles** and press `Add member`.",
+            "Go to **Business → Team & roles** and press `Add member`.",
             "Enter their name, email and phone, pick a **role** (see [Roles](/help/roles-and-permissions)), and set a **starting password** (8+ characters).",
             "Save, then **send them their email and password yourself**. They sign in at workbenchfsm.com or in the app.",
           ],
@@ -29,7 +29,7 @@ export const teamSection: HelpSection = {
         },
         {
           type: "tip",
-          text: "The starting password is theirs to change. Until they set their own (Settings → My Profile, or Forgot password), it only works at your company: if another business later adds the same email to its team, that password is dropped and they get an email to set a new one — so nobody can sign in to someone else's company with a password a manager typed.",
+          text: "The starting password is theirs to change. Until they set their own (My Profile, or Forgot password), it only works at your company: if another business later adds the same email to its team, that password is dropped and they get an email to set a new one — so nobody can sign in to someone else's company with a password a manager typed.",
         },
         {
           type: "h",
@@ -193,7 +193,7 @@ export const portalSection: HelpSection = {
         },
         {
           type: "p",
-          text: "Your portal login page is one link for every client: workbenchfsm.com/portal/ followed by your company's web address. A client types their email there and gets their own portal link, with no password. Copy it from **Settings → Booking & forms → Client login for your website**, or from `Copy client login page` at the bottom of any client's **Client portal** card, and put it behind a \"Client login\" button on your site.",
+          text: "Your portal login page is one link for every client: workbenchfsm.com/portal/ followed by your company's web address. A client types their email there and gets their own portal link, with no password. Copy it from **Business → Booking & forms → Client login for your website**, or from `Copy client login page` at the bottom of any client's **Client portal** card, and put it behind a \"Client login\" button on your site.",
         },
         {
           type: "p",
@@ -453,7 +453,7 @@ export const reportsSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Go to **Settings → Payments & accounting → QuickBooks Online**.",
+            "Go to **Settings → Money → QuickBooks Online**.",
             "Press `Connect to QuickBooks` and sign in to your QuickBooks company. On your phone the sign-in opens in your browser; when it says **QuickBooks connected**, close it and come back to the app.",
             "That's it. Invoices, payments and refunds go over as they happen, everything else within the hour, and you can press `Sync now` any time.",
           ],

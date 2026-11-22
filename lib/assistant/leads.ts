@@ -383,7 +383,7 @@ export const leadTools: Tool[] = [
               action === "rotate"
                 ? "Anything using the old URL stops working immediately."
                 : "Creates a private URL that drops posted leads onto the board.",
-              "The URL shows in Settings → Lead Pipeline after confirming.",
+              "The URL shows in Settings → Clients & documents → Lead pipeline after confirming.",
             ],
             endpoint: "/api/app/pipeline/webhook",
             method: "POST",

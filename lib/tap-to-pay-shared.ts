@@ -36,12 +36,12 @@ export function tapToPayFailureText(code: string | null | undefined, fallback?: 
       return "The card was declined.";
     case "NOT_AUTHORIZED":
     case "UNAUTHORIZED":
-      return "Square needs to be set up on this phone first — open Settings → Online Payments.";
+      return "Square needs to be set up on this phone first — open Settings → Money → Online Payments.";
     case "NOT_CAPABLE":
     case "DEVICE_NOT_SUPPORTED":
       return "This phone can't take Tap to Pay (needs iPhone XS or newer, or a recent Android phone).";
     case "APPLE_NOT_LINKED":
-      return "Tap to Pay needs the Apple ID step in Settings → Online Payments first.";
+      return "Tap to Pay needs the Apple ID step in Settings → Money → Online Payments first.";
     case "NO_NETWORK":
     case "OFFLINE":
       return "Tap to Pay needs an internet connection.";

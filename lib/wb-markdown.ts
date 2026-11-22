@@ -171,7 +171,7 @@ Free tokens refill on the 1st of every month and are shared by the whole team.
 
 ## Getting started
 
-The account opens the day a company signs up at ${BASE}/apply, with no card. Add-ons are switched on afterwards from Settings → Plans. To talk to a person first, book a setup call at ${BASE}/book-a-call or call ${WB_PHONE.display}.
+The account opens the day a company signs up at ${BASE}/apply, with no card. Add-ons are switched on afterwards from Settings → Money → Your WorkBench plan. To talk to a person first, book a setup call at ${BASE}/book-a-call or call ${WB_PHONE.display}.
 
 ## Related
 

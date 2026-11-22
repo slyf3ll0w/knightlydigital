@@ -71,7 +71,7 @@ export default async function ConnectPage({ searchParams }: { searchParams: Prom
   });
   const block = connectBlock(member);
   if (block === "role") return <Problem title="Ask an owner or admin" body="Only owners and admins can connect an AI app to WorkBench for now." />;
-  if (block === "off") return <Problem title="Connected apps are turned off" body="The owner of this WorkBench account has turned off connections to outside apps. They can turn it back on in Settings → Connected apps." />;
+  if (block === "off") return <Problem title="Connected apps are turned off" body="The owner of this WorkBench account has turned off connections to outside apps. They can turn it back on in Settings → Notifications & AI → Connected apps." />;
   if (block) return <Problem title="This account can't connect apps" body="Sign in to an active WorkBench account and try again." />;
 
   const returnsTo = new URL(p.redirect_uri).host;
@@ -118,7 +118,7 @@ export default async function ConnectPage({ searchParams }: { searchParams: Prom
           Cancel
         </button>
       </form>
-      <p className="mt-4 text-xs text-gray-500">You can disconnect it any time in Settings → Connected apps.</p>
+      <p className="mt-4 text-xs text-gray-500">You can disconnect it any time in Settings → Notifications & AI → Connected apps.</p>
     </Shell>
   );
 }

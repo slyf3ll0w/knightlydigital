@@ -7,7 +7,7 @@ import { GENERIC_ERROR } from "@/lib/safe-fetch";
 
 /**
  * Start the Square consent flow — the one way every "Connect Square" /
- * "Reconnect Square" button opens it (Settings → Online Payments, the
+ * "Reconnect Square" button opens it (Settings → Money → Online Payments, the
  * payment-setup step, the Tap to Pay card, the Payments page).
  *
  * On the web a plain navigation to /api/app/square/connect redirects to

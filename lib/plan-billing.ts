@@ -831,7 +831,7 @@ export async function removeSeat(params: { companyId: string }): Promise<void> {
   await syncPlanEntitlements(params.companyId);
 }
 
-// ── The read model (Settings → Plans) ──
+// ── The read model (Settings → Money → Your WorkBench plan) ──
 
 export type SubscriptionSummary = {
   id: string;

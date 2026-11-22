@@ -238,7 +238,7 @@ export default function WebsiteSettingsClient({ initial }: { initial: WebsiteSum
               {initial.companyGaps.map((g) => (
                 <li key={g.key} className="flex items-center gap-2">
                   <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--ds-faint)]" />
-                  <Link href="/app/settings?s=company" className="ds-link hover:underline">
+                  <Link href="/app/settings?s=business" className="ds-link hover:underline">
                     {g.label}
                   </Link>
                   <span className="text-xs text-[color:var(--ds-muted)]">Business info</span>

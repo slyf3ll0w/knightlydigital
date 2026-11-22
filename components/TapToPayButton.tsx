@@ -55,7 +55,7 @@ export default function TapToPayButton({
   const total = Math.round((amount + surcharge) * 100) / 100;
 
   // The seller's grant predates the in-person scope: only a manager can fix
-  // that (Settings → Online Payments → Reconnect), so tell them, and show
+  // that (Settings → Money → Online Payments → Reconnect), so tell them, and show
   // nothing to everyone else.
   if (offer.needsReconnect) {
     if (!offer.canSetUp) return null;
@@ -63,7 +63,7 @@ export default function TapToPayButton({
       <span className="inline-flex items-center gap-1 text-xs text-gray-500">
         Tap to Pay
         <InfoTip label="Why can't I tap to pay?">
-          Square needs a fresh connection before this phone can take cards in person. Settings → Online Payments → Reconnect Square (one time).
+          Square needs a fresh connection before this phone can take cards in person. Settings → Money → Online Payments → Reconnect Square (one time).
         </InfoTip>
       </span>
     );

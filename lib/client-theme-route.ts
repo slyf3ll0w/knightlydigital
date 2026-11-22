@@ -7,7 +7,7 @@ import { ThemeError, type ThemeRowJson } from "@/lib/client-theme-store";
 import { themePreviewLinks } from "@/lib/client-theme-requests";
 
 /**
- * Shared by the Settings → Client pages routes (app/api/app/client-theme/*):
+ * Shared by the Settings → Brand & client pages → Client pages routes (app/api/app/client-theme/*):
  * who may call them and how a refusal is shaped. Owners and admins only, and
  * the company must be on Pro (page_designer, 402 PLAN_REQUIRED otherwise).
  */
