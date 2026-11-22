@@ -187,26 +187,27 @@ a.ds-row:active { background: var(--ds-line); }
 .ds-disc:active { transform: scale(0.94); }
 
 /* ── chips (status tags) ──────────────────────────────────────────────── */
-/* 2026-11-21 (heavy look): a status is a solid tag — tinted fill, the tone's
-   own ink, a small icon for the state, a firm 7px corner. Replaced the
-   round-4 dot-and-words, which David found too faint for the heavy style. */
+/* 2026-11-21 (heavy look): a status is a solid label — the tone at full
+   strength, white bold words, a small 5px corner, no icon. Like a printed
+   label. Replaced the dot-and-words (too faint) and then a pale tinted pill
+   with an icon (David: read AI-made). The light tones are all ≥4.5:1 with
+   white; primary/secondary use the company's own on-color pair; dark mode's
+   tones are light, so the words go dark there. */
 .ds-chip {
   display: inline-flex; align-items: center; gap: 5px;
-  height: 24px; padding: 0 9px 0 7px; border-radius: 7px;
-  font-size: 12.5px; font-weight: 650; letter-spacing: -0.005em; white-space: nowrap;
+  height: 22px; padding: 0 8px; border-radius: 5px;
+  font-size: 12px; font-weight: 700; letter-spacing: 0; white-space: nowrap;
   --chip: var(--ds-faint);
-  color: color-mix(in srgb, var(--chip) 82%, var(--ds-ink));
-  background: color-mix(in srgb, var(--chip) 13%, var(--ds-surface));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chip) 16%, transparent);
+  background: var(--chip); color: #fff;
 }
 .ds-chip > svg { flex: none; }
-.ds-chip-primary { --chip: var(--ds-primary); }
-.ds-chip-secondary { --chip: var(--ds-secondary); }
+.ds-chip-primary { --chip: var(--ds-primary); color: var(--ds-on-primary); }
+.ds-chip-secondary { --chip: var(--ds-secondary); color: var(--ds-on-secondary); }
 .ds-chip-good { --chip: var(--ds-good); }
 .ds-chip-warn { --chip: var(--ds-warn); }
 .ds-chip-bad { --chip: var(--ds-bad); }
-.ds-chip-neutral { --chip: var(--ds-muted, #6B7280); }
-html[data-mode="dark"] .ds-chip { color: color-mix(in srgb, var(--chip) 88%, #fff); background: color-mix(in srgb, var(--chip) 16%, var(--ds-surface)); }
+.ds-chip-neutral { --chip: var(--ds-muted, #687589); }
+html[data-mode="dark"] .ds-chip:not(.ds-chip-primary):not(.ds-chip-secondary) { color: #0B1220; }
 
 /* count badge in a list row */
 .ds-count {
