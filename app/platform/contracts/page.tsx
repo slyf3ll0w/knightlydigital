@@ -235,7 +235,7 @@ export default async function ContractsPage({
                   <Link
                     key={c.id}
                     prefetch={false} href={`/app/contracts/${c.id}`}
-                    className="block lg:grid lg:grid-cols-[1fr_70px_140px_150px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                    className="ds-trow block lg:grid lg:grid-cols-[1fr_70px_140px_150px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   >
                     {/* Phone row: monogram anchor, title + status, then
                         client · date */}
@@ -243,7 +243,7 @@ export default async function ContractsPage({
                       <Monogram name={`${c.contact.firstName} ${c.contact.lastName}`} size={40} />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-3">
-                          <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900">
+                          <p className="min-w-0 flex-1 ds-trow-name truncate text-[15.5px] font-semibold text-gray-900">
                             {c.title}
                           </p>
                           <StatusChip kind="contract" status={c.status} className="shrink-0" />
@@ -254,7 +254,7 @@ export default async function ContractsPage({
                       </div>
                     </div>
                     <div className="hidden lg:block min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="ds-trow-name text-sm font-medium text-gray-900 truncate">
                         {c.contact.firstName} {c.contact.lastName}
                       </p>
                       <p className="text-xs text-gray-500 truncate">{c.title}</p>

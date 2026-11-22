@@ -631,15 +631,6 @@ const MORE_GROUPS: { label: string; tone: "a" | "b" | "c" | "d" | "e"; hrefs: st
   { label: "Business", tone: "e", hrefs: ["/app/business", "/app/automations", "/app/settings/products", "/app/settings/booking", "/app/settings/website", "/app/settings/team"] },
 ];
 
-// Sidebar tile color per page: the More sheet's group colors, so a page
-// wears the same tile on the phone and the desktop. Home and Schedule lead
-// in the primary; anything unlisted (Settings) is the quiet slate.
-const RAIL_TONES: Record<string, "a" | "b" | "c" | "d" | "e"> = {
-  "/app/dashboard": "a",
-  "/app/schedule": "a",
-  ...Object.fromEntries(MORE_GROUPS.flatMap((g) => g.hrefs.map((h) => [h, g.tone]))),
-};
-
 const forRole = (items: NavItem[], role: string, salesMoney: boolean) =>
   items.filter((i) => !i.show || i.show(role, salesMoney));
 
@@ -2410,22 +2401,25 @@ export default function AppShell({
         data-tour={tourKeys[href]}
         data-rail-active={active ? "true" : undefined}
         style={animIndex !== undefined ? { animationDelay: `${animIndex * 22}ms` } : undefined}
-        className={`${animIndex !== undefined ? "rail-item-in " : ""}rail-row group font-display relative mx-2 flex items-center gap-2.5 rounded-[10px] py-[5px] pl-2 pr-3 text-[13.5px] transition-colors ${
+        className={`${animIndex !== undefined ? "rail-item-in " : ""}rail-row group font-display relative mx-2 flex items-center gap-2.5 rounded-[10px] py-[7px] pl-3 pr-3 text-[13.5px] transition-colors ${
           active
             ? "font-bold text-[color:var(--rail-ink)]" /* the solid puck behind it is .rail-indicator */
             : "font-medium text-[color:var(--rail-muted)] hover:bg-[var(--rail-hover)] hover:text-[color:var(--rail-ink)]"
         }`}
       >
         {/* Heavy look (2026-11-21, David: the thin gray icons read low
-            quality): each glyph sits in a small solid tile in the More
-            sheet's colors (.ds-tile-a … e: primary, secondary, three slates),
-            white line. The tile IS the svg (padding + fill, .rail-tile in
-            globals.css), so the hover gestures there still land on it. */}
+            quality, but no app-style tiles on desktop): the same glyphs,
+            bolder — 18px on a 2.3 stroke (2.6 when selected), in the row's
+            own ink instead of a faint gray. */}
         <Icon
-          size={24}
-          strokeWidth={2.5}
+          size={18}
+          strokeWidth={active ? 2.6 : 2.3}
           data-anim={railAnims[href]}
-          className={`ds-tile ds-tile-${RAIL_TONES[href] ?? "e"} rail-tile`}
+          className={
+            active
+              ? "shrink-0 text-[color:var(--rail-accent)]"
+              : "shrink-0 text-[color:var(--rail-muted)] transition-colors group-hover:text-[color:var(--rail-ink)]"
+          }
         />
         <span className="truncate">{label}</span>
         {NAV_FEATURES[href] && lockedFeatures.includes(NAV_FEATURES[href]) && <ProChip tone="rail" />}

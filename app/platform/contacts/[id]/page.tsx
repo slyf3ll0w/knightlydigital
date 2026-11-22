@@ -358,7 +358,7 @@ export default async function ContactDetailPage({
           <div className="ds-lb-side">
             <p className="ds-lb-label">Lifetime value</p>
             <p className="mt-1 text-[30px] font-extrabold leading-none tracking-[-0.03em]">{money(lifetimeValue)}</p>
-            <div className="mt-3 border-t border-[color:var(--ds-line)] pt-1">
+            <div className="mt-3 border-t border-[color:var(--t-line)] pt-1">
               <div className={`ds-lb-sidelink !cursor-default ${currentBalance > 0 ? "is-alert" : ""}`}>
                 <span>Balance owed</span>
                 <span className="ds-lb-sidevalue">{money(currentBalance)}</span>

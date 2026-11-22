@@ -204,7 +204,7 @@ export default async function AppointmentsPage({
                 <Link
                   prefetch={false}
                   href={`/app/appointments/${a.id}`}
-                  className="block lg:grid lg:grid-cols-[1fr_1fr_170px_140px_120px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                  className="ds-trow block lg:grid lg:grid-cols-[1fr_1fr_170px_140px_120px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                 >
                   {/* Phone row: monogram anchor, the appointment leads, the
                       client supports, status trails */}
@@ -212,7 +212,7 @@ export default async function AppointmentsPage({
                     <Monogram name={`${a.contact.firstName} ${a.contact.lastName}`} size={40} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-3">
-                        <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900">{a.title}</p>
+                        <p className="min-w-0 flex-1 ds-trow-name truncate text-[15.5px] font-semibold text-gray-900">{a.title}</p>
                         <p className="shrink-0 text-xs text-gray-500">{when(a)}</p>
                       </div>
                       <div className="mt-0.5 flex items-center justify-between gap-3">
@@ -229,7 +229,7 @@ export default async function AppointmentsPage({
                   </div>
 
                   {/* Desktop columns */}
-                  <span className="hidden lg:block text-sm font-medium text-gray-900 truncate">
+                  <span className="ds-trow-name hidden lg:block text-sm font-medium text-gray-900 truncate">
                     {a.contact.firstName} {a.contact.lastName}
                   </span>
                   <span className="hidden lg:flex items-center gap-2 min-w-0">

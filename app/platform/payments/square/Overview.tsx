@@ -157,7 +157,7 @@ export default function Overview({
               {onTheWayCents == null ? "—" : money(onTheWayCents / 100)}
             </Link>
             <p className="ds-lb-note !mt-1">{payoutsNote}</p>
-            <div className="mt-2 border-t border-[color:var(--ds-line)] pt-1">
+            <div className="mt-2 border-t border-[color:var(--t-line)] pt-1">
               <Link prefetch={false} href="/app/payments?tab=disputes" className={`ds-lb-sidelink ${openDisputes ? "is-alert" : ""}`}>
                 <span className="min-w-0 truncate">Open disputes</span>
                 <span className="ds-lb-sidevalue">{openDisputes == null ? "—" : openDisputes}</span>

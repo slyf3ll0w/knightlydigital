@@ -236,7 +236,7 @@ export default async function InvoicesPage({
                   >
                   <Link
                     prefetch={false} href={`/app/invoices/${inv.id}`}
-                    className="block lg:grid lg:grid-cols-[1fr_70px_130px_150px_100px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                    className="ds-trow block lg:grid lg:grid-cols-[1fr_70px_130px_150px_100px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   >
                     {/* Phone row: monogram anchor, name + the amount that
                         matters (balance while anything is owed, else the
@@ -251,7 +251,7 @@ export default async function InvoicesPage({
                       )}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-baseline justify-between gap-3">
-                          <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900">
+                          <p className="min-w-0 flex-1 ds-trow-name truncate text-[15.5px] font-semibold text-gray-900">
                             {inv.contact ? `${inv.contact.firstName} ${inv.contact.lastName}` : "—"}
                           </p>
                           <p className="ds-num shrink-0 text-sm font-semibold text-gray-900">
@@ -271,7 +271,7 @@ export default async function InvoicesPage({
                       </div>
                     </div>
                     <div className="hidden lg:block min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="ds-trow-name text-sm font-medium text-gray-900 truncate">
                         {inv.contact ? `${inv.contact.firstName} ${inv.contact.lastName}` : "—"}
                       </p>
                       {inv.subject && <p className="text-xs text-gray-500 truncate">{inv.subject}</p>}

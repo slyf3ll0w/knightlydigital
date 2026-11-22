@@ -222,7 +222,7 @@ export default async function JobsPage({
                   >
                   <Link
                     prefetch={false} href={`/app/jobs/${j.id}`}
-                    className="block lg:grid lg:grid-cols-[1fr_70px_150px_160px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                    className="ds-trow block lg:grid lg:grid-cols-[1fr_70px_150px_160px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   >
                     {/* Phone card: two lines only — glance and go. Address,
                         totals, and the rest live on the job page (David:
@@ -232,7 +232,7 @@ export default async function JobsPage({
                       <Monogram name={`${j.contact.firstName} ${j.contact.lastName}`} size={40} />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-3">
-                          <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900">
+                          <p className="min-w-0 flex-1 ds-trow-name truncate text-[15.5px] font-semibold text-gray-900">
                             {j.title}
                           </p>
                           <StatusChip kind="job" status={j.status} className="shrink-0" />
@@ -243,7 +243,7 @@ export default async function JobsPage({
                       </div>
                     </div>
                     <div className="hidden lg:block min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="ds-trow-name text-sm font-medium text-gray-900 truncate">
                         {j.contact.firstName} {j.contact.lastName}
                       </p>
                       <p className="text-xs text-gray-500 truncate">{j.title}</p>

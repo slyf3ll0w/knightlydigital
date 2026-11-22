@@ -181,7 +181,7 @@ export default async function RequestsPage({
               >
               <Link
                 prefetch={false} href={`/app/requests/${r.id}`}
-                className="block lg:grid lg:grid-cols-[1fr_1fr_140px_130px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                className="ds-trow block lg:grid lg:grid-cols-[1fr_1fr_140px_130px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
               >
                 {/* Phone row: monogram anchor, the work leads, the client
                     supports */}
@@ -192,7 +192,7 @@ export default async function RequestsPage({
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-3">
-                      <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900">
+                      <p className="min-w-0 flex-1 ds-trow-name truncate text-[15.5px] font-semibold text-gray-900">
                         {r.title}
                       </p>
                       <p className="shrink-0 text-xs text-gray-500">{shortDate(r.createdAt, tz)}</p>
@@ -205,7 +205,7 @@ export default async function RequestsPage({
                     </div>
                   </div>
                 </div>
-                <span className="hidden lg:block text-sm font-medium text-gray-900">
+                <span className="ds-trow-name hidden lg:block text-sm font-medium text-gray-900">
                   {r.contact.firstName} {r.contact.lastName}
                 </span>
                 <span className="hidden lg:block text-sm text-gray-600 truncate">{r.title}</span>
