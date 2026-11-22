@@ -29,7 +29,6 @@ import {
   MonitorSmartphone,
   Phone,
   PhoneCall,
-  Gift,
   RefreshCw,
   Search,
   Tags,
@@ -42,7 +41,6 @@ import {
 } from "lucide-react";
 import {
   ADDON_LINK,
-  GIFT_CARDS_LINK,
   QUICKBOOKS_LINK,
   SETTINGS_LINK_GROUPS,
   SETTINGS_SECTIONS,
@@ -294,7 +292,6 @@ const LINK_ICONS: Record<SettingsLink["icon"], LucideIcon> = {
   RefreshCw,
   Sparkles,
   MonitorSmartphone,
-  Gift,
   Palette,
 };
 
@@ -2379,7 +2376,7 @@ export default function SettingsClient({
             {form.surchargeEnabled ? (
               <>
                 On: a $500 card payment collects ${(500 + serviceFee(500, "CARD", true)).toFixed(2)} and you receive the $500. Shown on the pay page
-                before the client pays and itemized on every receipt. Never added when you press Charge card yourself, or to gift cards,
+                before the client pays and itemized on every receipt. Never added when you press Charge card yourself, or to
                 cash and checks.
               </>
             ) : (
@@ -2488,13 +2485,10 @@ export default function SettingsClient({
         </div>
         )}
 
-        {/* Accounting — QuickBooks Online lives on its own page. Gift cards
-            (Square, rarely visited) moved here from the Payments page's tab
-            bar on 2026-10-30. */}
+        {/* Accounting — QuickBooks Online lives on its own page. */}
         {show("payments") && (
         <div className="ds-card ds-divide overflow-hidden">
           <LinkRow link={QUICKBOOKS_LINK} />
-          {visibleLink(GIFT_CARDS_LINK) && <LinkRow link={GIFT_CARDS_LINK} />}
         </div>
         )}
 

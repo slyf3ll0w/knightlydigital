@@ -170,7 +170,7 @@ export const paymentsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "Under that are four tabs: **Payments · Payouts · Disputes · Reports**. **Gift cards** and **Square dashboard** sit at the right end of the tab bar (under the payments list on a phone).",
+          text: "Under that are four tabs: **Payments · Payouts · Disputes · Reports**. **Square dashboard** sits at the right end of the tab bar (under the payments list on a phone).",
         },
         {
           type: "list",
@@ -221,7 +221,7 @@ export const paymentsSection: HelpSection = {
       blocks: [
         {
           type: "p",
-          text: "Every invoice you send has a pay link. The client picks **Card**, **Bank transfer** or **Gift card**, can tick a box to keep their card on file, and presses **Pay**. Once it goes through the invoice is stamped **Paid** right on the page.",
+          text: "Every invoice you send has a pay link. The client picks **Card** or **Bank transfer**, can tick a box to keep their card on file, and presses **Pay**. Once it goes through the invoice is stamped **Paid** right on the page.",
         },
         {
           type: "list",
@@ -477,75 +477,6 @@ export const paymentsSection: HelpSection = {
       ],
     },
     {
-      slug: "gift-cards",
-      // Suspended for live accounts (lib/gift-cards-preview.ts): the guide stays written but out of every reader
-      hidden: true,
-      title: "Sell and take Square gift cards",
-      summary: "Sell digital gift cards from the Payments page and take them on any invoice or pay page.",
-      keywords: ["gift card", "gift cards", "gift certificate", "redeem", "check balance", "card number", "digital gift card", "square gift cards", "sell a gift card"],
-      where: { label: "Gift cards", href: "/app/payments?tab=giftcards" },
-      roles: "Owners and admins",
-      blocks: [
-        {
-          type: "p",
-          text: "Gift cards are Square's. Sold here, at the counter in the Square app or online, they're one pool with one balance each. The **Gift cards** screen — the `Gift cards` link at the right end of the tab bar on **Payments** (under the payments list on a phone), or **Settings → Payments & accounting → Gift cards** — lists every one on your account with its state and balance. WorkBench sells digital cards and takes any of them as payment.",
-        },
-        {
-          type: "h",
-          text: "Sell one",
-        },
-        {
-          type: "steps",
-          items: [
-            "Open the **Gift cards** screen and press `Sell a gift card`.",
-            "Type the amount ($5 to $2,000), who it's for and the email the card number goes to. Pick the client who's paying if there is one (their email is used unless you add one), or leave it blank for a walk-up. A note goes into the email if you add one.",
-            "WorkBench makes an ordinary invoice for the amount (no sales tax) and hands you the pay link — send it, or take `Tap to Pay` in the phone app. The card waits under **Pending** until that invoice is paid: by pay link, card on file, Tap to Pay or a payment you record.",
-            "The moment the invoice is paid the card loads, the recipient's email arrives with the number, and the card reads **Active** on the tab.",
-          ],
-        },
-        {
-          type: "tip",
-          text: "Square keeps 2.5% of each load as its gift card fee. The buyer's invoice is paid like any other, with your usual processing fee or service fee.",
-        },
-        {
-          type: "h",
-          text: "Take one as payment",
-        },
-        {
-          type: "list",
-          items: [
-            "**On an invoice**: open it (Awaiting Payment or Past Due), press ⋯ → `Redeem a gift card`, type the number, see the balance and take it. The card pays as much as it holds; whatever is left on the invoice can be paid another way.",
-            "**On the pay page**: the client picks **Gift card**, types the number from their email and presses `Pay up to … with gift card`. There is no service fee on a gift card.",
-            "**Check a balance**: `Check a balance` on the Gift cards screen, or tap any card for its history — loads, uses on invoices and refunds back onto it.",
-            "**Retire a card**: `Deactivate` on a card ends it for good — a pending sale's invoice is archived with it, and a card with a balance can't be used or brought back afterwards. Deactivated cards hide from the list; `show deactivated` brings them back.",
-            "A refund of a gift card payment (the ↺ button on **Payments**) goes back onto the card.",
-            "A client's own cards show on their client page under **Gift cards**.",
-          ],
-        },
-        {
-          type: "faq",
-          items: [
-            {
-              q: "It says that gift card hasn't been paid for yet.",
-              a: "The card was sold but its invoice isn't paid, so it holds nothing. Collect the invoice first — it's on **Invoices** as Awaiting Payment — and the card loads on its own.",
-            },
-            {
-              q: "The recipient didn't get the email.",
-              a: "Check the address you typed when you sold it: the sale's invoice names the recipient. Once the card is Active, open it on the Gift cards screen, copy the number and send it yourself.",
-            },
-            {
-              q: "Sell a gift card asks me to reconnect Square.",
-              a: "Gift cards need permissions your Square connection didn't have yet. The owner presses `Reconnect Square` once (on the Payments page or the Online Payments card in Settings) and signs in to Square; nothing else changes. On the phone, Square opens in your browser — approve there and come back to the app.",
-            },
-            {
-              q: "A card bought in the Square app isn't in the list.",
-              a: "The list shows what Square answers with — open the page again if Square didn't answer just now. Physical cards are registered in the Square app, not here; once they are, they list and redeem like any other.",
-            },
-          ],
-        },
-      ],
-    },
-    {
       slug: "sell-products-online",
       title: "Sell products online (your shop)",
       summary: "Mark a product Sell online and it's on your shop page with its own buy link. The buyer pays on the pay page; the paid invoice is the order.",
@@ -555,7 +486,7 @@ export const paymentsSection: HelpSection = {
       blocks: [
         {
           type: "p",
-          text: "Your shop is part of your business page: **/book/your-address/shop** lists every product you sell online, and each product has a page of its own to buy from. A purchase runs through the same money path as everything else — the buyer becomes a client (or is matched to one you have), an **Order** invoice carries what they bought, and they pay it on the pay page by card, bank transfer or gift card, service fee included when yours is on.",
+          text: "Your shop is part of your business page: **/book/your-address/shop** lists every product you sell online, and each product has a page of its own to buy from. A purchase runs through the same money path as everything else — the buyer becomes a client (or is matched to one you have), an **Order** invoice carries what they bought, and they pay it on the pay page by card or bank transfer, service fee included when yours is on.",
         },
         {
           type: "steps",
@@ -607,7 +538,7 @@ export const paymentsSection: HelpSection = {
         {
           type: "list",
           items: [
-            "On the pay page the fee is its own line under the total before the client presses Pay, on a card or a bank transfer alike. A gift card carries none.",
+            "On the pay page the fee is its own line under the total before the client presses Pay, on a card or a bank transfer alike.",
             "`Tap to Pay` shows it in the button's total.",
             "Automatic charges to a saved card — recurring plans and autopay — carry it; the client is told when they save the card and on **Payment methods** in their portal.",
             "Once paid it reads **Service fee** on the receipt, the invoice, its PDF and the payment's **Details** on the Payments page.",

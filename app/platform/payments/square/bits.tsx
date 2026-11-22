@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, ChevronRight, Gift, RefreshCw } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, ChevronRight, RefreshCw } from "lucide-react";
 import { InfoTip } from "@/components/ds";
 import ConnectSquareButton from "@/components/ConnectSquareButton";
 import { listHref } from "@/components/FilterBar";
@@ -13,8 +13,8 @@ import type { SellerReadFailure } from "@/lib/square-seller-reports";
  * what stays in the Square dashboard.
  */
 
-export type SquareTab = "payments" | "payouts" | "disputes" | "reports" | "giftcards";
-export const SQUARE_TABS: readonly SquareTab[] = ["payments", "payouts", "disputes", "reports", "giftcards"];
+export type SquareTab = "payments" | "payouts" | "disputes" | "reports";
+export const SQUARE_TABS: readonly SquareTab[] = ["payments", "payouts", "disputes", "reports"];
 
 export function parseSquareTab(v: string | undefined): SquareTab {
   return (SQUARE_TABS as readonly string[]).includes(v ?? "") ? (v as SquareTab) : "payments";
@@ -25,26 +25,22 @@ const TAB_OPTIONS = [
   { value: "payouts", label: "Payouts" },
   { value: "disputes", label: "Disputes" },
   { value: "reports", label: "Reports" },
-  // Gift cards keep their ?tab= URL but left the bar on 2026-10-30 (rarely
-  // visited): GiftCardsRow below and Settings → Payments & accounting reach them.
 ];
 
 /**
  * Payments · Payouts · Disputes · Reports as an underline tab bar (Stripe's
  * shape, 2026-11-10 redesign), scrolling sideways on a phone; Square's own
- * dashboard and gift cards sit at its right end.
+ * dashboard sits at its right end.
  */
 export function SquareTabs({
   tab,
   openDisputes,
   sandbox,
-  giftCards,
   keep = {},
 }: {
   tab: SquareTab;
   openDisputes: number;
   sandbox: boolean;
-  giftCards: boolean;
   /** Query params that survive a tab change (the volume range). */
   keep?: Record<string, string | undefined>;
 }) {
@@ -75,11 +71,6 @@ export function SquareTabs({
         })}
       </nav>
       <div className="hidden shrink-0 items-center gap-4 pb-2.5 text-xs font-medium text-[color:var(--ds-muted)] sm:flex">
-        {giftCards && (
-          <Link prefetch={false} href="/app/payments?tab=giftcards" className="inline-flex items-center gap-1 hover:text-[color:var(--ds-ink)]">
-            <Gift size={13} /> Gift cards
-          </Link>
-        )}
         <a href={squareLink("transactions", sandbox)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:text-[color:var(--ds-ink)]">
           Square dashboard <ArrowUpRight size={13} />
         </a>
@@ -88,15 +79,10 @@ export function SquareTabs({
   );
 }
 
-/** Phones: the two links the tab bar carries at its right end on a desk. */
-export function SquarePhoneLinks({ sandbox, giftCards }: { sandbox: boolean; giftCards: boolean }) {
+/** Phones: the link the tab bar carries at its right end on a desk. */
+export function SquarePhoneLinks({ sandbox }: { sandbox: boolean }) {
   return (
     <div className="mb-8 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-[color:var(--ds-muted)] sm:hidden">
-      {giftCards && (
-        <Link prefetch={false} href="/app/payments?tab=giftcards" className="inline-flex items-center gap-1.5">
-          <Gift size={14} /> Gift cards
-        </Link>
-      )}
       <a href={squareLink("transactions", sandbox)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1">
         Square dashboard <ArrowUpRight size={14} />
       </a>
@@ -128,8 +114,8 @@ export function ReconnectCard({ what, canReconnect, lost = false }: { what: stri
             {lost ? "WorkBench lost its Square sign-in — reconnect Square to see payments, payouts and disputes." : `Reconnect Square to see ${what}.`}
             {!lost && (
             <InfoTip>
-              WorkBench now reads more from your Square account — payouts, disputes, the items behind a sale and gift
-              cards. Your Square connection was made before that, so Square needs you to approve it
+              WorkBench now reads more from your Square account — payouts, disputes, and the items behind
+              a sale. Your Square connection was made before that, so Square needs you to approve it
               once more — the same sign-in as the first time. Nothing else changes; payments keep working meanwhile.
             </InfoTip>
             )}
@@ -201,26 +187,6 @@ export function SquareLinkRows({
           </a>
         ))}
       </div>
-    </div>
-  );
-}
-
-/** Gift cards: run from WorkBench on the seller's Square account, reached from this row rather than the tab bar (2026-10-30). */
-export function GiftCardsRow() {
-  return (
-    <div className="ds-card overflow-hidden">
-      <Link
-        prefetch={false}
-        href="/app/payments?tab=giftcards"
-        className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50 active:bg-gray-100"
-      >
-        <Gift size={16} className="shrink-0 text-gray-400" aria-hidden />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium text-gray-900">Gift cards</span>
-          <span className="block truncate text-xs text-gray-500">Sell a card, check a balance, every card on your Square account</span>
-        </span>
-        <ChevronRight size={14} className="text-gray-400" />
-      </Link>
     </div>
   );
 }

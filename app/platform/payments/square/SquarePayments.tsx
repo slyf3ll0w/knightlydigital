@@ -8,7 +8,6 @@ import Overview, { parseRange, rangeBounds } from "./Overview";
 import PayoutsTab from "./PayoutsTab";
 import DisputesTab from "./DisputesTab";
 import ReportsTab from "./ReportsTab";
-import GiftCardsTab from "./GiftCardsTab";
 import TransactionDetail from "./TransactionDetail";
 
 /** How far back the Payments tab lists Square sales taken outside WorkBench. */
@@ -16,10 +15,10 @@ const OUTSIDE_WINDOW_DAYS = 90;
 
 /**
  * The Square-connected company's money view: the Square dashboard's
- * capabilities in WorkBench's shape (2026-10-28; gift cards and the
- * transaction detail 2026-10-30). KPI strip (collected and fees this month,
- * on its way to the bank, open disputes), then one of five tabs — Payments ·
- * Payouts · Disputes · Reports · Gift cards — each its own screen
+ * capabilities in WorkBench's shape (2026-10-28; the transaction detail
+ * 2026-10-30). KPI strip (collected and fees this month, on its way to the
+ * bank, open disputes), then one of four tabs — Payments · Payouts ·
+ * Disputes · Reports — each its own screen
  * on a phone. Every Square number is read live with the seller's token and
  * tolerated to fail on its own; our own records always render.
  */
@@ -30,7 +29,6 @@ export default async function SquarePayments({
   missingScopes,
   unreadable = false,
   isOwner,
-  giftCards = false,
   params,
 }: {
   actor: Actor;
@@ -41,14 +39,10 @@ export default async function SquarePayments({
   /** The saved Square sign-in can't be decrypted (SquareStatus.unreadable) — only a reconnect mends it. */
   unreadable?: boolean;
   isOwner: boolean;
-  /** Gift cards are open for this company (lib/gift-cards-preview.ts — test accounts only while suspended). */
-  giftCards?: boolean;
-  params: { tab?: string; range?: string; show?: string; page?: string; payout?: string; dispute?: string; period?: string; payment?: string; giftcard?: string; cursor?: string; all?: string };
+  params: { tab?: string; range?: string; show?: string; page?: string; payout?: string; dispute?: string; period?: string; payment?: string; cursor?: string; all?: string };
 }) {
   const companyId = actor.companyId;
-  const parsedTab = parseSquareTab(params.tab);
-  // A gift cards link on an account without them lands on Payments
-  const tab = parsedTab === "giftcards" && !giftCards ? "payments" : parsedTab;
+  const tab = parseSquareTab(params.tab);
   const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
   const period: ReportPeriod = isReportPeriod(params.period) ? params.period : "month";
   const now = new Date();
@@ -92,7 +86,6 @@ export default async function SquarePayments({
   const whatIsMissing = [
     !needPayouts || !needDisputes ? "payouts and disputes" : "",
     missingScopes.includes("ORDERS_READ") ? "the items behind a sale" : "",
-    giftCards && missingScopes.some((s) => s.startsWith("GIFTCARDS")) ? "gift cards" : "",
   ].filter(Boolean);
 
   let body: React.ReactNode;
@@ -126,20 +119,6 @@ export default async function SquarePayments({
     const { rows, square } = await loadReportRows(companyId, periods[0].start, periods[periods.length - 1].end);
     const report = buildPaymentsReport(rows, { tz, period, anchor: now });
     body = <ReportsTab report={report} squareFailure={square.failure} squareTruncated={square.truncated} />;
-  } else if (tab === "giftcards") {
-    body = (
-      <GiftCardsTab
-        showAll={params.all === "1"}
-        companyId={companyId}
-        tz={tz}
-        giftCardId={params.giftcard ?? null}
-        cursor={params.cursor ?? null}
-        canSell={manager}
-        canActivate={isOwner}
-        canReconnect={isOwner}
-        missingScope={missingScopes.some((s) => s.startsWith("GIFTCARDS"))}
-      />
-    );
   } else if (params.payment) {
     body = <TransactionDetail companyId={companyId} tz={tz} paymentId={params.payment} canReconnect={isOwner} />;
   } else {
@@ -166,9 +145,9 @@ export default async function SquarePayments({
                 : "none open"
           }
         />
-        <SquareTabs tab={tab} openDisputes={openDisputes} sandbox={sandbox} giftCards={giftCards} keep={keep} />
+        <SquareTabs tab={tab} openDisputes={openDisputes} sandbox={sandbox} keep={keep} />
         <PaymentsTab companyId={companyId} actor={actor} tz={tz} page={page} filter={filter} window={squareWin} windowDays={OUTSIDE_WINDOW_DAYS} keep={keep} />
-        <SquarePhoneLinks sandbox={sandbox} giftCards={giftCards} />
+        <SquarePhoneLinks sandbox={sandbox} />
       </>
     );
   }
@@ -180,8 +159,8 @@ export default async function SquarePayments({
       ) : (
         needsReconnect && listView && <ReconnectCard what={whatIsMissing.join(", ") || "everything Square reports"} canReconnect={isOwner} />
       )}
-      {/* The list view draws the tab bar under its overview; the other tabs open on it. Gift cards draw their own way back. */}
-      {!listView && tab !== "giftcards" && <SquareTabs tab={tab} openDisputes={openDisputes} sandbox={sandbox} giftCards={giftCards} keep={keep} />}
+      {/* The list view draws the tab bar under its overview; the other tabs open on it. */}
+      {!listView && <SquareTabs tab={tab} openDisputes={openDisputes} sandbox={sandbox} keep={keep} />}
       {body}
     </>
   );

@@ -20,7 +20,7 @@ export const NOTIFICATION_EVENTS = [
   { key: "tasks", label: "Tasks", hint: "Someone gave you a task, task reminders" },
   { key: "reminders", label: "Up next", hint: "Before your next job or appointment" },
   { key: "payments", label: "Payments received" },
-  { key: "payment_problems", label: "Payment problems", hint: "Failed payments and refunds, autopay stopped, gift cards that need you" },
+  { key: "payment_problems", label: "Payment problems", hint: "Failed payments and refunds, autopay stopped" },
   { key: "quotes", label: "Quotes approved" },
   { key: "views", label: "A client opened something", hint: "A quote, invoice or email you sent" },
   { key: "documents", label: "Sending documents", hint: "Sent, or couldn't be sent" },

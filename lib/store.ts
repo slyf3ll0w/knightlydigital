@@ -24,7 +24,7 @@ import {
  * product is on its shop page (/book/<slug>/shop) with a buy link of its
  * own. A purchase is the ordinary money path: the buyer becomes (or already
  * is) a client, an `InvoiceKind.STORE_ORDER` invoice carries the line, and
- * the buyer lands on the pay page — card, bank or gift card, service fee
+ * the buyer lands on the pay page — card or bank, service fee
  * and all. A paid invoice IS the order: it shows on Invoices, Payments,
  * reports and the client's hub like any other, and the team gets the usual
  * payment notification. Orders nobody pays archive after

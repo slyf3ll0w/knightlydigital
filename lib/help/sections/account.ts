@@ -155,7 +155,7 @@ export const settingsSection: HelpSection = {
             "**New requests, leads and bookings**: website forms, online bookings, bookings waiting for your OK.",
             "**Client messages**: texts, hub messages and website chat.",
             "**Team chat**, **Tasks** (someone gave you a task, task reminders) and **Up next** (before your next job or appointment).",
-            "**Payments received** and **Payment problems**: failed payments and refunds, autopay stopped, gift cards that need you.",
+            "**Payments received** and **Payment problems**: failed payments and refunds, autopay stopped.",
             "**Quotes approved**, **A client opened something** (a quote, invoice or email you sent) and **Sending documents** (sent, or couldn't be sent).",
             "**Missed calls and voicemail** and **Automation alerts** (from your automations' Notify step).",
           ],

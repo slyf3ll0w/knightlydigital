@@ -13,7 +13,6 @@ import { recomputeInvoiceStatus, sendReviewRequest, estimateFeeCents } from "@/l
 import { estimateProcessingCostCents } from "@/lib/platform-costs";
 import { queueQuickBooksUnwind, queueQuickBooksPaymentRefresh } from "@/lib/quickbooks";
 import { notifyUsers } from "@/lib/push";
-import { activateGiftCardForInvoice, releaseGiftCardForBouncedPayment } from "@/lib/gift-cards";
 import { adoptSquarePayment } from "@/lib/square-adopt";
 import { mapSellerPayment } from "@/lib/square-seller-reports";
 import { logActivity } from "@/lib/activity";
@@ -163,9 +162,6 @@ async function handlePayment(merchantId: string, paymentId: string) {
 
   queueQuickBooksUnwind({ companyId: row.companyId, entityType: "PAYMENT", localId: row.id });
 
-  // A gift card this payment bought must not stay spendable (lib/gift-cards.ts)
-  await releaseGiftCardForBouncedPayment(row.invoiceId).catch((e) => reportError("[square webhook] gift card release failed", row.invoiceId, e));
-
   const owners = await prisma.user.findMany({
     where: { companyId: row.companyId, role: "OWNER", isActive: true },
     select: { id: true },
@@ -197,8 +193,6 @@ async function handlePaymentSettled(paymentId: string) {
     },
   });
   if (!payment || payment.invoice?.status !== "PAID") return;
-  // A gift card bought with this (now settled) bank transfer may load now
-  await activateGiftCardForInvoice(payment.invoiceId).catch((e) => reportError("[square webhook] gift card activation failed", payment.invoiceId, e));
   const contact = payment.invoice.contact;
   if (!contact?.email) return;
   await sendReviewRequest({

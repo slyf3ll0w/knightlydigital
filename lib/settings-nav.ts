@@ -92,7 +92,7 @@ export type SettingsLink = {
   /** lib/section-colors SECTION_HUES key */
   hueKey: "services" | "contracts" | "clients" | "leads" | "forms" | "team" | "business" | "payments";
   /** lucide-react icon name */
-  icon: "Package" | "FileSignature" | "Tags" | "Filter" | "Globe" | "Users" | "Upload" | "UserRound" | "RefreshCw" | "Sparkles" | "MonitorSmartphone" | "Gift" | "Palette";
+  icon: "Package" | "FileSignature" | "Tags" | "Filter" | "Globe" | "Users" | "Upload" | "UserRound" | "RefreshCw" | "Sparkles" | "MonitorSmartphone" | "Palette";
   /** Test accounts only (Company.isTest) while the page is unfinished. */
   testOnly?: boolean;
 };
@@ -205,21 +205,6 @@ export const QUICKBOOKS_LINK: SettingsLink = {
   sub: "Sync clients, invoices, and payments automatically",
   hueKey: "payments",
   icon: "RefreshCw",
-};
-
-/**
- * Gift cards (Square, run from WorkBench). Rarely visited, so the door lives
- * here under Payments & accounting (and as a row on the Payments page)
- * rather than on the Payments tab bar (2026-10-30 request).
- */
-export const GIFT_CARDS_LINK: SettingsLink = {
-  // Suspended for live accounts (lib/gift-cards-preview.ts): test accounts only
-  testOnly: true,
-  href: "/app/payments?tab=giftcards",
-  label: "Gift cards",
-  sub: "Sell a card, check a balance, every card on your Square account",
-  hueKey: "payments",
-  icon: "Gift",
 };
 
 /**

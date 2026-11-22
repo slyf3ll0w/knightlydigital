@@ -17,7 +17,6 @@ import { recomputeDepositApplied } from "@/lib/deposits";
 import { suspendedResponse } from "@/lib/suspension";
 import { serviceFee } from "@/lib/service-fee";
 import { billingMethodFor } from "@/lib/payment-source";
-import { giftCardsOpen, GIFT_CARDS_CLOSED_MESSAGE } from "@/lib/gift-cards-preview";
 
 /**
  * Public online payment endpoint. Routes through the active payment processor;
@@ -33,29 +32,7 @@ export async function POST(
   const { token } = await params;
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return NextResponse.json({ error: "Missing payment details." }, { status: 400 });
-  const { method, paymentToken, saveCard, amount: requestedAmount, gan } = body;
-
-  // A Square gift card (docs/plans/square-products-2026-10-30.md): the card
-  // pays min(its balance, the invoice balance) through Square, recorded as a
-  // GIFT_CARD payment; no surcharge, no card form. Everything else below is
-  // the card / bank path.
-  if (method === "GIFT_CARD") {
-    const target = await prisma.invoice.findFirst({ where: { publicToken: token }, select: { id: true, companyId: true, company: { select: { suspendedAt: true, isTest: true } } } });
-    if (!target) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
-    // Suspended for live accounts (lib/gift-cards-preview.ts)
-    if (!giftCardsOpen(target.company)) return NextResponse.json({ error: GIFT_CARDS_CLOSED_MESSAGE }, { status: 404 });
-    if (target.company.suspendedAt) {
-      return suspendedResponse("Online payments are unavailable for this business. Please contact them directly to arrange payment.");
-    }
-    const { GiftCardError, redeemGiftCardOnInvoice } = await import("@/lib/gift-cards");
-    try {
-      const r = await redeemGiftCardOnInvoice({ companyId: target.companyId, invoiceId: target.id, gan: String(gan ?? ""), byClient: true });
-      return NextResponse.json({ success: true, pending: false, remaining: r.remaining, paid: r.amount, cardBalance: r.cardBalanceCents / 100, cardTail: r.tail });
-    } catch (err) {
-      if (err instanceof GiftCardError) return NextResponse.json({ error: err.message, code: err.code }, { status: err.status === 409 ? 409 : err.status >= 500 ? 424 : 402 });
-      throw err;
-    }
-  }
+  const { method, paymentToken, saveCard, amount: requestedAmount } = body;
 
   // Re-derive any deposit credit on a final invoice before computing the
   // balance, so the charge reflects deposits paid (or bounced) since creation.

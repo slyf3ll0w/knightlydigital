@@ -1578,7 +1578,7 @@ export async function syncCompany(companyId: string): Promise<SyncSummary> {
     // Candidate invoices: every non-draft invoice, filtered against sync
     // records in memory (the set of records is at most the set of invoices).
     // An archived invoice QuickBooks never heard of stays that way (plan
-    // billing and gift cards archive plenty) — only one it knows needs the
+    // billing archives plenty) — only one it knows needs the
     // void or the reopen.
     const [invoices, invoiceRecords] = await Promise.all([
       prisma.invoice.findMany({

@@ -19,7 +19,6 @@ import RunAutomationMenu from "@/components/RunAutomationMenu";
 import { getProcessor, invoiceBalance } from "@/lib/payments";
 import { canChargeOnline } from "@/lib/payments-gate";
 import { clientPayConfig, PAY_CONFIG_SELECT } from "@/lib/pay-client-config";
-import { giftCardsOpenFor } from "@/lib/gift-cards-preview";
 import { tapToPayOffer } from "@/lib/tap-to-pay";
 import type { ClientPayConfig } from "@/lib/pay-config";
 import { activityFor } from "@/lib/activity";
@@ -123,12 +122,6 @@ export default async function InvoiceDetailPage({
   // Tap to Pay in the phone app: offered to anyone who can take money on
   // this invoice while there is a balance (lib/tap-to-pay.ts decides).
   const tapToPay = balance > 0 && invoice.status !== "PAID" ? await tapToPayOffer(actor) : null;
-
-  // Square products (docs/plans/square-products-2026-10-30.md): a gift card
-  // can pay any open balance once this company runs on Square.
-  const onSquare = payCfg?.processor === "square";
-  const giftCards =
-    onSquare && balance > 0 && invoice.status !== "PAID" && invoice.status !== "ARCHIVED" && (await giftCardsOpenFor(actor.companyId));
 
   // One-shot confetti (per user) on the first open after a processor-verified
   // (card/ACH) payment marked it PAID — manual cash/check entries don't celebrate.
@@ -266,7 +259,6 @@ export default async function InvoiceDetailPage({
           balance={balance}
           scheduled={Boolean(invoice.scheduledSendAt)}
           tz={tz}
-          giftCards={giftCards}
           reportJob={reportJob}
           reopenStatus={
             totalPaid > 0 && totalPaid >= Number(invoice.total) - 0.005
