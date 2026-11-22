@@ -10,6 +10,8 @@ import EmptyState from "@/components/EmptyState";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import PageTitle from "@/components/PageTitle";
 import { Chip, InfoTip } from "@/components/ds";
+import Modal from "@/components/Modal";
+import CountUp from "@/components/CountUp";
 import { DateField } from "@/components/DateField";
 import { SERVICE_FEE_CARD } from "@/lib/service-fee";
 
@@ -46,6 +48,13 @@ type Sub = {
 };
 
 type BillingInterval = NonNullable<Sub["interval"]>;
+
+const INTERVAL_PER: Record<BillingInterval, string> = {
+  MONTHLY: "a month",
+  QUARTERLY: "every 3 months",
+  SEMIANNUAL: "every 6 months",
+  ANNUAL: "a year",
+};
 
 const INTERVAL_LABEL: Record<BillingInterval, string> = {
   MONTHLY: "Monthly",
@@ -290,10 +299,29 @@ export default function SubscriptionsClient({
   const active = subs.filter((s) => s.status !== "CANCELLED");
   const cancelled = subs.filter((s) => s.status === "CANCELLED");
 
+  const monthly = (sub: Sub) => {
+    const amt = Number(sub.unitPrice) * Number(sub.quantity);
+    if (!sub.interval) return 0;
+    return sub.interval === "MONTHLY" ? amt : sub.interval === "QUARTERLY" ? amt / 3 : sub.interval === "SEMIANNUAL" ? amt / 6 : amt / 12;
+  };
+  const live = active.filter((x) => x.status === "ACTIVE");
+  const mrr = live.reduce((t, x) => t + monthly(x), 0);
+  const paused = active.filter((x) => x.status === "PAUSED").length;
+  const nextUp = live
+    .filter((x) => x.nextRunDate && (x.interval || (x.billPerVisit && x.consolidateMonthly)))
+    .sort((a, b) => String(a.nextRunDate).localeCompare(String(b.nextRunDate)))[0];
+  const editing = subs.find((x) => x.id === editId) ?? null;
+  const cadence = (x: Sub) =>
+    x.interval
+      ? { amount: money(Number(x.unitPrice) * Number(x.quantity)), per: INTERVAL_PER[x.interval] }
+      : x.billPerVisit
+        ? { amount: money(Number(x.unitPrice) * Number(x.quantity)), per: "per visit" }
+        : { amount: null, per: "Recurring job — no billing" };
+
   return (
-    <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-      <div className="flex items-start justify-between gap-3 mb-6">
-        <PageTitle info="Auto-charged plans, plus work billed per completed visit.">Recurring</PageTitle>
+    <div className="p-4 lg:p-8 max-w-6xl mx-auto">
+      <div className="flex items-start justify-between gap-3 mb-5 lg:mb-6">
+        <PageTitle heavy info="Auto-charged plans, plus work billed per completed visit.">Recurring</PageTitle>
         {canManage && (
           <div className="flex items-center gap-2">
             {active.length > 0 && (
@@ -327,14 +355,46 @@ export default function SubscriptionsClient({
         <div className="mb-4 rounded-lg bg-[color:var(--ds-good-soft)] px-4 py-3 text-sm text-[color:var(--ds-good)]">{flash}</div>
       )}
 
+      {/* The band — what the plans bring in each month */}
+      {subs.length > 0 && (
+        <section className="ds-hero ds-rise ds-lb mb-5 lg:mb-6" style={{ "--ds-i": 1 } as React.CSSProperties}>
+          <div className="relative ds-lb-grid">
+            <div className="min-w-0">
+              <p className="ds-lb-label">Recurring revenue</p>
+              <p className="ds-lb-big">
+                <CountUp value={money(mrr)} />
+                <span className="ml-1.5 text-[18px] font-bold tracking-normal opacity-80">/ month</span>
+              </p>
+              <p className="ds-lb-note">
+                {live.length} active {live.length === 1 ? "plan" : "plans"}
+                {paused > 0 ? ` · ${paused} paused` : ""}
+              </p>
+            </div>
+            <div className="ds-lb-side">
+              <p className="ds-lb-label">Next to bill</p>
+              {nextUp ? (
+                <>
+                  <p className="mt-1 text-[22px] font-extrabold tracking-[-0.02em]">{fmtDate(nextUp.nextRunDate!)}</p>
+                  <p className="ds-lb-note !mt-0.5 truncate">
+                    {nextUp.name} · {nextUp.contact.firstName} {nextUp.contact.lastName}
+                  </p>
+                </>
+              ) : (
+                <p className="ds-lb-note">Nothing scheduled to bill</p>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Ready to bill — completed per-job work nothing has invoiced yet.
           Billing it here is the whole per-job model: click daily for
           per-visit invoices, click on the 1st for one monthly invoice. */}
       {readyGroups.length > 0 && !readyBilled && (
-        <div className="ds-card mb-6 overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 lg:px-5 py-3.5 border-b border-[color:var(--ds-line)] bg-[color:var(--ds-primary-soft)]">
+        <div className="ds-card ds-card-raised mb-6 overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 lg:px-5 py-4 border-b border-[color:var(--ds-line)]">
             <div>
-              <p className="flex items-center gap-1.5 text-sm font-semibold text-[color:var(--ds-ink)]">
+              <p className="flex items-center gap-1.5 text-[16px] font-bold text-[color:var(--ds-ink)]">
                 <span>
                   Ready to bill{" "}
                   <span className="numeral-ledger">{money(readyTotal)}</span>
@@ -344,7 +404,7 @@ export default function SubscriptionsClient({
                   {serviceFeeOn ? ` The ${SERVICE_FEE_CARD} card service fee is added to each charge, like on the pay page.` : ""}
                 </InfoTip>
               </p>
-              <p className="text-xs text-[color:var(--ds-muted)]">
+              <p className="text-[13px] text-[color:var(--ds-muted)]">
                 {readyJobs.length} completed visit{readyJobs.length === 1 ? "" : "s"} ·{" "}
                 {readyGroups.length} client{readyGroups.length === 1 ? "" : "s"}
               </p>
@@ -400,12 +460,182 @@ export default function SubscriptionsClient({
           />
         </div>
       ) : (
-        <div className="space-y-6">
-          <div className="ds-card overflow-hidden">
-            <div className="divide-y divide-gray-100">
-              {active.map((s) =>
-                editId === s.id ? (
-                  <div key={s.id} className="px-4 lg:px-5 py-4 bg-gray-50/70 space-y-3">
+        <div className="space-y-8">
+          {active.length > 0 && (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {active.map((s, i) => {
+                const c = cadence(s);
+                const bills = (s.interval || (s.billPerVisit && s.consolidateMonthly)) && s.nextRunDate;
+                return (
+                  <div key={s.id} className="ds-rise" style={{ "--ds-i": i + 2 } as React.CSSProperties}>
+                    <div className={`ds-card ds-card-raised ds-plan-card ${s.status === "PAUSED" ? "is-paused" : ""}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="line-clamp-2 text-[16.5px] font-bold leading-snug tracking-[-0.012em] text-[color:var(--ds-ink)]">{s.name}</p>
+                          <Link prefetch={false} href={`/app/contacts/${s.contact.id}`} className="ds-link text-[13.5px] font-semibold">
+                            {s.contact.firstName} {s.contact.lastName}
+                          </Link>
+                        </div>
+                        {s.status === "PAUSED" ? <Chip tone="warn" icon={Pause}>Paused</Chip> : <Chip tone="good" icon={Repeat}>Active</Chip>}
+                      </div>
+                      <p className="mt-4 flex items-baseline gap-1.5">
+                        {c.amount && <span className="text-[28px] font-extrabold leading-none tracking-[-0.03em] text-[color:var(--ds-ink)]">{c.amount}</span>}
+                        <span className="text-[13.5px] font-semibold text-[color:var(--ds-muted)]">{c.per}</span>
+                      </p>
+                      <dl className="ds-plan-facts">
+                        {bills && (
+                          <div>
+                            <dt>Bills</dt>
+                            <dd>{fmtDate(s.nextRunDate!)}</dd>
+                          </div>
+                        )}
+                        {s.visitFrequency && (
+                          <div>
+                            <dt>Visits</dt>
+                            <dd>
+                              {FREQ_LABEL[s.visitFrequency]}
+                              {s.nextVisitDate ? ` · next ${fmtDate(s.nextVisitDate)}` : ""}
+                            </dd>
+                          </div>
+                        )}
+                        {!s.visitFrequency && s.createsJob && (
+                          <div>
+                            <dt>Visits</dt>
+                            <dd>Creates a job each time</dd>
+                          </div>
+                        )}
+                        {(s.interval || s.billPerVisit) && s.invoiceMode === "DRAFT" && (
+                          <div>
+                            <dt>Invoices</dt>
+                            <dd>Drafts only</dd>
+                          </div>
+                        )}
+                        {s.billPerVisit && (
+                          <div>
+                            <dt>Billing</dt>
+                            <dd>{s.consolidateMonthly ? (s.nextRunDate ? "Monthly, from visits" : "From the ready queue") : "On each completed visit"}</dd>
+                          </div>
+                        )}
+                      </dl>
+                      {canManage && (
+                        <div className="ds-plan-actions">
+                          {(s.interval || (s.billPerVisit && s.consolidateMonthly)) && (
+                            <button
+                              onClick={() => billNow(s.id)}
+                              disabled={busyId === s.id || s.status !== "ACTIVE"}
+                              className="ds-btn ds-btn-primary ds-btn-sm disabled:opacity-40"
+                              title={
+                                s.interval
+                                  ? "Generate this subscription's next invoice now"
+                                  : "Invoice the completed visits accumulated so far now"
+                              }
+                            >
+                              {busyId === s.id ? <Loader2 size={13} className="animate-spin" /> : "Bill now"}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => openEdit(s)}
+                            disabled={busyId === s.id}
+                            className="ds-btn ds-btn-outline ds-btn-sm disabled:opacity-40"
+                          >
+                            <Pencil size={13} />
+                            Edit
+                          </button>
+                          {s.status === "ACTIVE" ? (
+                            <button
+                              onClick={() => setStatus(s.id, "PAUSED")}
+                              disabled={busyId === s.id}
+                              className="ds-plan-icon ml-auto"
+                              title="Pause"
+                              aria-label="Pause"
+                            >
+                              <Pause size={15} />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setStatus(s.id, "ACTIVE")}
+                              disabled={busyId === s.id}
+                              className="ds-plan-icon ml-auto"
+                              title="Resume"
+                              aria-label="Resume"
+                            >
+                              <Play size={15} />
+                            </button>
+                          )}
+                          <button
+                            onClick={async () => {
+                              if (
+                                await confirmSheet({
+                                  title: "Cancel this subscription?",
+                                  message: "It will stop billing.",
+                                  confirmLabel: "Cancel subscription",
+                                  cancelLabel: "Keep it",
+                                  destructive: true,
+                                })
+                              )
+                                setStatus(s.id, "CANCELLED");
+                            }}
+                            disabled={busyId === s.id}
+                            className="ds-plan-icon is-danger"
+                            title="Cancel"
+                            aria-label="Cancel plan"
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {cancelled.length > 0 && (
+            <div>
+              <h2 className="ds-heavy-h2 mb-3 !text-[15px] !text-[color:var(--ds-muted)]">Cancelled</h2>
+              <div className="ds-card overflow-hidden">
+                <div className="divide-y divide-gray-100">
+                  {cancelled.map((s) => (
+                    <div key={s.id} className="flex items-center gap-3 px-5 py-3 text-sm text-gray-500">
+                      <span className="min-w-0 flex-1 truncate">
+                        <span className="font-semibold text-gray-700">{s.name}</span> · {s.contact.firstName} {s.contact.lastName}
+                      </span>
+                      <span className="shrink-0 text-xs">
+                        {s.interval
+                          ? INTERVAL_LABEL[s.interval]
+                          : s.billPerVisit
+                            ? s.consolidateMonthly
+                              ? "Per visit, billed monthly"
+                              : "Billed per visit"
+                            : "Recurring job"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Edit opens in a panel, not inside the list */}
+      <Modal open={Boolean(editing)} onClose={() => setEditId(null)} size="2xl">
+        {editing &&
+          ((s: Sub) => (
+            <div>
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-[19px] font-bold tracking-[-0.015em] text-[color:var(--ds-ink)]">Edit plan</h2>
+                  <p className="text-[13.5px] text-[color:var(--ds-muted)]">
+                    {s.contact.firstName} {s.contact.lastName}
+                  </p>
+                </div>
+                <button type="button" onClick={() => setEditId(null)} aria-label="Close" className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700">
+                  <X size={16} />
+                </button>
+              </div>
+                  <div className="space-y-3">
                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                       <div className="col-span-2 sm:col-span-2">
                         <label className="block text-xs text-gray-500 mb-0.5">Name</label>
@@ -639,269 +869,9 @@ export default function SubscriptionsClient({
                       </button>
                     </div>
                   </div>
-                ) : (
-                <div key={s.id} className="px-4 py-3 lg:px-5 lg:py-4">
-                  {/* Phone row: name + amount, client/plan sub-line, dates,
-                      then wrap-friendly 40px action buttons */}
-                  <div className="lg:hidden">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900">
-                        {s.name}
-                      </p>
-                      {(s.interval || s.billPerVisit) && (
-                        <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
-                          {money(Number(s.unitPrice) * Number(s.quantity))}
-                        </p>
-                      )}
-                    </div>
-                    <div className="mt-1 flex items-center justify-between gap-3">
-                      <p className="min-w-0 flex-1 truncate text-xs text-gray-500">
-                        <Link prefetch={false} href={`/app/contacts/${s.contact.id}`} className="hover:underline">
-                          {s.contact.firstName} {s.contact.lastName}
-                        </Link>
-                        {" · "}
-                        {s.interval
-                          ? `${INTERVAL_LABEL[s.interval]} plan`
-                          : s.billPerVisit
-                            ? "Per-job billing"
-                            : "Recurring job"}
-                        {s.visitFrequency && (
-                          <span className="text-[color:var(--ds-primary)]">
-                            {" · "}visits {FREQ_LABEL[s.visitFrequency].toLowerCase()}
-                          </span>
-                        )}
-                        {!s.visitFrequency && s.createsJob && " · creates a job"}
-                        {(s.interval || s.billPerVisit) && s.invoiceMode === "DRAFT" && " · drafts only"}
-                      </p>
-                      {s.status === "PAUSED" && (
-                        <span className="shrink-0"><Chip tone="warn">Paused</Chip></span>
-                      )}
-                    </div>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                      {(s.interval || (s.billPerVisit && s.consolidateMonthly)) && s.nextRunDate && (
-                        <>
-                          Bills <span className="font-medium text-gray-700">{fmtDate(s.nextRunDate)}</span>
-                        </>
-                      )}
-                      {s.visitFrequency && s.nextVisitDate && (
-                        <>
-                          {(s.interval || (s.billPerVisit && s.consolidateMonthly)) && s.nextRunDate
-                            ? " · "
-                            : ""}
-                          Next visit{" "}
-                          <span className="font-medium text-gray-700">{fmtDate(s.nextVisitDate)}</span>
-                        </>
-                      )}
-                    </p>
-                    {canManage && (
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <button
-                          onClick={() => openEdit(s)}
-                          disabled={busyId === s.id}
-                          className="flex h-10 items-center gap-1.5 rounded-[10px] border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 active:bg-gray-100 transition-colors disabled:opacity-40"
-                          title="Edit subscription"
-                        >
-                          <Pencil size={13} />
-                          Edit
-                        </button>
-                        {(s.interval || (s.billPerVisit && s.consolidateMonthly)) && (
-                          <button
-                            onClick={() => billNow(s.id)}
-                            disabled={busyId === s.id || s.status !== "ACTIVE"}
-                            className="flex h-10 items-center rounded-[10px] bg-[color:var(--ds-primary-soft)] px-3 text-xs font-medium text-[color:var(--ds-primary)] active:opacity-80 transition-colors disabled:opacity-40"
-                            title={
-                              s.interval
-                                ? "Generate this subscription's next invoice now"
-                                : "Invoice the completed visits accumulated so far now"
-                            }
-                          >
-                            {busyId === s.id ? <Loader2 size={13} className="animate-spin" /> : "Bill now"}
-                          </button>
-                        )}
-                        {s.status === "ACTIVE" ? (
-                          <button
-                            onClick={() => setStatus(s.id, "PAUSED")}
-                            disabled={busyId === s.id}
-                            className="flex h-10 items-center gap-1.5 rounded-[10px] border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 active:bg-amber-50 active:text-amber-700 transition-colors disabled:opacity-40"
-                            title="Pause"
-                          >
-                            <Pause size={13} />
-                            Pause
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setStatus(s.id, "ACTIVE")}
-                            disabled={busyId === s.id}
-                            className="flex h-10 items-center gap-1.5 rounded-[10px] border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 active:bg-[color:var(--ds-primary-soft)] active:text-[color:var(--ds-primary)] transition-colors disabled:opacity-40"
-                            title="Resume"
-                          >
-                            <Play size={13} />
-                            Resume
-                          </button>
-                        )}
-                        <button
-                          onClick={async () => {
-                            if (
-                              await confirmSheet({
-                                title: "Cancel this subscription?",
-                                message: "It will stop billing.",
-                                confirmLabel: "Cancel subscription",
-                                cancelLabel: "Keep it",
-                                destructive: true,
-                              })
-                            )
-                              setStatus(s.id, "CANCELLED");
-                          }}
-                          disabled={busyId === s.id}
-                          className="flex h-10 w-10 items-center justify-center rounded-full text-gray-400 active:bg-red-50 active:text-red-500 transition-colors disabled:opacity-40"
-                          title="Cancel"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  {/* Desktop row (unchanged) */}
-                  <div className="hidden lg:flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                        {s.name}
-                        {s.status === "PAUSED" && (
-                          <Chip tone="warn">Paused</Chip>
-                        )}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        <Link prefetch={false} href={`/app/contacts/${s.contact.id}`} className="hover:underline">
-                          {s.contact.firstName} {s.contact.lastName}
-                        </Link>
-                        {" · "}
-                        {s.interval
-                          ? `${INTERVAL_LABEL[s.interval]} plan · ${money(Number(s.unitPrice) * Number(s.quantity))}`
-                          : s.billPerVisit
-                            ? `${money(Number(s.unitPrice) * Number(s.quantity))} per visit${
-                                s.consolidateMonthly
-                                  ? s.nextRunDate
-                                    ? " · billed monthly"
-                                    : " · bills from the ready queue"
-                                  : " · bills on completion"
-                              }`
-                            : "Recurring job — no billing"}
-                        {s.visitFrequency && (
-                          <span className="text-[color:var(--ds-primary)]">
-                            {" · "}visits {FREQ_LABEL[s.visitFrequency].toLowerCase()}
-                          </span>
-                        )}
-                        {!s.visitFrequency && s.createsJob && " · creates a job"}
-                        {(s.interval || s.billPerVisit) && s.invoiceMode === "DRAFT" && " · drafts only"}
-                      </p>
-                    </div>
-                    <div className="text-xs text-gray-500 whitespace-nowrap text-right">
-                      {(s.interval || (s.billPerVisit && s.consolidateMonthly)) && s.nextRunDate && (
-                        <div>
-                          Bills: <span className="font-medium text-gray-700">{fmtDate(s.nextRunDate)}</span>
-                        </div>
-                      )}
-                      {s.visitFrequency && s.nextVisitDate && (
-                        <div>
-                          Next visit:{" "}
-                          <span className="font-medium text-gray-700">{fmtDate(s.nextVisitDate)}</span>
-                        </div>
-                      )}
-                    </div>
-                    {canManage && (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => openEdit(s)}
-                          disabled={busyId === s.id}
-                          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
-                          title="Edit subscription"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        {(s.interval || (s.billPerVisit && s.consolidateMonthly)) && (
-                          <button
-                            onClick={() => billNow(s.id)}
-                            disabled={busyId === s.id || s.status !== "ACTIVE"}
-                            className="ds-btn ds-btn-soft ds-btn-sm disabled:opacity-40"
-                            title={
-                              s.interval
-                                ? "Generate this subscription's next invoice now"
-                                : "Invoice the completed visits accumulated so far now"
-                            }
-                          >
-                            {busyId === s.id ? <Loader2 size={13} className="animate-spin" /> : "Bill now"}
-                          </button>
-                        )}
-                        {s.status === "ACTIVE" ? (
-                          <button
-                            onClick={() => setStatus(s.id, "PAUSED")}
-                            disabled={busyId === s.id}
-                            className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-full transition-colors"
-                            title="Pause"
-                          >
-                            <Pause size={14} />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setStatus(s.id, "ACTIVE")}
-                            disabled={busyId === s.id}
-                            className="p-1.5 text-gray-400 hover:text-[color:var(--ds-primary)] hover:bg-[color:var(--ds-primary-soft)] rounded-full transition-colors"
-                            title="Resume"
-                          >
-                            <Play size={14} />
-                          </button>
-                        )}
-                        <button
-                          onClick={async () => {
-                            if (
-                              await confirmSheet({
-                                title: "Cancel this subscription?",
-                                message: "It will stop billing.",
-                                confirmLabel: "Cancel subscription",
-                                cancelLabel: "Keep it",
-                                destructive: true,
-                              })
-                            )
-                              setStatus(s.id, "CANCELLED");
-                          }}
-                          disabled={busyId === s.id}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                          title="Cancel"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                )
-              )}
             </div>
-          </div>
-
-          {cancelled.length > 0 && (
-            <div>
-              <p className="text-xs font-medium text-gray-500 mb-2">Cancelled</p>
-              <div className="ds-card overflow-hidden opacity-70">
-                <div className="divide-y divide-gray-100">
-                  {cancelled.map((s) => (
-                    <div key={s.id} className="px-5 py-3 text-sm text-gray-500">
-                      {s.name} — {s.contact.firstName} {s.contact.lastName} (
-                      {s.interval
-                        ? INTERVAL_LABEL[s.interval]
-                        : s.billPerVisit
-                          ? s.consolidateMonthly
-                            ? "per visit, billed monthly"
-                            : "billed per visit"
-                          : "recurring job"})
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+          ))(editing)}
+      </Modal>
     </div>
   );
 }

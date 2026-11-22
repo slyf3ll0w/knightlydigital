@@ -27,10 +27,13 @@ export function PageHeader({
   title,
   info,
   actions,
+  heavy = false,
   className = "",
 }: {
   eyebrow?: React.ReactNode;
   title: React.ReactNode;
+  /** The heavy-look title size/weight (2026-11-21). */
+  heavy?: boolean;
   info?: React.ReactNode;
   actions?: React.ReactNode;
   className?: string;
@@ -39,7 +42,7 @@ export function PageHeader({
     <div className={`ds-rise flex flex-wrap items-end justify-between gap-4 ${className}`}>
       <div className="min-w-0">
         {eyebrow && <p className="ds-eyebrow ds-eyebrow-plain">{eyebrow}</p>}
-        <h1 className="ds-title mt-1 flex items-center gap-2">
+        <h1 className={`ds-title ${heavy ? "ds-title-heavy" : ""} mt-1 flex items-center gap-2`}>
           <span className="ds-wipe min-w-0">
             <span className="ds-wipe-text">{title}</span>
             <span className="ds-wipe-bar" aria-hidden />

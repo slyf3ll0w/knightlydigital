@@ -273,6 +273,12 @@ export default async function DashboardPage() {
 
   const receivableTotal = receivables.reduce((s, inv) => s + invoiceBalance(inv), 0);
   const receivableClients = new Set(receivables.map((i) => i.contactId).filter(Boolean)).size;
+  // Clear-day band (desktop): what's next on the books after today
+  const nextOnBooks = await prisma.job.findFirst({
+        where: { companyId, ...jScope, status: "ACTIVE", scheduledAt: { gte: endOfDay } },
+        orderBy: { scheduledAt: "asc" },
+        select: { id: true, title: true, scheduledAt: true, scheduledAnytime: true, contact: { select: { firstName: true, lastName: true } } },
+      });
   const weekRevenue = upcomingJobsWeek.reduce(
     (s, j) => s + j.lineItems.reduce((t, li) => t + Number(li.total), 0),
     0
@@ -750,6 +756,7 @@ export default async function DashboardPage() {
   return (
     <DsPage>
       <PageHeader
+        heavy
         eyebrow={dateLine}
         title={greetingTitle}
         info={pageInfo}
@@ -901,11 +908,36 @@ export default async function DashboardPage() {
                 )}
               </SectionTitle>
               {todayItems.length === 0 ? (
-                todayTasks.length === 0 ? (
-                  <Card>
-                    <Hint title="Nothing on the books today." action={{ href: "/app/jobs/new", label: "Schedule a job", icon: Plus }} />
-                  </Card>
-                ) : null
+                <section className="ds-hero ds-rise ds-lb" style={rise(4)}>
+                  <div className="relative">
+                    <p className="ds-lb-label">Clear day</p>
+                    <p className="mt-1 text-[30px] font-extrabold leading-tight tracking-[-0.03em]">Nothing on the books today</p>
+                    <p className="ds-lb-note">
+                      {nextOnBooks?.scheduledAt ? (
+                        <>
+                          Next up:{" "}
+                          <Link prefetch={false} href={`/app/jobs/${nextOnBooks.id}`} className="ds-band-link font-semibold">
+                            {nextOnBooks.scheduledAt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: tz })}
+                            {nextOnBooks.scheduledAnytime ? "" : ` · ${fmtTime(nextOnBooks.scheduledAt)}`} · {nextOnBooks.title}
+                            {nextOnBooks.contact ? ` · ${nextOnBooks.contact.firstName} ${nextOnBooks.contact.lastName}` : ""}
+                          </Link>
+                        </>
+                      ) : (
+                        "Nothing scheduled ahead yet."
+                      )}
+                    </p>
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      <Link prefetch={false} href="/app/jobs/new" className="ds-band-btn">
+                        <Plus size={15} strokeWidth={2.4} />
+                        Schedule a job
+                      </Link>
+                      <Link prefetch={false} href="/app/schedule" className="ds-band-btn is-ghost">
+                        <CalendarDays size={15} strokeWidth={2.2} />
+                        Open schedule
+                      </Link>
+                    </div>
+                  </div>
+                </section>
               ) : (
                 <Card className="ds-divide overflow-hidden">{todayItems.map((item) => todayRow(item, false))}</Card>
               )}
