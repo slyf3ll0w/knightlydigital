@@ -66,6 +66,10 @@ export const jobsSection: HelpSection = {
         },
         {
           type: "p",
+          text: "When an appointment is next instead, the card shows `Call` and `Text`, plus `Join` for a video call that has a meeting link and `Directions` for an in-person visit that has an address.",
+        },
+        {
+          type: "p",
           text: "On the job page itself you'll also find:",
         },
         {
