@@ -93,7 +93,7 @@ const LABELS: [prefix: string, label: string][] = [
   ["/app/timesheets", "Timesheets"],
   ["/app/contracts", "Agreements"],
   ["/app/estimates", "Estimates"],
-  ["/app/business", "Overview"],
+  ["/app/business", "Reports"],
   ["/app/insights", "Insights"],
   ["/app/expenses", "Expenses"],
   ["/app/team-map", "Team Map"],
@@ -112,11 +112,10 @@ const LABELS: [prefix: string, label: string][] = [
 // Appointments and agreements now have their own index pages, so their
 // subpages fall back to those lists like every other entity (no PARENTS
 // override needed anymore).
-const PARENTS: [prefix: string, to: string][] = [
-  ["/app/insights", "/app/business"],
-  ["/app/expenses", "/app/business"],
-  ["/app/team-map", "/app/business"],
-];
+// Insights / Expenses / Team map used to hang off the Business overview;
+// since 2026-11-21 they are the Reports tabs (siblings, each a top-level
+// page), so nothing hangs off a hub anymore.
+const PARENTS: [prefix: string, to: string][] = [];
 
 /** The section list pages themselves — "‹ Jobs" is right when that is where back lands. */
 const LABEL_ROOTS = new Set(LABELS.map(([prefix]) => prefix));

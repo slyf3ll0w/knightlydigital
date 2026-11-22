@@ -3,6 +3,7 @@ import { requirePageActor, isManager } from "@/lib/permissions";
 import { featureAllowedFor } from "@/lib/plan-gate";
 import PlanRequired from "@/components/PlanRequired";
 import TeamMapClient from "./TeamMapClient";
+import ReportsHeader from "@/components/ReportsHeader";
 
 export const metadata: Metadata = { title: "Team Map" };
 
@@ -15,6 +16,6 @@ export const metadata: Metadata = { title: "Team Map" };
 export default async function TeamMapPage() {
   const actor = await requirePageActor((a) => isManager(a.role));
   if (!(await featureAllowedFor(actor.companyId, "team_map")))
-    return <PlanRequired feature="team_map" back={{ href: "/app/business", label: "Back to the overview" }} />;
-  return <TeamMapClient />;
+    return <PlanRequired feature="team_map" back={{ href: "/app/insights", label: "Back to Reports" }} />;
+  return <TeamMapClient header={<ReportsHeader companyId={actor.companyId} tab="team-map" compact />} />;
 }

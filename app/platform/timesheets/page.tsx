@@ -7,6 +7,7 @@ import { startOfWeekIn, zonedMidnight, zonedParts } from "@/lib/timezone";
 import EntryActions from "./EntryActions";
 import AddEntry from "./AddEntry";
 import PageTitle from "@/components/PageTitle";
+import ReportsHeader from "@/components/ReportsHeader";
 import EmptyState from "@/components/EmptyState";
 import { Chip } from "@/components/ds";
 import { featureAllowedFor } from "@/lib/plan-gate";
@@ -102,18 +103,30 @@ export default async function TimesheetsPage({
     d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz });
 
   return (
-    <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+    <div className={`p-4 lg:p-8 mx-auto ${manager ? "max-w-5xl" : "max-w-4xl"}`}>
+      {/* Reports (2026-11-21): for owners/admins Timesheets is a tab of the
+          Reports page; techs still get their own plain Timesheets page. */}
+      {manager && <ReportsHeader companyId={actor.companyId} tab="timesheets" />}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <PageTitle
-          sub={
-            <>
-              {manager ? "Team hours" : "Your hours"} · week of{" "}
-              {weekStart.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: tz })}
-            </>
-          }
-        >
-          Timesheets
-        </PageTitle>
+        {manager ? (
+          <div>
+            <h2 className="ds-heavy-h2">Team hours</h2>
+            <p className="mt-0.5 text-[13px] font-medium text-[color:var(--ds-muted)]">
+              Week of {weekStart.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: tz })}
+            </p>
+          </div>
+        ) : (
+          <PageTitle
+            sub={
+              <>
+                Your hours · week of{" "}
+                {weekStart.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: tz })}
+              </>
+            }
+          >
+            Timesheets
+          </PageTitle>
+        )}
         <div className="flex items-center gap-1">
           <Link
             href={`/app/timesheets?week=${prevWeek}`}

@@ -1,11 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import type * as Leaflet from "leaflet";
 import type { Map as LeafletMap, Marker } from "leaflet";
-import { MapPin, Maximize2, Minus, Plus, Timer } from "lucide-react";
-import BackLink from "@/components/BackLink";
+import { MapPin, Maximize2, Minus, Plus } from "lucide-react";
 import { InfoTip } from "@/components/ds";
 import { formatDuration } from "@/lib/time-entries";
 import { addBasemap, initialView, reducedMotion, rememberView } from "@/lib/basemap";
@@ -55,7 +53,8 @@ function ageLabel(iso: string | null, now: number): string {
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-export default function TeamMapClient() {
+/** `header`: the Reports title + tabs (components/ReportsHeader.tsx, compact). */
+export default function TeamMapClient({ header }: { header?: React.ReactNode }) {
   const pageRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // size the page from the shell's <main> (a percentage height collapses here)
@@ -204,24 +203,16 @@ export default function TeamMapClient() {
         @media (prefers-reduced-motion: reduce) { .team-map-pin { animation: none; } }
       `}</style>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-white px-4 py-3 lg:px-8">
-        <div className="flex min-w-0 items-center gap-3">
-          <BackLink href="/app/business" />
-          <h1 className="font-display flex items-center gap-1.5 text-lg font-bold text-[color:var(--ds-ink)]">
-            Team map
-            <InfoTip>
-              Positions update every few minutes while someone is clocked in with the app open —
-              never off the clock.
-            </InfoTip>
-          </h1>
-        </div>
-        <Link
-          href="/app/timesheets"
-          className="flex items-center gap-1.5 text-xs font-semibold text-[color:var(--ds-primary)] hover:underline"
-        >
-          <Timer size={12} />
-          Timesheets
-        </Link>
+      {/* Reports (2026-11-21): Team map is a tab of the Reports page */}
+      <div className="border-b border-[color:var(--ds-line)] bg-[color:var(--ds-surface)] px-4 py-3 lg:px-8">
+        {header}
+        <p className="mt-2 flex items-center gap-1.5 text-[13px] font-medium text-[color:var(--ds-muted)]">
+          Where your clocked-in team is right now
+          <InfoTip>
+            Positions update every few minutes while someone is clocked in with the app open —
+            never off the clock.
+          </InfoTip>
+        </p>
       </div>
 
       {loaded && team.length === 0 && (

@@ -2,9 +2,7 @@ import { prisma } from "@/lib/db";
 import { canonicalLeadSource, UNTRACKED_SOURCE } from "@/lib/lead-source";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import Link from "next/link";
-import { BarChart3 } from "lucide-react";
-import PageTitle from "@/components/PageTitle";
-import BackLink from "@/components/BackLink";
+import ReportsHeader from "@/components/ReportsHeader";
 import { FilterRow, FilterChip } from "@/components/FilterChips";
 import EmptyState from "@/components/EmptyState";
 import { Chip, InfoTip } from "@/components/ds";
@@ -284,17 +282,9 @@ export default async function InsightsPage({
   const paymentCount = `${payments.length} ${payments.length === 1 ? "payment" : "payments"}`;
 
   return (
-    <div className="mx-auto max-w-6xl p-4 lg:p-8">
-      <div className="mb-3 flex items-start gap-3 lg:mb-5">
-        <BackLink href="/app/business" className="mt-1.5" />
-        <PageTitle
-          section="business"
-          icon={BarChart3}
-          info="Revenue by source, service, and area."
-        >
-          Insights
-        </PageTitle>
-      </div>
+    <div className="mx-auto max-w-5xl p-4 lg:p-8">
+      {/* Reports (2026-11-21): Insights is the first tab of the Reports page */}
+      <ReportsHeader companyId={actor.companyId} tab="insights" />
 
       {/* Range picker — a scrolling chip rail on phones (four buttons in one
           flex row used to squeeze into unreadable slivers), the same control
