@@ -87,7 +87,16 @@ export default async function QuotesPage({
 
   const eightWeeksAgo = new Date(Date.now() - 56 * 86400000);
 
-  const [quotes, listCount, byStatus, sent30, approved30, approved8w] = await Promise.all([
+  // The pipeline picture: the clients sitting in each lane (newest first)
+  const lanePeople = (status: QuoteStatus) =>
+    prisma.quote.findMany({
+      where: { companyId, ...scope, status },
+      orderBy: { updatedAt: "desc" },
+      take: 7,
+      select: { id: true, title: true, contact: { select: { firstName: true, lastName: true } } },
+    });
+
+  const [quotes, listCount, byStatus, sent30, approved30, approved8w, laneDraft, laneAwaiting, laneApproved] = await Promise.all([
     prisma.quote.findMany({
       where: listWhere,
       include: { contact: true },
@@ -117,7 +126,11 @@ export default async function QuotesPage({
       where: { companyId, ...scope, approvedAt: { gte: eightWeeksAgo } },
       select: { approvedAt: true, total: true },
     }),
+    lanePeople("DRAFT"),
+    lanePeople("AWAITING_RESPONSE"),
+    lanePeople("APPROVED"),
   ]);
+  const lanes: Record<string, typeof laneDraft> = { DRAFT: laneDraft, AWAITING_RESPONSE: laneAwaiting, APPROVED: laneApproved };
 
   const nowMs = Date.now();
   const dayFmt = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: tz });
@@ -147,6 +160,12 @@ export default async function QuotesPage({
     count: stage(key)?._count ?? 0,
     amount: Number(stage(key)?._sum.total ?? 0),
     href: `/app/quotes?status=${key}`,
+    people: lanes[key].map((q) => ({
+      id: q.id,
+      name: `${q.contact.firstName} ${q.contact.lastName}`.trim(),
+      title: q.title ?? "",
+      href: `/app/quotes/${q.id}`,
+    })),
   }));
 
   const pageTotal = quotes.reduce((s, q) => s + Number(q.total), 0);

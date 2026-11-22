@@ -84,7 +84,7 @@ export default async function RequestsPage({
     prisma.request.findMany({
       where: { companyId, ...scope, status: { in: ["NEW", "NEEDS_APPROVAL"] } },
       orderBy: { createdAt: "asc" },
-      take: 3,
+      take: 5,
       select: { id: true, title: true, status: true, createdAt: true, contact: { select: { firstName: true, lastName: true } } },
     }),
   ]);

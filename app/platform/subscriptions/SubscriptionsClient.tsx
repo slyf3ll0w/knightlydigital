@@ -12,7 +12,8 @@ import PageTitle from "@/components/PageTitle";
 import { Chip, InfoTip } from "@/components/ds";
 import Modal from "@/components/Modal";
 import CountUp from "@/components/CountUp";
-import { StatCard, StatCards } from "@/components/ListBands";
+import { Picture } from "@/components/ListBands";
+import Monogram from "@/components/Monogram";
 import { DateField } from "@/components/DateField";
 import { SERVICE_FEE_CARD } from "@/lib/service-fee";
 
@@ -115,6 +116,7 @@ export default function SubscriptionsClient({
   team,
   canManage,
   serviceFeeOn = false,
+  today,
 }: {
   initialSubs: Sub[];
   /** Completed per-visit-series work nothing has invoiced yet. */
@@ -123,6 +125,8 @@ export default function SubscriptionsClient({
   canManage: boolean;
   /** The company's Service fee switch — autopay charges carry the card service fee (lib/service-fee.ts). */
   serviceFeeOn?: boolean;
+  /** YYYY-MM-DD in the company's zone (server-computed, so the strip hydrates). */
+  today?: string;
 }) {
   const router = useRouter();
   const [subs, setSubs] = useState<Sub[]>(initialSubs);
@@ -308,9 +312,6 @@ export default function SubscriptionsClient({
   const live = active.filter((x) => x.status === "ACTIVE");
   const mrr = live.reduce((t, x) => t + monthly(x), 0);
   const paused = active.filter((x) => x.status === "PAUSED").length;
-  const nextUp = live
-    .filter((x) => x.nextRunDate && (x.interval || (x.billPerVisit && x.consolidateMonthly)))
-    .sort((a, b) => String(a.nextRunDate).localeCompare(String(b.nextRunDate)))[0];
   const editing = subs.find((x) => x.id === editId) ?? null;
   const cadence = (x: Sub) =>
     x.interval
@@ -358,34 +359,7 @@ export default function SubscriptionsClient({
 
       {/* The band — what the plans bring in each month */}
       {subs.length > 0 && (
-        <StatCards>
-          <StatCard
-            i={1}
-            tone="good"
-            label="Recurring revenue"
-            value={
-              <>
-                <CountUp value={money(mrr)} />
-                <span className="ml-1 text-[15px] font-bold tracking-normal text-[color:var(--ds-muted)]">/ mo</span>
-              </>
-            }
-            sub="Every plan, as a monthly amount"
-          />
-          <StatCard
-            i={2}
-            tone="brand"
-            label="Active plans"
-            value={<CountUp value={live.length} />}
-            sub={paused > 0 ? `${paused} paused` : "None paused"}
-          />
-          <StatCard
-            i={3}
-            tone="neutral"
-            label="Next to bill"
-            value={nextUp ? fmtDate(nextUp.nextRunDate!) : "—"}
-            sub={nextUp ? `${nextUp.name} · ${nextUp.contact.firstName} ${nextUp.contact.lastName}` : "Nothing scheduled to bill"}
-          />
-        </StatCards>
+        <RecurringStrip subs={live} mrr={mrr} paused={paused} today={today} monthly={monthly} />
       )}
 
       {/* Ready to bill — completed per-job work nothing has invoiced yet.
@@ -874,5 +848,86 @@ export default function SubscriptionsClient({
           ))(editing)}
       </Modal>
     </div>
+  );
+}
+
+/**
+ * Recurring's page picture (2026-11-21): the next 30 days as a strip, a
+ * client circle on each day a plan bills. Replaced the number cards (David:
+ * generic tiles read AI-made); the title carries the monthly figure.
+ */
+function RecurringStrip({
+  subs,
+  mrr,
+  paused,
+  today,
+  monthly,
+}: {
+  subs: Sub[];
+  mrr: number;
+  paused: number;
+  today?: string;
+  monthly: (s: Sub) => number;
+}) {
+  const DAYS = 30;
+  const start = Date.parse(`${today ?? new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+  const bills = subs
+    .filter((s) => s.nextRunDate && (s.interval || (s.billPerVisit && s.consolidateMonthly)))
+    .map((s) => ({ s, day: Math.round((Date.parse(`${s.nextRunDate!.slice(0, 10)}T00:00:00Z`) - start) / 86400000) }))
+    .filter((b) => b.day >= 0 && b.day < DAYS);
+  const byDay = new Map<number, Sub[]>();
+  for (const b of bills) byDay.set(b.day, [...(byDay.get(b.day) ?? []), b.s]);
+  const dayLabel = (d: number) =>
+    new Date(start + d * 86400000).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  const total30 = bills.reduce((t, b) => t + Number(b.s.unitPrice) * Number(b.s.quantity), 0);
+  return (
+    <Picture
+      title={
+        <>
+          <b>
+            <CountUp value={money(mrr)} />
+          </b>{" "}
+          a month from {subs.length} {subs.length === 1 ? "plan" : "plans"}
+          {paused > 0 && <span className="ds-pic-quiet"> · {paused} paused</span>}
+        </>
+      }
+      aside={
+        <span className="ds-pic-quiet text-[13px] font-semibold">
+          {bills.length === 0 ? "Nothing bills in the next 30 days" : `${money(total30)} bills in the next 30 days`}
+        </span>
+      }
+    >
+      <div className="ds-days" role="img" aria-label={`${bills.length} plans bill in the next 30 days`}>
+        <div className="ds-days-track">
+          {Array.from({ length: DAYS }, (_, d) => {
+            const here = byDay.get(d) ?? [];
+            return (
+              <span key={d} className={`ds-days-day ${d === 0 ? "is-today" : ""} ${here.length ? "has-bill" : ""}`}>
+                <span className="ds-days-stack">
+                  {here.slice(0, 3).map((s) => (
+                    <span
+                      key={s.id}
+                      className="ds-days-bill"
+                      title={`${dayLabel(d)} · ${s.name} · ${s.contact.firstName} ${s.contact.lastName} · ${money(Number(s.unitPrice) * Number(s.quantity))}${monthly(s) ? "" : " per visit"}`}
+                    >
+                      <Monogram name={`${s.contact.firstName} ${s.contact.lastName}`} size={24} />
+                    </span>
+                  ))}
+                  {here.length > 3 && <span className="ds-days-more">+{here.length - 3}</span>}
+                </span>
+                <span className="ds-days-tick" />
+              </span>
+            );
+          })}
+        </div>
+        <div className="ds-days-axis">
+          {[0, 7, 14, 21, 29].map((d) => (
+            <span key={d} style={{ left: `${((d + 0.5) / DAYS) * 100}%` }}>
+              {d === 0 ? "Today" : dayLabel(d)}
+            </span>
+          ))}
+        </div>
+      </div>
+    </Picture>
   );
 }

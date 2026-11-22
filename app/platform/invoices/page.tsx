@@ -129,7 +129,14 @@ export default async function InvoicesPage({
     // totals, so a $1,000 invoice with $600 paid read $1,000 here, $400 there.
     prisma.invoice.findMany({
       where: { companyId, ...scope, status: { in: ["PAST_DUE", "AWAITING_PAYMENT"] } },
-      select: { status: true, total: true, payments: { select: { amount: true, surchargeAmount: true } } },
+      select: {
+        id: true,
+        status: true,
+        total: true,
+        dueDate: true,
+        contact: { select: { firstName: true, lastName: true } },
+        payments: { select: { amount: true, surchargeAmount: true } },
+      },
     }),
     prisma.payment.aggregate({
       where: { companyId, ...scope, paidAt: { gte: startOfMonthIn(tz, new Date()) } },
@@ -204,6 +211,14 @@ export default async function InvoicesPage({
         draft={{ amount: Number(draft._sum.total) || 0, count: draft._count, href: "/app/invoices?status=DRAFT" }}
         paidThisMonth={{ amount: Number(paidMonth._sum.amount) || 0, href: "/app/payments" }}
         collectedMonths={collectedMonths}
+        open={openForBalance
+          .map((i) => ({
+            id: i.id,
+            name: i.contact ? `${i.contact.firstName} ${i.contact.lastName}`.trim() : "No client",
+            amount: Math.max(0, invoiceBalance(i)),
+            daysLate: i.dueDate ? Math.floor((Date.now() - i.dueDate.getTime()) / 86400000) : null,
+          }))
+          .filter((o) => o.amount > 0)}
       />
 
       <FilterBar

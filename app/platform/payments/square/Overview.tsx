@@ -4,7 +4,7 @@ import { listHref } from "@/components/FilterBar";
 import { money } from "@/lib/statuses";
 import { startOfDayIn, startOfMonthIn } from "@/lib/timezone";
 import type { ReportRow } from "@/lib/payments-reports";
-import { StatCard, StatCards } from "@/components/ListBands";
+import { PayFlow } from "@/components/ListBands";
 import VolumeChart, { type VolumePoint } from "./VolumeChart";
 
 /**
@@ -116,65 +116,66 @@ export default function Overview({
   // brand band; the chart and the breakdown are solid cards under it.
   return (
     <>
-      <StatCards>
-        <StatCard
-          wide
-          i={1}
-          tone="good"
-          label={
-            <>
-              <span>Gross volume</span>
-              <span> · {rangeLabel.toLowerCase()}</span>
-            </>
-          }
-          aside={
-            <nav aria-label="Range" className="ds-stat-range">
-              {RANGES.map((r) => (
-                <Link
-                  key={r.value}
-                  prefetch={false}
-                  scroll={false}
-                  href={listHref("/app/payments", {}, { tab, range: r.value === "30d" ? undefined : r.value })}
-                  aria-current={r.value === range ? "true" : undefined}
-                  title={r.label}
-                >
-                  {r.short}
-                </Link>
-              ))}
-            </nav>
-          }
-          value={money(t.gross / 100)}
-          sub={
-            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              {change != null && (
-                <span className={`ds-stat-change ${change >= 0 ? "is-up" : "is-down"}`}>
-                  {change >= 0 ? <ArrowUpRight size={13} strokeWidth={2.6} /> : <ArrowDownRight size={13} strokeWidth={2.6} />}
-                  {Math.abs(change * 100).toFixed(change !== 0 && Math.abs(change) < 0.1 ? 1 : 0)}%
-                </span>
-              )}
-              <span>
-                {t.count} {t.count === 1 ? "payment" : "payments"} · {money(p.gross / 100)} the period before
+      <PayFlow
+        label={
+          <>
+            <span>Gross volume</span>
+            <span className="ds-pic-quiet"> · {rangeLabel.toLowerCase()}</span>
+          </>
+        }
+        aside={
+          <nav aria-label="Range" className="ds-stat-range">
+            {RANGES.map((r) => (
+              <Link
+                key={r.value}
+                prefetch={false}
+                scroll={false}
+                href={listHref("/app/payments", {}, { tab, range: r.value === "30d" ? undefined : r.value })}
+                aria-current={r.value === range ? "true" : undefined}
+                title={r.label}
+              >
+                {r.short}
+              </Link>
+            ))}
+          </nav>
+        }
+        steps={[
+          {
+            lead: true,
+            label: `${t.count} ${t.count === 1 ? "payment" : "payments"} in`,
+            value: money(t.gross / 100),
+            note: (
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                {change != null && (
+                  <span className={`ds-stat-change ${change >= 0 ? "is-up" : "is-down"}`}>
+                    {change >= 0 ? <ArrowUpRight size={13} strokeWidth={2.6} /> : <ArrowDownRight size={13} strokeWidth={2.6} />}
+                    {Math.abs(change * 100).toFixed(change !== 0 && Math.abs(change) < 0.1 ? 1 : 0)}%
+                  </span>
+                )}
+                <span>vs {money(p.gross / 100)} before</span>
               </span>
-            </span>
-          }
-        />
-        <StatCard
-          i={2}
-          href="/app/payments?tab=payouts"
-          tone="brand"
-          label="On its way to your bank"
-          value={onTheWayCents == null ? "—" : money(onTheWayCents / 100)}
-          sub={payoutsNote}
-        />
-        <StatCard
-          i={3}
-          href="/app/payments?tab=disputes"
-          tone={openDisputes ? "bad" : "neutral"}
-          label="Open disputes"
-          value={openDisputes == null ? "—" : openDisputes}
-          sub={openDisputes ? "Answer before the deadline" : "None open"}
-        />
-      </StatCards>
+            ),
+          },
+          {
+            label: "Yours after fees and refunds",
+            value: money(net / 100),
+            note: `${t.fees > 0 ? money(t.fees / 100) : "No"} fees · ${t.refunds > 0 ? money(t.refunds / 100) : "no"} refunds`,
+          },
+          {
+            label: "On its way to your bank",
+            value: onTheWayCents == null ? "—" : money(onTheWayCents / 100),
+            note: payoutsNote,
+            href: "/app/payments?tab=payouts",
+          },
+        ]}
+        footer={
+          openDisputes ? (
+            <Link prefetch={false} href="/app/payments?tab=disputes" className="ds-pic-alert">
+              {openDisputes} open {openDisputes === 1 ? "dispute" : "disputes"} · answer before the deadline
+            </Link>
+          ) : null
+        }
+      />
 
       <section className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
         <div className="ds-card ds-card-raised min-w-0 p-4 sm:p-5">

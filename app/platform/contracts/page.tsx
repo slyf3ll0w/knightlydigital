@@ -125,7 +125,8 @@ export default async function ContractsPage({
   const listWhere = { companyId, ...scope, ...(validStatus ? { status: validStatus } : {}), ...search };
 
   const since30 = new Date(Date.now() - 30 * 86400000);
-  const [contracts, listCount, outCount, oldestOut, signed30, draftCount, templateCount] = await Promise.all([
+  const sheetSelect = { id: true, title: true, sentAt: true, createdAt: true, signedAt: true, contact: { select: { firstName: true, lastName: true } } } as const;
+  const [contracts, listCount, outCount, oldestOut, signed30, draftCount, templateCount, outSheets, signedSheets] = await Promise.all([
     prisma.contract.findMany({
       where: listWhere,
       include: { contact: { select: { id: true, firstName: true, lastName: true } } },
@@ -139,6 +140,8 @@ export default async function ContractsPage({
     prisma.contract.count({ where: { companyId, ...scope, status: "SIGNED", signedAt: { gte: since30 } } }),
     prisma.contract.count({ where: { companyId, ...scope, status: "DRAFT" } }),
     manager ? prisma.contractTemplate.count({ where: { companyId, isActive: true } }) : Promise.resolve(0),
+    prisma.contract.findMany({ where: { companyId, ...scope, status: "SENT" }, orderBy: { sentAt: "asc" }, take: 5, select: sheetSelect }),
+    prisma.contract.findMany({ where: { companyId, ...scope, status: "SIGNED", signedAt: { gte: since30 } }, orderBy: { signedAt: "desc" }, take: 2, select: sheetSelect }),
   ]);
 
   const filtered = Boolean(validStatus || query);
@@ -182,6 +185,22 @@ export default async function ContractsPage({
         signedHref="/app/contracts?status=SIGNED"
         drafts={draftCount}
         draftsHref="/app/contracts?status=DRAFT"
+        sheets={[
+          ...outSheets.map((c) => ({
+            id: c.id,
+            title: c.title,
+            name: `${c.contact.firstName} ${c.contact.lastName}`.trim(),
+            note: `Out ${waitedFor(c.sentAt ?? c.createdAt)}`,
+            signed: false,
+          })),
+          ...signedSheets.map((c) => ({
+            id: c.id,
+            title: c.title,
+            name: `${c.contact.firstName} ${c.contact.lastName}`.trim(),
+            note: `Signed ${c.signedAt ? c.signedAt.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: tz }) : ""}`,
+            signed: true,
+          })),
+        ]}
       />
 
       <MobileSearch

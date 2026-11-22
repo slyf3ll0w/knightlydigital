@@ -56,9 +56,11 @@ export default async function SubscriptionsPage() {
     }),
     // Service fee switch: autopay charges carry the card surcharge, and the
     // page says so next to every "charged to the card on file".
-    prisma.company.findUnique({ where: { id: actor.companyId }, select: { surchargeEnabled: true } }),
+    prisma.company.findUnique({ where: { id: actor.companyId }, select: { surchargeEnabled: true, timezone: true } }),
   ]);
   const serviceFeeOn = Boolean(company?.surchargeEnabled);
+  // "Today" in the company's zone, for the next-30-days bill strip
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: company?.timezone || "America/Chicago" });
 
   return (
     <SubscriptionsClient
@@ -67,6 +69,7 @@ export default async function SubscriptionsPage() {
       team={team}
       canManage={isManager(actor.role)}
       serviceFeeOn={serviceFeeOn}
+      today={today}
     />
   );
 }
