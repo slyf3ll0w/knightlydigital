@@ -93,7 +93,7 @@ export const teamSection: HelpSection = {
         },
         {
           type: "p",
-          text: "**Timesheets** shows the week: your hours, or everyone's for managers. Managers can `Add time entry` and edit or delete entries (with a reason), and download a CSV for payroll. Managers reach Timesheets from **Overview**.",
+          text: "**Timesheets** shows the week: your hours, or everyone's for managers. Managers can `Add time entry` and edit or delete entries (with a reason), and download a CSV for payroll. Managers find Timesheets as a tab of **Reports**.",
         },
         {
           type: "tip",
@@ -113,7 +113,7 @@ export const teamSection: HelpSection = {
         proTip("The team map"),
         {
           type: "p",
-          text: "The **Team map** (from Overview) shows where everyone who's clocked in is right now. Location is only shared while someone is on the clock with WorkBench open, and never after they clock out. The **On the clock** card on Home shows who's working and for how long.",
+          text: "The **Team map** (a tab of Reports) shows where everyone who's clocked in is right now. Location is only shared while someone is on the clock with WorkBench open, and never after they clock out. The **On the clock** card on Home shows who's working and for how long.",
         },
       ],
     },
@@ -219,12 +219,12 @@ export const reportsSection: HelpSection = {
       title: "Read your Insights",
       summary: "Revenue, profit, what's owed, and where your work comes from.",
       keywords: ["insights", "reports", "revenue", "profit", "analytics", "win rate", "aging", "receivables", "lead source"],
-      where: { label: "Overview", href: "/app/business" },
+      where: { label: "Reports", href: "/app/business" },
       roles: "Owners and admins",
       blocks: [
         {
           type: "p",
-          text: "Open **Overview → Insights** and pick 30 days, 90 days, 12 months or 2 years. You'll see:",
+          text: "Open **Reports → Insights** and pick 30 days, 90 days, 12 months or 2 years. You'll see:",
         },
         {
           type: "list",
@@ -245,12 +245,12 @@ export const reportsSection: HelpSection = {
       title: "See where your leads come from",
       summary: "Every lead is filed under a source, and one report shows which sources bring in work.",
       keywords: ["lead source", "lead sources", "where leads come from", "google ads", "advertising", "marketing", "referral", "attribution", "utm", "ad click", "win rate by source", "which ad"],
-      where: { label: "Overview", href: "/app/business" },
+      where: { label: "Reports", href: "/app/business" },
       roles: "Owners and admins",
       blocks: [
         {
           type: "p",
-          text: "Open **Overview → Insights** and press `Lead sources` on the **By lead source** card. Pick 30 days, 90 days or 12 months. Each source gets one row:",
+          text: "Open **Reports → Insights** and press `Lead sources` on the **By lead source** card. Pick 30 days, 90 days or 12 months. Each source gets one row:",
         },
         {
           type: "list",
@@ -315,7 +315,7 @@ export const reportsSection: HelpSection = {
       title: "Tell Google Ads which clicks paid",
       summary: "Report the payments from your Google Ads leads back to Google, so it goes after clicks that become paid work.",
       keywords: ["google ads", "connect google ads", "offline conversions", "conversion import", "paid jobs", "gclid", "ad click", "data manager", "https", "conversions.csv", "smart bidding", "advertising", "sample row", "next is grey", "advisor", "conversion action"],
-      where: { label: "Overview", href: "/app/business" },
+      where: { label: "Reports", href: "/app/business" },
       roles: "Owners and admins",
       blocks: [
         {
@@ -329,7 +329,7 @@ export const reportsSection: HelpSection = {
         { type: "h", text: "Open the page" },
         {
           type: "p",
-          text: "Open **Overview → Insights**, press `Lead sources` on the **By lead source** card, then press **Report paid jobs to Google Ads** at the bottom.",
+          text: "Open **Reports → Insights**, press `Lead sources` on the **By lead source** card, then press **Report paid jobs to Google Ads** at the bottom.",
         },
         { type: "h", text: "The quick way: Connect Google Ads" },
         {
@@ -423,13 +423,13 @@ export const reportsSection: HelpSection = {
       title: "Track expenses",
       summary: "Log costs, including ones that repeat every month, so profit is real.",
       keywords: ["expense", "cost", "receipt", "recurring expense", "rent", "insurance", "log expense"],
-      where: { label: "Overview", href: "/app/business" },
+      where: { label: "Reports", href: "/app/business" },
       roles: "Owners and admins",
       blocks: [
         {
           type: "steps",
           items: [
-            "Open **Overview → Expenses** and press `Log expense`.",
+            "Open **Reports → Expenses** and press `Log expense`.",
             "Enter a description, category, amount and date.",
             "Tick **Repeat this every month** for rent, insurance or software, and it's logged automatically on that day each month. Stop it any time with `Stop repeating`.",
           ],

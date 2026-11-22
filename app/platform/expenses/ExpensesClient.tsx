@@ -5,11 +5,9 @@ import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import { Check, Download, Loader2, Pause, Pencil, Play, Plus, Receipt, Repeat, Trash2, X } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
-import BackLink from "@/components/BackLink";
 import { money } from "@/lib/statuses";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
-import PageTitle from "@/components/PageTitle";
 import { InfoTip } from "@/components/ds";
 import { DateField } from "@/components/DateField";
 import { shareAppFile } from "@/components/PdfLink";
@@ -45,9 +43,12 @@ const ordinal = (n: number) => {
 export default function ExpensesClient({
   expenses,
   recurring,
+  header,
 }: {
   expenses: Expense[];
   recurring: RecurringExpense[];
+  /** The Reports page header + tabs (server-rendered, components/ReportsHeader.tsx). */
+  header?: React.ReactNode;
 }) {
   const router = useRouter();
   const [showAdd, setShowAdd] = useState(false);
@@ -225,20 +226,15 @@ export default function ExpensesClient({
   }
 
   return (
-    <div className="p-4 lg:p-8 max-w-3xl mx-auto">
+    <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+      {header}
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
-        <div className="flex items-start gap-3">
-          <BackLink href="/app/business" className="mt-1.5" />
-          <PageTitle
-            sub={
-              <>
-                {money(total30)} in the last 30 days ·{" "}
-                <span className="whitespace-nowrap">owners and admins only</span>
-              </>
-            }
-          >
-            Expenses
-          </PageTitle>
+        <div>
+          <h2 className="ds-heavy-h2">Expenses</h2>
+          <p className="mt-0.5 text-[13px] font-medium text-[color:var(--ds-muted)]">
+            {money(total30)} in the last 30 days ·{" "}
+            <span className="whitespace-nowrap">owners and admins only</span>
+          </p>
         </div>
         <button
           onClick={() => setShowAdd((v) => !v)}

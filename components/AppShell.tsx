@@ -282,10 +282,10 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
   {
     label: "Business",
     items: [
-      // Overview = the hub page (Insights + Team Map + Timesheets + Expenses
-      // with live stats) — it links every reporting page, so those don't get
-      // their own rows here (lib/mobile-nav.ts sends them back to Overview).
-      { href: "/app/business", label: "Overview", icon: Building2, show: isManagerRole },
+      // Reports (was Overview, 2026-11-21) = one page with tabs for Insights,
+      // Timesheets, Expenses and Team map (components/ReportsHeader.tsx), so
+      // those don't get their own rows here.
+      { href: "/app/business", label: "Reports", icon: Building2, show: isManagerRole },
       { href: "/app/automations", label: "Automations", icon: Zap, show: isManagerRole, feature: "automations" },
       // Same labels as the Settings index — one name per page everywhere.
       { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
@@ -341,8 +341,8 @@ const railGroups: { key: string; label: string; items: NavItem[] }[] = [
     key: "business",
     label: "Business",
     items: [
-      // Overview links Insights / Expenses / Team Map / Timesheets itself.
-      { href: "/app/business", label: "Overview", icon: Building2, show: isManagerRole },
+      // Reports tabs: Insights / Timesheets / Expenses / Team map.
+      { href: "/app/business", label: "Reports", icon: Building2, show: isManagerRole },
       { href: "/app/automations", label: "Automations", icon: Zap, show: isManagerRole, feature: "automations" },
       // Same labels as the Settings index — one name per page everywhere.
       { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
@@ -2284,13 +2284,15 @@ export default function AppShell({
     if (href === "/app/schedule") {
       return pathname.startsWith(href) && !pathname.startsWith("/app/routes");
     }
-    // Insights / Expenses / Team Map hang off the Business overview and no
-    // longer have rows of their own, so Overview stays lit (and its rail
-    // group held open) while you are on them.
+    // Insights / Timesheets / Expenses / Team map are the Reports tabs and
+    // have no rows of their own (for managers), so Reports stays lit (and
+    // its rail group held open) while you are on them. Techs have no
+    // Reports row and keep their own Timesheets row.
     if (href === "/app/business") {
       return (
         pathname.startsWith(href) ||
         pathname.startsWith("/app/insights") ||
+        pathname.startsWith("/app/timesheets") ||
         pathname.startsWith("/app/expenses") ||
         pathname.startsWith("/app/team-map")
       );

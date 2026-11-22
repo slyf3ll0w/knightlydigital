@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import ExpensesClient from "./ExpensesClient";
+import ReportsHeader from "@/components/ReportsHeader";
 
 export const metadata: Metadata = { title: "Expenses" };
 
@@ -22,6 +23,7 @@ export default async function ExpensesPage() {
 
   return (
     <ExpensesClient
+      header={<ReportsHeader companyId={actor.companyId} tab="expenses" />}
       expenses={expenses.map((e) => ({
         id: e.id,
         description: e.description,
