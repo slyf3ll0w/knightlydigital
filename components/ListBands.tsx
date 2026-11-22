@@ -4,14 +4,14 @@ import CountUp from "@/components/CountUp";
 import { money } from "@/lib/statuses";
 
 /**
- * The heavy-look list headers (2026-11-21). Each list page gets ONE brand
- * band built from its own data, so Quotes, Jobs, Invoices and Requests stop
+ * The heavy-look list headers (2026-11-21). Each list page gets ONE tally
+ * built from its own data, so Quotes, Jobs, Invoices and Requests stop
  * looking like the same page with different words (David's tickets):
  *   Quotes   → PipelineBand  (Draft → Awaiting → Approved, won in 30 days)
  *   Jobs     → WeekBand      (this week's schedule as a strip + the to-dos)
  *   Invoices → MoneyBand     (what's owed, split past due / awaiting)
  *   Requests → InboxBand     (what's waiting on a reply, oldest first)
- * Server components; styles are the .ds-lb-* block in app/ds.css. Replaces
+ * Server components; styles are the .ds-tally / .ds-lb-* block in app/ds.css. Replaces
  * KpiStrip on these four pages.
  */
 
@@ -19,7 +19,7 @@ const rise = (i: number) => ({ "--ds-i": i }) as React.CSSProperties;
 
 function Shell({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <section className={`ds-hero ds-rise ds-lb mb-5 lg:mb-6 ${className}`} style={rise(1)}>
+    <section className={`ds-tally ds-rise ds-lb mb-5 lg:mb-6 ${className}`} style={rise(1)}>
       <div className="relative">{children}</div>
     </section>
   );

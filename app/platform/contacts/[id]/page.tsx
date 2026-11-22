@@ -311,7 +311,7 @@ export default async function ContactDetailPage({
 
       {/* Heavy look (2026-11-21): the client's band — who they are, how to
           reach them, and what they're worth / owe — then the actions. */}
-      <section className="ds-hero ds-rise ds-lb ds-client-band mb-4" style={{ "--ds-i": 1 } as React.CSSProperties}>
+      <section className="ds-tally ds-rise ds-lb ds-client-band mb-4" style={{ "--ds-i": 1 } as React.CSSProperties}>
         <div className="relative ds-lb-grid">
         <div className="flex min-w-0 items-start gap-4">
           <span className="ds-client-mono">
@@ -358,7 +358,7 @@ export default async function ContactDetailPage({
           <div className="ds-lb-side">
             <p className="ds-lb-label">Lifetime value</p>
             <p className="mt-1 text-[30px] font-extrabold leading-none tracking-[-0.03em]">{money(lifetimeValue)}</p>
-            <div className="mt-3 border-t border-white/15 pt-1">
+            <div className="mt-3 border-t border-[color:var(--ds-line)] pt-1">
               <div className={`ds-lb-sidelink !cursor-default ${currentBalance > 0 ? "is-alert" : ""}`}>
                 <span>Balance owed</span>
                 <span className="ds-lb-sidevalue">{money(currentBalance)}</span>

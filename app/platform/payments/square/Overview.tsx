@@ -115,7 +115,7 @@ export default function Overview({
   // brand band; the chart and the breakdown are solid cards under it.
   return (
     <>
-      <section className="ds-hero ds-rise ds-lb mb-5" style={{ "--ds-i": 1 } as React.CSSProperties}>
+      <section className="ds-tally ds-rise ds-lb mb-5" style={{ "--ds-i": 1 } as React.CSSProperties}>
         <div className="relative ds-lb-grid">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -157,7 +157,7 @@ export default function Overview({
               {onTheWayCents == null ? "—" : money(onTheWayCents / 100)}
             </Link>
             <p className="ds-lb-note !mt-1">{payoutsNote}</p>
-            <div className="mt-2 border-t border-white/15 pt-1">
+            <div className="mt-2 border-t border-[color:var(--ds-line)] pt-1">
               <Link prefetch={false} href="/app/payments?tab=disputes" className={`ds-lb-sidelink ${openDisputes ? "is-alert" : ""}`}>
                 <span className="min-w-0 truncate">Open disputes</span>
                 <span className="ds-lb-sidevalue">{openDisputes == null ? "—" : openDisputes}</span>

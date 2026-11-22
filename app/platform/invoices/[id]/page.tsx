@@ -2,15 +2,16 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSeeMoney, viaContactScope, isManager } from "@/lib/permissions";
 import Link from "next/link";
-import { ArrowRight, Eye } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
-import { money, shortDate, statusLabels } from "@/lib/statuses";
+import { money, shortDate } from "@/lib/statuses";
+import StatusChip from "@/components/StatusChip";
 import ScheduledSendLine from "@/components/ScheduledSendLine";
 import { channelsFromJson, scheduledLine, SEND_DEFAULTS } from "@/lib/send-document";
-import { Chip, DsPage } from "@/components/ds";
-import CountUp from "@/components/CountUp";
+import { Chip } from "@/components/ds";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
+import ViewedFact from "@/components/ViewedFact";
 import InvoiceActions from "./InvoiceActions";
 import { canText } from "@/lib/sms-consent";
 import { companyCanSendSms } from "@/lib/sms";
@@ -133,110 +134,28 @@ export default async function InvoiceDetailPage({
     hasOnlinePayment &&
     (await shouldCelebrate(actor.id, "INVOICE_PAID", invoice.id, invoice.paidAt));
 
-  // ── The band (the one saturated surface on the page) ──────────────────────
-  // What the invoice means right now, in one big number: what's still owed,
-  // or the total once it's paid / while it's a draft. The bar under it is
-  // how much has come in — it grows in on arrival, the page's only motion
-  // besides the title.
-  const shownStatus = invoice.status === "DRAFT" && invoice.scheduledSendAt ? "SCHEDULED" : invoice.status;
-  const owed = balance > 0 && invoice.status !== "DRAFT" && invoice.status !== "ARCHIVED" && invoice.status !== "PAID";
-  const bandLabel =
-    invoice.status === "PAID"
-      ? "Paid in full"
-      : invoice.status === "DRAFT"
-        ? "Invoice total"
-        : invoice.status === "ARCHIVED"
-          ? "Archived"
-          : "Balance due";
-  const bandNumber = owed ? balance : Number(invoice.total);
-  const bandSub =
-    invoice.status === "PAID"
-      ? invoice.paidAt
-        ? `Paid ${shortDate(invoice.paidAt, tz)}`
-        : null
-      : invoice.status === "DRAFT"
-        ? invoice.scheduledSendAt
-          ? "Scheduled to send"
-          : "Not sent yet"
-        : owed
-          ? `of ${money(invoice.total)} · ${invoice.status === "PAST_DUE" ? "was due" : "due"} ${shortDate(invoice.dueDate, tz)}`
-          : null;
-  const totalNum = Number(invoice.total);
-  const paidPct = totalNum > 0 ? Math.min(100, Math.round((totalPaid / totalNum) * 100)) : 0;
-  const showBar = invoice.status !== "DRAFT" && totalNum > 0 && totalPaid > 0;
-  const pillTone =
-    invoice.status === "PAID" ? "good" : invoice.status === "PAST_DUE" ? "bad" : invoice.status === "DRAFT" || invoice.status === "ARCHIVED" ? "quiet" : "secondary";
-  const bandFacts: { label: string; value: React.ReactNode }[] = [
-    { label: "Invoice", value: `#${invoice.invoiceNumber}` },
-    { label: "Issued", value: shortDate(invoice.issuedAt ?? invoice.createdAt, tz) },
-    { label: "Due", value: shortDate(invoice.dueDate, tz) },
-  ];
-  if (invoice.status !== "DRAFT") {
-    bandFacts.push({
-      label: "Viewed",
-      value: invoice.firstViewedAt ? (
-        <span
-          className="inline-flex items-center gap-1"
-          title={
-            invoice.viewCount > 1 && invoice.lastViewedAt
-              ? `Opened ${invoice.viewCount} times — last on ${shortDate(invoice.lastViewedAt, tz)}`
-              : undefined
-          }
-        >
-          <Eye size={13} strokeWidth={2.4} />
-          {shortDate(invoice.firstViewedAt, tz)}
-          {invoice.viewCount > 1 ? ` · ${invoice.viewCount}×` : ""}
-        </span>
-      ) : (
-        <span className="opacity-70">Not yet</span>
-      ),
-    });
-  }
-  if (invoice.job) {
-    bandFacts.push({
-      label: "For",
-      value: (
-        <Link prefetch={false} href={`/app/jobs/${invoice.job.id}`} className="ds-band-link">
-          Job #{invoice.job.jobNumber}
-        </Link>
-      ),
-    });
-  }
-  if (sourceQuote) {
-    bandFacts.push({
-      label: "From",
-      value: (
-        <Link prefetch={false} href={`/app/quotes/${sourceQuote.id}`} className="ds-band-link">
-          Quote #{sourceQuote.quoteNumber}
-        </Link>
-      ),
-    });
-  }
-  const rise = (i: number) => ({ "--ds-i": i }) as React.CSSProperties;
-
   return (
-    <DsPage>
+    <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       <Celebration
         endpoint={`/api/app/invoices/${invoice.id}/celebrated`}
         celebrate={celebratePaid}
       />
-      <div className="mb-3">
+      <div className="flex items-center gap-3 mb-4">
         <BackLink href="/app/invoices" />
+        <StatusChip kind="invoice" status={invoice.status === "DRAFT" && invoice.scheduledSendAt ? "SCHEDULED" : invoice.status} />
       </div>
 
-      <div className="ds-rise mb-5 flex flex-wrap items-end justify-between gap-4 lg:mb-6">
-        <div className="min-w-0">
-          <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px]">
-            {invoice.contact && (
-              <Link
-                prefetch={false} href={`/app/contacts/${invoice.contact.id}`}
-                className="ds-link font-semibold hover:underline"
-              >
-                {invoice.contact.firstName} {invoice.contact.lastName}
-              </Link>
-            )}
-          </div>
-          <PageTitle heavy>{invoice.subject || `Invoice #${invoice.invoiceNumber}`}</PageTitle>
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+        <div>
+          <PageTitle>{invoice.subject || `Invoice #${invoice.invoiceNumber}`}</PageTitle>
+          {invoice.contact && (
+            <Link
+              prefetch={false} href={`/app/contacts/${invoice.contact.id}`}
+              className="ds-link text-sm hover:underline"
+            >
+              {invoice.contact.firstName} {invoice.contact.lastName}
+            </Link>
+          )}
         </div>
         <div className="flex items-center gap-2">
         <RunAutomationMenu entity="invoice" entityId={invoice.id} manager={isManager(actor.role)} />
@@ -282,58 +201,66 @@ export default async function InvoiceDetailPage({
         />
       )}
 
-      {/* The band */}
-      <section className="ds-hero ds-rise mb-6 p-5 lg:mb-8 lg:p-7" style={rise(1)}>
-        <div className="relative">
-          <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-5">
-            <div className="min-w-0">
-              <span className={`ds-band-pill is-${pillTone}`}>{statusLabels.invoice[shownStatus] ?? shownStatus}</span>
-              <p className="mt-4 text-[14px] font-semibold opacity-85">{bandLabel}</p>
-              <p className="ds-band-number mt-1">
-                <CountUp value={money(bandNumber)} />
-              </p>
-              {bandSub && <p className="mt-2 text-[14.5px] font-medium opacity-85">{bandSub}</p>}
-            </div>
-            <dl className="ds-band-facts">
-              {bandFacts.map((f) => (
-                <div key={f.label}>
-                  <dt>{f.label}</dt>
-                  <dd>{f.value}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-          {showBar && (
-            <div className="mt-6">
-              <div className="ds-band-track" aria-hidden>
-                <div className="ds-band-fill" style={{ width: `${paidPct}%` }} />
-              </div>
-              <div className="mt-2 flex justify-between text-[13px] font-semibold">
-                <span className="opacity-90">{money(totalPaid)} paid</span>
-                <span className="opacity-75">{paidPct}%</span>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-
       {/* Close-job nudge */}
       {showCloseJobNudge && (
         <Link
           prefetch={false} href={`/app/jobs/${invoice.job!.id}`}
-          className="ds-card ds-card-raised mb-6 flex items-center justify-between gap-3 px-5 py-4 transition-shadow hover:shadow-lg"
+          className="mb-6 flex items-center justify-between rounded-[var(--ds-r)] bg-[color:var(--ds-primary-soft)] px-4 py-3 transition-[filter] hover:brightness-95"
         >
-          <p className="text-[14.5px] font-semibold text-[color:var(--ds-ink)]">
+          <p className="text-sm font-medium text-[color:var(--ds-ink)]">
             You may want to close this job: Job #{invoice.job!.jobNumber} — {invoice.job!.title}
           </p>
-          <ArrowRight size={16} className="shrink-0 text-[color:var(--ds-primary)]" />
+          <ArrowRight size={14} className="text-[color:var(--ds-primary)]" />
         </Link>
       )}
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      {/* Header facts — 2-col grid on phones, flowing definition list at a desk */}
+      <div className="grid grid-cols-2 gap-3 lg:flex lg:flex-wrap lg:gap-x-8 lg:gap-y-2 px-5 py-4 ds-card mb-6 text-sm">
+        <div>
+          <span className="text-xs font-medium text-gray-500 block">Invoice #</span>
+          <span className="text-gray-800">{invoice.invoiceNumber}</span>
+        </div>
+        {invoice.job && (
+          <div>
+            <span className="text-xs font-medium text-gray-500 block">Invoice for</span>
+            <Link prefetch={false} href={`/app/jobs/${invoice.job.id}`} className="ds-link hover:underline">
+              Job #{invoice.job.jobNumber}
+            </Link>
+          </div>
+        )}
+        {sourceQuote && (
+          <div>
+            <span className="text-xs font-medium text-gray-500 block">From quote</span>
+            <Link prefetch={false} href={`/app/quotes/${sourceQuote.id}`} className="ds-link hover:underline">
+              Quote #{sourceQuote.quoteNumber}
+            </Link>
+          </div>
+        )}
+        <div>
+          <span className="text-xs font-medium text-gray-500 block">Issued</span>
+          <span className="text-gray-800">{shortDate(invoice.issuedAt ?? invoice.createdAt, tz)}</span>
+        </div>
+        <div>
+          <span className="text-xs font-medium text-gray-500 block">Due date</span>
+          <span className="text-gray-800">{shortDate(invoice.dueDate, tz)}</span>
+        </div>
+        <ViewedFact
+          firstViewedAt={invoice.firstViewedAt}
+          lastViewedAt={invoice.lastViewedAt}
+          viewCount={invoice.viewCount}
+          sent={invoice.status !== "DRAFT"}
+          tz={tz}
+        />
+        {invoice.paidAt && (
+          <div>
+            <span className="text-xs font-medium text-gray-500 block">Paid</span>
+            <span className="text-gray-800">{shortDate(invoice.paidAt, tz)}</span>
+          </div>
+        )}
+      </div>
+
       {/* Invoice body */}
-      <div className="ds-card ds-card-raised ds-rise overflow-hidden" style={rise(2)}>
-        <h2 className="ds-heavy-h2 px-4 pt-5 lg:px-6">Line items</h2>
+      <div className="ds-card overflow-hidden mb-6">
         {/* Line items — stacked rows on phones */}
         <div className="lg:hidden divide-y divide-gray-100">
           {invoice.lineItems.map((item) => (
@@ -377,7 +304,7 @@ export default async function InvoiceDetailPage({
                   Qty
                 </th>
                 <th className="text-right py-2 text-xs text-gray-500 font-semibold w-24">
-                  Unit price
+                  Unit Price
                 </th>
                 <th className="text-right py-2 text-xs text-gray-500 font-semibold w-24">
                   Total
@@ -386,9 +313,9 @@ export default async function InvoiceDetailPage({
             </thead>
             <tbody className="divide-y divide-gray-50">
               {invoice.lineItems.map((item) => (
-                <tr key={item.id} className="align-top">
-                  <td className="py-3.5">
-                    <p className="text-[15px] font-semibold text-[color:var(--ds-ink)]">
+                <tr key={item.id}>
+                  <td className="py-3">
+                    <p className="text-gray-900 font-medium">
                       {item.name || item.description}
                       {item.recurringInterval && " "}
                       {item.recurringInterval && (
@@ -406,7 +333,7 @@ export default async function InvoiceDetailPage({
                   </td>
                   <td className="ds-num py-3 text-right text-gray-600">{Number(item.quantity)}</td>
                   <td className="ds-num py-3 text-right text-gray-600">{money(item.unitPrice)}</td>
-                  <td className="ds-num py-3 text-right font-semibold text-[color:var(--ds-ink)]">{money(item.total)}</td>
+                  <td className="ds-num py-3 text-right font-medium text-gray-900">{money(item.total)}</td>
                 </tr>
               ))}
             </tbody>
@@ -445,9 +372,9 @@ export default async function InvoiceDetailPage({
                 <span className="ds-num">−{money(invoice.depositApplied)}</span>
               </div>
             )}
-            <div className="flex items-baseline justify-between pt-2 border-t border-[color:var(--ds-line-strong)]">
-              <span className="text-[16px] font-bold text-[color:var(--ds-ink)]">Total</span>
-              <span className="ds-num text-[18px] font-bold text-[color:var(--ds-ink)]">{money(invoice.total)}</span>
+            <div className="flex justify-between font-bold text-base pt-1.5 border-t border-gray-200">
+              <span className="text-gray-900">Total</span>
+              <span className="ds-num text-gray-900">{money(invoice.total)}</span>
             </div>
             {feesPaid > 0 && (
               <div className="flex justify-between">
@@ -479,15 +406,15 @@ export default async function InvoiceDetailPage({
       </div>
 
       {/* Payments */}
-      <div className="ds-card ds-card-raised ds-rise overflow-hidden" style={rise(3)}>
-        <div className="flex items-center justify-between px-5 pt-5 pb-3">
-          <h2 className="ds-heavy-h2">Payments</h2>
+      <div className="ds-card overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h2 className="text-sm font-semibold text-gray-700">Payments</h2>
           {balance > 0 && (
             <Link
               href={`/app/payments/new?invoiceId=${invoice.id}`}
-              className="ds-link text-[13.5px] font-semibold hover:underline"
+              className="ds-link text-xs hover:underline"
             >
-              + Collect payment
+              + Collect Payment
             </Link>
           )}
         </div>
@@ -526,11 +453,10 @@ export default async function InvoiceDetailPage({
           </div>
         )}
       </div>
-      </div>
 
-      <div className="mt-8">
+      <div className="mt-6">
         <ActivityTrail rows={await activityFor(companyId, "invoice", invoice.id)} />
       </div>
-    </DsPage>
+    </div>
   );
 }

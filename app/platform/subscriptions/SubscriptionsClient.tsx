@@ -357,7 +357,7 @@ export default function SubscriptionsClient({
 
       {/* The band — what the plans bring in each month */}
       {subs.length > 0 && (
-        <section className="ds-hero ds-rise ds-lb mb-5 lg:mb-6" style={{ "--ds-i": 1 } as React.CSSProperties}>
+        <section className="ds-tally ds-rise ds-lb mb-5 lg:mb-6" style={{ "--ds-i": 1 } as React.CSSProperties}>
           <div className="relative ds-lb-grid">
             <div className="min-w-0">
               <p className="ds-lb-label">Recurring revenue</p>

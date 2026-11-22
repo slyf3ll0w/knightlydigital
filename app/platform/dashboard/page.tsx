@@ -911,7 +911,7 @@ export default async function DashboardPage() {
                 )}
               </SectionTitle>
               {todayItems.length === 0 ? (
-                <section className="ds-hero ds-rise ds-lb" style={rise(4)}>
+                <section className="ds-tally ds-rise ds-lb" style={rise(4)}>
                   <div className="relative">
                     <p className="ds-lb-label">Clear day</p>
                     <p className="mt-1 text-[30px] font-extrabold leading-tight tracking-[-0.03em]">Nothing on the books today</p>
