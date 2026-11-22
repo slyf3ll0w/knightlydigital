@@ -4,6 +4,7 @@ import { listHref } from "@/components/FilterBar";
 import { money } from "@/lib/statuses";
 import { startOfDayIn, startOfMonthIn } from "@/lib/timezone";
 import type { ReportRow } from "@/lib/payments-reports";
+import { StatCard, StatCards } from "@/components/ListBands";
 import VolumeChart, { type VolumePoint } from "./VolumeChart";
 
 /**
@@ -115,33 +116,38 @@ export default function Overview({
   // brand band; the chart and the breakdown are solid cards under it.
   return (
     <>
-      <section className="ds-tally ds-rise ds-lb mb-5" style={{ "--ds-i": 1 } as React.CSSProperties}>
-        <div className="relative ds-lb-grid">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="ds-lb-label">
-                <span>Gross volume</span>
-                <span className="opacity-75"> · {rangeLabel.toLowerCase()}</span>
-              </p>
-              <nav aria-label="Range" className="ds-lb-range">
-                {RANGES.map((r) => (
-                  <Link
-                    key={r.value}
-                    prefetch={false}
-                    scroll={false}
-                    href={listHref("/app/payments", {}, { tab, range: r.value === "30d" ? undefined : r.value })}
-                    aria-current={r.value === range ? "true" : undefined}
-                    title={r.label}
-                  >
-                    {r.short}
-                  </Link>
-                ))}
-              </nav>
-            </div>
-            <p className="ds-lb-big">{money(t.gross / 100)}</p>
-            <p className="ds-lb-note flex flex-wrap items-center gap-x-2 gap-y-1">
+      <StatCards>
+        <StatCard
+          wide
+          i={1}
+          tone="good"
+          label={
+            <>
+              <span>Gross volume</span>
+              <span> · {rangeLabel.toLowerCase()}</span>
+            </>
+          }
+          aside={
+            <nav aria-label="Range" className="ds-stat-range">
+              {RANGES.map((r) => (
+                <Link
+                  key={r.value}
+                  prefetch={false}
+                  scroll={false}
+                  href={listHref("/app/payments", {}, { tab, range: r.value === "30d" ? undefined : r.value })}
+                  aria-current={r.value === range ? "true" : undefined}
+                  title={r.label}
+                >
+                  {r.short}
+                </Link>
+              ))}
+            </nav>
+          }
+          value={money(t.gross / 100)}
+          sub={
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
               {change != null && (
-                <span className={`ds-lb-change ${change >= 0 ? "is-up" : "is-down"}`}>
+                <span className={`ds-stat-change ${change >= 0 ? "is-up" : "is-down"}`}>
                   {change >= 0 ? <ArrowUpRight size={13} strokeWidth={2.6} /> : <ArrowDownRight size={13} strokeWidth={2.6} />}
                   {Math.abs(change * 100).toFixed(change !== 0 && Math.abs(change) < 0.1 ? 1 : 0)}%
                 </span>
@@ -149,23 +155,26 @@ export default function Overview({
               <span>
                 {t.count} {t.count === 1 ? "payment" : "payments"} · {money(p.gross / 100)} the period before
               </span>
-            </p>
-          </div>
-          <div className="ds-lb-side">
-            <p className="ds-lb-label">On its way to your bank</p>
-            <Link prefetch={false} href="/app/payments?tab=payouts" className="ds-lb-big">
-              {onTheWayCents == null ? "—" : money(onTheWayCents / 100)}
-            </Link>
-            <p className="ds-lb-note !mt-1">{payoutsNote}</p>
-            <div className="mt-2 border-t border-[color:var(--t-line)] pt-1">
-              <Link prefetch={false} href="/app/payments?tab=disputes" className={`ds-lb-sidelink ${openDisputes ? "is-alert" : ""}`}>
-                <span className="min-w-0 truncate">Open disputes</span>
-                <span className="ds-lb-sidevalue">{openDisputes == null ? "—" : openDisputes}</span>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+            </span>
+          }
+        />
+        <StatCard
+          i={2}
+          href="/app/payments?tab=payouts"
+          tone="brand"
+          label="On its way to your bank"
+          value={onTheWayCents == null ? "—" : money(onTheWayCents / 100)}
+          sub={payoutsNote}
+        />
+        <StatCard
+          i={3}
+          href="/app/payments?tab=disputes"
+          tone={openDisputes ? "bad" : "neutral"}
+          label="Open disputes"
+          value={openDisputes == null ? "—" : openDisputes}
+          sub={openDisputes ? "Answer before the deadline" : "None open"}
+        />
+      </StatCards>
 
       <section className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
         <div className="ds-card ds-card-raised min-w-0 p-4 sm:p-5">

@@ -17,6 +17,15 @@ const PALETTE: { bg: string; ink: string }[] = [
   { bg: "#22314F", ink: "#FFFFFF" },
 ];
 
+/** A client's identity color (the monogram fill) — also the hover line on
+ *  the Clients list, so a row lights up in the same color as its circle. */
+export function monogramColor(name: string): string {
+  const clean = name.trim() || "?";
+  let h = 0;
+  for (let i = 0; i < clean.length; i++) h = (h * 31 + clean.charCodeAt(i)) >>> 0;
+  return PALETTE[h % PALETTE.length].bg;
+}
+
 export default function Monogram({
   name,
   size = 40,

@@ -911,15 +911,15 @@ export default async function DashboardPage() {
                 )}
               </SectionTitle>
               {todayItems.length === 0 ? (
-                <section className="ds-tally ds-rise ds-lb" style={rise(4)}>
-                  <div className="relative">
-                    <p className="ds-lb-label">Clear day</p>
+                <div className="ds-stat ds-rise" data-tone="brand" style={rise(4)}>
+                  <div>
+                    <p className="ds-stat-label">Clear day</p>
                     <p className="mt-1 text-[30px] font-extrabold leading-tight tracking-[-0.03em]">Nothing on the books today</p>
-                    <p className="ds-lb-note">
+                    <p className="ds-stat-sub">
                       {nextOnBooks?.scheduledAt ? (
                         <>
                           Next up:{" "}
-                          <Link prefetch={false} href={`/app/jobs/${nextOnBooks.id}`} className="ds-band-link font-semibold">
+                          <Link prefetch={false} href={`/app/jobs/${nextOnBooks.id}`} className="font-semibold text-[color:var(--ds-ink)] underline decoration-[color:var(--ds-line-strong)] underline-offset-[3px] hover:decoration-current">
                             {nextOnBooks.scheduledAt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: tz })}
                             {nextOnBooks.scheduledAnytime ? "" : ` · ${fmtTime(nextOnBooks.scheduledAt)}`} · {nextOnBooks.title}
                             {nextOnBooks.contact ? ` · ${nextOnBooks.contact.firstName} ${nextOnBooks.contact.lastName}` : ""}
@@ -930,17 +930,17 @@ export default async function DashboardPage() {
                       )}
                     </p>
                     <div className="mt-5 flex flex-wrap gap-2">
-                      <Link prefetch={false} href="/app/jobs/new" className="ds-band-btn">
+                      <Link prefetch={false} href="/app/jobs/new" className="ds-btn ds-btn-primary ds-btn-sm">
                         <Plus size={15} strokeWidth={2.4} />
                         Schedule a job
                       </Link>
-                      <Link prefetch={false} href="/app/schedule" className="ds-band-btn is-ghost">
+                      <Link prefetch={false} href="/app/schedule" className="ds-btn ds-btn-outline ds-btn-sm">
                         <CalendarDays size={15} strokeWidth={2.2} />
                         Open schedule
                       </Link>
                     </div>
                   </div>
-                </section>
+                </div>
               ) : (
                 <Card className="ds-divide overflow-hidden">{todayItems.map((item) => todayRow(item, false))}</Card>
               )}

@@ -12,6 +12,7 @@ import PageTitle from "@/components/PageTitle";
 import { Chip, InfoTip } from "@/components/ds";
 import Modal from "@/components/Modal";
 import CountUp from "@/components/CountUp";
+import { StatCard, StatCards } from "@/components/ListBands";
 import { DateField } from "@/components/DateField";
 import { SERVICE_FEE_CARD } from "@/lib/service-fee";
 
@@ -357,34 +358,34 @@ export default function SubscriptionsClient({
 
       {/* The band — what the plans bring in each month */}
       {subs.length > 0 && (
-        <section className="ds-tally ds-rise ds-lb mb-5 lg:mb-6" style={{ "--ds-i": 1 } as React.CSSProperties}>
-          <div className="relative ds-lb-grid">
-            <div className="min-w-0">
-              <p className="ds-lb-label">Recurring revenue</p>
-              <p className="ds-lb-big">
+        <StatCards>
+          <StatCard
+            i={1}
+            tone="good"
+            label="Recurring revenue"
+            value={
+              <>
                 <CountUp value={money(mrr)} />
-                <span className="ml-1.5 text-[18px] font-bold tracking-normal opacity-80">/ month</span>
-              </p>
-              <p className="ds-lb-note">
-                {live.length} active {live.length === 1 ? "plan" : "plans"}
-                {paused > 0 ? ` · ${paused} paused` : ""}
-              </p>
-            </div>
-            <div className="ds-lb-side">
-              <p className="ds-lb-label">Next to bill</p>
-              {nextUp ? (
-                <>
-                  <p className="mt-1 text-[22px] font-extrabold tracking-[-0.02em]">{fmtDate(nextUp.nextRunDate!)}</p>
-                  <p className="ds-lb-note !mt-0.5 truncate">
-                    {nextUp.name} · {nextUp.contact.firstName} {nextUp.contact.lastName}
-                  </p>
-                </>
-              ) : (
-                <p className="ds-lb-note">Nothing scheduled to bill</p>
-              )}
-            </div>
-          </div>
-        </section>
+                <span className="ml-1 text-[15px] font-bold tracking-normal text-[color:var(--ds-muted)]">/ mo</span>
+              </>
+            }
+            sub="Every plan, as a monthly amount"
+          />
+          <StatCard
+            i={2}
+            tone="brand"
+            label="Active plans"
+            value={<CountUp value={live.length} />}
+            sub={paused > 0 ? `${paused} paused` : "None paused"}
+          />
+          <StatCard
+            i={3}
+            tone="neutral"
+            label="Next to bill"
+            value={nextUp ? fmtDate(nextUp.nextRunDate!) : "—"}
+            sub={nextUp ? `${nextUp.name} · ${nextUp.contact.firstName} ${nextUp.contact.lastName}` : "Nothing scheduled to bill"}
+          />
+        </StatCards>
       )}
 
       {/* Ready to bill — completed per-job work nothing has invoiced yet.

@@ -1598,12 +1598,68 @@ html[data-mode="dark"] .app-ui .card-tool {
   min-width: 8px;
   background: linear-gradient(90deg, var(--rail-line) 60%, transparent);
 }
-.rail-gray button:hover > .rail-head-rule {
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--rail-accent) 35%, var(--rail-line)) 60%,
-    transparent
-  );
+/* Section head hover (2026-11-21): the hairline draws out left to right
+   in the brand accent, the same motion as the list rows' status line. */
+.rail-head-rule { position: relative; }
+.rail-head-rule::after {
+  content: ""; position: absolute; left: 0; right: 0; top: -0.5px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--rail-accent), color-mix(in srgb, var(--rail-accent) 0%, transparent));
+  transform: scaleX(0); transform-origin: left center;
+  transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.rail-gray button:hover > .rail-head-rule::after,
+.rail-gray button:focus-visible > .rail-head-rule::after { transform: scaleX(1); }
+/* the chevron turns with a little spring */
+.rail-head-chev { transition: transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* Section open/close: the body eases its height (grid 0fr → 1fr), then the
+   rows cascade in and the tree line draws down to them. */
+.rail-group-body {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.rail-group-body.is-open { grid-template-rows: 1fr; }
+.rail-group-body > .rail-tree { min-height: 0; overflow: hidden; }
+.rail-group-body.is-open .rail-row[data-tree] {
+  animation: railItemIn 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 30ms + 40ms);
+}
+
+/* The tree: a line runs down from the section name and branches into each
+   row; the last row turns the corner. Drawn in as the section opens; the
+   selected row's branch wears the accent. */
+.rail-tree .rail-row[data-tree] { padding-left: 32px; }
+.rail-tree .rail-row[data-tree]::before,
+.rail-tree .rail-row[data-tree]::after {
+  content: ""; position: absolute; left: 14px; pointer-events: none;
+  background: color-mix(in srgb, var(--rail-muted) 34%, transparent);
+}
+.rail-tree .rail-row[data-tree]::before { top: 0; bottom: 0; width: 1.5px; transform-origin: top; }
+.rail-tree .rail-row[data-tree]::after { top: calc(50% - 0.75px); width: 11px; height: 1.5px; transform-origin: left; }
+.rail-tree .rail-row[data-tree="last"]::before {
+  bottom: calc(50% - 0.75px); width: 11px; border-bottom-left-radius: 7px;
+  background: none;
+  border-left: 1.5px solid color-mix(in srgb, var(--rail-muted) 34%, transparent);
+  border-bottom: 1.5px solid color-mix(in srgb, var(--rail-muted) 34%, transparent);
+}
+.rail-tree .rail-row[data-tree="last"]::after { display: none; }
+.rail-tree .rail-row[data-rail-active="true"]::after { background: var(--rail-accent); }
+.rail-tree .rail-row[data-tree="last"][data-rail-active="true"]::before { border-bottom-color: var(--rail-accent); }
+.rail-group-body.is-open .rail-row[data-tree]::before {
+  animation: railTreeDown 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 30ms);
+}
+.rail-group-body.is-open .rail-row[data-tree]::after {
+  animation: railTreeOut 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 30ms + 120ms);
+}
+@keyframes railTreeDown { from { transform: scaleY(0); } to { transform: none; } }
+@keyframes railTreeOut { from { transform: scaleX(0); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .rail-group-body, .rail-head-rule::after, .rail-head-chev { transition: none; }
+  .rail-group-body.is-open .rail-row[data-tree],
+  .rail-group-body.is-open .rail-row[data-tree]::before,
+  .rail-group-body.is-open .rail-row[data-tree]::after { animation: none; }
 }
 
 /* Rail v2 hardware: the sliding accent bar. One bar for the whole rail —

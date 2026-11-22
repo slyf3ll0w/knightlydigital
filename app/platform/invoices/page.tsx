@@ -12,7 +12,7 @@ import { invoiceBalance } from "@/lib/payments";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
 import { MoneyBand } from "@/components/ListBands";
-import { startOfMonthIn } from "@/lib/timezone";
+import { startOfMonthIn, zonedMidnight, zonedParts } from "@/lib/timezone";
 import MobileSearch from "@/components/MobileSearch";
 import Monogram from "@/components/Monogram";
 import Pager from "@/components/Pager";
@@ -97,7 +97,10 @@ export default async function InvoicesPage({
           : { status: { not: "ARCHIVED" as InvoiceStatus } }),
     ...search,
   };
-  const [invoices, listCount, pastDue, awaiting, draft, openForBalance, paidMonth] = await Promise.all([
+  // The Collected card's spark: the first instant of each of the last 6 months
+  const nowParts = zonedParts(tz, new Date());
+  const monthStarts = Array.from({ length: 6 }, (_, k) => zonedMidnight(tz, nowParts.y, nowParts.m - (5 - k), 1));
+  const [invoices, listCount, pastDue, awaiting, draft, openForBalance, paidMonth, paid6m] = await Promise.all([
     prisma.invoice.findMany({
       where: listWhere,
       include: { contact: true, payments: true },
@@ -132,7 +135,19 @@ export default async function InvoicesPage({
       where: { companyId, ...scope, paidAt: { gte: startOfMonthIn(tz, new Date()) } },
       _sum: { amount: true },
     }),
+    prisma.payment.findMany({
+      where: { companyId, ...scope, paidAt: { gte: monthStarts[0] } },
+      select: { amount: true, paidAt: true },
+    }),
   ]);
+  const collectedMonths = monthStarts.map((start, k) => {
+    const end = monthStarts[k + 1]?.getTime() ?? Infinity;
+    const value = paid6m
+      .filter((pm) => pm.paidAt && pm.paidAt.getTime() >= start.getTime() && pm.paidAt.getTime() < end)
+      .reduce((sum, pm) => sum + Number(pm.amount), 0);
+    const label = start.toLocaleDateString("en-US", { month: "long", timeZone: tz });
+    return { label: k === 5 ? `${label} so far` : label, value, display: money(value) };
+  });
   const owedBy = (status: "PAST_DUE" | "AWAITING_PAYMENT") =>
     openForBalance.filter((i) => i.status === status).reduce((s, i) => s + Math.max(0, invoiceBalance(i)), 0);
 
@@ -188,6 +203,7 @@ export default async function InvoicesPage({
         awaiting={{ amount: owedBy("AWAITING_PAYMENT"), count: awaiting._count, href: "/app/invoices?status=AWAITING_PAYMENT" }}
         draft={{ amount: Number(draft._sum.total) || 0, count: draft._count, href: "/app/invoices?status=DRAFT" }}
         paidThisMonth={{ amount: Number(paidMonth._sum.amount) || 0, href: "/app/payments" }}
+        collectedMonths={collectedMonths}
       />
 
       <FilterBar

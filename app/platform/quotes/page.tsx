@@ -85,7 +85,9 @@ export default async function QuotesPage({
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
 
-  const [quotes, listCount, byStatus, sent30, approved30] = await Promise.all([
+  const eightWeeksAgo = new Date(Date.now() - 56 * 86400000);
+
+  const [quotes, listCount, byStatus, sent30, approved30, approved8w] = await Promise.all([
     prisma.quote.findMany({
       where: listWhere,
       include: { contact: true },
@@ -110,7 +112,24 @@ export default async function QuotesPage({
       _count: true,
       _sum: { total: true },
     }),
+    // The Won card's spark: approved value per week over the last 8 weeks
+    prisma.quote.findMany({
+      where: { companyId, ...scope, approvedAt: { gte: eightWeeksAgo } },
+      select: { approvedAt: true, total: true },
+    }),
   ]);
+
+  const nowMs = Date.now();
+  const dayFmt = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: tz });
+  const wonWeeks = Array.from({ length: 8 }, (_, k) => {
+    const back = 7 - k; // 7 = oldest week … 0 = the last 7 days
+    const end = nowMs - back * 7 * 86400000;
+    const start = end - 7 * 86400000;
+    const value = approved8w
+      .filter((q) => q.approvedAt && q.approvedAt.getTime() > start && q.approvedAt.getTime() <= end)
+      .reduce((sum, q) => sum + Number(q.total), 0);
+    return { label: back === 0 ? "Last 7 days" : `${dayFmt(start + 86400000)} – ${dayFmt(end)}`, value, display: money(value) };
+  });
 
   const conversionRate = sent30 > 0 ? Math.round((approved30._count / sent30) * 100) : null;
 
@@ -169,6 +188,7 @@ export default async function QuotesPage({
         won30={approved30Total}
         conversion={conversionRate}
         wonHref="/app/quotes?status=APPROVED"
+        wonWeeks={wonWeeks}
         showMoney
       />
 

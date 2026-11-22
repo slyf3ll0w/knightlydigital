@@ -1880,6 +1880,22 @@ export default function AppShell({
     ind.style.height = `${el.offsetHeight}px`;
     ind.classList.add("rail-indicator-on");
   });
+  // A section easing open or closed above the active row moves it after the
+  // render-time measure above, so settle the puck when that height lands.
+  useEffect(() => {
+    const nav = railNavRef.current;
+    const ind = railIndRef.current;
+    if (!nav || !ind) return;
+    const settle = (e: TransitionEvent) => {
+      if (!(e.target instanceof HTMLElement) || !e.target.classList.contains("rail-group-body")) return;
+      const el = nav.querySelector<HTMLElement>('[data-rail-active="true"]');
+      if (!el) return;
+      const top = el.getBoundingClientRect().top - nav.getBoundingClientRect().top + nav.scrollTop;
+      ind.style.transform = `translateY(${Math.round(top)}px)`;
+    };
+    nav.addEventListener("transitionend", settle);
+    return () => nav.removeEventListener("transitionend", settle);
+  });
 
   // iOS large-title collapse: TitleSentinel (inside each PageTitle) reports
   // when the big in-page title scrolls away; the header raises a small one.
@@ -2391,7 +2407,10 @@ export default function AppShell({
   // (the sliding indicator paints it — rows carry no per-section hue), and
   // counts as right-aligned ledger numerals instead of badge pills.
   const railCreates = forRole(createItems, role ?? "", salesMoney);
-  const navLink = (href: string, label: string, Icon: typeof Home, animIndex?: number) => {
+  // `tree`: the row sits in an open sidebar section — it wears the branch
+  // of the section's tree line (.rail-tree in globals.css) and cascades in
+  // with the section's open animation (--i = its place in the section).
+  const navLink = (href: string, label: string, Icon: typeof Home, animIndex?: number, tree?: { i: number; last: boolean }) => {
     const active = isActive(href);
     const badge = badgeCount(href);
     return (
@@ -2400,7 +2419,14 @@ export default function AppShell({
         href={href}
         data-tour={tourKeys[href]}
         data-rail-active={active ? "true" : undefined}
-        style={animIndex !== undefined ? { animationDelay: `${animIndex * 22}ms` } : undefined}
+        data-tree={tree ? (tree.last ? "last" : "mid") : undefined}
+        style={
+          tree
+            ? ({ "--i": tree.i } as React.CSSProperties)
+            : animIndex !== undefined
+              ? { animationDelay: `${animIndex * 22}ms` }
+              : undefined
+        }
         className={`${animIndex !== undefined ? "rail-item-in " : ""}rail-row group font-display relative mx-2 flex items-center gap-2.5 rounded-[10px] py-[7px] pl-3 pr-3 text-[13.5px] transition-colors ${
           active
             ? "font-bold text-[color:var(--rail-ink)]" /* the solid puck behind it is .rail-indicator */
@@ -2478,14 +2504,20 @@ export default function AppShell({
                   )}
                   <ChevronDown
                     size={13}
-                    className={`shrink-0 transition-transform duration-200 ${open ? "" : "-rotate-90"}`}
+                    className={`rail-head-chev shrink-0 ${open ? "" : "-rotate-90"}`}
                   />
                 </button>
-                {open && (
-                  <div>
-                    {g.items.map(({ href, label, icon: Icon }, i) => navLink(href, label, Icon, i))}
+                {/* Always mounted so opening can animate: the body's height
+                    eases open (grid 0fr → 1fr), the tree line draws down and
+                    the rows cascade in. `inert` keeps a closed section's
+                    rows out of tab order. */}
+                <div className={`rail-group-body ${open ? "is-open" : ""}`} inert={!open}>
+                  <div className="rail-tree">
+                    {g.items.map(({ href, label, icon: Icon }, i) =>
+                      navLink(href, label, Icon, undefined, { i, last: i === g.items.length - 1 }),
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             );
           })}

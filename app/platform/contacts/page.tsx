@@ -14,7 +14,7 @@ import { requirePageActor, canSell, contactScope, seesAllLeads, isManager } from
 import EntityRowActions from "@/components/EntityRowActions";
 import CallLink from "@/components/CallLink";
 import { contactSearchWhere } from "@/lib/contact-search";
-import Monogram from "@/components/Monogram";
+import Monogram, { monogramColor } from "@/components/Monogram";
 import PdfLink from "@/components/PdfLink";
 
 // Leads live on the Leads board now — this page is clients (searching still
@@ -211,7 +211,8 @@ export default async function ContactsPage({
                 >
                 <Link
                   prefetch={false} href={`/app/contacts/${c.id}`}
-                  className="flex lg:grid lg:grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-3 lg:gap-4 items-center px-4 py-3 lg:py-2.5 hover:bg-[color:var(--ds-surface-2)] active:bg-[color:var(--ds-line)] transition-colors"
+                  style={{ "--row-tone": monogramColor(`${c.firstName} ${c.lastName}`) } as React.CSSProperties}
+                  className="ds-trow flex lg:grid lg:grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-3 lg:gap-4 items-center px-4 py-3 lg:py-2.5 hover:bg-[color:var(--ds-surface-2)] active:bg-[color:var(--ds-line)] transition-colors"
                 >
                   {/* Monogram anchors the phone row (identity color, not a
                       section hue) — desktop keeps the dense ledger grid */}
@@ -221,7 +222,7 @@ export default async function ContactsPage({
                     className="lg:hidden"
                   />
                   <div className="min-w-0 flex-1 lg:flex-none">
-                    <p className="text-[15.5px] lg:text-sm font-semibold lg:font-medium text-gray-900 truncate">
+                    <p className="ds-trow-name text-[15.5px] lg:text-sm font-semibold lg:font-medium text-gray-900 truncate">
                       {c.firstName} {c.lastName}
                     </p>
                     {(c.companyName || c.phone || c.email) && (

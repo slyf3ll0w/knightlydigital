@@ -12,6 +12,7 @@ import BackLink from "@/components/BackLink";
 import BackParent from "@/components/BackParent";
 import PageTitle from "@/components/PageTitle";
 import Monogram from "@/components/Monogram";
+import { StatCard } from "@/components/ListBands";
 import ContactStatus from "@/components/ContactStatus";
 import CallTextButtons from "@/components/CallTextButtons";
 import CallLink from "@/components/CallLink";
@@ -309,10 +310,9 @@ export default async function ContactDetailPage({
         )}
       </div>
 
-      {/* Heavy look (2026-11-21): the client's band — who they are, how to
-          reach them, and what they're worth / owe — then the actions. */}
-      <section className="ds-tally ds-rise ds-lb ds-client-band mb-4" style={{ "--ds-i": 1 } as React.CSSProperties}>
-        <div className="relative ds-lb-grid">
+      {/* Heavy look (2026-11-21): who the client is and how to reach them,
+          on the page; what they're worth / owe as two number cards. */}
+      <section className="ds-client-head ds-rise mb-5" style={{ "--ds-i": 1 } as React.CSSProperties}>
         <div className="flex min-w-0 items-start gap-4">
           <span className="ds-client-mono">
             <Monogram name={`${contact.firstName} ${contact.lastName}`.trim()} size={60} />
@@ -355,18 +355,17 @@ export default async function ContactDetailPage({
           </div>
         </div>
         {seeMoney && (
-          <div className="ds-lb-side">
-            <p className="ds-lb-label">Lifetime value</p>
-            <p className="mt-1 text-[30px] font-extrabold leading-none tracking-[-0.03em]">{money(lifetimeValue)}</p>
-            <div className="mt-3 border-t border-[color:var(--t-line)] pt-1">
-              <div className={`ds-lb-sidelink !cursor-default ${currentBalance > 0 ? "is-alert" : ""}`}>
-                <span>Balance owed</span>
-                <span className="ds-lb-sidevalue">{money(currentBalance)}</span>
-              </div>
-            </div>
+          <div className="ds-client-stats">
+            <StatCard i={2} tone="good" label="Lifetime value" value={money(lifetimeValue)} sub="Paid, all time" />
+            <StatCard
+              i={3}
+              tone={currentBalance > 0 ? "bad" : "neutral"}
+              label="Balance owed"
+              value={money(currentBalance)}
+              sub={currentBalance > 0 ? "Open invoices" : "All paid up"}
+            />
           </div>
         )}
-        </div>
       </section>
 
       <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
