@@ -9,7 +9,7 @@ import { pickSort, QUOTE_SORTS, quoteOrderBy } from "@/lib/list-sort";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
-import KpiStrip from "@/components/KpiStrip";
+import { PipelineBand } from "@/components/ListBands";
 import Monogram from "@/components/Monogram";
 import MobileSearch from "@/components/MobileSearch";
 import Pager from "@/components/Pager";
@@ -85,7 +85,7 @@ export default async function QuotesPage({
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
 
-  const [quotes, listCount, draftCount, awaitingCount, approvedCount, sent30, approved30] = await Promise.all([
+  const [quotes, listCount, byStatus, sent30, approved30] = await Promise.all([
     prisma.quote.findMany({
       where: listWhere,
       include: { contact: true },
@@ -94,9 +94,12 @@ export default async function QuotesPage({
       skip: (page - 1) * PAGE_SIZE,
     }),
     prisma.quote.count({ where: listWhere }),
-    prisma.quote.count({ where: { companyId, ...scope, status: "DRAFT" } }),
-    prisma.quote.count({ where: { companyId, ...scope, status: "AWAITING_RESPONSE" } }),
-    prisma.quote.count({ where: { companyId, ...scope, status: "APPROVED" } }),
+    prisma.quote.groupBy({
+      by: ["status"],
+      where: { companyId, ...scope, status: { in: ["DRAFT", "AWAITING_RESPONSE", "APPROVED"] } },
+      _count: true,
+      _sum: { total: true },
+    }),
     prisma.quote.count({ where: { companyId, ...scope, sentAt: { gte: thirtyDaysAgo } } }),
     prisma.quote.aggregate({
       where: {
@@ -112,37 +115,27 @@ export default async function QuotesPage({
   const conversionRate = sent30 > 0 ? Math.round((approved30._count / sent30) * 100) : null;
 
   const approved30Total = Number(approved30._sum.total) || 0;
-  const kpis = [
-    { label: "Draft", value: draftCount, href: "/app/quotes?status=DRAFT", zero: draftCount === 0 },
-    {
-      label: "Awaiting response",
-      mobileLabel: "Awaiting",
-      value: awaitingCount,
-      href: "/app/quotes?status=AWAITING_RESPONSE",
-      zero: awaitingCount === 0,
-    },
-    {
-      label: "Approved",
-      value: approvedCount,
-      href: "/app/quotes?status=APPROVED",
-      zero: approvedCount === 0,
-    },
-    {
-      label: "Approved (30 days)",
-      mobileLabel: "Won 30 days",
-      value: money(approved30Total),
-      sub: conversionRate !== null ? `${conversionRate}% conversion` : undefined,
-      href: "/app/quotes?status=APPROVED",
-      zero: approved30Total === 0,
-    },
-  ];
+  const stage = (st: QuoteStatus) => byStatus.find((b) => b.status === st);
+  const pipeline = (
+    [
+      ["DRAFT", "Draft"],
+      ["AWAITING_RESPONSE", "Awaiting response"],
+      ["APPROVED", "Approved"],
+    ] as const
+  ).map(([key, label]) => ({
+    key,
+    label,
+    count: stage(key)?._count ?? 0,
+    amount: Number(stage(key)?._sum.total ?? 0),
+    href: `/app/quotes?status=${key}`,
+  }));
 
   const pageTotal = quotes.reduce((s, q) => s + Number(q.total), 0);
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
-        <PageTitle section="quotes" icon={FileText}>
+        <PageTitle heavy section="quotes" icon={FileText}>
           Quotes
         </PageTitle>
         {/* Phones create from the tab-bar FAB */}
@@ -171,7 +164,13 @@ export default async function QuotesPage({
         params={{ status: validStatus, sort: sortRaw }}
       />
 
-      <KpiStrip kpis={kpis} desktopCols={4} />
+      <PipelineBand
+        stages={pipeline}
+        won30={approved30Total}
+        conversion={conversionRate}
+        wonHref="/app/quotes?status=APPROVED"
+        showMoney
+      />
 
       <FilterBar
         options={statusFilters}

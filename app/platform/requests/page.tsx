@@ -8,7 +8,7 @@ import { pickSort, REQUEST_SORTS, requestOrderBy } from "@/lib/list-sort";
 import { shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
-import KpiStrip from "@/components/KpiStrip";
+import { InboxBand, waitedFor } from "@/components/ListBands";
 import MobileSearch from "@/components/MobileSearch";
 import Monogram from "@/components/Monogram";
 import Pager from "@/components/Pager";
@@ -69,7 +69,7 @@ export default async function RequestsPage({
   };
 
   const listWhere = { companyId, ...scope, ...(validStatus ? { status: validStatus } : {}), ...search };
-  const [requests, listCount, newCount, needsApprovalCount] = await Promise.all([
+  const [requests, listCount, newCount, needsApprovalCount, waitingList] = await Promise.all([
     prisma.request.findMany({
       where: listWhere,
       include: { contact: true },
@@ -80,6 +80,13 @@ export default async function RequestsPage({
     prisma.request.count({ where: listWhere }),
     prisma.request.count({ where: { companyId, ...scope, status: "NEW" } }),
     prisma.request.count({ where: { companyId, ...scope, status: "NEEDS_APPROVAL" } }),
+    // The band's inbox: what's waiting on a reply, oldest first
+    prisma.request.findMany({
+      where: { companyId, ...scope, status: { in: ["NEW", "NEEDS_APPROVAL"] } },
+      orderBy: { createdAt: "asc" },
+      take: 3,
+      select: { id: true, title: true, status: true, createdAt: true, contact: { select: { firstName: true, lastName: true } } },
+    }),
   ]);
 
   const cur = { status: validStatus, assignee: mineOnly ? "me" : undefined, q: query, sort: sortRaw };
@@ -87,7 +94,7 @@ export default async function RequestsPage({
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
-        <PageTitle section="requests" icon={Inbox}>
+        <PageTitle heavy section="requests" icon={Inbox}>
           Requests
         </PageTitle>
         {/* Phones create from the tab-bar FAB */}
@@ -107,27 +114,18 @@ export default async function RequestsPage({
         params={{ status: validStatus, assignee: mineOnly ? "me" : undefined, sort: sortRaw }}
       />
 
-      <KpiStrip
-        desktopCols={4}
-        kpis={[
-          {
-            label: "New requests",
-            value: newCount,
-            href: "/app/requests?status=NEW",
-            zero: newCount === 0,
-          },
-          ...(needsApprovalCount > 0
-            ? [
-                {
-                  label: "Bookings to approve",
-                  mobileLabel: "To approve",
-                  value: needsApprovalCount,
-                  href: "/app/requests?status=NEEDS_APPROVAL",
-                  tone: "danger" as const,
-                },
-              ]
-            : []),
-        ]}
+      <InboxBand
+        waiting={newCount + needsApprovalCount}
+        oldest={waitingList[0] ? waitedFor(waitingList[0].createdAt) : null}
+        items={waitingList.map((r) => ({
+          id: r.id,
+          name: `${r.contact.firstName} ${r.contact.lastName}`.trim(),
+          title: r.title,
+          age: waitedFor(r.createdAt),
+          approval: r.status === "NEEDS_APPROVAL",
+        }))}
+        needsApproval={{ count: needsApprovalCount, href: "/app/requests?status=NEEDS_APPROVAL" }}
+        allHref="/app/requests?status=NEW"
       />
 
       <FilterBar

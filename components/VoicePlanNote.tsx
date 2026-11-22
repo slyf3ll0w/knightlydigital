@@ -31,8 +31,10 @@ export default function VoicePlanNote({
       ? "Today the Call buttons ring from your own phone, and calls made that way aren't logged here. The Voice plan adds a business number that rings this app and your cell, announces who's calling, takes voicemail, and keeps every call on this page."
       : "Today messages reach clients through their portal and by email. The Voice plan adds a business number, so conversations go out as texts from it and client replies land here.";
   return (
-    <div className="ds mt-3 flex items-center gap-3 rounded-[12px] border border-dashed border-[color:var(--ds-line)] px-3.5 py-2.5 text-[13px] text-[color:var(--ds-ink-2)] lg:mt-4">
-      <Phone size={15} className="shrink-0 text-[color:var(--ds-muted)]" aria-hidden />
+    <div className="ds ds-card mt-3 flex items-center gap-3 px-4 py-3 text-[13.5px] font-medium text-[color:var(--ds-ink-2)] lg:mt-4">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]">
+        <Phone size={15} strokeWidth={2.2} aria-hidden />
+      </span>
       <p className="min-w-0 flex-1">
         {line} <InfoTip label={`What the ${voice.name} plan adds`}>{detail}</InfoTip>
       </p>

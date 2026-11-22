@@ -11,7 +11,8 @@ import { pastDueFilter } from "@/lib/due-dates";
 import { invoiceBalance } from "@/lib/payments";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
-import KpiStrip from "@/components/KpiStrip";
+import { MoneyBand } from "@/components/ListBands";
+import { startOfMonthIn } from "@/lib/timezone";
 import MobileSearch from "@/components/MobileSearch";
 import Monogram from "@/components/Monogram";
 import Pager from "@/components/Pager";
@@ -96,7 +97,7 @@ export default async function InvoicesPage({
           : { status: { not: "ARCHIVED" as InvoiceStatus } }),
     ...search,
   };
-  const [invoices, listCount, pastDue, awaiting, draft, openForBalance] = await Promise.all([
+  const [invoices, listCount, pastDue, awaiting, draft, openForBalance, paidMonth] = await Promise.all([
     prisma.invoice.findMany({
       where: listWhere,
       include: { contact: true, payments: true },
@@ -127,34 +128,14 @@ export default async function InvoicesPage({
       where: { companyId, ...scope, status: { in: ["PAST_DUE", "AWAITING_PAYMENT"] } },
       select: { status: true, total: true, payments: { select: { amount: true, surchargeAmount: true } } },
     }),
+    prisma.payment.aggregate({
+      where: { companyId, ...scope, paidAt: { gte: startOfMonthIn(tz, new Date()) } },
+      _sum: { amount: true },
+    }),
   ]);
   const owedBy = (status: "PAST_DUE" | "AWAITING_PAYMENT") =>
     openForBalance.filter((i) => i.status === status).reduce((s, i) => s + Math.max(0, invoiceBalance(i)), 0);
 
-  const kpis = [
-    {
-      label: `Past due (${pastDue._count})`,
-      mobileLabel: "Past due",
-      value: money(owedBy("PAST_DUE")),
-      href: "/app/invoices?status=PAST_DUE",
-      zero: pastDue._count === 0,
-      tone: pastDue._count > 0 ? ("danger" as const) : undefined,
-    },
-    {
-      label: `Awaiting payment (${awaiting._count})`,
-      mobileLabel: "Awaiting",
-      value: money(owedBy("AWAITING_PAYMENT")),
-      href: "/app/invoices?status=AWAITING_PAYMENT",
-      zero: awaiting._count === 0,
-    },
-    {
-      label: `Draft (${draft._count})`,
-      mobileLabel: "Draft",
-      value: money(Number(draft._sum.total) || 0),
-      href: "/app/invoices?status=DRAFT",
-      zero: draft._count === 0,
-    },
-  ];
 
   // Ledger foot: totals for the rows currently shown
   const pageTotal = invoices.reduce((s, i) => s + Number(i.total), 0);
@@ -166,7 +147,7 @@ export default async function InvoicesPage({
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
-        <PageTitle section="invoices" icon={Receipt}>
+        <PageTitle heavy section="invoices" icon={Receipt}>
           Invoices
         </PageTitle>
         {/* Phones create from the tab-bar FAB (Invoice + Payment both live there) */}
@@ -202,7 +183,12 @@ export default async function InvoicesPage({
         params={{ status: validStatus, sort: sortRaw }}
       />
 
-      <KpiStrip kpis={kpis} desktopCols={3} />
+      <MoneyBand
+        pastDue={{ amount: owedBy("PAST_DUE"), count: pastDue._count, href: "/app/invoices?status=PAST_DUE" }}
+        awaiting={{ amount: owedBy("AWAITING_PAYMENT"), count: awaiting._count, href: "/app/invoices?status=AWAITING_PAYMENT" }}
+        draft={{ amount: Number(draft._sum.total) || 0, count: draft._count, href: "/app/invoices?status=DRAFT" }}
+        paidThisMonth={{ amount: Number(paidMonth._sum.amount) || 0, href: "/app/payments" }}
+      />
 
       <FilterBar
         options={statusFilters}

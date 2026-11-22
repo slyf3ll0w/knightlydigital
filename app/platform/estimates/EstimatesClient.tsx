@@ -3,12 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Calculator, ChevronRight, Play, Plus, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Calculator, Play, Plus, X } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import EmptyState from "@/components/EmptyState";
-import Monogram from "@/components/Monogram";
 import FilterBar, { listHref } from "@/components/FilterBar";
-import { SegmentedRow, Segment } from "@/components/FilterChips";
 import MobileSearch from "@/components/MobileSearch";
 import EntityRowActions from "@/components/EntityRowActions";
 import EstimatorRunner, { type RunnerEstimator } from "@/components/EstimatorRunner";
@@ -50,7 +48,6 @@ export type Tool = RunnerEstimator & {
   missingItems?: string[];
 };
 
-const GRID = "lg:grid-cols-[minmax(0,1fr)_90px_140px_150px_40px]";
 
 const statusFilters = [
   { value: "", label: "All", mobile: "All" },
@@ -76,36 +73,35 @@ function ToolStamp({ t }: { t: Tool }) {
   return null;
 }
 
-/** One ledger row — hoisted so a parent re-render (opening the runner, the builder) never remounts it and drops an open menu. */
-function ToolRow({ t, manager, atlasName, tz, onRun }: { t: Tool; manager: boolean; atlasName: string; tz: string; onRun: (t: Tool) => void }) {
+/** One tool card — hoisted so a parent re-render (opening the runner, the builder) never remounts it and drops an open menu. Heavy look (2026-11-21): tools read as a shelf of solid cards, not a ledger. */
+function ToolCard({ t, manager, atlasName, tz, onRun }: { t: Tool; manager: boolean; atlasName: string; tz: string; onRun: (t: Tool) => void }) {
   const placeholders = (t.spec.placeholders?.length ?? 0) + (t.spec.rates ?? []).filter((r) => r.source !== "owner").length;
   const facts = toolFacts(t, atlasName);
   const missing = t.missingItems?.length ?? 0;
-  const sub = [t.description || facts.join(" · "), placeholders > 0 && manager ? `${placeholders} rate${placeholders === 1 ? "" : "s"} to confirm` : null, missing > 0 && manager ? `can't run — ${missing === 1 ? "a price-book item is" : `${missing} price-book items are`} missing` : null].filter(Boolean).join(" · ");
+  const warn = [placeholders > 0 && manager ? `${placeholders} rate${placeholders === 1 ? "" : "s"} to confirm` : null, missing > 0 && manager ? `can't run — ${missing === 1 ? "a price-book item is" : `${missing} price-book items are`} missing` : null].filter(Boolean).join(" · ");
   return (
     <EntityRowActions meta={{ kind: "tool", id: t.id, name: t.name, isActive: t.isActive, isPublic: Boolean(t.isPublic && t.publicSlug), manager }} onRun={t.isActive ? () => onRun(t) : undefined}>
-      <Link href={`/app/estimates/${t.id}`} prefetch={false} className={`block px-4 py-3 transition-colors hover:bg-gray-50 active:bg-gray-100 lg:grid lg:items-center lg:gap-4 lg:py-2.5 ${GRID} ${t.isActive ? "" : "opacity-70"}`}>
-        {/* Phone row: monogram anchor, name + status, then what it does */}
-        <div className="flex min-w-0 items-center gap-3 lg:hidden">
-          <Monogram name={t.name} size={40} />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between gap-3">
-              <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900">{t.name}</p>
-              <ToolStamp t={t} />
-            </div>
-            <p className="mt-0.5 truncate text-[13px] text-gray-500">{sub}</p>
-          </div>
-        </div>
-        <div className="hidden min-w-0 lg:block">
-          <p className="truncate text-sm font-medium text-gray-900">{t.name}</p>
-          <p className="truncate text-xs text-gray-500">{sub}</p>
-        </div>
-        <span className="hidden text-sm text-gray-500 lg:block">{t.spec.inputs.length}</span>
-        <span className="hidden text-sm text-gray-500 lg:block">{shortDate(t.updatedAt, tz)}</span>
-        <span className="hidden lg:block">
+      <Link href={`/app/estimates/${t.id}`} prefetch={false} className={`ds-card ds-card-raised ds-tool-card ${t.isActive ? "" : "is-off"}`}>
+        <div className="flex items-start justify-between gap-3">
+          <span className="ds-tool-icon" aria-hidden>
+            <Calculator size={18} strokeWidth={2.2} />
+          </span>
           <ToolStamp t={t} />
-        </span>
-        <ChevronRight size={14} className="hidden shrink-0 text-gray-400 lg:block" />
+        </div>
+        <p className="mt-3 text-[16.5px] font-bold leading-snug tracking-[-0.012em] text-[color:var(--ds-ink)]">{t.name}</p>
+        {t.description && <p className="mt-1 line-clamp-2 text-[13.5px] leading-snug text-[color:var(--ds-ink-2)]">{t.description}</p>}
+        {facts.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {facts.map((f) => (
+              <span key={f} className="ds-tool-fact">{f}</span>
+            ))}
+          </div>
+        )}
+        {warn && <p className="mt-2 text-[12.5px] font-semibold text-[color:var(--ds-warn)]">{warn}</p>}
+        <div className="ds-tool-foot">
+          <span>{t.runs === 1 ? "Run once" : `Run ${t.runs} times`}</span>
+          <span>Updated {shortDate(t.updatedAt, tz)}</span>
+        </div>
       </Link>
     </EntityRowActions>
   );
@@ -158,9 +154,21 @@ export default function EstimatesClient({
   return (
     <div className="mx-auto max-w-6xl p-4 lg:p-8">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-y-3 lg:mb-6">
-        <PageTitle section="quotes" icon={Calculator} info={manager ? "Tell Atlas how you price a job. It builds a tool your team runs onsite and your website runs for you." : "Answer a tool's questions, show the number, turn it into a quote."}>
+        <PageTitle heavy section="quotes" icon={Calculator} info={manager ? "Tell Atlas how you price a job. It builds a tool your team runs onsite and your website runs for you." : "Answer a tool's questions, show the number, turn it into a quote."}>
           Estimates
         </PageTitle>
+        <div className="flex items-center gap-2">
+        {view === "tools" ? (
+          <Link href="/app/estimates?view=library" prefetch={false} className="ds-btn ds-btn-outline h-10 shrink-0">
+            <BookOpen size={15} />
+            <span className="hidden sm:inline">Browse library</span>
+          </Link>
+        ) : (
+          <Link href="/app/estimates" prefetch={false} className="ds-btn ds-btn-outline h-10 shrink-0">
+            <ArrowLeft size={15} />
+            Your tools
+          </Link>
+        )}
         {view === "tools" && manager ? (
           <button type="button" onClick={() => setBuilding((b) => !b)} aria-label={building ? "Close the builder" : "Build a tool"} className={building ? "btn-tool-line flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 sm:px-4" : "btn-primary h-10 shrink-0 justify-center sm:px-4"}>
             {building ? <X size={15} /> : <Plus size={15} />}
@@ -171,19 +179,17 @@ export default function EstimatesClient({
             <Play size={15} /> Run a tool
           </button>
         ) : null}
+        </div>
       </div>
 
-      <SegmentedRow className="mb-4 max-w-xs">
-        <Segment active={view === "tools"} href="/app/estimates">
-          Tools
-        </Segment>
-        <Segment active={view === "library"} href="/app/estimates?view=library">
-          Library
-        </Segment>
-      </SegmentedRow>
-
       {view === "library" ? (
-        <LibraryClient embedded manager={manager} defaultIndustry={libraryIndustry} />
+        <>
+          <div className="mb-4">
+            <h2 className="ds-heavy-h2">Tool library</h2>
+            <p className="mt-1 text-[13.5px] text-[color:var(--ds-muted)]">Ready-made tools for your trade. Copy one and make it yours.</p>
+          </div>
+          <LibraryClient embedded manager={manager} defaultIndustry={libraryIndustry} />
+        </>
       ) : (
         <>
           {manager && building && (
@@ -219,8 +225,8 @@ export default function EstimatesClient({
             </>
           )}
 
-          <div className="ds-card overflow-hidden">
-            {tools.length === 0 ? (
+          {tools.length === 0 ? (
+            <div className="ds-card">
               <EmptyState
                 art="quotes"
                 hue="var(--ds-primary)"
@@ -230,30 +236,22 @@ export default function EstimatesClient({
                 actionLabel={filtered ? "Show all tools" : undefined}
                 showPlusIcon={false}
               />
-            ) : (
-              <>
-                <div className="divide-y divide-gray-100">
-                  <div className={`hidden bg-gray-50 px-4 py-2 text-xs font-medium text-gray-500 lg:grid lg:gap-4 ${GRID}`}>
-                    <span>Tool</span>
-                    <span>Questions</span>
-                    <span>Updated</span>
-                    <span>Status</span>
-                    <span></span>
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {tools.map((t, i) => (
+                  <div key={t.id} className="ds-rise" style={{ "--ds-i": i } as React.CSSProperties}>
+                    <ToolCard t={t} manager={manager} atlasName={atlas.name} tz={tz} onRun={(x) => setRunning([x])} />
                   </div>
-                  {tools.map((t) => (
-                    <ToolRow key={t.id} t={t} manager={manager} atlasName={atlas.name} tz={tz} onRun={(x) => setRunning([x])} />
-                  ))}
-                </div>
-                {/* Ledger foot */}
-                <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5">
-                  <span className="text-xs font-medium text-gray-500">
-                    {tools.length} {tools.length === 1 ? "tool" : "tools"}
-                    {filtered && totalCount !== tools.length ? ` of ${totalCount}` : ""}
-                  </span>
-                </div>
-              </>
-            )}
-          </div>
+                ))}
+              </div>
+              <p className="mt-3 text-xs font-medium text-[color:var(--ds-muted)]">
+                {tools.length} {tools.length === 1 ? "tool" : "tools"}
+                {filtered && totalCount !== tools.length ? ` of ${totalCount}` : ""}
+              </p>
+            </>
+          )}
           {brokenCount > 0 && (
             <p className="mt-3 text-xs text-[color:var(--ds-warn)]">
               {brokenCount} tool{brokenCount === 1 ? "" : "s"} no longer compile{brokenCount === 1 ? "s" : ""} and {brokenCount === 1 ? "is" : "are"} hidden.

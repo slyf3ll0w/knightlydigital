@@ -1876,8 +1876,8 @@ export default function AppShell({
     // Rects, not offsetTop: each row now sits in a `relative` quick-menu
     // wrapper, which made offsetTop read 0 and parked the bar on the first row.
     const top = el.getBoundingClientRect().top - nav.getBoundingClientRect().top + nav.scrollTop;
-    ind.style.transform = `translateY(${Math.round(top) + 5}px)`;
-    ind.style.height = `${el.offsetHeight - 10}px`;
+    ind.style.transform = `translateY(${Math.round(top)}px)`;
+    ind.style.height = `${el.offsetHeight}px`;
     ind.classList.add("rail-indicator-on");
   });
 
@@ -2401,9 +2401,9 @@ export default function AppShell({
         data-tour={tourKeys[href]}
         data-rail-active={active ? "true" : undefined}
         style={animIndex !== undefined ? { animationDelay: `${animIndex * 22}ms` } : undefined}
-        className={`${animIndex !== undefined ? "rail-item-in " : ""}group font-display flex items-center gap-2.5 py-2 pl-4 pr-4 text-[13px] transition-colors ${
+        className={`${animIndex !== undefined ? "rail-item-in " : ""}rail-row group font-display relative mx-2 flex items-center gap-2.5 rounded-[10px] py-[7px] pl-3 pr-3 text-[13.5px] transition-colors ${
           active
-            ? "font-semibold" /* wash + accent-leaning ink painted by the light-spill rule in globals.css */
+            ? "font-bold text-[color:var(--rail-ink)]" /* the solid puck behind it is .rail-indicator */
             : "font-medium text-[color:var(--rail-muted)] hover:bg-[var(--rail-hover)] hover:text-[color:var(--rail-ink)]"
         }`}
       >
@@ -2411,7 +2411,7 @@ export default function AppShell({
             glyphs read drawn rather than stamped */}
         <Icon
           size={16}
-          strokeWidth={1.8}
+          strokeWidth={active ? 2.2 : 1.8}
           data-anim={railAnims[href]}
           className={
             active
@@ -2463,7 +2463,7 @@ export default function AppShell({
                   type="button"
                   onClick={() => toggleGroup(g.key)}
                   aria-expanded={open}
-                  className={`w-full font-display flex items-center gap-2.5 py-2 pl-4 pr-4 text-[10.5px] font-semibold uppercase tracking-[0.12em] transition-colors hover:text-[color:var(--rail-muted)] ${
+                  className={`w-full font-display flex items-center gap-2.5 py-2 pl-5 pr-4 text-[12.5px] font-bold transition-colors hover:text-[color:var(--rail-muted)] ${
                     open ? "text-[color:var(--rail-muted)]" : "text-[color:var(--rail-faint)]"
                   }`}
                 >

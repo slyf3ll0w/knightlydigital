@@ -1401,6 +1401,7 @@ html[data-mode="dark"] .app-ui .card-tool {
   --rail-spill: 20%;
   --rail-num: #6B7280;
   --rail-num-due: #DC2626;
+  --rail-puck-shadow: 0 0 0 1px rgba(10, 19, 40, 0.07), 0 1px 2px rgba(10, 19, 40, 0.06), 0 8px 18px -10px rgba(10, 19, 40, 0.28);
   background-color: var(--rail-bg);
   /* The page sits ABOVE the rail: a whisper of inner shading at the shared
      edge gives the panel physical depth without drawing a second line. */
@@ -1410,18 +1411,17 @@ html[data-mode="dark"] .app-ui .card-tool {
   --rail-accent: var(--rail-accent-l, currentColor);
 }
 
-/* The active row's wash is LIGHT SPILLING FROM THE BAR — strongest against
-   the indicator's edge, fading across the row. Ties the wash physically to
-   the lit bar instead of reading as a generic selected-state tint. The
-   label's ink leans toward the accent the same way. */
+/* Heavy look (2026-11-21, David: no left-edge bar): the active row is a
+   SOLID white puck — the card recipe (ring + soft shadow) sitting on the
+   tinted rail. Inside the nav the puck is .rail-indicator, which travels
+   between rows; rows outside it (Settings) paint their own. */
 .rail-gray a[data-rail-active="true"] {
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--rail-accent) var(--rail-spill), transparent),
-    var(--rail-active) 45%,
-    color-mix(in srgb, var(--rail-accent) 4%, transparent)
-  );
-  color: color-mix(in srgb, var(--rail-accent) 28%, var(--rail-ink));
+  background: var(--ds-surface, #fff);
+  box-shadow: var(--rail-puck-shadow);
+}
+.rail-gray nav a[data-rail-active="true"] {
+  background: transparent;
+  box-shadow: none;
 }
 
 /* Hover: the row's icon leans toward where you're headed — a 1.5px nudge on
@@ -1586,7 +1586,7 @@ html[data-mode="dark"] .app-ui .card-tool {
 /* The active row's icon is LIT like the bar beside it — a soft cast of its
    own accent, the indicator's glow at glyph scale. */
 .rail-gray a[data-rail-active="true"] > svg {
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--rail-accent) 50%, transparent));
+  filter: none;
 }
 
 /* ── Group heads: the label sits set INTO a hairline that runs out toward
@@ -1612,12 +1612,12 @@ html[data-mode="dark"] .app-ui .card-tool {
    system. Positioned by AppShell against the row's offsetTop. */
 .rail-indicator {
   position: absolute;
-  left: 0;
+  left: 8px;
+  right: 8px;
   top: 0;
-  width: 3px;
-  background: var(--rail-accent, currentColor);
-  /* A soft cast of its own color — the bar reads lit, not printed */
-  box-shadow: 0 0 10px 1px color-mix(in srgb, var(--rail-accent, currentColor) 35%, transparent);
+  border-radius: 10px;
+  background: var(--ds-surface, #fff);
+  box-shadow: var(--rail-puck-shadow);
   opacity: 0;
   /* The travel overshoots a hair and settles — the house spring, so the
      bar arrives with mass instead of easing politely into place. */
@@ -2693,6 +2693,7 @@ html[data-mode="dark"] .app-ui .card-tool {
     --rail-num: #8e99ad;
     --rail-num-due: #f87171;
     --rail-accent: var(--rail-accent-d, #ffffff);
+    --rail-puck-shadow: 0 0 0 1px rgba(255, 255, 255, 0.09), 0 8px 18px -10px rgba(0, 0, 0, 0.7);
     box-shadow: inset -8px 0 14px -10px rgba(0, 0, 0, 0.5);
   }
 

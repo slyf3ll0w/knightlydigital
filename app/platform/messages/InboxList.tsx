@@ -92,7 +92,7 @@ export default function InboxList({ initial, tz }: { initial: InboxRow[]; tz: st
   }
 
   return (
-    <div className="ds-card mt-6 overflow-hidden">
+    <div className="ds-card ds-card-raised mt-6 overflow-hidden">
       {rows.map((r, i) => (
         <Link
           key={r.contactId}

@@ -187,29 +187,26 @@ a.ds-row:active { background: var(--ds-line); }
 .ds-disc:active { transform: scale(0.94); }
 
 /* ── chips (status tags) ──────────────────────────────────────────────── */
-/* Round 4: a status is a colored dot and plain words (the Linear / Stripe
-   read) — no tinted pill, which David read as generated. The dot carries
-   the tone; the words stay ink, except a problem, which stays red. */
+/* 2026-11-21 (heavy look): a status is a solid tag — tinted fill, the tone's
+   own ink, a small icon for the state, a firm 7px corner. Replaced the
+   round-4 dot-and-words, which David found too faint for the heavy style. */
 .ds-chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  height: 22px; padding: 0 2px; border-radius: 999px;
-  font-size: 12px; font-weight: 500; letter-spacing: 0; white-space: nowrap;
-  color: var(--ds-ink-2);
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 24px; padding: 0 9px 0 7px; border-radius: 7px;
+  font-size: 12.5px; font-weight: 650; letter-spacing: -0.005em; white-space: nowrap;
   --chip: var(--ds-faint);
+  color: color-mix(in srgb, var(--chip) 82%, var(--ds-ink));
+  background: color-mix(in srgb, var(--chip) 13%, var(--ds-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chip) 16%, transparent);
 }
-.ds-chip::before {
-  content: ""; display: inline-block; flex: none;
-  width: 7px; height: 7px; border-radius: 999px;
-  background: var(--chip);
-  box-shadow: 0 0 0 2.5px color-mix(in srgb, var(--chip) 22%, transparent);
-}
-.ds-chip > svg { display: none; }
+.ds-chip > svg { flex: none; }
 .ds-chip-primary { --chip: var(--ds-primary); }
 .ds-chip-secondary { --chip: var(--ds-secondary); }
 .ds-chip-good { --chip: var(--ds-good); }
 .ds-chip-warn { --chip: var(--ds-warn); }
-.ds-chip-bad { --chip: var(--ds-bad); color: var(--ds-bad); font-weight: 600; }
-.ds-chip-neutral { --chip: var(--ds-faint); }
+.ds-chip-bad { --chip: var(--ds-bad); }
+.ds-chip-neutral { --chip: var(--ds-muted, #6B7280); }
+html[data-mode="dark"] .ds-chip { color: color-mix(in srgb, var(--chip) 88%, #fff); background: color-mix(in srgb, var(--chip) 16%, var(--ds-surface)); }
 
 /* count badge in a list row */
 .ds-count {
@@ -319,18 +316,13 @@ html[data-mode="dark"] .ds .card-tool {
 /* the Oxanium-era cut corner retires with Oxanium */
 .ds .chamfer { clip-path: none; border-radius: 12px; }
 
-/* status pill → the same dot-and-words read as .ds-chip (tone from the
+/* legacy .stamp pills → the same solid tag read as .ds-chip (tone from the
    text color the caller already passes) */
 .ds .stamp {
-  height: 22px; padding: 0 2px; gap: 6px;
-  font-size: 12px; font-weight: 500; letter-spacing: 0;
-  background: transparent;
-}
-.ds .stamp::before {
-  content: ""; display: inline-block; flex: none;
-  width: 7px; height: 7px; border-radius: 999px;
-  background: currentColor;
-  box-shadow: 0 0 0 2.5px color-mix(in srgb, currentColor 22%, transparent);
+  height: 24px; padding: 0 9px; gap: 5px; border-radius: 7px;
+  font-size: 12.5px; font-weight: 650; letter-spacing: -0.005em;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 14%, transparent);
 }
 
 /* big numerals: Lexend like everything else */
@@ -485,11 +477,9 @@ html[data-mode="dark"] .ds .ds-tile-c { --tile: #4B5A78; }
 html[data-mode="dark"] .ds .ds-tile-d { --tile: #5A6A85; }
 html[data-mode="dark"] .ds .ds-tile-e { --tile: #6F7E96; }
 
-/* list rows inside a card: a secondary hairline slides in on hover, and
-   the ledger foot's total wears the secondary — so a page full of rows
-   carries the brand pair, not just the primary */
-.ds .ds-card .hover\:bg-gray-50:hover,
-.ds .ds-card a.ds-row:hover { box-shadow: inset 3px 0 0 var(--ds-secondary); }
+/* list rows inside a card: hover is a plain fill. The secondary left-edge
+   hairline retired 2026-11-21 (David: no border-on-the-left pickers). The
+   ledger foot's total still wears the secondary. */
 .ds-ledger-total { color: var(--ds-secondary-strong); }
 html[data-mode="dark"] .ds .ds-ledger-total { color: var(--ds-secondary); }
 /* Title reveal (replaced the hand-drawn underline, 2026-09-26 — David:
@@ -729,3 +719,150 @@ html[data-mode="dark"] .ds { --rail-news: var(--ds-secondary); }
 }
 @keyframes ds-band-grow { from { transform: scaleX(0); } to { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-band-fill { animation: none; } }
+
+/* ── List bands (components/ListBands.tsx, 2026-11-21) ──────────────────────
+   One brand band per list page, each drawn from that page's own data. Ink is
+   the band's on-primary; white "letters" inside the Requests band are the
+   only cards that sit on a band. */
+.ds-lb { padding: 20px; }
+@media (min-width: 1024px) { .ds-lb { padding: 24px 28px; } }
+.ds-lb-grid { display: grid; gap: 20px; }
+@media (min-width: 1024px) {
+  .ds-lb-grid { grid-template-columns: minmax(0, 1fr) 280px; gap: 36px; align-items: start; }
+  .ds-lb-grid.is-inbox { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); }
+}
+.ds-lb-label { font-size: 13.5px; font-weight: 700; opacity: 0.85; }
+.ds-lb-note { margin-top: 6px; font-size: 13.5px; font-weight: 500; opacity: 0.8; }
+.ds-lb-big { display: block; margin-top: 4px; font-size: 40px; line-height: 1.05; font-weight: 800; letter-spacing: -0.035em; color: inherit; }
+@media (min-width: 1024px) { .ds-lb-big { font-size: 46px; } }
+a.ds-lb-big:hover { opacity: 0.92; }
+
+/* right-hand panel: a darker inset well on the band */
+.ds-lb-side {
+  border-radius: 14px; padding: 14px 16px;
+  background: color-mix(in srgb, #000 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 10%, transparent);
+}
+.ds-lb-sidelink {
+  display: flex; align-items: center; gap: 10px; margin: 0 -8px; padding: 8px;
+  border-radius: 9px; font-size: 14px; font-weight: 600; color: inherit;
+  transition: background-color var(--ds-dur) var(--ds-ease);
+}
+.ds-lb-sidelink:hover { background: color-mix(in srgb, #fff 12%, transparent); }
+.ds-lb-sidelink + .ds-lb-sidelink { margin-top: 2px; }
+.ds-lb-sidevalue { margin-left: auto; font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
+.ds-lb-sidelink.is-alert .ds-lb-sidevalue {
+  padding: 0 8px; border-radius: 7px; background: var(--ds-secondary); color: var(--ds-on-secondary);
+}
+.ds-lb-side .ds-lb-big { font-size: 32px; }
+@media (min-width: 1024px) { .ds-lb-side .ds-lb-big { font-size: 34px; } }
+
+/* Quotes: the pipeline */
+.ds-lb-pipe { display: flex; align-items: stretch; gap: 6px; margin-top: 12px; }
+.ds-lb-pipe-arrow { align-self: center; flex: none; opacity: 0.55; }
+.ds-lb-stage {
+  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+  padding: 12px 14px; border-radius: 14px; color: inherit;
+  background: color-mix(in srgb, #fff 11%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 14%, transparent);
+  transition: background-color var(--ds-dur) var(--ds-ease);
+}
+.ds-lb-stage:hover { background: color-mix(in srgb, #fff 18%, transparent); }
+.ds-lb-stage-label { font-size: 13px; font-weight: 700; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ds-lb-stage-count { font-size: 34px; line-height: 1.05; font-weight: 800; letter-spacing: -0.03em; }
+.ds-lb-stage-sub { font-size: 13.5px; font-weight: 600; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 639px) {
+  .ds-lb-pipe { gap: 2px; }
+  .ds-lb-stage { padding: 10px; }
+  .ds-lb-stage-count { font-size: 26px; }
+  .ds-lb-pipe-arrow { width: 14px; }
+}
+
+/* Jobs: the week strip */
+.ds-lb-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
+.ds-lb-day {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 4px 10px; border-radius: 12px; color: inherit;
+  transition: background-color var(--ds-dur) var(--ds-ease);
+}
+.ds-lb-day:hover { background: color-mix(in srgb, #fff 12%, transparent); }
+.ds-lb-day-count { height: 18px; font-size: 14px; font-weight: 800; }
+.ds-lb-day-track {
+  position: relative; width: 100%; max-width: 44px; height: 64px; border-radius: 8px; overflow: hidden;
+  background: color-mix(in srgb, #fff 12%, transparent); display: flex; align-items: flex-end;
+}
+.ds-lb-day-bar {
+  width: 100%; border-radius: 8px; background: #fff;
+  transform-origin: bottom; animation: ds-lb-grow 700ms var(--ds-ease) both; animation-delay: 160ms;
+}
+@keyframes ds-lb-grow { from { transform: scaleY(0); } to { transform: none; } }
+.ds-lb-day-dow { margin-top: 2px; font-size: 12px; font-weight: 600; opacity: 0.8; }
+.ds-lb-day-date { font-size: 15px; font-weight: 800; }
+.ds-lb-day.is-past { opacity: 0.62; }
+.ds-lb-day.is-today { background: color-mix(in srgb, #fff 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 22%, transparent); opacity: 1; }
+.ds-lb-day.is-today .ds-lb-day-bar { background: var(--ds-secondary); }
+.ds-lb-day.is-today .ds-lb-day-date {
+  min-width: 26px; padding: 0 6px; border-radius: 7px; text-align: center;
+  background: var(--ds-secondary); color: var(--ds-on-secondary);
+}
+@media (max-width: 639px) { .ds-lb-week { gap: 2px; } .ds-lb-day-track { height: 48px; } }
+
+/* Invoices: the owed split */
+.ds-lb-split { display: flex; gap: 4px; height: 12px; margin-top: 14px; }
+.ds-lb-split > span { border-radius: 999px; transform-origin: left; animation: ds-band-grow 800ms var(--ds-ease) 160ms both; }
+.ds-lb-split-due { background: var(--ds-secondary); }
+.ds-lb-split-wait { background: #fff; }
+.ds-lb-split-none { background: color-mix(in srgb, #fff 20%, transparent); }
+.ds-lb-legend { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 12px; }
+.ds-lb-key { display: inline-flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 500; color: inherit; }
+.ds-lb-key b { font-weight: 800; }
+.ds-lb-key:hover { text-decoration: underline; text-underline-offset: 3px; }
+.ds-lb-swatch { width: 10px; height: 10px; border-radius: 3px; }
+.ds-lb-swatch.is-due { background: var(--ds-secondary); }
+.ds-lb-swatch.is-wait { background: #fff; }
+
+/* Requests: the inbox — white letters on the band */
+.ds-lb-flag {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 12px; height: 30px; padding: 0 12px;
+  border-radius: 8px; font-size: 13.5px; font-weight: 700;
+  background: var(--ds-secondary); color: var(--ds-on-secondary);
+}
+.ds-lb-inbox { display: flex; flex-direction: column; gap: 8px; }
+.ds-lb-letter {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px;
+  background: var(--ds-surface); color: var(--ds-ink);
+  box-shadow: 0 1px 2px rgba(10, 19, 40, 0.12), 0 10px 22px -14px rgba(10, 19, 40, 0.5);
+  transition: transform var(--ds-dur) var(--ds-ease);
+}
+.ds-lb-letter:hover { transform: translateY(-1px); }
+.ds-lb-age {
+  flex: none; padding: 3px 8px; border-radius: 7px; font-size: 12.5px; font-weight: 700;
+  background: var(--ds-surface-2); color: var(--ds-ink-2);
+}
+.ds-lb-age.is-alert { background: var(--ds-secondary); color: var(--ds-on-secondary); }
+@media (prefers-reduced-motion: reduce) {
+  .ds-lb-day-bar, .ds-lb-split > span { animation: none; }
+  .ds-lb-letter:hover { transform: none; }
+}
+
+/* ── Estimates: tools as a shelf of solid cards (2026-11-21) ─────────────── */
+.ds-tool-card {
+  display: flex; flex-direction: column; height: 100%; padding: 18px 18px 14px;
+  color: inherit; transition: box-shadow var(--ds-dur) var(--ds-ease), transform var(--ds-dur) var(--ds-ease);
+}
+.ds-tool-card:hover { box-shadow: var(--ds-shadow-float); transform: translateY(-2px); }
+.ds-tool-card.is-off { opacity: 0.72; }
+.ds-tool-icon {
+  display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--ds-primary), var(--ds-primary-strong)); color: var(--ds-on-primary);
+  box-shadow: 0 6px 14px -8px color-mix(in srgb, var(--ds-primary) 80%, transparent);
+}
+.ds-tool-fact {
+  display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: 7px;
+  font-size: 12px; font-weight: 600; background: var(--ds-surface-2); color: var(--ds-ink-2);
+}
+.ds-tool-foot {
+  margin-top: auto; padding-top: 14px; display: flex; justify-content: space-between; gap: 8px;
+  font-size: 12.5px; font-weight: 500; color: var(--ds-muted);
+}
+@media (prefers-reduced-motion: reduce) { .ds-tool-card:hover { transform: none; } }

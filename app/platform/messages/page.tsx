@@ -34,7 +34,7 @@ export default async function MessagesInboxPage() {
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center justify-between gap-2">
-        <PageTitle section="chat" icon={MessageSquare}>
+        <PageTitle heavy section="chat" icon={MessageSquare}>
           Messages
         </PageTitle>
         <NewMessageButton hasLine={hasLine} />

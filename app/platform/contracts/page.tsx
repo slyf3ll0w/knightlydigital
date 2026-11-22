@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { ChevronRight, FileSignature, Plus } from "lucide-react";
+import { ArrowLeft, ChevronRight, FileSignature, Files, Plus } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import { shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
@@ -9,7 +9,7 @@ import EmptyState from "@/components/EmptyState";
 import Monogram from "@/components/Monogram";
 import MobileSearch from "@/components/MobileSearch";
 import FilterBar, { listHref } from "@/components/FilterBar";
-import { SegmentedRow, Segment } from "@/components/FilterChips";
+import { SignBand, waitedFor } from "@/components/ListBands";
 import Pager from "@/components/Pager";
 import { pickSort, CONTRACT_SORTS, contractOrderBy } from "@/lib/list-sort";
 import { requirePageActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
@@ -54,16 +54,6 @@ export default async function ContractsPage({
   const { view: viewRaw, status, q, page: pageParam, sort: sortRaw } = await searchParams;
   const view: "agreements" | "templates" = manager && viewRaw === "templates" ? "templates" : "agreements";
 
-  const viewSwitch = manager ? (
-    <SegmentedRow className="mb-4 max-w-xs">
-      <Segment active={view === "agreements"} href="/app/contracts">
-        Agreements
-      </Segment>
-      <Segment active={view === "templates"} href="/app/contracts?view=templates">
-        Templates
-      </Segment>
-    </SegmentedRow>
-  ) : null;
 
   // ── Templates view ────────────────────────────────────────────────────
   if (view === "templates") {
@@ -76,14 +66,20 @@ export default async function ContractsPage({
       <div className="p-4 lg:p-8 max-w-6xl mx-auto">
         <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
           <PageTitle
+            heavy
             section="contracts"
             icon={FileSignature}
-            info="Every agreement you've sent, and the templates they start from."
+            info="The reusable agreements you start from. Pick one when you send an agreement and fill in the client's details."
           >
-            Agreements
+            Templates
           </PageTitle>
           {/* Templates aren't in the phone create sheet, so the button stays
               on every screen size — icon-only under sm */}
+          <div className="flex items-center gap-2">
+          <Link href="/app/contracts" prefetch={false} className="ds-btn ds-btn-outline h-10 shrink-0">
+            <ArrowLeft size={15} />
+            Agreements
+          </Link>
           <Link
             href="/app/contracts?view=templates&new=1"
             aria-label="New template"
@@ -92,8 +88,8 @@ export default async function ContractsPage({
             <Plus size={15} />
             <span className="hidden sm:inline">New template</span>
           </Link>
+          </div>
         </div>
-        {viewSwitch}
         <TemplatesPanel templates={templates} />
       </div>
     );
@@ -128,7 +124,8 @@ export default async function ContractsPage({
     : {};
   const listWhere = { companyId, ...scope, ...(validStatus ? { status: validStatus } : {}), ...search };
 
-  const [contracts, listCount] = await Promise.all([
+  const since30 = new Date(Date.now() - 30 * 86400000);
+  const [contracts, listCount, outCount, oldestOut, signed30, draftCount, templateCount] = await Promise.all([
     prisma.contract.findMany({
       where: listWhere,
       include: { contact: { select: { id: true, firstName: true, lastName: true } } },
@@ -137,6 +134,11 @@ export default async function ContractsPage({
       skip: (page - 1) * PAGE_SIZE,
     }),
     prisma.contract.count({ where: listWhere }),
+    prisma.contract.count({ where: { companyId, ...scope, status: "SENT" } }),
+    prisma.contract.findFirst({ where: { companyId, ...scope, status: "SENT" }, orderBy: { sentAt: "asc" }, select: { sentAt: true, createdAt: true } }),
+    prisma.contract.count({ where: { companyId, ...scope, status: "SIGNED", signedAt: { gte: since30 } } }),
+    prisma.contract.count({ where: { companyId, ...scope, status: "DRAFT" } }),
+    manager ? prisma.contractTemplate.count({ where: { companyId, isActive: true } }) : Promise.resolve(0),
   ]);
 
   const filtered = Boolean(validStatus || query);
@@ -145,6 +147,7 @@ export default async function ContractsPage({
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
         <PageTitle
+          heavy
           section="contracts"
           icon={FileSignature}
           info={
@@ -155,16 +158,31 @@ export default async function ContractsPage({
         >
           Agreements
         </PageTitle>
-        {/* Phones create from the tab-bar FAB */}
-        <div className="hidden lg:flex items-center gap-2">
-          <Link href="/app/contracts/new" className="btn-primary">
+        <div className="flex items-center gap-2">
+          {manager && (
+            <Link href="/app/contracts?view=templates" prefetch={false} className="ds-btn ds-btn-outline h-10 shrink-0">
+              <Files size={15} />
+              Templates
+              {templateCount > 0 && <span className="rounded-[6px] bg-[color:var(--ds-surface-2)] px-1.5 text-[12px] font-bold text-[color:var(--ds-ink-2)]">{templateCount}</span>}
+            </Link>
+          )}
+          {/* Phones create from the tab-bar FAB */}
+          <Link href="/app/contracts/new" className="btn-primary hidden lg:inline-flex">
             <Plus size={15} />
             New agreement
           </Link>
         </div>
       </div>
 
-      {viewSwitch}
+      <SignBand
+        out={outCount}
+        oldest={oldestOut ? waitedFor(oldestOut.sentAt ?? oldestOut.createdAt) : null}
+        outHref="/app/contracts?status=SENT"
+        signed30={signed30}
+        signedHref="/app/contracts?status=SIGNED"
+        drafts={draftCount}
+        draftsHref="/app/contracts?status=DRAFT"
+      />
 
       <MobileSearch
         action="/app/contracts"

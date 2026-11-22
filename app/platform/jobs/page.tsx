@@ -8,7 +8,8 @@ import { money, shortDate } from "@/lib/statuses";
 import { fmtTime } from "@/lib/format";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
-import KpiStrip from "@/components/KpiStrip";
+import { WeekBand } from "@/components/ListBands";
+import { startOfWeekIn, zonedParts } from "@/lib/timezone";
 import MobileSearch from "@/components/MobileSearch";
 import Monogram from "@/components/Monogram";
 import FilterBar, { listHref } from "@/components/FilterBar";
@@ -72,7 +73,10 @@ export default async function JobsPage({
     ...(unscheduled ? { scheduledAt: null } : {}),
     ...search,
   };
-  const [jobs, listCount, activeCount, requiresInvoicingCount, unscheduledCount] = await Promise.all([
+  // This week (Sun–Sat, company zone) for the band's strip
+  const weekStart = startOfWeekIn(tz, new Date());
+  const weekEnd = new Date(weekStart.getTime() + 8 * 86400000);
+  const [jobs, listCount, activeCount, requiresInvoicingCount, unscheduledCount, weekJobs] = await Promise.all([
     prisma.job.findMany({
       where: listWhere,
       include: { contact: true, lineItems: true, invoice: { select: { id: true } } },
@@ -84,24 +88,31 @@ export default async function JobsPage({
     prisma.job.count({ where: { companyId, ...scope, status: "ACTIVE" } }),
     prisma.job.count({ where: { companyId, ...scope, status: "REQUIRES_INVOICING" } }),
     prisma.job.count({ where: { companyId, ...scope, status: "ACTIVE", scheduledAt: null } }),
+    prisma.job.findMany({
+      where: { companyId, ...scope, status: { not: "ARCHIVED" }, scheduledAt: { gte: weekStart, lt: weekEnd } },
+      select: { scheduledAt: true },
+    }),
   ]);
+  const ymd = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: tz });
+  const todayKey = ymd(new Date());
+  const perDay = new Map<string, number>();
+  for (const j of weekJobs) if (j.scheduledAt) perDay.set(ymd(j.scheduledAt), (perDay.get(ymd(j.scheduledAt)) ?? 0) + 1);
+  const week = Array.from({ length: 7 }, (_, i) => {
+    // noon of each day keeps DST edges from slipping a date
+    const at = new Date(weekStart.getTime() + i * 86400000 + 12 * 3600000);
+    const key = ymd(at);
+    const p = zonedParts(tz, at);
+    return {
+      key,
+      dow: at.toLocaleDateString("en-US", { weekday: "short", timeZone: tz }),
+      date: p.d,
+      count: perDay.get(key) ?? 0,
+      today: key === todayKey,
+      past: key < todayKey,
+      href: `/app/schedule?view=day&date=${key}`,
+    };
+  });
 
-  const kpis = [
-    { label: "Active", value: activeCount, href: "/app/jobs?status=ACTIVE", zero: activeCount === 0 },
-    {
-      label: "Requires invoicing",
-      mobileLabel: "To invoice",
-      value: requiresInvoicingCount,
-      href: "/app/jobs?status=REQUIRES_INVOICING",
-      zero: requiresInvoicingCount === 0,
-    },
-    {
-      label: "Unscheduled",
-      value: unscheduledCount,
-      href: "/app/jobs?status=ACTIVE&unscheduled=1",
-      zero: unscheduledCount === 0,
-    },
-  ];
 
   const pageTotal = jobs.reduce(
     (s, j) => s + j.lineItems.reduce((t, li) => t + Number(li.total), 0),
@@ -111,7 +122,7 @@ export default async function JobsPage({
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
-        <PageTitle section="jobs" icon={Briefcase}>
+        <PageTitle heavy section="jobs" icon={Briefcase}>
           Jobs
         </PageTitle>
         {/* Phones create from the tab-bar FAB — a second button here just
@@ -143,7 +154,12 @@ export default async function JobsPage({
         params={{ status: validStatus, unscheduled, sort: sortRaw }}
       />
 
-      <KpiStrip kpis={kpis} desktopCols={3} />
+      <WeekBand
+        days={week}
+        active={{ count: activeCount, href: "/app/jobs?status=ACTIVE" }}
+        toInvoice={{ count: requiresInvoicingCount, href: "/app/jobs?status=REQUIRES_INVOICING" }}
+        unscheduled={{ count: unscheduledCount, href: "/app/jobs?status=ACTIVE&unscheduled=1" }}
+      />
 
       <FilterBar
         options={statusFilters}
