@@ -119,7 +119,10 @@ export default function Overview({
         <div className="relative ds-lb-grid">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="ds-lb-label">Gross volume · {rangeLabel.toLowerCase()}</p>
+              <p className="ds-lb-label">
+                <span>Gross volume</span>
+                <span className="opacity-75"> · {rangeLabel.toLowerCase()}</span>
+              </p>
               <nav aria-label="Range" className="ds-lb-range">
                 {RANGES.map((r) => (
                   <Link
