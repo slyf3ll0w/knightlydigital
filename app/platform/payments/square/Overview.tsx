@@ -111,86 +111,85 @@ export default function Overview({
     { label: "Refunds", value: t.refunds > 0 ? money(t.refunds / 100) : "—", note: t.refunds > 0 ? "given back" : "none" },
   ];
 
+  // Heavy look (2026-11-21): the headline numbers sit on the page's one
+  // brand band; the chart and the breakdown are solid cards under it.
   return (
-    <section className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
-      <div className="ds-card min-w-0 p-4 sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+    <>
+      <section className="ds-hero ds-rise ds-lb mb-5" style={{ "--ds-i": 1 } as React.CSSProperties}>
+        <div className="relative ds-lb-grid">
           <div className="min-w-0">
-            <p className="text-[13px] font-medium text-[color:var(--ds-muted)]">Gross volume</p>
-            <p className="numeral-ledger mt-0.5 text-[28px] font-semibold leading-tight tracking-tight text-[color:var(--ds-ink)]">{money(t.gross / 100)}</p>
-            <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-[color:var(--ds-muted)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="ds-lb-label">Gross volume · {rangeLabel.toLowerCase()}</p>
+              <nav aria-label="Range" className="ds-lb-range">
+                {RANGES.map((r) => (
+                  <Link
+                    key={r.value}
+                    prefetch={false}
+                    scroll={false}
+                    href={listHref("/app/payments", {}, { tab, range: r.value === "30d" ? undefined : r.value })}
+                    aria-current={r.value === range ? "true" : undefined}
+                    title={r.label}
+                  >
+                    {r.short}
+                  </Link>
+                ))}
+              </nav>
+            </div>
+            <p className="ds-lb-big">{money(t.gross / 100)}</p>
+            <p className="ds-lb-note flex flex-wrap items-center gap-x-2 gap-y-1">
               {change != null && (
-                <span
-                  className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-medium ${
-                    change >= 0 ? "bg-[color:var(--ds-good-soft)] text-[color:var(--ds-good)]" : "bg-[color:var(--ds-bad-soft)] text-[color:var(--ds-bad)]"
-                  }`}
-                >
-                  {change >= 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+                <span className={`ds-lb-change ${change >= 0 ? "is-up" : "is-down"}`}>
+                  {change >= 0 ? <ArrowUpRight size={13} strokeWidth={2.6} /> : <ArrowDownRight size={13} strokeWidth={2.6} />}
                   {Math.abs(change * 100).toFixed(change !== 0 && Math.abs(change) < 0.1 ? 1 : 0)}%
                 </span>
               )}
               <span>
-                {money(p.gross / 100)} the period before · {t.count} {t.count === 1 ? "payment" : "payments"}
+                {t.count} {t.count === 1 ? "payment" : "payments"} · {money(p.gross / 100)} the period before
               </span>
             </p>
           </div>
-          <nav aria-label="Range" className="flex rounded-lg bg-[color:var(--ds-surface-2)] p-0.5">
-            {RANGES.map((r) => (
-              <Link
-                key={r.value}
-                prefetch={false}
-                scroll={false}
-                href={listHref("/app/payments", {}, { tab, range: r.value === "30d" ? undefined : r.value })}
-                aria-current={r.value === range ? "true" : undefined}
-                title={r.label}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                  r.value === range
-                    ? "bg-[color:var(--ds-surface)] text-[color:var(--ds-ink)] shadow-sm"
-                    : "text-[color:var(--ds-muted)] hover:text-[color:var(--ds-ink)]"
-                }`}
-              >
-                {r.short}
+          <div className="ds-lb-side">
+            <p className="ds-lb-label">On its way to your bank</p>
+            <Link prefetch={false} href="/app/payments?tab=payouts" className="ds-lb-big">
+              {onTheWayCents == null ? "—" : money(onTheWayCents / 100)}
+            </Link>
+            <p className="ds-lb-note !mt-1">{payoutsNote}</p>
+            <div className="mt-2 border-t border-white/15 pt-1">
+              <Link prefetch={false} href="/app/payments?tab=disputes" className={`ds-lb-sidelink ${openDisputes ? "is-alert" : ""}`}>
+                <span className="min-w-0 truncate">Open disputes</span>
+                <span className="ds-lb-sidevalue">{openDisputes == null ? "—" : openDisputes}</span>
               </Link>
-            ))}
-          </nav>
-        </div>
-        <div className="mt-4">
-          <VolumeChart points={points} />
-        </div>
-        <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[color:var(--ds-muted)]">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-0.5 w-3 rounded bg-[color:var(--ds-primary)]" /> {rangeLabel}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="w-3 border-t border-dashed border-[color:var(--ds-muted)]" /> Period before
-          </span>
-        </p>
-      </div>
-
-      {/* One card of figures: a 2-up grid on a phone, a column beside the chart on a desk; gap-px over the line color draws the hairlines. */}
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[var(--ds-r-lg)] bg-[color:var(--ds-line)] shadow-[var(--ds-shadow-1)] lg:grid-cols-1">
-        {side.map((s) => (
-          <div key={s.label} className="bg-[color:var(--ds-surface)] px-4 py-3">
-            <p className="text-xs text-[color:var(--ds-muted)]">{s.label}</p>
-            <p className="numeral-ledger mt-0.5 text-lg font-semibold text-[color:var(--ds-ink)]">{s.value}</p>
-            <p className="text-[11px] text-[color:var(--ds-muted)]">{s.note}</p>
+            </div>
           </div>
-        ))}
-        <Link prefetch={false} href="/app/payments?tab=payouts" className="block bg-[color:var(--ds-surface)] px-4 py-3 transition-colors hover:bg-[color:var(--ds-surface-2)]">
-          <p className="text-xs text-[color:var(--ds-muted)]">On its way to your bank</p>
-          <p className="numeral-ledger mt-0.5 text-lg font-semibold text-[color:var(--ds-ink)]">
-            {onTheWayCents == null ? "—" : money(onTheWayCents / 100)}
+        </div>
+      </section>
+
+      <section className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
+        <div className="ds-card ds-card-raised min-w-0 p-4 sm:p-5">
+          <h2 className="ds-heavy-h2">Volume by day</h2>
+          <div className="mt-4">
+            <VolumeChart points={points} />
+          </div>
+          <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] font-medium text-[color:var(--ds-muted)]">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-0.5 w-3 rounded bg-[color:var(--ds-primary)]" /> {rangeLabel}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-3 border-t border-dashed border-[color:var(--ds-muted)]" /> Period before
+            </span>
           </p>
-          <p className="text-[11px] text-[color:var(--ds-muted)]">{payoutsNote}</p>
-        </Link>
-        <Link prefetch={false} href="/app/payments?tab=disputes" className="col-span-2 block bg-[color:var(--ds-surface)] px-4 py-3 transition-colors hover:bg-[color:var(--ds-surface-2)] lg:col-span-1">
-          <p className="text-xs text-[color:var(--ds-muted)]">Open disputes</p>
-          <p className={`numeral-ledger mt-0.5 text-lg font-semibold ${openDisputes ? "text-[color:var(--ds-bad)]" : "text-[color:var(--ds-ink)]"}`}>
-            {openDisputes == null ? "—" : openDisputes}
-          </p>
-          <p className="text-[11px] text-[color:var(--ds-muted)]">{disputesNote}</p>
-        </Link>
-      </div>
-    </section>
+        </div>
+
+        <div className="ds-card ds-card-raised grid grid-cols-3 divide-x divide-[color:var(--ds-line)] overflow-hidden lg:grid-cols-1 lg:divide-x-0 lg:divide-y">
+          {side.map((x) => (
+            <div key={x.label} className="px-4 py-4">
+              <p className="text-[12.5px] font-semibold text-[color:var(--ds-muted)]">{x.label}</p>
+              <p className="numeral-ledger mt-1 text-[22px] font-extrabold tracking-[-0.02em] text-[color:var(--ds-ink)]">{x.value}</p>
+              <p className="text-[12px] text-[color:var(--ds-muted)]">{x.note}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }

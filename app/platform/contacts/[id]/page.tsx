@@ -11,6 +11,7 @@ import StatusChip from "@/components/StatusChip";
 import BackLink from "@/components/BackLink";
 import BackParent from "@/components/BackParent";
 import PageTitle from "@/components/PageTitle";
+import Monogram from "@/components/Monogram";
 import ContactStatus from "@/components/ContactStatus";
 import CallTextButtons from "@/components/CallTextButtons";
 import CallLink from "@/components/CallLink";
@@ -262,9 +263,9 @@ export default async function ContactDetailPage({
     contact.kind === "CONTACT" ? "/app/contacts?status=CONTACTS" : contact.status === "LEAD" ? "/app/leads" : "/app/contacts";
 
   return (
-    <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+    <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex flex-wrap items-center gap-3 mb-4">
         {/* A lead's list is the Leads board, not Clients (David 2026-10-06) */}
         <BackLink href={backTo} />
         {contact.status === "LEAD" && <BackParent to="/app/leads" />}
@@ -274,78 +275,101 @@ export default async function ContactDetailPage({
             Repeat
           </span>
         )}
+        {contact.phone && (
+          <span
+            className={`ds-chip ${
+              contact.smsOptOut
+                ? "ds-chip-bad"
+                : contact.smsDisabled || !textsReady
+                  ? "ds-chip-neutral"
+                  : "ds-chip-good"
+            }`}
+            title={
+              contact.smsOptOut
+                ? "Replied STOP — automated texts are off until they reply START"
+                : contact.smsDisabled
+                  ? contact.smsConsentSource === "booking_declined"
+                    ? "Left the text box unchecked when they booked — edit the client to turn texts on"
+                    : "Texts switched off for this client — edit the client to turn them on"
+                  : !textsReady
+                    ? textsSetupHint
+                    : `Reminders and links go out by text${contact.smsConsentNote ? ` · ${contact.smsConsentNote}` : ""}`
+            }
+          >
+            {contact.smsOptOut
+              ? "Texts: opted out"
+              : contact.smsDisabled
+                ? "Texts: off"
+                : !textsReady
+                  ? hasLine && !lineRegistered
+                    ? "Texts: pending"
+                    : "Texts: not set up"
+                  : "Texts: on"}
+          </span>
+        )}
       </div>
 
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-        <div className="min-w-0">
-          <PageTitle>{`${contact.firstName} ${contact.lastName}`.trim()}</PageTitle>
+      {/* Heavy look (2026-11-21): the client's band — who they are, how to
+          reach them, and what they're worth / owe — then the actions. */}
+      <section className="ds-hero ds-rise ds-lb ds-client-band mb-4" style={{ "--ds-i": 1 } as React.CSSProperties}>
+        <div className="relative ds-lb-grid">
+        <div className="flex min-w-0 items-start gap-4">
+          <span className="ds-client-mono">
+            <Monogram name={`${contact.firstName} ${contact.lastName}`.trim()} size={60} />
+          </span>
+          <div className="min-w-0">
+          <PageTitle heavy>{`${contact.firstName} ${contact.lastName}`.trim()}</PageTitle>
           {contact.companyName && (
-            <p className="text-sm text-gray-500 mt-0.5">{contact.companyName}</p>
+            <p className="mt-0.5 text-[15px] font-semibold opacity-85">{contact.companyName}</p>
           )}
-          <div className="flex flex-wrap items-center gap-3 mt-1">
+          <div className="ds-client-facts mt-3">
             {contact.phone && (
               <CallLink
                 phone={contact.phone}
                 contactId={contact.id}
                 name={`${contact.firstName} ${contact.lastName}`.trim()}
-                className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+                className="flex items-center gap-1.5 hover:underline"
               >
-                <Phone size={13} />
+                <Phone size={14} />
                 {fmtPhone(contact.phone)}
               </CallLink>
-            )}
-            {contact.phone && (
-              <span
-                className={`ds-chip ${
-                  contact.smsOptOut
-                    ? "ds-chip-bad"
-                    : contact.smsDisabled || !textsReady
-                      ? "ds-chip-neutral"
-                      : "ds-chip-good"
-                }`}
-                title={
-                  contact.smsOptOut
-                    ? "Replied STOP — automated texts are off until they reply START"
-                    : contact.smsDisabled
-                      ? contact.smsConsentSource === "booking_declined"
-                        ? "Left the text box unchecked when they booked — edit the client to turn texts on"
-                        : "Texts switched off for this client — edit the client to turn them on"
-                      : !textsReady
-                        ? textsSetupHint
-                        : `Reminders and links go out by text${contact.smsConsentNote ? ` · ${contact.smsConsentNote}` : ""}`
-                }
-              >
-                {contact.smsOptOut
-                  ? "Texts: opted out"
-                  : contact.smsDisabled
-                    ? "Texts: off"
-                    : !textsReady
-                      ? hasLine && !lineRegistered
-                        ? "Texts: pending"
-                        : "Texts: not set up"
-                      : "Texts: on"}
-              </span>
             )}
             {contact.email && (
               <a
                 href={`mailto:${contact.email}`}
-                className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+                className="flex items-center gap-1.5 hover:underline"
               >
-                <Mail size={13} />
+                <Mail size={14} />
                 {contact.email}
               </a>
             )}
             {contact.address && (
-              <span className="flex items-center gap-1 text-sm text-gray-500">
-                <MapPin size={13} />
+              <span className="flex items-center gap-1.5">
+                <MapPin size={14} />
                 {[contact.address, contact.city, contact.state, contact.zip]
                   .filter(Boolean)
                   .join(", ")}
               </span>
             )}
           </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        {seeMoney && (
+          <div className="ds-lb-side">
+            <p className="ds-lb-label">Lifetime value</p>
+            <p className="mt-1 text-[30px] font-extrabold leading-none tracking-[-0.03em]">{money(lifetimeValue)}</p>
+            <div className="mt-3 border-t border-white/15 pt-1">
+              <div className={`ds-lb-sidelink !cursor-default ${currentBalance > 0 ? "is-alert" : ""}`}>
+                <span>Balance owed</span>
+                <span className="ds-lb-sidevalue">{money(currentBalance)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+        </div>
+      </section>
+
+      <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
           {/* Phones get the 52px action circles below instead */}
           {/* Message = the WorkBench conversation: texts from the business line
               once texting is on (client portal + email otherwise), replies in
@@ -401,7 +425,6 @@ export default async function ContactDetailPage({
             }}
           />
           <ContactCreateMenu contactId={contact.id} canSeeMoney={canSeeMoney(actor)} />
-        </div>
       </div>
 
       {/* Phone quick actions — the contact-card circle treatment (lg:hidden
@@ -421,9 +444,10 @@ export default async function ContactDetailPage({
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Main: work overview */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="ds-card overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-100">
-              <h2 className="text-[14.5px] font-semibold text-[color:var(--ds-ink)]">Work overview</h2>
+          <div className="ds-card ds-card-raised overflow-hidden">
+            <div className="flex items-baseline justify-between px-4 pt-4 pb-3 lg:px-5">
+              <h2 className="ds-heavy-h2">Work</h2>
+              {workRows.length > 0 && <span className="text-[13px] font-semibold text-[color:var(--ds-muted)]">{workRows.length} {workRows.length === 1 ? "item" : "items"}</span>}
             </div>
             {workRows.length === 0 ? (
               <p className="px-4 py-10 text-sm text-gray-400 text-center">
@@ -660,21 +684,6 @@ export default async function ContactDetailPage({
             values={(contact.customFields as Record<string, string>) ?? {}}
           />
 
-          {seeMoney && (
-            <div className="ds-card p-4">
-              <SectionHeader title="Overview" className="mb-3" />
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xl font-bold text-gray-900">{money(lifetimeValue)}</p>
-                  <p className="text-xs text-gray-500">Lifetime value</p>
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-gray-900">{money(currentBalance)}</p>
-                  <p className="text-xs text-gray-500">Current balance</p>
-                </div>
-              </div>
-            </div>
-          )}
 
           {(recentCalls.length > 0 || canCallFromLine) && (
             <div className="ds-card p-4">

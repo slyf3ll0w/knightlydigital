@@ -106,7 +106,7 @@ export default async function PaymentsDashboardPage({
     return (
       <div className="p-4 lg:p-8 max-w-6xl mx-auto">
         <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
-          <PageTitle
+          <PageTitle heavy
             section="payments"
             icon={DollarSign}
             info="Every dollar through your Square account: payments (yours and Square's own sales), payouts to your bank, disputes, and reports by day, tech and job type. Numbers come live from Square each time the page opens."
@@ -364,7 +364,7 @@ export default async function PaymentsDashboardPage({
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
-        <PageTitle section="payments" icon={DollarSign}>
+        <PageTitle heavy section="payments" icon={DollarSign}>
           Payments
           {((online && finixEnvironment() === "sandbox") || (squareOnline && squareEnvironment() === "sandbox")) && (
             <Chip tone="warn">Test mode</Chip>
