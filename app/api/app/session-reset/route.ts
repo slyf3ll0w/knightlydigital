@@ -11,8 +11,15 @@ import { NextRequest, NextResponse } from "next/server";
  * here. Idempotent and unauthenticated on purpose: its whole job is to fix
  * broken sessions.
  */
-export function GET(req: NextRequest) {
-  const res = NextResponse.redirect(new URL("/app/login", req.url), 303);
+export function GET(_req: NextRequest) {
+  // Never build this from req.url: in a route handler that is the address
+  // the server listens on (`next start -H ::` → https://[::]:8080), not the
+  // public host, and people landed on a dead "[::]:8080" page. Same base
+  // as the OAuth callbacks; a relative Location when it's unset.
+  const base = process.env.NEXTAUTH_URL;
+  const res = base
+    ? NextResponse.redirect(new URL("/app/login", base), 303)
+    : new NextResponse(null, { status: 303, headers: { Location: "/app/login" } });
   const gone = { value: "", maxAge: 0, path: "/", httpOnly: true, sameSite: "lax" as const };
   // Both the plain (http/localhost) and prefixed (https) NextAuth v4 cookie
   // names — browsers ignore misapplied Secure-prefixed sets, so clearing all
