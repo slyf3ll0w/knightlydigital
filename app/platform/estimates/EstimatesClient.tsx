@@ -13,7 +13,6 @@ import EntityRowActions from "@/components/EntityRowActions";
 import EstimatorRunner, { type RunnerEstimator } from "@/components/EstimatorRunner";
 import { useAssistant } from "@/components/AssistantContext";
 import { Chip } from "@/components/ds";
-import { shortDate } from "@/lib/statuses";
 import { ESTIMATE_SORTS } from "@/lib/list-sort";
 import type { EstimatorPublicConfig } from "@/lib/estimator-public";
 import BuildPanel, { type BuiltTool } from "./BuildPanel";
@@ -74,59 +73,69 @@ function ToolStamp({ t }: { t: Tool }) {
   return null;
 }
 
-/** One tool card — hoisted so a parent re-render (opening the runner, the builder) never remounts it and drops an open menu. Round 6 (2026-11-23): each card draws the tool's own shape — its questions as a dotted line ending in the price — and what it has done, in words. */
-function ToolCard({ t, manager, atlasName, tz, onRun }: { t: Tool; manager: boolean; atlasName: string; tz: string; onRun: (t: Tool) => void }) {
+/**
+ * One tool as a row of the tools ledger (round 7, 2026-11-23: cards of
+ * different heights read as a mess — every row is the same height and every
+ * column lines up, so all the "$" ends of the question lines sit flush).
+ * Hoisted so a parent re-render never remounts it and drops an open menu.
+ */
+function ToolRow({ t, manager, atlasName, onRun }: { t: Tool; manager: boolean; atlasName: string; onRun: (t: Tool) => void }) {
   const placeholders = (t.spec.placeholders?.length ?? 0) + (t.spec.rates ?? []).filter((r) => r.source !== "owner").length;
-  const facts = toolFacts(t, atlasName).slice(1);
+  const facts = toolFacts(t, atlasName);
   const missing = t.missingItems?.length ?? 0;
-  const warn = [placeholders > 0 && manager ? `${placeholders} rate${placeholders === 1 ? "" : "s"} to confirm` : null, missing > 0 && manager ? `can't run — ${missing === 1 ? "a price-book item is" : `${missing} price-book items are`} missing` : null].filter(Boolean).join(" · ");
-  const n = t.spec.inputs.length;
-  const web = t.isPublic && t.publicSlug;
+  const warn = manager && missing > 0 ? "Can't run: a price-book item is missing" : manager && placeholders > 0 ? `${placeholders} rate${placeholders === 1 ? "" : "s"} to confirm` : null;
+  const web = Boolean(t.isPublic && t.publicSlug);
   return (
-    <EntityRowActions meta={{ kind: "tool", id: t.id, name: t.name, isActive: t.isActive, isPublic: Boolean(t.isPublic && t.publicSlug), manager }} onRun={t.isActive ? () => onRun(t) : undefined}>
-      <Link href={`/app/estimates/${t.id}`} prefetch={false} className={`ds-card ds-card-raised ds-tool-card ds-est-card ${t.isActive ? "" : "is-off"}`}>
-        <div className="flex items-start justify-between gap-3">
-          <p className="ds-est-card-name">{t.name}</p>
-          <ToolStamp t={t} />
-        </div>
-        {t.description && <p className="mt-1 line-clamp-2 text-[13.5px] leading-snug text-[color:var(--ds-ink-2)]">{t.description}</p>}
-        <div className="ds-est-card-flow">
+    <EntityRowActions meta={{ kind: "tool", id: t.id, name: t.name, isActive: t.isActive, isPublic: web, manager }} onRun={t.isActive ? () => onRun(t) : undefined}>
+      <Link href={`/app/estimates/${t.id}`} prefetch={false} className={`ds-trow ds-etool ${t.isActive ? "" : "is-off"}`}>
+        <span className="ds-etool-name">
+          <span className="ds-trow-name block truncate">{t.name}</span>
+          <span className={`ds-etool-sub ${warn ? "is-warn" : ""}`}>{warn ?? facts.join(" · ")}</span>
+        </span>
+        <span className="ds-etool-flow">
           <FlowDots spec={t.spec} />
-          <p className="ds-est-card-facts">
-            {n} question{n === 1 ? "" : "s"}
-            {facts.length > 0 ? ` · ${facts.join(" · ")}` : ""}
-          </p>
-        </div>
-        {warn && <p className="mt-2 text-[12.5px] font-semibold text-[color:var(--ds-warn)]">{warn}</p>}
-        <div className="ds-est-card-use">
-          <span>
-            {t.runs === 0 ? "Not run yet" : <><b>{t.runs.toLocaleString("en-US")}</b> {t.runs === 1 ? "run" : "runs"} by your team</>}
-          </span>
+        </span>
+        <span className="ds-etool-num">
+          <b>{t.runs.toLocaleString("en-US")}</b>
+          <span>{t.runs === 1 ? "run" : "runs"}</span>
+        </span>
+        <span className="ds-etool-num">
           {web ? (
-            <span>
-              <b>{t.publicCalcs.toLocaleString("en-US")}</b> priced online → <b>{t.submissions.toLocaleString("en-US")}</b> {t.submissions === 1 ? "lead" : "leads"}
-            </span>
+            <>
+              <b>{t.submissions.toLocaleString("en-US")}</b>
+              <span>{t.submissions === 1 ? "lead" : "leads"} of {t.publicCalcs.toLocaleString("en-US")}</span>
+            </>
           ) : (
-            <span className="ds-est-card-quiet">Updated {shortDate(t.updatedAt, tz)}</span>
+            <span className="ds-etool-quiet">Not online</span>
           )}
-        </div>
+        </span>
+        <span className="ds-etool-stamp">
+          <ToolStamp t={t} />
+        </span>
       </Link>
     </EntityRowActions>
   );
 }
 
-/** The last card on the shelf: a new tool is one sentence to Atlas. */
-function NewToolCard({ atlasName, onBuild }: { atlasName: string; onBuild: () => void }) {
+/** The ledger's last row: a new tool is one sentence to Atlas. Same height as a tool row. */
+function NewToolRow({ atlasName, onBuild }: { atlasName: string; onBuild: () => void }) {
   return (
-    <button type="button" onClick={onBuild} className="ds-est-new">
-      <span className="ds-est-new-dots" aria-hidden>
-        <i />
-        <i />
-        <i />
-        <b>$</b>
+    <button type="button" onClick={onBuild} className="ds-etool ds-etool-new">
+      <span className="ds-etool-name">
+        <span className="block truncate font-bold">Build another tool</span>
+        <span className="ds-etool-sub">Tell {atlasName} how you price a job. It writes the questions and the math.</span>
       </span>
-      <span className="ds-est-new-title">Build another tool</span>
-      <span className="ds-est-new-sub">Tell {atlasName} how you price a job. It writes the questions and the math.</span>
+      <span className="ds-etool-flow" aria-hidden>
+        <span className="ds-est-new-dots">
+          <i />
+          <i />
+          <i />
+          <b>$</b>
+        </span>
+      </span>
+      <span className="ds-etool-new-plus" aria-hidden>
+        <Plus size={16} strokeWidth={2.5} />
+      </span>
     </button>
   );
 }
@@ -145,7 +154,10 @@ export default function EstimatesClient({
   initialPrompt = "",
   autoRun = false,
   resumeBuildId = null,
+  picture = null,
 }: {
+  /** The page picture (server-rendered): what the tools priced lately. */
+  picture?: React.ReactNode;
   tools: Tool[];
   totalCount: number;
   filter: EstimatesFilter;
@@ -216,6 +228,7 @@ export default function EstimatesClient({
         </>
       ) : (
         <>
+          {picture}
           {manager && building && (
             <div className="mb-6">
               <BuildPanel
@@ -263,22 +276,25 @@ export default function EstimatesClient({
             </div>
           ) : (
             <>
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {tools.map((t, i) => (
-                  <div key={t.id} className="ds-rise" style={{ "--ds-i": i } as React.CSSProperties}>
-                    <ToolCard t={t} manager={manager} atlasName={atlas.name} tz={tz} onRun={(x) => setRunning([x])} />
-                  </div>
+              <div className="ds-card ds-etools ds-rise overflow-hidden">
+                <div className="ds-etool ds-etool-head" aria-hidden>
+                  <span>Tool</span>
+                  <span>Questions, then the price</span>
+                  <span className="text-right">Team</span>
+                  <span className="text-right">Website</span>
+                  <span />
+                </div>
+                {tools.map((t) => (
+                  <ToolRow key={t.id} t={t} manager={manager} atlasName={atlas.name} onRun={(x) => setRunning([x])} />
                 ))}
                 {manager && !building && !filtered && (
-                  <div className="ds-rise" style={{ "--ds-i": tools.length } as React.CSSProperties}>
-                    <NewToolCard
-                      atlasName={atlas.name}
-                      onBuild={() => {
-                        setBuilding(true);
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                      }}
-                    />
-                  </div>
+                  <NewToolRow
+                    atlasName={atlas.name}
+                    onBuild={() => {
+                      setBuilding(true);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  />
                 )}
               </div>
               <p className="mt-3 text-xs font-medium text-[color:var(--ds-muted)]">

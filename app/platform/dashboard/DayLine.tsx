@@ -83,7 +83,7 @@ export default function DayLine({
           <span className="hm-day-anytime-label">Anytime</span>
           <span className="hm-day-anytime-pins">
             {anytime.map((p) => (
-              <Pin key={p.id} p={p} past={false} />
+              <Pin key={p.id} p={p} past={false} edge="start" />
             ))}
           </span>
         </div>
@@ -96,7 +96,7 @@ export default function DayLine({
               className="hm-day-slot"
               style={{ left: `${x * 100}%`, "--lane": lane } as React.CSSProperties}
             >
-              <Pin p={p} past={!p.next && p.at! + 45 * 60_000 < now} stem />
+              <Pin p={p} past={!p.next && p.at! + 45 * 60_000 < now} stem edge={x < 0.2 ? "start" : x > 0.8 ? "end" : undefined} />
             </span>
           ))}
         </div>
@@ -122,12 +122,13 @@ export default function DayLine({
   );
 }
 
-function Pin({ p, past, stem = false }: { p: DayPin; past: boolean; stem?: boolean }) {
+/** edge: a pin near either end of the ruler opens its label inward, so it never runs past the panel. */
+function Pin({ p, past, stem = false, edge }: { p: DayPin; past: boolean; stem?: boolean; edge?: "start" | "end" }) {
   return (
     <Link
       prefetch={false}
       href={p.href}
-      className={`hm-pin ${past ? "is-past" : ""} ${p.next ? "is-next" : ""} ${p.appt ? "is-appt" : ""}`}
+      className={`hm-pin ${edge ? `is-edge-${edge}` : ""} ${past ? "is-past" : ""} ${p.next ? "is-next" : ""} ${p.appt ? "is-appt" : ""}`}
       aria-label={`${p.time}: ${p.name}, ${p.title}`}
     >
       <span className="hm-pin-face">

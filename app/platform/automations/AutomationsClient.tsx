@@ -241,7 +241,8 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
         </div>
         {nodes.length > 0 ? (
           <Link href={`/app/automations/${a.id}`} prefetch={false} className="block" tabIndex={-1} aria-hidden>
-            <Flow nodes={nodes} paused={!a.isActive} />
+            {/* Flush (2026-11-23): steps sit in four fixed columns so every card is the same height and step 1, 2, 3 line up down the page */}
+            <Flow nodes={nodes} paused={!a.isActive} className="is-grid" max={nodes.length > 4 ? 3 : undefined} />
           </Link>
         ) : (
           <p className="ds-small mt-2">This rule needs rebuilding in the builder.</p>
@@ -298,7 +299,7 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
       <ul className="auto-examples">
         {EXAMPLES.map((e, i) => (
           <li key={e.ask} className="auto-example" style={{ ["--i" as string]: i }}>
-            <Flow nodes={e.flow} />
+            <Flow nodes={e.flow} className="is-grid" max={e.flow.length > 4 ? 3 : undefined} />
             {atlas.available ? (
               <>
                 <Link href={`/app/automations/new?atlas=1&ask=${encodeURIComponent(e.ask)}`} prefetch={false} className="auto-example-go hidden lg:inline-flex">

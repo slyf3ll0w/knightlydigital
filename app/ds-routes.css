@@ -273,3 +273,32 @@ a.auto-card-name:hover svg { transform: translateX(3px); color: var(--ds-primary
 @media print {
   .route-ribbon-seg { animation: none; }
 }
+
+/* ── Flush (2026-11-23, David: "it makes things very confusing to look at when
+   things aren't flush"): desktop cards and the example flows lay their steps
+   in four fixed columns, one line each, so every card is the same height and
+   the steps line up down the page. */
+.auto-flow.is-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 30px; align-items: center; }
+.auto-flow.is-grid .auto-node + .auto-node { margin-left: 0; }
+.auto-flow.is-grid .auto-node + .auto-node::before {
+  content: ""; position: absolute; left: -26px; top: 50%; width: 20px; height: 2px;
+  background: var(--flow-line); border-radius: 2px; transform: translateY(-50%);
+}
+.auto-flow.is-grid .auto-node + .auto-node::after {
+  content: ""; position: absolute; left: -10px; top: 50%; width: 6px; height: 6px;
+  border-top: 2px solid var(--flow-line); border-right: 2px solid var(--flow-line);
+  transform: translateY(-50%) rotate(45deg);
+}
+.auto-flow.is-paused.is-grid .auto-node + .auto-node::before { background: repeating-linear-gradient(90deg, var(--flow-line) 0 4px, transparent 4px 7px); }
+.auto-flow.is-grid .auto-node { width: 100%; max-width: none; height: 36px; min-height: 0; }
+.auto-flow.is-grid .auto-node-text { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.auto-card .auto-card-foot { flex-wrap: nowrap; white-space: nowrap; overflow: hidden; }
+.auto-card .auto-card-desc { flex: 1 1 auto; max-width: none; }
+.auto-example { display: grid; grid-template-columns: minmax(0, 1fr) 128px; align-items: center; }
+.auto-example .auto-example-go { justify-self: end; }
+@media (max-width: 1023px) {
+  .auto-flow.is-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 10px; }
+  .auto-example { grid-template-columns: minmax(0, 1fr); }
+  .auto-example .auto-example-go { justify-self: start; }
+}
+.auto-card > p.ds-small { display: flex; align-items: center; height: 36px; margin-top: 12px; }

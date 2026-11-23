@@ -35,7 +35,7 @@ export default function Flow({
   return (
     <ol className={`auto-flow is-${layout} ${paused ? "is-paused" : ""} ${className}`}>
       {shown.map((n, i) => (
-        <li key={i} className={`auto-node is-${n.kind}`} style={{ ["--i" as string]: i }}>
+        <li key={i} className={`auto-node is-${n.kind}`} style={{ ["--i" as string]: i }} title={`${n.kind === "trigger" ? "When " : ""}${nodeText(n)}`}>
           <span className="auto-node-mark" aria-hidden>
             {n.kind === "trigger" ? <Zap size={12} strokeWidth={2.6} /> : n.kind === "wait" ? <Clock size={12} strokeWidth={2.4} /> : n.kind === "filter" ? <Filter size={11} strokeWidth={2.4} /> : null}
           </span>

@@ -232,3 +232,9 @@ a.hm-money-read:hover .hm-money-read-text svg, a.hm-money-read-text:hover svg { 
 /* "· 9 jobs" stays on the figure's line next to the week bars */
 .hm-money-read-text { white-space: nowrap; flex-wrap: nowrap; }
 .hm-money-read-text .ds-pic-quiet { white-space: nowrap; }
+
+/* Pins near either end of the day ruler open their label inward (never past the panel edge) */
+.hm-pin.is-edge-start .hm-pin-tip { left: -4px; transform: translate(0, 4px); }
+.hm-pin.is-edge-end .hm-pin-tip { left: auto; right: -4px; transform: translate(0, 4px); }
+.hm-pin.is-edge-start:hover .hm-pin-tip, .hm-pin.is-edge-start:focus-visible .hm-pin-tip,
+.hm-pin.is-edge-end:hover .hm-pin-tip, .hm-pin.is-edge-end:focus-visible .hm-pin-tip { transform: translate(0, 0); }

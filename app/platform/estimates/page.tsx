@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
-import { requirePageActor, canSell, isManager } from "@/lib/permissions";
+import { requirePageActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
+import EstimatesPicture, { type PricedQuote } from "@/components/EstimatesPicture";
 import { ESTIMATOR_SELECT, loadPriceBook, missingItemsOf, runnerEstimators } from "@/lib/estimator-server";
 import { sanitizePublicConfig } from "@/lib/estimator-public";
 import { resumableBuildId } from "@/lib/estimator-build-jobs";
@@ -41,6 +42,37 @@ export default async function EstimatesPage({ searchParams }: { searchParams: Pr
     prisma.company.findUnique({ where: { id: actor.companyId }, select: { slug: true, timezone: true, industry: true } }),
     loadPriceBook(actor.companyId),
   ]);
+  // The picture: every quote a tool priced in the last 60 days, and the website leads its forms sent.
+  const since = new Date(Date.now() - 60 * 86_400_000);
+  const scope = viaContactScope(actor);
+  const [pricedRows, leads] =
+    view === "tools" && rows.length > 0
+      ? await Promise.all([
+          prisma.quote.findMany({
+            where: { companyId: actor.companyId, estimatorId: { not: null }, createdAt: { gte: since }, ...scope },
+            orderBy: { createdAt: "desc" },
+            take: 300,
+            select: {
+              id: true,
+              quoteNumber: true,
+              status: true,
+              total: true,
+              estimator: { select: { name: true } },
+              contact: { select: { firstName: true, lastName: true, companyName: true } },
+            },
+          }),
+          prisma.request.count({ where: { companyId: actor.companyId, estimatorId: { not: null }, createdAt: { gte: since }, ...scope } }),
+        ])
+      : [[], 0];
+  const priced: PricedQuote[] = pricedRows.map((q) => ({
+    id: q.id,
+    number: String(q.quoteNumber),
+    status: q.status,
+    total: Number(q.total ?? 0),
+    tool: q.estimator?.name ?? "Tool",
+    client: q.contact ? q.contact.companyName?.trim() || `${q.contact.firstName} ${q.contact.lastName}`.trim() : "No client",
+  }));
+
   // a new-tool build still running (or waiting on answers) — the builder picks it up
   const resumeBuildId = manager ? await resumableBuildId(actor.companyId, null) : null;
   const compiled = runnerEstimators(rows, { includeInactive: manager });
@@ -103,6 +135,7 @@ export default async function EstimatesPage({ searchParams }: { searchParams: Pr
       sort={sort}
       query={query}
       brokenCount={manager ? rows.length - compiled.length : 0}
+      picture={view === "tools" && rows.length > 0 ? <EstimatesPicture quotes={priced} leads={leads} /> : null}
     />
   );
 }

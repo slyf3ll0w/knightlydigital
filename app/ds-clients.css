@@ -159,3 +159,13 @@
   .ds-tcard.is-leaving .ds-task-hit::after, .ds-trow-task.is-leaving .ds-task-hit::after { animation: none; }
   .ds-tweek-task:hover, .ds-tcard:hover { transform: none; }
 }
+
+/* Flush (2026-11-23): every task card on the board is the same height — the
+   title takes up to two lines (clamped, full text on the details sheet),
+   due and links keep their lines even when empty. */
+@media (min-width: 1024px) {
+  .ds-tboard .ds-tcard { height: 106px; }
+  .ds-tboard .ds-tcard-body { overflow: hidden; }
+  .ds-tboard .ds-tcard-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.7em; flex: none; }
+  .ds-tboard .ds-tcard-due, .ds-tboard .ds-tcard-links { min-height: 16px; }
+}
