@@ -228,3 +228,7 @@ a.hm-money-read:hover .hm-money-read-text svg, a.hm-money-read-text:hover svg { 
   .hm-pin-face, .hm-pin-stem, .hm-day-gone, .hm-money-svg, .hm-money-dot, .hm-money-flag, .hm-money-wbar { animation: none; }
   .hm-pin.is-next .hm-pin-face::after, .hm-money-dot::after, .hm-clock-live::after { animation: none; display: none; }
 }
+
+/* "· 9 jobs" stays on the figure's line next to the week bars */
+.hm-money-read-text { white-space: nowrap; }
+.hm-money-read-text .ds-pic-quiet { white-space: nowrap; }
