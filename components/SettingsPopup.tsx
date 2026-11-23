@@ -117,7 +117,7 @@ export default function SettingsPopup({ enabled }: { enabled: boolean }) {
   }, [enabled, router]);
 
   return (
-    <Modal open={open} onClose={close} cardClassName="modal-card-panel ds-settings-pop card-ledger ds-glass ds-glass-strong w-full p-0">
+    <Modal open={open} onClose={close} cardClassName="modal-card-panel ds-settings-pop card-ledger w-full p-0">
       {view ? (
         <SettingsClient
           key={view.company.id}

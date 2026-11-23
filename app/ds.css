@@ -950,12 +950,16 @@ a.ds-flow-box:hover { box-shadow: inset 0 0 0 1.5px var(--ds-primary); }
    Settings opens over the current page. Desktop: a large centered card
    with the six groups down the left and the open group's solid cards on
    the right. Phones: a full-height bottom sheet (the index, then a group).
-   The pop-up surface is glass (a floating surface); the cards inside are
-   solid. The selected group is a solid white row, like the sidebar puck. */
+   The pop-up is solid (2026-11-23; it was glass), the groups rail a
+   shade darker. The selected group is a solid white row, like the sidebar puck. */
 .app-ui .modal-pop > .modal-card.ds-settings-pop {
   width: 100%; max-width: 1040px; height: min(860px, calc(100dvh - 48px));
   display: flex; flex-direction: column; overflow: hidden; padding: 0;
+  /* Solid (David, 2026-11-23): no glass on the pop-up — an opaque surface, a crisp edge, a deep shadow */
+  background: var(--ds-surface); backdrop-filter: none; -webkit-backdrop-filter: none;
+  box-shadow: 0 0 0 1px var(--ds-line), 0 30px 80px -24px rgba(10, 19, 40, 0.45);
 }
+.ds-settings-pop nav[aria-label="Settings groups"] { background: var(--ds-surface-2); }
 @media (max-width: 1023px) {
   .app-ui .modal-pop > .modal-card.ds-settings-pop { max-width: none; height: 94dvh; max-height: 94dvh; padding-bottom: 0; }
 }
