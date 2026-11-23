@@ -7,7 +7,6 @@ import { MapPin, Maximize2, Minus, Plus } from "lucide-react";
 import { InfoTip } from "@/components/ds";
 import { formatDuration } from "@/lib/time-entries";
 import { addBasemap, initialView, reducedMotion, rememberView } from "@/lib/basemap";
-import { useMainFill } from "@/lib/use-main-fill";
 import "leaflet/dist/leaflet.css";
 
 /**
@@ -58,7 +57,15 @@ export default function TeamMapClient({ header }: { header?: React.ReactNode }) 
   const pageRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // size the page from the shell's <main> (a percentage height collapses here)
-  useMainFill(pageRef, () => mapRef.current?.invalidateSize());
+  // Reports tab (2026-11-23): the map sits in a card under the Reports header
+  // and tabs like the other tabs (it used to fill the whole page, which made
+  // getting back to where you were confusing). The card has a fixed height;
+  // Leaflet only needs telling when the window resizes.
+  useEffect(() => {
+    const onResize = () => mapRef.current?.invalidateSize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   const LRef = useRef<typeof Leaflet | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markersRef = useRef<Map<string, Marker>>(new Map());
@@ -171,7 +178,7 @@ export default function TeamMapClient({ header }: { header?: React.ReactNode }) 
   const unlocated = team.filter((m) => m.lat == null);
 
   return (
-    <div ref={pageRef} className="flex h-full min-h-0 flex-col">
+    <div ref={pageRef} className="mx-auto max-w-5xl p-4 lg:p-8">
       {/* Pin + popup styling for the divIcon markers */}
       <style>{`
         .team-map-pin {
@@ -204,9 +211,10 @@ export default function TeamMapClient({ header }: { header?: React.ReactNode }) 
       `}</style>
 
       {/* Reports (2026-11-21): Team map is a tab of the Reports page */}
-      <div className="border-b border-[color:var(--ds-line)] bg-[color:var(--ds-surface)] px-4 py-3 lg:px-8">
-        {header}
-        <p className="mt-2 flex items-center gap-1.5 text-[13px] font-medium text-[color:var(--ds-muted)]">
+      {header}
+      <section className="ds-card overflow-hidden">
+      <div className="border-b border-[color:var(--ds-line)] px-4 py-3 lg:px-5">
+        <p className="flex items-center gap-1.5 text-[13.5px] font-semibold text-[color:var(--ds-ink-2)]">
           Where your clocked-in team is right now
           <InfoTip>
             Positions update every few minutes while someone is clocked in with the app open —
@@ -216,19 +224,19 @@ export default function TeamMapClient({ header }: { header?: React.ReactNode }) 
       </div>
 
       {loaded && team.length === 0 && (
-        <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-500 lg:px-8">
-          <MapPin size={14} className="text-gray-400" />
+        <div className="flex items-center gap-2 border-b border-[color:var(--ds-line)] bg-[color:var(--ds-surface-2)] px-4 py-2.5 text-sm text-[color:var(--ds-muted)] lg:px-5">
+          <MapPin size={14} className="text-[color:var(--ds-faint)]" />
           Nobody is on the clock right now. Techs appear here while clocked in.
         </div>
       )}
       {unlocated.length > 0 && (
-        <div className="border-b border-[color:var(--ds-line)] bg-[color:var(--ds-warn-soft)] px-4 py-2 text-xs text-[color:var(--ds-warn)] lg:px-8">
+        <div className="border-b border-[color:var(--ds-line)] bg-[color:var(--ds-warn-soft)] px-4 py-2 text-xs text-[color:var(--ds-warn)] lg:px-5">
           On the clock without a location:{" "}
           {unlocated.map((m) => m.name).join(", ")} (location off or not yet reported)
         </div>
       )}
 
-      <div className="team-map relative isolate min-h-0 flex-1">
+      <div className="team-map relative isolate h-[min(560px,calc(100dvh-320px))] min-h-[360px]">
         <div ref={containerRef} className="absolute inset-0" />
         {!loaded && <div className="wb-map-progress absolute inset-x-0 top-0 z-[1010]" role="progressbar" aria-label="Loading the team" />}
         <div className="absolute right-3 top-3 z-[1000] flex flex-col items-end gap-2">
@@ -255,17 +263,18 @@ export default function TeamMapClient({ header }: { header?: React.ReactNode }) 
       </div>
 
       {located.length > 0 && (
-        <div className="flex flex-wrap gap-x-6 gap-y-1 border-t border-gray-200 bg-white px-4 py-2 lg:px-8">
+        <div className="flex flex-wrap gap-x-6 gap-y-1 border-t border-[color:var(--ds-line)] px-4 py-2.5 lg:px-5">
           {located.map((m) => (
-            <span key={m.userId} className="flex items-center gap-1.5 text-xs text-gray-700">
+            <span key={m.userId} className="flex items-center gap-1.5 text-xs text-[color:var(--ds-ink-2)]">
               <span className="h-2 w-2 rounded-full bg-[color:var(--ds-primary)]" />
               <strong>{m.name}</strong>
-              {m.jobTitle && <span className="text-gray-500">· {m.jobTitle}</span>}
-              <span className="text-gray-400">· {ageLabel(m.positionAt, now)}</span>
+              {m.jobTitle && <span className="text-[color:var(--ds-muted)]">· {m.jobTitle}</span>}
+              <span className="text-[color:var(--ds-faint)]">· {ageLabel(m.positionAt, now)}</span>
             </span>
           ))}
         </div>
       )}
+      </section>
     </div>
   );
 }
