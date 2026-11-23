@@ -858,9 +858,9 @@ function UserMenu({
       )}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[var(--rail-hover)] transition-colors text-left"
+        className="rail-user"
       >
-        <Avatar name={userName} userId={userId} size={30} />
+        <Avatar name={userName} userId={userId} size={26} />
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold text-[color:var(--rail-ink)] truncate">{userName}</p>
           <p className="text-[11px] text-[color:var(--rail-faint)] truncate">
@@ -2430,10 +2430,10 @@ export default function AppShell({
               ? { animationDelay: `${animIndex * 22}ms` }
               : undefined
         }
-        className={`${animIndex !== undefined ? "rail-item-in " : ""}rail-row group font-display relative mx-2 flex items-center gap-2.5 rounded-[10px] py-[7px] pl-3 pr-3 text-[13.5px] transition-colors ${
+        className={`${animIndex !== undefined ? "rail-item-in " : ""}rail-row group font-display relative mx-2 flex items-center transition-colors ${
           active
-            ? "font-bold text-[color:var(--rail-ink)]" /* the solid puck behind it is .rail-indicator */
-            : "font-medium text-[color:var(--rail-muted)] hover:bg-[var(--rail-hover)] hover:text-[color:var(--rail-ink)]"
+            ? "is-on" /* the solid puck behind it is .rail-indicator */
+            : ""
         }`}
       >
         {/* Heavy look (2026-11-21, David: the thin gray icons read low
@@ -2450,16 +2450,12 @@ export default function AppShell({
               : "shrink-0 text-[color:var(--rail-muted)] transition-colors group-hover:text-[color:var(--rail-ink)]"
           }
         />
-        <span className="truncate">{label}</span>
+        <span className="rail-row-label">{label}</span>
         {NAV_FEATURES[href] && lockedFeatures.includes(NAV_FEATURES[href]) && <ProChip tone="rail" />}
         {badge > 0 ? (
           <span
             key={badge}
-            className={`rail-count ml-auto ${
-              href === "/app/invoices"
-                ? "text-[color:var(--rail-news)]" /* was red; David 2026-09-26: no red dots in the rail */
-                : "text-[color:var(--rail-news)]"
-            }`}
+            className="rail-count" /* David 2026-09-26: no red dots in the rail */
           >
             {badge > 99 ? "99+" : badge}
           </span>
@@ -2474,7 +2470,7 @@ export default function AppShell({
       {/* Rail v2: six daily drivers, then collapsible groups. Full-bleed
           rows on a calm rail — the sliding indicator is the only accent.
           Create moved to the top bar; the rail is pure navigation. */}
-      <nav ref={railNavRef} className="relative flex-1 py-3 overflow-y-auto">
+      <nav ref={railNavRef} aria-label="Main" className="rail-nav relative flex-1 overflow-y-auto">
         <span ref={railIndRef} aria-hidden className="rail-indicator" />
         {forRole(railDrivers, userRole, salesMoney).map(({ href, label, icon: Icon }) =>
           navLink(href, label, Icon)
@@ -2489,19 +2485,17 @@ export default function AppShell({
               // Ledger section head: the label sits set INTO a hairline that
               // runs out to the chevron — the label IS the divider, so the
               // plain border-top these groups used to wear is gone.
-              <div key={g.key} className="mt-3">
+              <div key={g.key} className="rail-section">
                 <button
                   type="button"
                   onClick={() => toggleGroup(g.key)}
                   aria-expanded={open}
-                  className={`w-full font-display flex items-center gap-2.5 py-2 pl-5 pr-4 text-[12.5px] font-bold transition-colors hover:text-[color:var(--rail-muted)] ${
-                    open ? "text-[color:var(--rail-muted)]" : "text-[color:var(--rail-faint)]"
-                  }`}
+                  className={`rail-head font-display ${open ? "is-open" : ""}`}
                 >
-                  <span className="shrink-0">{g.label}</span>
+                  <span className="rail-head-label">{g.label}</span>
                   <span aria-hidden className="rail-head-rule" />
                   {rollup > 0 && (
-                    <span key={rollup} className="rail-count shrink-0 text-[color:var(--rail-num)]">
+                    <span key={rollup} className="rail-count">
                       {rollup > 99 ? "99+" : rollup}
                     </span>
                   )}
@@ -2530,7 +2524,7 @@ export default function AppShell({
       </nav>
 
       {/* Settings + identity */}
-      <div className="py-1.5 border-t border-[color:var(--rail-line)]">
+      <div className="rail-foot">
         {manager && navLink("/app/settings", "Settings", Settings)}
         <UserMenu
           userName={userName}
@@ -2554,9 +2548,9 @@ export default function AppShell({
   // dragging; the stored value is the fallback.
   const logoPlateH = Math.min(Math.max(sidebarLogoSize ?? 56, 36), 128);
   const logo = companyLogoUrl ? (
-    <div className="px-3 py-2.5 border-b border-[color:var(--rail-line)]">
+    <div className="rail-brand is-logo">
       <span
-        className="theme-fixed flex w-full items-center justify-center overflow-hidden rounded-xl shadow-sm ring-1 ring-[color:var(--rail-line)]"
+        className="rail-logo-plate theme-fixed flex w-full items-center justify-center overflow-hidden"
         style={{
           backgroundColor: sidebarLogoColor || "#FFFFFF",
           height: `var(--rail-logo-h, ${logoPlateH}px)`,
@@ -2572,14 +2566,14 @@ export default function AppShell({
       </span>
     </div>
   ) : (
-    <div className="flex items-center gap-3 px-3.5 min-h-[57px] border-b border-[color:var(--rail-line)] min-w-0">
+    <div className="rail-brand">
       <span
-        className="w-11 h-11 rounded-[10px] flex items-center justify-center shrink-0 font-display font-bold text-lg shadow-sm"
+        className="rail-brand-mark font-display"
         style={{ backgroundColor: railAccent, color: textOn(railAccent) }}
       >
         {companyName?.charAt(0).toUpperCase() ?? "W"}
       </span>
-      <span className="font-display font-semibold text-[15px] tracking-tight text-[color:var(--rail-ink)] truncate">
+      <span className="rail-brand-name font-display">
         {companyName ?? "WorkBench"}
       </span>
     </div>
@@ -2661,7 +2655,7 @@ export default function AppShell({
       </Suspense>
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
       <aside
-        className="hidden lg:flex flex-col w-[232px] shrink-0 rail-gray border-r border-[color:var(--rail-line)]"
+        className="rail-v3 hidden lg:flex flex-col w-[236px] shrink-0 rail-gray border-r border-[color:var(--rail-line)]"
         style={
           {
             "--rail-accent-l": railAccent,
