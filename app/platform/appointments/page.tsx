@@ -1,12 +1,14 @@
 import { prisma } from "@/lib/db";
+import { Fragment } from "react";
 import Link from "next/link";
 import { Plus, ChevronRight, CalendarClock, UserCheck } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import { FilterChip } from "@/components/FilterChips";
 import FilterBar, { listHref } from "@/components/FilterBar";
-import { shortDate, appointmentTypeLabel } from "@/lib/statuses";
+import { appointmentTypeLabel } from "@/lib/statuses";
 import { fmtTime } from "@/lib/format";
-import { startOfDayIn } from "@/lib/timezone";
+import { startOfDayIn, zonedMidnight, zonedParts } from "@/lib/timezone";
+import AppointmentsStrip, { type StripDay } from "./AppointmentsStrip";
 import StatusChip from "@/components/StatusChip";
 import { Chip } from "@/components/ds";
 import EmptyState from "@/components/EmptyState";
@@ -100,7 +102,11 @@ export default async function AppointmentsPage({
   // each other on the same key.
   const listWhere: Prisma.AppointmentWhereInput = { companyId, AND: [scope, search, statusWhere] };
 
-  const [appointments, listCount] = await Promise.all([
+  // The picture: the next 14 days of booked visits (status SCHEDULED), plus
+  // the ones whose day went by without being closed out.
+  const t0 = zonedParts(tz, new Date());
+  const stripEnd = zonedMidnight(tz, t0.y, t0.m, t0.d + 14);
+  const [appointments, listCount, stripAppts, toCloseCount] = await Promise.all([
     prisma.appointment.findMany({
       where: listWhere,
       orderBy: { scheduledAt: filter === "" ? "asc" : "desc" },
@@ -113,7 +119,66 @@ export default async function AppointmentsPage({
       },
     }),
     prisma.appointment.count({ where: listWhere }),
+    prisma.appointment.findMany({
+      where: { companyId, AND: [scope, { status: "SCHEDULED", scheduledAt: { gte: startOfToday, lt: stripEnd } }] },
+      orderBy: { scheduledAt: "asc" },
+      take: 300,
+      select: {
+        id: true,
+        title: true,
+        scheduledAt: true,
+        scheduledAnytime: true,
+        tentative: true,
+        contact: { select: { firstName: true, lastName: true } },
+      },
+    }),
+    prisma.appointment.count({
+      where: {
+        companyId,
+        AND: [scope, { status: "SCHEDULED", scheduledAt: { lt: startOfToday, gte: new Date(startOfToday.getTime() - 30 * 86400000) } }],
+      },
+    }),
   ]);
+
+  const dayKey = (d: Date) => {
+    const p = zonedParts(tz, d);
+    return `${p.y}-${String(p.m).padStart(2, "0")}-${String(p.d).padStart(2, "0")}`;
+  };
+  const stripDays: StripDay[] = Array.from({ length: 14 }, (_, i) => {
+    const mid = zonedMidnight(tz, t0.y, t0.m, t0.d + i);
+    const p = zonedParts(tz, mid);
+    const key = dayKey(mid);
+    return {
+      key,
+      dow: mid.toLocaleDateString("en-US", { weekday: "short", timeZone: tz }),
+      date: String(p.d),
+      month: i === 0 || p.d === 1 ? mid.toLocaleDateString("en-US", { month: "short", timeZone: tz }) : null,
+      today: i === 0,
+      weekend: p.weekday === 0 || p.weekday === 6,
+      href: `/app/schedule?view=day&date=${key}`,
+      appts: stripAppts
+        .filter((a) => dayKey(a.scheduledAt) === key)
+        .map((a) => ({
+          id: a.id,
+          name: `${a.contact.firstName} ${a.contact.lastName}`.trim() || "Client",
+          title: a.title,
+          time: a.scheduledAnytime ? "Anytime" : fmtTime(a.scheduledAt, tz),
+          tentative: a.tentative,
+        })),
+    };
+  });
+  const nextAppt = stripAppts.find((a) => a.scheduledAnytime || a.scheduledAt.getTime() >= Date.now());
+  const toApproveCount = stripAppts.filter((a) => a.tentative).length;
+
+  // Rows are grouped under day headings ("Today", "Tomorrow", "Wed, Nov 26").
+  const todayKey = dayKey(new Date());
+  const tomorrowKey = dayKey(zonedMidnight(tz, t0.y, t0.m, t0.d + 1));
+  const dayHeading = (d: Date) => {
+    const k = dayKey(d);
+    if (k === todayKey) return "Today";
+    if (k === tomorrowKey) return "Tomorrow";
+    return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: tz, ...(zonedParts(tz, d).y !== t0.y ? { year: "numeric" } : {}) });
+  };
 
   const cur = { status: filter || undefined, assignee: mineOnly ? "me" : undefined, q: query };
   const canDelete = isManager(actor.role);
@@ -135,8 +200,8 @@ export default async function AppointmentsPage({
 
   const who = (a: (typeof appointments)[number]) =>
     a.assignedTo?.name ? `${a.assignedTo.name}${a._count.extraAssignees ? ` +${a._count.extraAssignees}` : ""}` : "";
-  const when = (a: (typeof appointments)[number]) =>
-    `${shortDate(a.scheduledAt, tz)}${a.scheduledAnytime ? "" : ` ${fmtTime(a.scheduledAt, tz)}`}`;
+  // Rows sit under a day heading, so the row itself only needs the time.
+  const when = (a: (typeof appointments)[number]) => (a.scheduledAnytime ? "Anytime" : fmtTime(a.scheduledAt, tz));
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
@@ -150,6 +215,20 @@ export default async function AppointmentsPage({
           New appointment
         </Link>
       </div>
+
+      <AppointmentsStrip
+        days={stripDays}
+        next={
+          nextAppt
+            ? {
+                href: `/app/appointments/${nextAppt.id}`,
+                label: `${dayHeading(nextAppt.scheduledAt)}${nextAppt.scheduledAnytime ? "" : ` ${fmtTime(nextAppt.scheduledAt, tz)}`} · ${nextAppt.contact.firstName} ${nextAppt.contact.lastName}`.trim(),
+              }
+            : null
+        }
+        toApprove={{ count: toApproveCount, href: "/app/schedule" }}
+        toClose={{ count: toCloseCount, href: "/app/appointments?status=past" }}
+      />
 
       <MobileSearch
         action="/app/appointments"
@@ -196,9 +275,22 @@ export default async function AppointmentsPage({
               <span>Status</span>
               <span></span>
             </div>
-            {appointments.map((a) => (
+            {appointments.map((a, i) => (
+              <Fragment key={a.id}>
+              {(i === 0 || dayKey(appointments[i - 1].scheduledAt) !== dayKey(a.scheduledAt)) && (
+                <div className="appt-dayrow" data-today={dayKey(a.scheduledAt) === todayKey || undefined}>
+                  <span>{dayHeading(a.scheduledAt)}</span>
+                  <span className="appt-dayrow-count">
+                    {(() => {
+                      const k = dayKey(a.scheduledAt);
+                      let n = 0;
+                      for (const b of appointments) if (dayKey(b.scheduledAt) === k) n++;
+                      return n;
+                    })()}
+                  </span>
+                </div>
+              )}
               <EntityRowActions
-                key={a.id}
                 meta={{ kind: "appointment", id: a.id, title: a.title, status: a.status, contactId: a.contactId, canDelete }}
               >
                 <Link
@@ -213,7 +305,7 @@ export default async function AppointmentsPage({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-3">
                         <p className="min-w-0 flex-1 ds-trow-name truncate text-[15.5px] font-semibold text-gray-900">{a.title}</p>
-                        <p className="shrink-0 text-xs text-gray-500">{when(a)}</p>
+                        <p className="appt-time shrink-0 text-xs">{when(a)}</p>
                       </div>
                       <div className="mt-0.5 flex items-center justify-between gap-3">
                         <p className="min-w-0 flex-1 truncate text-[13px] text-gray-600">
@@ -229,8 +321,11 @@ export default async function AppointmentsPage({
                   </div>
 
                   {/* Desktop columns */}
-                  <span className="ds-trow-name hidden lg:block text-sm font-medium text-gray-900 truncate">
-                    {a.contact.firstName} {a.contact.lastName}
+                  <span className="hidden lg:flex min-w-0 items-center gap-2.5">
+                    <Monogram name={`${a.contact.firstName} ${a.contact.lastName}`} size={28} />
+                    <span className="ds-trow-name truncate text-sm font-semibold text-gray-900">
+                      {a.contact.firstName} {a.contact.lastName}
+                    </span>
                   </span>
                   <span className="hidden lg:flex items-center gap-2 min-w-0">
                     <span className="text-sm text-gray-600 truncate">
@@ -241,7 +336,7 @@ export default async function AppointmentsPage({
                     </span>
                     {a.tentative && <Chip tone="warn">To approve</Chip>}
                   </span>
-                  <span className="hidden lg:block text-sm text-gray-500 truncate">
+                  <span className="appt-time hidden lg:block text-sm truncate">
                     {when(a)}
                     <span className="text-gray-400"> · {appointmentTypeLabel[a.type] ?? a.type}</span>
                   </span>
@@ -252,6 +347,7 @@ export default async function AppointmentsPage({
                   <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
                 </Link>
               </EntityRowActions>
+              </Fragment>
             ))}
           </div>
         )}
