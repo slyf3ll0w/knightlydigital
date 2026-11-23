@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { reportError } from "@/lib/report-error";
 import { prisma } from "@/lib/db";
 import { slugWhere } from "@/lib/company-slug";
 import { sendEmail, hubAccessEmail } from "@/lib/email";
@@ -42,7 +43,9 @@ export async function POST(req: NextRequest) {
     contactFirstName: contact.firstName,
     hubUrl: `${baseUrl}/hub/${contact.hubToken}`,
   });
-  await sendEmail({ companyId: company.id, to: contact.email, subject, html, fromName: company.name });
+  // Sent after the answer, so how long the reply takes says nothing about whether the address is a client here.
+  const to = contact.email;
+  after(() => sendEmail({ companyId: company.id, to, subject, html, fromName: company.name }).then(() => undefined).catch((e) => reportError("[portal-login] email failed", e)));
 
   return ok;
 }

@@ -173,6 +173,7 @@ export const clientExtraTools: Tool[] = [
       return stage(ctx, {
         kind: "email_client", title: `Email ${clientName(contact)}`,
         lines: [`To: ${c.email}`, `Subject: ${subject}`, body.length > 400 ? `${body.slice(0, 400)}…` : body],
+        ...(body.length > 400 ? { fullText: body } : {}),
         endpoint: `/api/app/contacts/${contact.id}/message`, method: "POST", payload: { subject, body },
         confirmLabel: "Send email", href: `/app/contacts/${contact.id}`,
       });
@@ -205,6 +206,7 @@ export const clientExtraTools: Tool[] = [
       return stage(ctx, {
         kind: "reply_in_portal", title: `${asText ? "Text" : "Message"} ${clientName(contact)}`,
         lines: [body.length > 400 ? `${body.slice(0, 400)}…` : body, route],
+        ...(body.length > 400 ? { fullText: body } : {}),
         endpoint: `/api/app/messages/${contact.id}`, method: "POST", payload: { body },
         confirmLabel: asText ? "Send text" : "Send message", href: `/app/messages`,
       });

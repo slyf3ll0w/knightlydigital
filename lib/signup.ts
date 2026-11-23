@@ -107,6 +107,19 @@ export async function createCompanySignup(opts: {
 }
 
 /**
+ * Addresses the test harness owns (e2e-…@workbenchfsm.com) are exempt from the
+ * one-device rule (lib/active-device.ts). Sign-up does not verify email, so a
+ * stranger could have claimed one and shared a single login across a crew.
+ * No NEW login may be opened on such an address through a sign-up door; the
+ * harness makes its own directly (2026-11-23 security review).
+ */
+export async function reservedSignupEmail(email: string): Promise<boolean> {
+  const e = email.trim().toLowerCase();
+  if (!/^e2e-[^@]+@workbenchfsm\.com$/.test(e)) return false;
+  return !(await prisma.account.findUnique({ where: { email: e }, select: { id: true } }));
+}
+
+/**
  * A company opened on an EXISTING login must not be reachable with a
  * starting password a manager of another company typed for that login
  * (Account.passwordChangedAt null, lib/team-login.ts). Every door that

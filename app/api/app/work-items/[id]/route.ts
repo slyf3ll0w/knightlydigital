@@ -127,9 +127,9 @@ export async function DELETE(
   // ARCHIVED instead of deleted — a hard delete used to orphan those links
   // and quietly break the agreement gate and margin backfill on old docs.
   const [quoteRefs, invoiceRefs, subRefs] = await Promise.all([
-    prisma.quoteLineItem.count({ where: { workItemId: id } }),
-    prisma.invoiceLineItem.count({ where: { workItemId: id } }),
-    prisma.subscription.count({ where: { workItemId: id } }),
+    prisma.quoteLineItem.count({ where: { workItemId: id, quote: { companyId } } }),
+    prisma.invoiceLineItem.count({ where: { workItemId: id, invoice: { companyId } } }),
+    prisma.subscription.count({ where: { workItemId: id, companyId } }),
   ]);
   if (quoteRefs + invoiceRefs + subRefs > 0) {
     await prisma.workItem.update({ where: { id }, data: { isActive: false } });

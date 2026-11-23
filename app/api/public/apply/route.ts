@@ -9,7 +9,7 @@ import { sendEmail, newApplicationEmail, welcomeEmail } from "@/lib/email";
 import { checkInviteCode } from "@/lib/invites";
 import { normalizeEmail } from "@/lib/user-email";
 import { findOrAdoptAccountByEmail } from "@/lib/account";
-import { createCompanySignup, InviteClaimedError, PlaceholderClaimedError } from "@/lib/signup";
+import { createCompanySignup, InviteClaimedError, PlaceholderClaimedError, reservedSignupEmail } from "@/lib/signup";
 import { isValidTimezone } from "@/lib/timezone";
 import { accountHasCompany, HAS_COMPANY_MESSAGE } from "@/lib/company-requests";
 import { paymentsGateEnabled, paymentsSetupGateEnabled } from "@/lib/payments-gate";
@@ -131,6 +131,9 @@ export async function POST(req: NextRequest) {
     );
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
+    return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
+  }
+  if (await reservedSignupEmail(String(email))) {
     return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
   }
   if (!sessionAccount && (String(password).length < 8 || String(password).length > 72)) {

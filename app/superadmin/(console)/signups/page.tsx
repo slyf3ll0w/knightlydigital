@@ -1,3 +1,4 @@
+import { requireSuperadminPage } from "@/lib/superadmin";
 import { prisma } from "@/lib/db";
 import SignupsClient from "@/components/console/SignupsClient";
 
@@ -9,6 +10,8 @@ export const dynamic = "force-dynamic";
  * pages, Applications and Invite codes, until 2026-09-30.)
  */
 export default async function SignupsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  // Checked here as well as in the layout: a page segment can be fetched on its own.
+  await requireSuperadminPage();
   const { tab } = await searchParams;
   const [applications, invites, companyRequests] = await Promise.all([
     prisma.accessApplication.findMany({

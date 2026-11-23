@@ -7,7 +7,7 @@ import { verifyCaptcha } from "@/lib/captcha";
 import { checkInviteCode } from "@/lib/invites";
 import { normalizeEmail } from "@/lib/user-email";
 import { ensureAccountForUser, findOrAdoptAccountByEmail } from "@/lib/account";
-import { createCompanySignup, InviteClaimedError, PlaceholderClaimedError } from "@/lib/signup";
+import { createCompanySignup, InviteClaimedError, PlaceholderClaimedError, reservedSignupEmail } from "@/lib/signup";
 import { isValidTimezone } from "@/lib/timezone";
 import { accountHasCompany, HAS_COMPANY_MESSAGE } from "@/lib/company-requests";
 
@@ -29,6 +29,9 @@ export async function POST(req: NextRequest) {
   // Stored lowercased so the address they type at sign-in (and at password
   // reset, which also normalizes) always finds this account.
   const email = normalizeEmail(body.email);
+  if (email && (await reservedSignupEmail(email))) {
+    return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
+  }
   // Optional — seeds the starter price book; signup never hard-fails on it
   const { industry } = body;
 

@@ -2,7 +2,7 @@ import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
-import { recordPayment, invoiceBalance } from "@/lib/payments";
+import { recordPayment, invoiceBalance, acquireChargeLock, releaseChargeLock } from "@/lib/payments";
 import type { PaymentMethod } from "@prisma/client";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { getSquarePayment, SquareError } from "@/lib/square";
@@ -36,9 +36,14 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { invoiceId, amount, method, referenceNumber, details, paidAt, emailReceipt, squarePaymentId } = body;
 
-  if (!invoiceId || !amount || amount <= 0) {
+  // A real number of dollars and cents, nothing else: a string, NaN or a
+  // fraction of a cent must never reach the books.
+  const dollars = typeof amount === "number" ? amount : typeof amount === "string" && amount.trim() !== "" ? Number(amount) : NaN;
+  if (typeof invoiceId !== "string" || !invoiceId || !Number.isFinite(dollars) || dollars <= 0 || dollars > 10_000_000) {
     return NextResponse.json({ error: "Invoice and a positive amount are required." }, { status: 400 });
   }
+  const paid = Math.round(dollars * 100) / 100;
+  if (paid <= 0) return NextResponse.json({ error: "Invoice and a positive amount are required." }, { status: 400 });
   if (!validMethods.includes(method)) {
     return NextResponse.json({ error: "Invalid payment method." }, { status: 400 });
   }
@@ -74,6 +79,12 @@ export async function POST(req: NextRequest) {
       const { token } = await squareTokenForCompany(companyId);
       const sq = await getSquarePayment(token, squarePaymentId);
       if (sq.status !== "COMPLETED") return NextResponse.json({ error: "That Square payment hasn't completed." }, { status: 400 });
+      if (sq.amount_money.currency && sq.amount_money.currency !== "USD") return NextResponse.json({ error: "Only USD payments can be recorded here." }, { status: 400 });
+      // The record can't claim more than Square actually took (less what was refunded there).
+      const tookCents = sq.amount_money.amount - (sq.refunded_money?.amount ?? 0);
+      if (Math.round(paid * 100) > tookCents) {
+        return NextResponse.json({ error: `That Square sale was for $${(tookCents / 100).toFixed(2)}. The amount recorded can't be more than that.` }, { status: 400 });
+      }
       processorRef = sq.id;
     } catch (err) {
       if (err instanceof SquareNotConnectedError) return NextResponse.json({ error: "Connect Square first." }, { status: 400 });
@@ -83,19 +94,33 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const balance = invoiceBalance(invoice);
-  if (Number(amount) > balance + 0.005) {
-    return NextResponse.json(
-      { error: `That's more than the $${balance.toFixed(2)} still owed on this invoice.` },
-      { status: 400 }
-    );
+  // One recording at a time per invoice: two saves at once would each see
+  // the old balance and together overpay it, or book one Square sale twice.
+  if (!(await acquireChargeLock(invoice.id))) {
+    return NextResponse.json({ error: "Another payment on this invoice is being recorded. Give it a moment." }, { status: 409 });
   }
-
   try {
+    const fresh = await prisma.invoice.findUniqueOrThrow({
+      where: { id: invoice.id },
+      include: { payments: { select: { amount: true, surchargeAmount: true } } },
+    });
+    if (fresh.status === "PAID") return NextResponse.json({ error: "This invoice is already paid in full." }, { status: 400 });
+    if (processorRef) {
+      const dup = await prisma.payment.findFirst({ where: { companyId, processorRef }, select: { id: true } });
+      if (dup) return NextResponse.json({ error: "That Square sale is already recorded on an invoice." }, { status: 409 });
+    }
+    const balance = invoiceBalance(fresh);
+    if (paid > balance + 0.005) {
+      return NextResponse.json(
+        { error: `That's more than the $${balance.toFixed(2)} still owed on this invoice.` },
+        { status: 400 }
+      );
+    }
+
     const { payment, fullyPaid } = await recordPayment({
       companyId,
       invoiceId,
-      amount: Number(amount),
+      amount: paid,
       method: method as PaymentMethod,
       referenceNumber: referenceNumber || null,
       details: details || null,
@@ -115,5 +140,7 @@ export async function POST(req: NextRequest) {
     // internals (Prisma messages, table names) out of the response.
     reportError("[payments] recordPayment failed:", e);
     return NextResponse.json({ error: "Failed to record payment." }, { status: 500 });
+  } finally {
+    await releaseChargeLock(invoice.id);
   }
 }

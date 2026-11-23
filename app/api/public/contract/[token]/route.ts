@@ -5,6 +5,7 @@ import { companyNotifyAddress } from "@/lib/notify";
 import { isContractLinkExpired } from "@/lib/agreements";
 import { suspendedResponse } from "@/lib/suspension";
 import { fireAutomations } from "@/lib/automations-server";
+import { clientIp } from "@/lib/rate-limit";
 
 /**
  * POST — client signs a contract with a typed signature (same e-sign
@@ -46,11 +47,10 @@ export async function POST(
     );
   }
 
-  // Cloudflare sits in front — cf-connecting-ip is the real client
-  const ip =
-    req.headers.get("cf-connecting-ip") ??
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    null;
+  // The signer's address goes on the signature record, so it is read the one
+  // careful way (lib/rate-limit.ts clientIp), never from a header a caller can type.
+  const seen = clientIp(req.headers);
+  const ip = seen === "unknown" ? null : seen;
 
   const signedAt = new Date();
   // Claim, don't assume: a void (or another signature) landing between the

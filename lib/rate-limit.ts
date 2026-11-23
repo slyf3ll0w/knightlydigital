@@ -104,6 +104,18 @@ export async function limit(key: string, max: number, windowMs: number): Promise
  * x-forwarded-for starts with a rotating Cloudflare edge IP — useless as a
  * rate-limit key. cf-connecting-ip / x-real-ip carry the real client.
  */
+/** Did this request provably pass through Cloudflare? See clientIp. */
+export function cameThroughEdge(headers: Headers): boolean {
+  const secret = process.env.EDGE_SHARED_SECRET?.trim();
+  if (!secret) return true;
+  if (secret.toLowerCase() === "off") return false;
+  const sent = headers.get("x-wb-edge") ?? "";
+  if (sent.length !== secret.length) return false;
+  let diff = 0;
+  for (let i = 0; i < secret.length; i++) diff |= sent.charCodeAt(i) ^ secret.charCodeAt(i);
+  return diff === 0;
+}
+
 export function clientIp(headers: Headers): string {
   // Cloudflare overwrites this header on every proxied request, so behind it
   // the value is the visitor's, whatever they typed. Off Cloudflare (staging)
@@ -112,7 +124,16 @@ export function clientIp(headers: Headers): string {
   // sends every request for a non-canonical hostname away first
   // (lib/canonical-host.ts), so a caller can't reach this off-Cloudflare in
   // production and hand-pick their bucket.
-  const cf = headers.get("cf-connecting-ip");
+  //
+  // "Can't reach this off-Cloudflare" rests on the Host header alone, which a
+  // caller who finds the hosting address can type. EDGE_SHARED_SECRET closes
+  // that (2026-11-23 security review): Cloudflare adds the header x-wb-edge
+  // with that value to every request it forwards (a Transform Rule), and
+  // cf-connecting-ip is believed only when it is there. A request that came
+  // straight to the host has no such header, so it is keyed on the address
+  // the hosting proxy itself saw. "off" = never believe cf-connecting-ip
+  // (staging, which has no Cloudflare). Unset = as before.
+  const cf = cameThroughEdge(headers) ? headers.get("cf-connecting-ip") : null;
   if (cf) return cf.trim();
   const fwd = headers.get("x-forwarded-for");
   if (fwd) {

@@ -14,7 +14,9 @@
  */
 import assert from "node:assert/strict";
 import { isPrivateIp } from "../lib/website-check";
-import { isPushServiceEndpoint } from "../lib/public-fetch";
+import { isPushServiceEndpoint, pinnedHttpsRequest } from "../lib/public-fetch";
+import { MAX_SESSIONS_PER_DAY, PREPAID_CENTS, UNREPORTED_LIMIT, applyReport, audioCents, mintVerdict } from "../lib/live-voice-meter";
+import { cameThroughEdge, clientIp } from "../lib/rate-limit";
 
 process.env.DATABASE_URL ??= "postgresql://u:p@localhost:5432/unused";
 process.env.AUTH_SECRET ??= "unit-test-secret";
@@ -27,6 +29,7 @@ async function main() {
   const { withholdsClient } = await import("../lib/public-doc-privacy");
   const { voiceConfirmable } = await import("../components/AssistantCard");
   const { overallDailyCap } = await import("../lib/tool-send");
+  const { clearForeignWorkItemIds } = await import("../lib/own-work-items");
   let passed = 0;
   async function test(name: string, fn: () => void | Promise<void>) {
     await fn();
@@ -134,6 +137,80 @@ async function main() {
     process.env.TOOLS_EMAIL_DAILY_CAP = "nonsense";
     assert.equal(overallDailyCap(), 300);
     delete process.env.TOOLS_EMAIL_DAILY_CAP;
+  });
+
+  console.log("live voice metering");
+  await test("a session is prepaid, reports are charged only past that, and seconds never exceed its age", () => {
+    const startedAt = new Date("2026-11-23T12:00:00Z");
+    const fresh = { startedAt, inSeconds: 0, outSeconds: 0, chargedCents: PREPAID_CENTS };
+    // 20 s each way is inside the prepaid half minute: nothing more to charge
+    const small = applyReport(fresh, { inSeconds: 20, outSeconds: 20 }, new Date(startedAt.getTime() + 30_000));
+    assert.ok(small);
+    assert.equal(small.chargeNow, 0);
+    // two minutes each way owes more than was prepaid
+    const big = applyReport(fresh, { inSeconds: 120, outSeconds: 120 }, new Date(startedAt.getTime() + 130_000));
+    assert.ok(big);
+    assert.ok(Math.abs(big.chargedCents - audioCents(120, 120)) < 1e-9);
+    assert.ok(Math.abs(big.chargeNow - (audioCents(120, 120) - PREPAID_CENTS)) < 1e-9);
+    // an hour claimed one minute in is cut to the session's age (+ a minute of slack)
+    const clamp = applyReport(fresh, { inSeconds: 3600, outSeconds: 3600 }, new Date(startedAt.getTime() + 60_000));
+    assert.ok(clamp);
+    assert.equal(clamp.inSeconds, 120);
+    assert.equal(clamp.outSeconds, 120);
+    // garbage and negative numbers add nothing; a report for a long-dead session is ignored
+    const junk = applyReport(fresh, { inSeconds: NaN, outSeconds: -5 }, new Date(startedAt.getTime() + 60_000));
+    assert.ok(junk);
+    assert.equal(junk.inSeconds + junk.outSeconds, 0);
+    assert.equal(applyReport(fresh, { inSeconds: 10, outSeconds: 10 }, new Date(startedAt.getTime() + 2 * 3600_000)), null);
+  });
+  await test("a login is paused after too many silent sessions or too many sessions in a day", () => {
+    assert.equal(mintVerdict({ sessions24h: 0, unreported24h: 0 }), "ok");
+    assert.equal(mintVerdict({ sessions24h: MAX_SESSIONS_PER_DAY - 1, unreported24h: UNREPORTED_LIMIT - 1 }), "ok");
+    assert.equal(mintVerdict({ sessions24h: MAX_SESSIONS_PER_DAY, unreported24h: 0 }), "daily-cap");
+    assert.equal(mintVerdict({ sessions24h: 20, unreported24h: UNREPORTED_LIMIT }), "unreported");
+  });
+
+  console.log("cards");
+  await test("a plan edit and a long message never go out on a spoken yes", () => {
+    const card = (kind: string, extra: object = {}) => ({ id: "1", kind, title: "t", lines: [], endpoint: "/api/app/x", method: "POST", payload: {}, ...extra }) as never;
+    assert.equal(voiceConfirmable(card("manage_subscription")), false);
+    assert.equal(voiceConfirmable(card("email_client", { fullText: "x".repeat(900) })), false);
+    assert.equal(voiceConfirmable(card("email_client")), true);
+  });
+
+  console.log("price-book ids on lines");
+  await test("an id that is not the company's own is cleared; its own and hand-typed lines are untouched", () => {
+    const lines = [{ name: "Mow", workItemId: "mine" }, { name: "Edge", workItemId: "theirs" }, { name: "Typed" }, { name: "Odd", workItemId: 42 }, { name: "Null", workItemId: null }];
+    clearForeignWorkItemIds(lines, new Set(["mine"]));
+    assert.deepEqual(lines.map((l) => l.workItemId), ["mine", null, undefined, null, null]);
+  });
+
+  console.log("visitor address");
+  await test("cf-connecting-ip is believed only when Cloudflare's shared header is there", () => {
+    const h = (o: Record<string, string>) => new Headers(o);
+    const saved = process.env.EDGE_SHARED_SECRET;
+    try {
+      delete process.env.EDGE_SHARED_SECRET;
+      assert.equal(clientIp(h({ "cf-connecting-ip": "1.1.1.1", "x-forwarded-for": "9.9.9.9, 2.2.2.2" })), "1.1.1.1");
+      process.env.EDGE_SHARED_SECRET = "s3cret-value";
+      // typed by a caller who reached the host directly: ignored, keyed on what the hosting proxy saw
+      assert.equal(clientIp(h({ "cf-connecting-ip": "1.1.1.1", "x-forwarded-for": "9.9.9.9, 2.2.2.2" })), "2.2.2.2");
+      assert.equal(clientIp(h({ "cf-connecting-ip": "1.1.1.1", "x-wb-edge": "wrong-value!", "x-forwarded-for": "2.2.2.2" })), "2.2.2.2");
+      assert.equal(clientIp(h({ "cf-connecting-ip": "1.1.1.1", "x-wb-edge": "s3cret-value", "x-forwarded-for": "2.2.2.2" })), "1.1.1.1");
+      assert.equal(cameThroughEdge(h({ "x-wb-edge": "s3cret-value" })), true);
+      process.env.EDGE_SHARED_SECRET = "off";
+      assert.equal(clientIp(h({ "cf-connecting-ip": "1.1.1.1", "x-forwarded-for": "2.2.2.2" })), "2.2.2.2");
+    } finally {
+      if (saved === undefined) delete process.env.EDGE_SHARED_SECRET;
+      else process.env.EDGE_SHARED_SECRET = saved;
+    }
+  });
+
+  console.log("pinned requests");
+  await test("a private or non-https address is refused before any connection", async () => {
+    for (const u of ["https://127.0.0.1/", "https://[::1]/", "https://10.0.0.1/x", "https://169.254.169.254/latest/meta-data/", "http://example.com/", "https://user:pw@example.com/", "not a url"]) {
+      assert.equal(await pinnedHttpsRequest(u, { timeoutMs: 2000 }), null, u);
+    }
   });
 
   console.log(`\n${passed} passed`);

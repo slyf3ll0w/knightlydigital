@@ -1,3 +1,4 @@
+import { keepOwnWorkItemIds } from "@/lib/own-work-items";
 import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import type { InvoiceStatus, RecurringInterval } from "@prisma/client";
@@ -57,6 +58,8 @@ export async function PATCH(
   }
 
   const body = await req.json();
+  // A price-book id on a line must be this company's own (lib/own-work-items.ts)
+  await keepOwnWorkItemIds(actor.companyId, body?.lineItems);
   if (!Array.isArray(body.lineItems) || body.lineItems.length === 0) {
     return NextResponse.json({ error: "At least one line item is required." }, { status: 400 });
   }

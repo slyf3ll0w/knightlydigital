@@ -20,6 +20,7 @@ import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { prisma } from "@/lib/db";
 import { limit } from "@/lib/rate-limit";
+import { pinnedHttpsRequest } from "@/lib/public-fetch";
 import { isManager, type Actor, type Role } from "@/lib/permissions";
 import { issuer } from "./metadata";
 
@@ -116,29 +117,6 @@ function privateAddress(ip: string): boolean {
   return a === 10 || a === 127 || a === 0 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
 }
 
-/** A response body as text, or null once it passes `max` bytes: the rest is never read into memory. */
-async function readCapped(res: Response, max: number): Promise<string | null> {
-  if (Number(res.headers.get("content-length") ?? 0) > max) {
-    await res.body?.cancel().catch(() => {});
-    return null;
-  }
-  const reader = res.body?.getReader();
-  if (!reader) return "";
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > max) {
-      await reader.cancel().catch(() => {});
-      return null;
-    }
-    chunks.push(value);
-  }
-  return Buffer.concat(chunks).toString("utf8");
-}
-
 /**
  * An app that identifies by a metadata URL: fetch the document and read its
  * name and redirect addresses. The URL is the app's choice, so it is only
@@ -161,10 +139,10 @@ async function clientFromMetadataUrl(clientId: string): Promise<ConnectorClientI
     const perHost = await limit(`connector-meta:${url.hostname.toLowerCase()}`, 120, 10 * 60_000);
     const overall = await limit("connector-meta", 600, 10 * 60_000);
     if (!perHost.ok || !overall.ok) return null;
-    const res = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(5000), headers: { Accept: "application/json" } });
-    if (!res.ok) return null;
-    const text = await readCapped(res, 20_000);
-    if (text === null) return null;
+    // Resolved once, at the connection, by a lookup that refuses private addresses (lib/public-fetch.ts).
+    const res = await pinnedHttpsRequest(url.toString(), { headers: { Accept: "application/json" }, timeoutMs: 5000, maxBytes: 20_000 });
+    if (!res || res.status !== 200) return null;
+    const text = res.text;
     const doc = JSON.parse(text) as { client_id?: unknown; client_name?: unknown; redirect_uris?: unknown };
     if (doc.client_id !== clientId || !Array.isArray(doc.redirect_uris)) return null;
     const redirectUris = doc.redirect_uris.filter(validRedirectUri).slice(0, 10);

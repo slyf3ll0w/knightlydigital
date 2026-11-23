@@ -39,6 +39,7 @@ const TAP_ONLY_KINDS = new Set([
   "update_company_settings",
   "manage_lead_webhook",
   "record_payment",
+  "manage_subscription",
 ]);
 export function tapOnly(p: Pick<Proposal, "kind">): boolean {
   return TAP_ONLY_KINDS.has(p.kind);
@@ -46,7 +47,7 @@ export function tapOnly(p: Pick<Proposal, "kind">): boolean {
 
 /** Cards a spoken "yes" may confirm: ordinary ones (no money, nothing permanent, no typed phrase, not tap-only). */
 export function voiceConfirmable(p: Proposal): boolean {
-  return !p.danger && !p.money && !p.confirmText && !tapOnly(p);
+  return !p.danger && !p.money && !p.confirmText && !p.fullText && !tapOnly(p);
 }
 
 /** Cards that put words in front of a client (email, text, portal message,
@@ -123,6 +124,8 @@ export function ProposalCard({
 }) {
   const [typed, setTyped] = useState("");
   const [expanded, setExpanded] = useState(false);
+  // A long message is previewed; the card arms only once the whole of it has been opened.
+  const [readAll, setReadAll] = useState(false);
   // Estimate-tool cards carry the full spec — offer a live "Try it" before Confirm
   const [trying, setTrying] = useState(false);
   const payload = (p.payload && typeof p.payload === "object" ? p.payload : {}) as Record<string, unknown>;
@@ -236,6 +239,24 @@ export function ProposalCard({
         </div>
       )}
 
+      {/* a long message: the rest of it, and the card stays unarmed until it has been opened */}
+      {p.fullText && open && (
+        <div className="mx-3.5 mt-1 border-t border-gray-100 pt-2">
+          {readAll ? (
+            <p className="max-h-72 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-gray-700 [overflow-wrap:anywhere]">{p.fullText}</p>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setReadAll(true)}
+              className="flex w-full items-center gap-1 py-1 text-xs font-medium text-gray-700 hover:text-gray-900"
+            >
+              <ChevronDown size={13} />
+              Read the whole message before sending ({p.fullText.length.toLocaleString()} characters)
+            </button>
+          )}
+        </div>
+      )}
+
       {/* typed confirmation for destructive cards */}
       {needsTyping && open && (
         <div className="mx-3.5 mt-1 border-t border-gray-100 pt-2.5">
@@ -276,7 +297,7 @@ export function ProposalCard({
           )}
           <button
             type="button"
-            disabled={busy || !armed}
+            disabled={busy || !armed || Boolean(p.fullText && !readAll)}
             onClick={onConfirm}
             className="btn-tool flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-40"
             style={{ background: t.solid, color: t.onSolid }}

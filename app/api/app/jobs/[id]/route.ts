@@ -1,3 +1,4 @@
+import { keepOwnWorkItemIds } from "@/lib/own-work-items";
 import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { canonicalLeadSource } from "@/lib/lead-source";
@@ -23,6 +24,8 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await req.json();
+  // A price-book id on a line must be this company's own (lib/own-work-items.ts)
+  await keepOwnWorkItemIds(actor.companyId, body?.lineItems);
 
   // Techs may move their own jobs around the schedule but not rewrite them
   const fullEdit = isManager(actor.role) || actor.role === "USER";
