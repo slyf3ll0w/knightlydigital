@@ -1,1 +1,230 @@
 /* home page look (heavy pilot round 6). Loaded after ds.css from app/layout.tsx. */
+
+/* Home draws its day and its month instead of showing number cards (turned
+   down: glow bands, ink slabs, tallies, a row of KPI tiles). Two pictures:
+   the today line (DayLine.tsx) and the money picture (MoneyPicture.tsx).
+   Both sit in the .ds-pic panel the list pages use. */
+
+/* ── Today: the panel ─────────────────────────────────────────────────── */
+.hm-today { padding-bottom: 16px; }
+.hm-today-list {
+  margin: 16px -18px -16px; border-top: 1px solid var(--ds-line);
+  border-radius: 0 0 var(--ds-r-xl) var(--ds-r-xl); overflow: hidden;
+}
+@media (min-width: 1024px) { .hm-today { padding-bottom: 20px; } .hm-today-list { margin: 18px -26px -20px; } }
+.hm-today-only { margin-top: 14px; }
+.hm-today-clear {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px;
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--ds-line);
+}
+.hm-today-next {
+  font-weight: 600; color: var(--ds-ink);
+  text-decoration: underline; text-decoration-color: var(--ds-line-strong); text-underline-offset: 3px;
+}
+.hm-today-next:hover { text-decoration-color: currentColor; }
+
+/* ── Today: the line ──────────────────────────────────────────────────── */
+.hm-day { --lane-h: 38px; display: flex; align-items: flex-end; gap: 12px; margin-top: 18px; }
+.hm-day-field { position: relative; flex: 1 1 auto; min-width: 0; margin: 0 16px; }
+.hm-day-pins { position: relative; height: calc(var(--lanes) * var(--lane-h) + 14px); }
+.hm-day-slot { position: absolute; bottom: 0; transform: translateX(-50%); z-index: 1; }
+.hm-day-slot:hover, .hm-day-slot:focus-within { z-index: 3; }
+
+.hm-pin { position: relative; display: flex; flex-direction: column; align-items: center; outline: none; }
+.hm-pin-face {
+  position: relative; display: block; border-radius: 999px;
+  box-shadow: 0 0 0 2.5px var(--ds-surface), 0 6px 14px -8px rgba(15, 23, 42, 0.5);
+  transition: transform 200ms var(--ds-ease-spring, var(--ds-ease)), opacity 200ms var(--ds-ease), filter 200ms var(--ds-ease);
+  animation: hm-pin-in 560ms var(--ds-ease-spring, var(--ds-ease)) backwards;
+  animation-delay: calc(260ms + var(--lane, 0) * 70ms);
+}
+.hm-pin-stem {
+  width: 2px; height: calc(var(--lane, 0) * var(--lane-h) + 10px); margin-top: 2px; border-radius: 2px;
+  background: var(--ds-line-strong); transform-origin: bottom;
+  animation: hm-stem-in 420ms var(--ds-ease) 200ms backwards;
+}
+.hm-pin.is-appt .hm-pin-stem { width: 0; background: none; border-left: 2px dashed var(--ds-line-strong); }
+.hm-pin:hover .hm-pin-face, .hm-pin:focus-visible .hm-pin-face { transform: translateY(-4px) scale(1.1); opacity: 1; filter: none; }
+.hm-pin:hover .hm-pin-stem, .hm-pin:focus-visible .hm-pin-stem { background: var(--ds-primary); }
+.hm-pin.is-appt:hover .hm-pin-stem, .hm-pin.is-appt:focus-visible .hm-pin-stem { background: none; border-left-color: var(--ds-primary); }
+.hm-pin.is-past .hm-pin-face { opacity: 0.42; filter: grayscale(0.5); }
+.hm-pin.is-next .hm-pin-face {
+  box-shadow: 0 0 0 2.5px var(--ds-surface), 0 0 0 5px var(--ds-secondary), 0 8px 18px -8px rgba(15, 23, 42, 0.55);
+}
+.hm-pin.is-next .hm-pin-face::after {
+  content: ""; position: absolute; inset: -5px; border-radius: 999px; pointer-events: none;
+  box-shadow: 0 0 0 2px var(--ds-secondary); animation: hm-halo 2.4s var(--ds-ease) 1s infinite;
+}
+.hm-pin.is-next .hm-pin-stem { background: var(--ds-secondary); }
+.hm-pin.is-next.is-appt .hm-pin-stem { background: none; border-left-color: var(--ds-secondary); }
+
+.hm-pin-tip {
+  position: absolute; bottom: calc(100% + 8px); left: 50%; z-index: 5;
+  display: flex; flex-direction: column; gap: 1px; width: max-content; max-width: 230px;
+  padding: 8px 11px; border-radius: 10px; background: var(--ds-surface); color: var(--ds-ink);
+  box-shadow: 0 12px 30px -12px rgba(15, 23, 42, 0.35), 0 0 0 1px var(--ds-line);
+  font-size: 13px; font-weight: 600; line-height: 1.3; text-align: left; white-space: normal;
+  opacity: 0; pointer-events: none; transform: translate(-50%, 4px);
+  transition: opacity 160ms var(--ds-ease), transform 160ms var(--ds-ease);
+}
+.hm-pin-tip b { font-weight: 800; font-variant-numeric: tabular-nums; }
+.hm-pin-tip span { font-size: 12.5px; font-weight: 500; color: var(--ds-ink-2); }
+.hm-pin:hover .hm-pin-tip, .hm-pin:focus-visible .hm-pin-tip { opacity: 1; transform: translate(-50%, 0); }
+
+/* the ruler: the day's hours, the part that's gone drawn in the brand color */
+.hm-day-ruler { position: relative; height: 26px; border-top: 2px solid var(--ds-line-strong); }
+.hm-day-gone {
+  position: absolute; left: 0; top: -2px; height: 2px; border-radius: 2px; background: var(--ds-primary);
+  transform-origin: left; animation: hm-gone-in 900ms var(--ds-ease) 150ms both;
+  transition: width 1s var(--ds-ease);
+}
+.hm-day-tick { position: absolute; top: 0; width: 1px; height: 6px; background: var(--ds-line-strong); }
+.hm-day-tick.is-major { height: 8px; background: var(--ds-faint); }
+.hm-day-tick-label {
+  position: absolute; top: 9px; left: 0; transform: translateX(-50%);
+  font-size: 11px; font-weight: 600; color: var(--ds-muted); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.hm-day-tick.is-major .hm-day-tick-label { font-weight: 700; color: var(--ds-ink-2); }
+@media (max-width: 639px) { .hm-day-tick:not(.is-major) .hm-day-tick-label { display: none; } }
+
+.hm-day-now {
+  position: absolute; bottom: calc(100% - 4px); width: 2px; margin-left: -1px; z-index: 0;
+  height: calc(var(--lanes) * var(--lane-h) + 22px); border-radius: 2px;
+  background: linear-gradient(to top, var(--ds-secondary), color-mix(in srgb, var(--ds-secondary) 10%, transparent));
+  transition: left 1s var(--ds-ease);
+}
+.hm-day-now-label {
+  position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
+  padding: 1px 6px; border-radius: 5px; background: var(--ds-secondary); color: var(--ds-on-secondary);
+  font-size: 10.5px; font-weight: 800; line-height: 1.5; white-space: nowrap;
+}
+
+/* anytime stops wait in a pocket at the left */
+.hm-day-anytime {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 0 0 auto;
+  padding: 0 14px 0 2px; border-right: 1.5px dashed var(--ds-line-strong);
+}
+.hm-day-anytime-pins { display: flex; padding-left: 8px; }
+.hm-day-anytime-pins .hm-pin { margin-left: -8px; }
+.hm-day-anytime-label { order: 2; height: 18px; font-size: 11px; font-weight: 700; color: var(--ds-muted); }
+
+/* ── Money: the month ─────────────────────────────────────────────────── */
+.hm-money-total { color: inherit; }
+.hm-money-total:hover b { color: var(--ds-primary); }
+.hm-money-pace {
+  display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px;
+  font-size: 13px; font-weight: 600; color: var(--ds-muted);
+}
+.hm-money-pace b { font-weight: 800; color: var(--ds-ink-2); font-variant-numeric: tabular-nums; }
+.hm-money-pace-key { width: 16px; height: 0; border-top: 2px dashed var(--ds-faint); }
+.hm-money-pace .is-up, .hm-money-pace .is-down { font-size: 12px; font-weight: 800; }
+.hm-money-pace .is-up { color: var(--ds-good); }
+.hm-money-pace .is-down { color: var(--ds-bad); }
+
+.hm-money-chart { position: relative; height: 150px; margin: 18px 4px 0; }
+.hm-money.is-phone .hm-money-chart { height: 112px; }
+.hm-money-svg {
+  position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible;
+  animation: hm-wipe 1000ms var(--ds-ease) 200ms both;
+}
+.hm-money-grid { stroke: var(--ds-line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.hm-money-ghost { fill: none; stroke: var(--ds-faint); stroke-width: 2; stroke-dasharray: 5 5; vector-effect: non-scaling-stroke; }
+.hm-money-area { fill: color-mix(in srgb, var(--ds-primary) 12%, transparent); stroke: none; }
+.hm-money-line { fill: none; stroke: var(--ds-primary); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.hm-money-drop { stroke: var(--ds-primary); stroke-width: 1.5; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; opacity: 0.6; }
+.hm-money-dot {
+  position: absolute; width: 14px; height: 14px; transform: translate(-50%, -50%); border-radius: 999px; z-index: 2;
+  background: var(--ds-primary); box-shadow: 0 0 0 3px var(--ds-surface); pointer-events: none;
+  animation: hm-pop 420ms var(--ds-ease-spring, var(--ds-ease)) 1100ms both;
+}
+.hm-money-dot::after {
+  content: ""; position: absolute; inset: -3px; border-radius: 999px;
+  box-shadow: 0 0 0 2px var(--ds-primary); animation: hm-halo 2.6s var(--ds-ease) 1.6s infinite;
+}
+.hm-money-flag {
+  position: absolute; z-index: 2; transform: translate(-50%, calc(-100% - 13px)); pointer-events: none;
+  padding: 1px 7px; border-radius: 5px; background: var(--ds-primary); color: var(--ds-on-primary);
+  font-size: 11px; font-weight: 800; line-height: 1.6; white-space: nowrap;
+  animation: hm-fade 420ms var(--ds-ease) 1200ms both;
+}
+.hm-money-flag.is-left { transform: translate(calc(-100% + 10px), calc(-100% - 13px)); }
+.hm-money-cols { position: absolute; inset: 0; display: flex; z-index: 1; }
+.hm-money-col { flex: 1 1 0; border-radius: 4px; transition: background-color 120ms var(--ds-ease); }
+.hm-money-col:hover { background: linear-gradient(to top, color-mix(in srgb, var(--ds-primary) 12%, transparent), transparent); }
+.hm-money-col.is-ahead { pointer-events: none; }
+.hm-money-axis {
+  display: flex; justify-content: space-between; margin: 6px 4px 0;
+  font-size: 11.5px; font-weight: 600; color: var(--ds-muted); font-variant-numeric: tabular-nums;
+}
+
+.hm-money-foot {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px;
+  margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--ds-line);
+}
+@media (min-width: 1024px) {
+  .hm-money-foot { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; }
+  .hm-money-foot > .hm-money-read + .hm-money-read { padding-left: 28px; margin-left: 28px; border-left: 1px solid var(--ds-line); }
+}
+.hm-money-read { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-width: 0; color: var(--ds-ink-2); }
+.hm-money-read-text {
+  display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0 4px; min-width: 0;
+  font-size: 15px; font-weight: 600; color: var(--ds-ink-2);
+}
+.hm-money-read-text b { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; color: var(--ds-ink); font-variant-numeric: tabular-nums; }
+.hm-money-read-text b.is-bad { color: var(--ds-bad); }
+.hm-money-read-text svg { color: var(--ds-faint); transition: transform 160ms var(--ds-ease), color 160ms var(--ds-ease); }
+a.hm-money-read:hover .hm-money-read-text svg, a.hm-money-read-text:hover svg { transform: translateX(2px); color: var(--ds-primary); }
+.hm-money-late { color: var(--ds-bad); font-weight: 700; }
+.hm-money-faces { display: flex; flex: 0 0 auto; padding-left: 8px; }
+.hm-money-face {
+  position: relative; margin-left: -8px; border-radius: 999px; box-shadow: 0 0 0 2.5px var(--ds-surface);
+  transition: transform 180ms var(--ds-ease-spring, var(--ds-ease));
+}
+.hm-money-face:hover { transform: translateY(-3px) scale(1.08); z-index: 1; }
+.hm-money-more {
+  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px;
+  background: var(--ds-surface-2); color: var(--ds-ink-2); font-size: 11.5px; font-weight: 800;
+  box-shadow: 0 0 0 2.5px var(--ds-surface), inset 0 0 0 1.5px var(--ds-line-strong);
+}
+.hm-money-week { display: flex; align-items: flex-end; gap: 4px; flex: 0 0 auto; }
+.hm-money-wday { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 18px; }
+.hm-money-wtrack { display: flex; align-items: flex-end; width: 12px; height: 30px; border-bottom: 2px solid var(--ds-line-strong); }
+.hm-money-wbar {
+  width: 100%; border-radius: 3px 3px 0 0; background: color-mix(in srgb, var(--ds-primary) 38%, var(--ds-surface));
+  transform-origin: bottom; animation: hm-grow 700ms var(--ds-ease) 400ms both;
+}
+.hm-money-wday:hover .hm-money-wbar, .hm-money-wday.is-today .hm-money-wbar { background: var(--ds-primary); }
+.hm-money-wday.is-today .hm-money-wtrack { border-bottom-color: var(--ds-primary); }
+.hm-money-wday.is-past { opacity: 0.6; }
+.hm-money-wdow { font-size: 10.5px; font-weight: 700; color: var(--ds-muted); }
+.hm-money-wday.is-today .hm-money-wdow { color: var(--ds-primary); }
+
+/* ── On the clock: a ring that fills over an 8-hour day ───────────────── */
+.hm-clock-ring {
+  position: relative; flex: 0 0 auto; padding: 3px; border-radius: 999px;
+  background: conic-gradient(var(--ds-good) var(--fill, 0%), var(--ds-line) 0);
+}
+.hm-clock-ring > span:first-child { box-shadow: 0 0 0 2px var(--ds-surface); }
+.hm-clock-live {
+  position: absolute; right: -1px; bottom: -1px; width: 11px; height: 11px; border-radius: 999px;
+  background: var(--ds-good); box-shadow: 0 0 0 2px var(--ds-surface);
+}
+.hm-clock-live::after {
+  content: ""; position: absolute; inset: 0; border-radius: 999px; background: var(--ds-good);
+  animation: hm-ping 1.8s var(--ds-ease) infinite;
+}
+
+/* ── motion ───────────────────────────────────────────────────────────── */
+@keyframes hm-pin-in { from { opacity: 0; transform: translateY(-10px) scale(0.6); } to { opacity: 1; transform: none; } }
+@keyframes hm-stem-in { from { transform: scaleY(0); } to { transform: none; } }
+@keyframes hm-gone-in { from { transform: scaleX(0); } to { transform: none; } }
+@keyframes hm-wipe { from { clip-path: inset(-10% 100% -10% -2%); } to { clip-path: inset(-10% -2% -10% -2%); } }
+@keyframes hm-pop { from { opacity: 0; transform: translate(-50%, -50%) scale(0.4); } }
+@keyframes hm-fade { from { opacity: 0; } }
+@keyframes hm-grow { from { transform: scaleY(0); } to { transform: none; } }
+@keyframes hm-halo { 0% { opacity: 0.8; transform: scale(1); } 70%, 100% { opacity: 0; transform: scale(1.7); } }
+@keyframes hm-ping { 0% { opacity: 0.7; transform: scale(1); } 80%, 100% { opacity: 0; transform: scale(2.4); } }
+@media (prefers-reduced-motion: reduce) {
+  .hm-pin-face, .hm-pin-stem, .hm-day-gone, .hm-money-svg, .hm-money-dot, .hm-money-flag, .hm-money-wbar { animation: none; }
+  .hm-pin.is-next .hm-pin-face::after, .hm-money-dot::after, .hm-clock-live::after { animation: none; display: none; }
+}
