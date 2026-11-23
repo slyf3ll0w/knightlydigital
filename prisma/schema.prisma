@@ -3525,6 +3525,14 @@ model Subscription {
   description        String?
   unitPrice          Decimal              @db.Decimal(10, 2)
   quantity           Decimal              @default(1) @db.Decimal(10, 3)
+  // Discount taken off every invoice this series makes (lib/series-discount.ts):
+  // FIXED = dollars off the invoice, PERCENT = percent off its subtotal, before
+  // tax, written onto the invoice's own discount columns. discountInvoicesLeft
+  // null = every invoice; a number counts down per invoice made and the
+  // discount clears itself at zero ("$25 off the first 3 invoices").
+  discountType         DepositType        @default(NONE)
+  discountValue        Decimal?           @db.Decimal(10, 2)
+  discountInvoicesLeft Int?
   // BILLING cadence — null = a standalone recurring-job series ("mow every
   // 2 weeks") that schedules visits via the series below but never bills
   interval           RecurringInterval?

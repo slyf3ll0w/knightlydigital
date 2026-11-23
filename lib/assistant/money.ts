@@ -1,4 +1,5 @@
 import { prisma } from "../db";
+import { parseSeriesDiscountInput, seriesDiscountLabel, seriesDiscountedPrice } from "@/lib/series-discount";
 import {
   canSell,
   canSeeMoney,
@@ -361,7 +362,7 @@ export const moneyTools: Tool[] = [
     decl: {
       name: "list_subscriptions",
       description:
-        "Recurring billing subscriptions: id (needed for manage_subscription), plan, client, price, interval, status, next bill date.",
+        "Recurring billing subscriptions: id (needed for manage_subscription), plan, client, price, any discount and what each invoice comes to after it, interval, status, next bill date.",
       parameters: {
         type: "object",
         properties: { status: { type: "string", enum: ["ACTIVE", "PAUSED", "CANCELLED"] } },
@@ -376,6 +377,7 @@ export const moneyTools: Tool[] = [
         take: 15, orderBy: { nextRunDate: "asc" },
         select: {
           id: true, name: true, status: true, interval: true, billPerVisit: true, consolidateMonthly: true, unitPrice: true, quantity: true, nextRunDate: true,
+          discountType: true, discountValue: true, discountInvoicesLeft: true,
           contact: { select: { firstName: true, lastName: true, companyName: true } },
         },
       });
@@ -383,6 +385,11 @@ export const moneyTools: Tool[] = [
         subscriptions: rows.map((s) => ({
           id: s.id, name: s.name, client: clientName(s.contact), status: s.status,
           price: money(Number(s.unitPrice) * Number(s.quantity)),
+          // null = no discount; otherwise "$25 off every invoice" and the amount an invoice comes to before tax
+          discount: seriesDiscountLabel(s) || null,
+          ...(seriesDiscountLabel(s)
+            ? { invoiceAfterDiscount: money(seriesDiscountedPrice(s, Number(s.unitPrice) * Number(s.quantity))) }
+            : {}),
           // "PER_VISIT" = each completed visit invoiced; "PER_VISIT_MONTHLY" =
           // one monthly invoice for completed visits; null = visits-only
           interval:
@@ -819,7 +826,7 @@ export const moneyTools: Tool[] = [
     decl: {
       name: "manage_subscription",
       description:
-        "Stage subscription changes (id from list_subscriptions): pause/resume/cancel (status), bill this cycle right now (billNow: true), or edit the plan (name, unitPrice, quantity, interval MONTHLY/QUARTERLY/SEMIANNUAL/ANNUAL, nextRunDate YYYY-MM-DD — applies from the next bill). Managers only. Confirmation card required.",
+        "Stage subscription changes (id from list_subscriptions): pause/resume/cancel (status), bill this cycle right now (billNow: true), or edit the plan (name, unitPrice, quantity, interval MONTHLY/QUARTERLY/SEMIANNUAL/ANNUAL, nextRunDate YYYY-MM-DD — applies from the next bill), or set a discount on its coming invoices (discountType FIXED = dollars off each invoice, PERCENT = percent off, NONE = remove it; discountValue; discountInvoices = how many coming invoices get it, omit for every invoice). Managers only. Confirmation card required.",
       parameters: {
         type: "object",
         properties: {
@@ -831,6 +838,9 @@ export const moneyTools: Tool[] = [
           quantity: { type: "number" },
           interval: { type: "string", enum: ["MONTHLY", "QUARTERLY", "SEMIANNUAL", "ANNUAL"] },
           nextRunDate: { type: "string", description: "YYYY-MM-DD" },
+          discountType: { type: "string", enum: ["NONE", "FIXED", "PERCENT"] },
+          discountValue: { type: "number", description: "Dollars (FIXED) or percent 1-100 (PERCENT)" },
+          discountInvoices: { type: "number", description: "Only this many coming invoices; omit for every invoice" },
         },
         required: ["subscriptionId"],
       },
@@ -841,7 +851,7 @@ export const moneyTools: Tool[] = [
         where: { id: str(args.subscriptionId, 40), companyId: actor.companyId },
         select: {
           id: true, name: true, status: true, unitPrice: true, quantity: true, interval: true,
-          nextRunDate: true,
+          nextRunDate: true, billPerVisit: true, discountType: true, discountValue: true, discountInvoicesLeft: true,
           contact: { select: { firstName: true, lastName: true, companyName: true } },
         },
       });
@@ -899,8 +909,29 @@ export const moneyTools: Tool[] = [
           `Next bill: ${sub.nextRunDate ? sub.nextRunDate.toISOString().slice(0, 10) : "none"} → ${str(args.nextRunDate, 10)}`
         );
       }
+      const discountType = str(args.discountType, 8);
+      if (["NONE", "FIXED", "PERCENT"].includes(discountType)) {
+        if (!sub.interval && !sub.billPerVisit) return { error: "This series doesn't bill, so it can't carry a discount." };
+        const parsed = parseSeriesDiscountInput({
+          discountType,
+          discountValue: num(args.discountValue),
+          discountInvoices: args.discountInvoices === null || args.discountInvoices === undefined ? null : num(args.discountInvoices),
+        });
+        if (parsed && "error" in parsed) return { error: parsed.error };
+        if (parsed) {
+          const before = seriesDiscountLabel(sub) || "none";
+          const after = seriesDiscountLabel(parsed.discount) || "none";
+          if (before !== after) {
+            payload.discountType = parsed.discount.discountType;
+            payload.discountValue = parsed.discount.discountValue;
+            payload.discountInvoices = parsed.discount.discountInvoicesLeft;
+            lines.push(`Discount: ${before} → ${after}`);
+            lines.push("Applies to invoices made from now on — invoices already issued don't change.");
+          }
+        }
+      }
       if (lines.length === 0) {
-        return { error: "Nothing to change — provide status, billNow, or plan edits (name/unitPrice/quantity/interval/nextRunDate)." };
+        return { error: "Nothing to change — provide status, billNow, plan edits (name/unitPrice/quantity/interval/nextRunDate) or a discount (discountType/discountValue/discountInvoices)." };
       }
       if (payload.unitPrice !== undefined || payload.quantity !== undefined || payload.interval !== undefined) {
         lines.push("Applies from the next bill — invoices already issued don't change.");

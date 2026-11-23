@@ -46,6 +46,7 @@ import {
 import type { SquareClientConfig } from "@/lib/pay-config";
 import type { Prisma } from "@prisma/client";
 import { leadSourceFor, type Arrival } from "@/lib/lead-source";
+import { seriesDiscountedPrice } from "@/lib/series-discount";
 
 /**
  * Plan billing — WorkBench's paid plans, sold the way every WorkBench
@@ -373,6 +374,9 @@ const SERIES_SELECT = {
   interval: true,
   quantity: true,
   unitPrice: true,
+  discountType: true,
+  discountValue: true,
+  discountInvoicesLeft: true,
   nextRunDate: true,
   createdAt: true,
   savedCardId: true,
@@ -396,12 +400,16 @@ async function loadSeries(platformId: string, contactId: string) {
 }
 
 function toSeriesLike(s: SeriesRecord): PlanSeriesLike {
+  // A discount on the series (lib/series-discount.ts) is part of what the
+  // customer pays, so the Plans page quotes the price with it taken off.
+  const qty = Number(s.quantity) || 1;
+  const perUnit = seriesDiscountedPrice(s, Number(s.unitPrice) * qty) / qty;
   return {
     id: s.id,
     status: s.status as SeriesStatus,
     interval: (s.interval as SeriesInterval | null) ?? null,
     quantity: Number(s.quantity),
-    unitPrice: Number(s.unitPrice),
+    unitPrice: perUnit,
     product: s.workItem?.planProduct ?? null,
     createdAt: s.createdAt,
     nextRunAt: s.nextRunDate ?? null,

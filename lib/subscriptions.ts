@@ -38,6 +38,7 @@ import { dueDateFromTerms } from "@/lib/due-dates";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
 import { fireAutomations } from "@/lib/automations-server";
 import { composeAddress } from "@/lib/geocoding";
+import { readSeriesDiscount, seriesDiscountAfterUse, seriesInvoiceMoney } from "@/lib/series-discount";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
@@ -87,13 +88,20 @@ export function firstOfNextMonth(from: Date = new Date()): Date {
  * same service is left as-is rather than duplicated. Reads the live WorkItem so
  * the company's current recurring config (interval, createsJob, invoiceMode,
  * price) is captured. Call inside the same transaction that creates the work.
+ *
+ * `opts.discount`: the invoice that sold the service carried a discount and
+ * the person chose to keep it on the series ("Keep this discount on later
+ * invoices"). A percent goes on every series this call starts; dollars off go
+ * on the first one only, so one $25 discount is never given twice.
  */
 export async function ensureSubscriptionsForContact(
   tx: Tx,
   companyId: string,
   contactId: string,
-  picks: { workItemId?: string | null; quantity?: number }[]
+  picks: { workItemId?: string | null; quantity?: number }[],
+  opts: { discount?: { discountType?: string | null; discountValue?: unknown } } = {}
 ): Promise<string[]> {
+  const carried = readSeriesDiscount({ ...opts.discount, discountInvoicesLeft: null });
   const createdIds: string[] = [];
   const ids = Array.from(
     new Set(picks.map((p) => p.workItemId).filter((id): id is string => !!id))
@@ -135,6 +143,9 @@ export async function ensureSubscriptionsForContact(
         invoiceMode: item.recurringInvoiceMode,
         status: "ACTIVE",
         nextRunDate: firstRunDate(interval),
+        ...(carried.discountType === "PERCENT" || (carried.discountType === "FIXED" && createdIds.length === 0)
+          ? carried
+          : {}),
       },
       select: { id: true },
     });
@@ -146,24 +157,52 @@ export async function ensureSubscriptionsForContact(
 type DueSub = Prisma.SubscriptionGetPayload<{ include: { contact: true } }>;
 
 /**
- * Engine-generated invoices charge the company's default sales-tax rate, the
- * same as a hand-made invoice — without this, every recurring/per-visit
- * invoice ships tax-free while one-off invoices tax, and the business quietly
- * under-collects. Rounding matches lib/quote-totals.
+ * Money for one invoice the engine makes for a series: the series' own
+ * discount comes off first (lib/series-discount.ts), then the company's
+ * default sales-tax rate, the same as a hand-made invoice. Without the tax,
+ * every recurring/per-visit invoice ships tax-free while one-off invoices tax,
+ * and the business quietly under-collects. Rounding matches lib/quote-totals.
+ *
+ * The discount is re-read inside the caller's transaction (an edit made since
+ * the sweep loaded the series counts), and a counted discount ("the next 3
+ * invoices") drops by one here, so call this only for an invoice that is
+ * really being made. `free` = the discount took the whole invoice: there is
+ * nothing to charge or to ask for, so the caller books it PAID.
  */
-async function applyCompanyTax(
+async function seriesMoney(
   tx: Tx,
-  companyId: string,
+  sub: { id: string; companyId: string },
   subtotal: number
-): Promise<{ taxRate: number | null; tax: number | null; total: number }> {
-  const company = await tx.company.findUnique({
-    where: { id: companyId },
-    select: { defaultTaxRate: true },
-  });
+): Promise<{
+  taxRate: number | null;
+  tax: number | null;
+  total: number;
+  discountType: "NONE" | "FIXED" | "PERCENT";
+  discountValue: number | null;
+  discount: number | null;
+  free: boolean;
+}> {
+  const [company, fresh] = await Promise.all([
+    tx.company.findUnique({ where: { id: sub.companyId }, select: { defaultTaxRate: true } }),
+    tx.subscription.findUnique({
+      where: { id: sub.id },
+      select: { discountType: true, discountValue: true, discountInvoicesLeft: true },
+    }),
+  ]);
   const rate = company?.defaultTaxRate ? Number(company.defaultTaxRate) : null;
-  if (!rate) return { taxRate: null, tax: null, total: subtotal };
-  const tax = Math.round(subtotal * rate * 100) / 100;
-  return { taxRate: rate, tax, total: Math.round((subtotal + tax) * 100) / 100 };
+  const money = seriesInvoiceMoney(fresh, subtotal, rate || null);
+  if (money.used && fresh?.discountInvoicesLeft != null) {
+    await tx.subscription.update({ where: { id: sub.id }, data: seriesDiscountAfterUse(fresh) });
+  }
+  return {
+    taxRate: rate || null,
+    tax: money.tax,
+    total: money.total,
+    discountType: money.discountType,
+    discountValue: money.discountValue,
+    discount: money.discount,
+    free: money.used && money.total <= 0.005,
+  };
 }
 
 /**
@@ -329,7 +368,7 @@ async function generateCycle(sub: DueSub, now: Date, settle: { quietClient?: boo
 
     const send = sub.invoiceMode === "SEND";
     const invoiceNumber = await nextInvoiceNumber(tx, sub.companyId);
-    const money = await applyCompanyTax(tx, sub.companyId, lineTotal);
+    const money = await seriesMoney(tx, sub, lineTotal);
     const dueDate = dueDateFromTerms(now, sub.contact.paymentTermsDays);
     const invoice = await tx.invoice.create({
       data: {
@@ -339,8 +378,12 @@ async function generateCycle(sub: DueSub, now: Date, settle: { quietClient?: boo
         subscriptionId: sub.id,
         invoiceNumber,
         subject: sub.name,
-        status: send ? "AWAITING_PAYMENT" : "DRAFT",
+        status: send ? (money.free ? "PAID" : "AWAITING_PAYMENT") : "DRAFT",
+        paidAt: send && money.free ? now : null,
         subtotal: lineTotal,
+        discountType: money.discountType,
+        discountValue: money.discountValue,
+        discount: money.discount,
         taxRate: money.taxRate,
         tax: money.tax,
         total: money.total,
@@ -366,10 +409,13 @@ async function generateCycle(sub: DueSub, now: Date, settle: { quietClient?: boo
       publicToken: invoice.publicToken,
       total: money.total,
       send,
+      free: money.free,
     };
   }));
 
   if (!cycle || !cycle.send) return "drafted";
+  // A discount that covers the whole invoice: born PAID, nothing to charge or email.
+  if (cycle.free) return "billed";
 
   // Post-commit: the cycle (invoice + schedule advance) is durable before any
   // external call, so a slow or crashed charge leaves an unpaid invoice for
@@ -441,7 +487,7 @@ export async function billCompletedVisit(
     if (!fresh || fresh.invoice || fresh.consolidatedInvoiceId) return null;
 
     const invoiceNumber = await nextInvoiceNumber(tx, companyId);
-    const money = await applyCompanyTax(tx, companyId, lineTotal);
+    const money = await seriesMoney(tx, { id: sub.id, companyId }, lineTotal);
     const invoice = await tx.invoice.create({
       data: {
         companyId,
@@ -451,8 +497,12 @@ export async function billCompletedVisit(
         subscriptionId: sub.id,
         invoiceNumber,
         subject: sub.name,
-        status: send ? "AWAITING_PAYMENT" : "DRAFT",
+        status: send ? (money.free ? "PAID" : "AWAITING_PAYMENT") : "DRAFT",
+        paidAt: send && money.free ? now : null,
         subtotal: lineTotal,
+        discountType: money.discountType,
+        discountValue: money.discountValue,
+        discount: money.discount,
         taxRate: money.taxRate,
         tax: money.tax,
         total: money.total,
@@ -490,6 +540,7 @@ export async function billCompletedVisit(
       publicToken: invoice.publicToken,
       total: money.total,
       archived,
+      free: money.free,
     };
   }, { isolationLevel: "Serializable" })).catch((e) => {
     // Serialization conflict: another biller claimed this visit mid-flight —
@@ -501,6 +552,7 @@ export async function billCompletedVisit(
   if (!minted) return null;
   if (minted.archived) fireAutomations(companyId, "job.archived", job.id);
   if (!send) return "drafted";
+  if (minted.free) return "billed";
 
   return settleGeneratedInvoice({
     companyId,
@@ -545,6 +597,7 @@ async function billSeriesPool(
     total: number;
     visitCount: number;
     archivedJobIds: string[];
+    free: boolean;
   } | null = null;
   try {
     minted = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
@@ -609,10 +662,19 @@ async function billSeriesPool(
           sortOrder: i,
         })),
       });
-      const money = await applyCompanyTax(tx, sub.companyId, total);
+      const money = await seriesMoney(tx, sub, total);
       await tx.invoice.update({
         where: { id: invoice.id },
-        data: { subtotal: total, taxRate: money.taxRate, tax: money.tax, total: money.total },
+        data: {
+          subtotal: total,
+          discountType: money.discountType,
+          discountValue: money.discountValue,
+          discount: money.discount,
+          taxRate: money.taxRate,
+          tax: money.tax,
+          total: money.total,
+          ...(send && money.free ? { status: "PAID" as const, paidAt: now } : {}),
+        },
       });
 
       // Visits still sitting in "requires invoicing" are now invoiced —
@@ -636,6 +698,7 @@ async function billSeriesPool(
         total: money.total,
         visitCount: mine.length,
         archivedJobIds: openIds,
+        free: money.free,
       };
     }, { isolationLevel: "Serializable" }));
   } catch (err) {
@@ -650,6 +713,7 @@ async function billSeriesPool(
   if (!minted) return "empty";
   for (const jobId of minted.archivedJobIds) fireAutomations(sub.companyId, "job.archived", jobId);
   if (!send) return "drafted";
+  if (minted.free) return "billed";
 
   return settleGeneratedInvoice({
     companyId: sub.companyId,

@@ -11,6 +11,7 @@ import {
 import { syncEntitlementsForSubscription } from "@/lib/plan-billing";
 import { inPreview } from "@/lib/preview";
 import { fireAutomations } from "@/lib/automations-server";
+import { parseSeriesDiscountInput } from "@/lib/series-discount";
 
 /** GET — recurring subscriptions for the company (money-visible roles). */
 export async function GET() {
@@ -171,6 +172,15 @@ export async function POST(req: NextRequest) {
         })
       : null;
 
+  // A discount on every invoice of the series, or only the first N (lib/series-discount.ts)
+  const discountInput = parseSeriesDiscountInput(body);
+  if (discountInput && "error" in discountInput) {
+    return NextResponse.json({ error: discountInput.error }, { status: 400 });
+  }
+  if (discountInput && discountInput.discount.discountType !== "NONE" && !bills && !perVisit) {
+    return NextResponse.json({ error: "A discount needs billing turned on." }, { status: 400 });
+  }
+
   const preview = await inPreview(companyId);
   const sub = await prisma.subscription.create({
     data: {
@@ -182,6 +192,7 @@ export async function POST(req: NextRequest) {
         : null,
       unitPrice: Math.round(unitPrice * 100) / 100,
       quantity: 1,
+      ...(discountInput ? discountInput.discount : {}),
       interval: bills ? body.interval : null,
       // Plans bill their first cycle immediately (noon today) — the day the
       // first payment SUCCEEDS then becomes the recurring anchor (see

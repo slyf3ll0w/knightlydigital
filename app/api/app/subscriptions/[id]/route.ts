@@ -12,6 +12,7 @@ import {
 } from "@/lib/subscriptions";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { fireAutomations } from "@/lib/automations-server";
+import { parseSeriesDiscountInput } from "@/lib/series-discount";
 
 /**
  * PATCH — manage one subscription. Body:
@@ -22,6 +23,10 @@ import { fireAutomations } from "@/lib/automations-server";
  *     generated invoices keep their amounts). billPerVisit: true switches the
  *     series to per-completed-visit invoicing (clears interval/nextRunDate —
  *     the two billing styles are mutually exclusive).
+ *   { discountType: "NONE" | "FIXED" | "PERCENT", discountValue?, discountInvoices? }
+ *     — a discount on the invoices this series makes from now on:
+ *     discountInvoices null / "all" = every invoice, a number = only that many
+ *     more (lib/series-discount.ts). "NONE" removes it.
  *   { visitFrequency?, nextVisitDate?, visitStartMinutes?,
  *     visitDurationMinutes?, visitAssigneeIds? } — the visit series (weekly
  *     mows billed monthly). Setting a frequency materializes upcoming visits
@@ -86,6 +91,11 @@ export async function PATCH(
       return NextResponse.json({ error: "Quantity must be greater than zero." }, { status: 400 });
     }
     data.quantity = qty;
+  }
+  const discountInput = parseSeriesDiscountInput(body);
+  if (discountInput) {
+    if ("error" in discountInput) return NextResponse.json({ error: discountInput.error }, { status: 400 });
+    Object.assign(data, discountInput.discount);
   }
   if (body.billPerVisit !== undefined) {
     if (body.billPerVisit === true) {

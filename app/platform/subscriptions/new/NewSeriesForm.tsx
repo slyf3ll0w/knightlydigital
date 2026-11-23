@@ -8,6 +8,11 @@ import { Loader2 } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import { InfoTip } from "@/components/ds";
+import SeriesDiscountFields, {
+  EMPTY_DISCOUNT_DRAFT,
+  discountDraftBody,
+  discountDraftProblem,
+} from "@/components/SeriesDiscountFields";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import ContactPicker from "@/components/ContactPicker";
@@ -109,6 +114,7 @@ export default function NewSeriesForm({
   const [unitPrice, setUnitPrice] = useState("");
   const [interval, setInterval] = useState("MONTHLY");
   const [autoBillJobs, setAutoBillJobs] = useState(false);
+  const [discount, setDiscount] = useState(EMPTY_DISCOUNT_DRAFT);
 
   const savedAddresses = contacts.find((c) => c.id === contactId)?.addresses ?? [];
 
@@ -139,6 +145,10 @@ export default function NewSeriesForm({
     if (billing !== "none" && !(parseFloat(unitPrice) > 0)) {
       return setError("Enter the price to bill, or turn billing off.");
     }
+    if (billing !== "none") {
+      const problem = discountDraftProblem(discount);
+      if (problem) return setError(problem);
+    }
     setError("");
     setLoading(true);
     const { ok, data } = await postJson<{ id: string; visitsCreated?: number }>(
@@ -159,6 +169,7 @@ export default function NewSeriesForm({
           unitPrice: parseFloat(unitPrice) || 0,
           ...(autoBillJobs ? {} : { holdForReview: true }),
         }),
+        ...(billing !== "none" && discountDraftBody(discount)),
       }
     );
     setLoading(false);
@@ -425,6 +436,14 @@ export default function NewSeriesForm({
                   </span>
                 </label>
               )}
+              <div className="col-span-2">
+                <SeriesDiscountFields
+                  value={discount}
+                  onChange={setDiscount}
+                  inputCls={inputCls}
+                  labelCls="block text-xs text-gray-500 mb-1"
+                />
+              </div>
             </div>
           )}
         </div>

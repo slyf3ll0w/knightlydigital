@@ -16,6 +16,13 @@ import { Picture } from "@/components/ListBands";
 import Monogram from "@/components/Monogram";
 import { DateField } from "@/components/DateField";
 import { SERVICE_FEE_CARD } from "@/lib/service-fee";
+import { seriesDiscountLabel, seriesDiscountedPrice } from "@/lib/series-discount";
+import SeriesDiscountFields, {
+  EMPTY_DISCOUNT_DRAFT,
+  discountDraftBody,
+  discountDraftFrom,
+  discountDraftProblem,
+} from "@/components/SeriesDiscountFields";
 
 type Frequency = "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "QUARTERLY" | "ANNUALLY";
 
@@ -41,6 +48,10 @@ type Sub = {
   visitAssigneeIds: string[];
   // Autopay card pinned to this series (null = the client's default card)
   savedCardId: string | null;
+  // A discount on the invoices this series makes (lib/series-discount.ts)
+  discountType?: "NONE" | "FIXED" | "PERCENT";
+  discountValue?: number | string | null;
+  discountInvoicesLeft?: number | null;
   contact: {
     id: string;
     firstName: string;
@@ -91,6 +102,11 @@ const DURATION_OPTIONS = [
   { value: "240", label: "4 hours" },
   { value: "480", label: "8 hours" },
 ];
+
+/** What one invoice of the series comes to before tax, discount taken off. */
+function billedAmount(s: Sub): number {
+  return seriesDiscountedPrice(s, Number(s.unitPrice) * Number(s.quantity));
+}
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -147,6 +163,7 @@ export default function SubscriptionsClient({
     visitDuration: "60",
     visitAssignees: [] as string[],
     savedCardId: "", // "" = default card
+    discount: EMPTY_DISCOUNT_DRAFT,
   });
 
   function openEdit(s: Sub) {
@@ -162,6 +179,7 @@ export default function SubscriptionsClient({
       visitDuration: String(s.visitDurationMinutes ?? 60),
       visitAssignees: s.visitAssigneeIds ?? [],
       savedCardId: s.savedCardId ?? "",
+      discount: discountDraftFrom(s),
     });
     setError("");
     setEditId(s.id);
@@ -182,12 +200,20 @@ export default function SubscriptionsClient({
     const sub = subs.find((s) => s.id === id);
     const bills = Boolean(sub?.interval);
     const perVisit = Boolean(sub?.billPerVisit);
+    if (bills || perVisit) {
+      const problem = discountDraftProblem(editForm.discount);
+      if (problem) {
+        setError(problem);
+        return;
+      }
+    }
     const data = await patch(id, {
       name: editForm.name,
       ...((bills || perVisit) && {
         unitPrice: parseFloat(editForm.unitPrice) || 0,
         quantity: parseFloat(editForm.quantity) || 1,
         savedCardId: editForm.savedCardId || null,
+        ...discountDraftBody(editForm.discount),
       }),
       ...(bills && {
         interval: editForm.interval,
@@ -305,7 +331,7 @@ export default function SubscriptionsClient({
   const cancelled = subs.filter((s) => s.status === "CANCELLED");
 
   const monthly = (sub: Sub) => {
-    const amt = Number(sub.unitPrice) * Number(sub.quantity);
+    const amt = billedAmount(sub);
     if (!sub.interval) return 0;
     return sub.interval === "MONTHLY" ? amt : sub.interval === "QUARTERLY" ? amt / 3 : sub.interval === "SEMIANNUAL" ? amt / 6 : amt / 12;
   };
@@ -315,7 +341,7 @@ export default function SubscriptionsClient({
   const editing = subs.find((x) => x.id === editId) ?? null;
   const cadence = (x: Sub) =>
     x.interval
-      ? { amount: money(Number(x.unitPrice) * Number(x.quantity)), per: INTERVAL_PER[x.interval] }
+      ? { amount: money(billedAmount(x)), per: INTERVAL_PER[x.interval] }
       : x.billPerVisit
         ? { amount: money(Number(x.unitPrice) * Number(x.quantity)), per: "per visit" }
         : { amount: null, per: "Recurring job — no billing" };
@@ -462,6 +488,12 @@ export default function SubscriptionsClient({
                           <div>
                             <dt>Bills</dt>
                             <dd>{fmtDate(s.nextRunDate!)}</dd>
+                          </div>
+                        )}
+                        {(s.interval || s.billPerVisit) && seriesDiscountLabel(s) && (
+                          <div data-series-discount-label>
+                            <dt>Discount</dt>
+                            <dd>{seriesDiscountLabel(s)}</dd>
                           </div>
                         )}
                         {s.visitFrequency && (
@@ -708,6 +740,13 @@ export default function SubscriptionsClient({
                         </>
                       )}
                     </div>
+                    {(s.interval || s.billPerVisit) && (
+                      <SeriesDiscountFields
+                        value={editForm.discount}
+                        onChange={(discount) => setEditForm((f) => ({ ...f, discount }))}
+                        inputCls="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+                      />
+                    )}
                     {/* Visit schedule — visit cadence decoupled from billing */}
                     <div className="pt-3 border-t border-gray-200">
                       <p className="text-[13px] font-semibold text-gray-500 mb-2 flex items-center gap-1.5">
@@ -879,7 +918,7 @@ function RecurringStrip({
   for (const b of bills) byDay.set(b.day, [...(byDay.get(b.day) ?? []), b.s]);
   const dayLabel = (d: number) =>
     new Date(start + d * 86400000).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
-  const total30 = bills.reduce((t, b) => t + Number(b.s.unitPrice) * Number(b.s.quantity), 0);
+  const total30 = bills.reduce((t, b) => t + (b.s.interval ? billedAmount(b.s) : Number(b.s.unitPrice) * Number(b.s.quantity)), 0);
   return (
     <Picture
       title={
@@ -908,7 +947,7 @@ function RecurringStrip({
                     <span
                       key={s.id}
                       className="ds-days-bill"
-                      title={`${dayLabel(d)} · ${s.name} · ${s.contact.firstName} ${s.contact.lastName} · ${money(Number(s.unitPrice) * Number(s.quantity))}${monthly(s) ? "" : " per visit"}`}
+                      title={`${dayLabel(d)} · ${s.name} · ${s.contact.firstName} ${s.contact.lastName} · ${money(s.interval ? billedAmount(s) : Number(s.unitPrice) * Number(s.quantity))}${monthly(s) ? "" : " per visit"}`}
                     >
                       <Monogram name={`${s.contact.firstName} ${s.contact.lastName}`} size={24} />
                     </span>
