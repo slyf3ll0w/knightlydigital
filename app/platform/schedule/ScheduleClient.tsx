@@ -12,10 +12,6 @@ import {
   CalendarOff,
   Check,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  CloudRain,
-  Columns3,
   ExternalLink,
   Loader2,
   MessageSquare,
@@ -25,7 +21,6 @@ import {
   Plus,
   Repeat as RepeatIcon,
   RotateCcw,
-  Route as RouteIcon,
   Trash2,
   UserPlus,
   UserX,
@@ -36,7 +31,6 @@ import { confirmSheet } from "@/components/ConfirmSheet";
 import { openDirections } from "@/components/NavChooser";
 import PageTitle from "@/components/PageTitle";
 import ScheduleHeadsUp, { useScheduleCheck } from "@/components/ScheduleHeadsUp";
-import { FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { telHref } from "@/lib/messaging";
 import { callFromLine, useLineCalling } from "@/lib/line-calling";
@@ -51,6 +45,7 @@ import { Chip, InfoTip } from "@/components/ds";
 import MonthGrid from "./MonthGrid";
 import TimeGrid, { type DriveLegs, type GridColumn } from "./TimeGrid";
 import SchedulePalette from "./SchedulePalette";
+import ScheduleBar, { ScheduleActions, type DayLoad } from "./ScheduleBar";
 import PlaceSheet, { type PlaceIntent, type PlaceResult } from "./PlaceSheet";
 import UndoToast, { type ToastState } from "./UndoToast";
 import { TypeGlyph } from "./TypeGlyph";
@@ -232,7 +227,6 @@ export default function ScheduleClient({
 
   const anchor = useMemo(() => parseParam(date), [date]);
   const today = useMemo(() => new Date(), []);
-  const hue = "var(--ds-primary)";
 
   useEffect(() => setMounted(true), []);
 
@@ -1156,6 +1150,12 @@ export default function ScheduleClient({
       : anchor.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
   }
 
+  /** The bar's seven-day load line: the week on screen (day view: the anchor's week). */
+  const loadDays: DayLoad[] = Array.from({ length: 7 }, (_, i) => {
+    const d = addDays(startOfWeek(anchor), i);
+    return { date: d, count: items.filter((j) => j.kind !== "block" && j.scheduledAt && sameDay(new Date(j.scheduledAt), d)).length };
+  });
+
   const weekDays = view === "week" ? Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(anchor), i)) : [anchor];
 
   /** Items on a given day, Anytime first, then in clock order. */
@@ -1612,171 +1612,49 @@ export default function ScheduleClient({
   // ── Page ──────────────────────────────────────────────────────────────────
   return (
     <div className="mx-auto max-w-6xl p-4 lg:p-8">
-      <div className="mb-5 flex items-center justify-between gap-2">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <PageTitle section="schedule" icon={CalendarDays}>
           Schedule
         </PageTitle>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              setPaletteOpen((o) => !o);
-              setArmed(null);
-            }}
-            aria-label="Schedule someone"
-            title="Schedule someone (P)"
-            className={`relative flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] text-sm font-semibold transition-colors md:w-auto md:px-4 ${
-              paletteOpen ? "chip-pressed bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]" : "btn-tool-line bg-white text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            <UserPlus size={16} />
-            <span className="hidden md:inline">Schedule someone</span>
-            {unscheduled.length > 0 && (
-              <span className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-[color:var(--ds-warn)] px-1 py-px text-center text-[11px] font-bold text-[color:var(--ds-surface)] md:static md:bg-[color:var(--ds-warn-soft)] md:text-[color:var(--ds-warn)]">
-                {unscheduled.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => openBlockCreate()}
-            aria-label="Block off time"
-            title="Block time"
-            className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] btn-tool-line bg-white text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 md:w-auto md:px-4"
-          >
-            <CalendarOff size={16} />
-            <span className="hidden md:inline">Block time</span>
-          </button>
-          {view === "day" && canDispatch && (
-            <button
-              onClick={() => {
-                setShiftErr("");
-                setShiftSheet({ toDate: toParam(nextBusinessDay(anchor)), includeAppointments: true, notify: true });
-              }}
-              aria-label="Move the day"
-              title="Move everything on this day"
-              className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] btn-tool-line bg-white text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 md:w-auto md:px-4"
-            >
-              <CloudRain size={16} />
-              <span className="hidden md:inline">Move the day</span>
-            </button>
-          )}
-          {canCreateAppointment && (
-            <Link
-              href="/app/appointments/new"
-              aria-label="New appointment"
-              title="New appointment"
-              className="hidden h-10 items-center justify-center gap-1.5 rounded-[10px] btn-tool-line bg-[color:var(--ds-secondary-soft)] px-4 text-sm font-semibold text-[color:var(--ds-secondary)] transition-colors hover:bg-[color-mix(in_srgb,var(--ds-secondary)_18%,transparent)] md:flex"
-            >
-              <CalendarClock size={16} />
-              New appointment
-            </Link>
-          )}
-          {canCreateJob && (
-            <Link
-              href={`/app/jobs/new?date=${toParam(view === "month" ? new Date() : anchor)}`}
-              className="btn-primary hidden lg:flex h-10"
-            >
-              <Plus size={15} />
-              New job
-            </Link>
-          )}
-        </div>
+        <ScheduleActions
+          paletteOpen={paletteOpen}
+          onPalette={() => {
+            setPaletteOpen((o) => !o);
+            setArmed(null);
+          }}
+          unscheduledCount={unscheduled.length}
+          newJobHref={canCreateJob ? `/app/jobs/new?date=${toParam(view === "month" ? new Date() : anchor)}` : null}
+          canNewAppointment={canCreateAppointment}
+          onBlock={() => openBlockCreate()}
+          onMoveDay={
+            view === "day" && canDispatch
+              ? () => {
+                  setShiftErr("");
+                  setShiftSheet({ toDate: toParam(nextBusinessDay(anchor)), includeAppointments: true, notify: true });
+                }
+              : null
+          }
+        />
       </div>
 
-      {/* ── Mobile controls ── */}
-      <div className="mb-2.5 flex items-center gap-1 lg:hidden">
-        <button onClick={() => step(-1)} className="-ml-1.5 shrink-0 rounded-full p-2 transition-colors active:bg-gray-100" aria-label="Previous">
-          <ChevronLeft size={20} className="text-gray-500" />
-        </button>
-        <h2 className="min-w-0 flex-1 truncate text-center text-[17px] font-bold text-gray-900">{shortLabel}</h2>
-        <button onClick={() => step(1)} className="shrink-0 rounded-full p-2 transition-colors active:bg-gray-100" aria-label="Next">
-          <ChevronRight size={20} className="text-gray-500" />
-        </button>
-        {!sameDay(anchor, today) && (
-          <button onClick={() => go({ date: new Date() })} className="shrink-0 rounded-[10px] btn-tool-line bg-white px-2.5 py-1.5 text-[13px] font-semibold text-gray-700">
-            Today
-          </button>
-        )}
-      </div>
-      <div className="mb-4 flex items-center gap-2 lg:hidden">
-        <SegmentedRow className="min-w-0 flex-1">
-          {(["day", "week", "month"] as View[]).map((v) => (
-            <Segment key={v} active={view === v} onClick={() => go({ view: v })}>
-              <span className="capitalize">{v}</span>
-            </Segment>
-          ))}
-          <Segment active={false} href={`/app/routes?date=${toParam(anchor)}${team ? `&team=${team}` : ""}`}>
-            <RouteIcon size={13} />
-            Map
-          </Segment>
-        </SegmentedRow>
-        {users.length > 1 && (
-          <select
-            value={team}
-            onChange={(e) => go({ team: e.target.value })}
-            aria-label="Team member"
-            className="max-w-[128px] shrink-0 rounded-[10px] border border-gray-200 bg-white py-2 pl-3 pr-2 text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-          >
-            <option value="">Everyone</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </select>
-        )}
-        {(saving || isPending) && <Loader2 size={15} className="shrink-0 animate-spin text-gray-400" />}
-      </div>
-
-      {/* ── Desktop controls ── */}
-      <div className="mb-4 hidden flex-wrap items-center gap-x-2 gap-y-2 lg:flex">
-        <div className="flex items-center gap-1">
-          <button onClick={() => step(-1)} className="rounded-full p-2 transition-colors hover:bg-gray-100" aria-label="Previous">
-            <ChevronLeft size={18} className="text-gray-600" />
-          </button>
-          <button onClick={() => step(1)} className="rounded-full p-2 transition-colors hover:bg-gray-100" aria-label="Next">
-            <ChevronRight size={18} className="text-gray-600" />
-          </button>
-          <button onClick={() => go({ date: new Date() })} className="rounded-[10px] btn-tool-line bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">
-            Today
-          </button>
-        </div>
-        <h2 className="text-base font-bold text-gray-900 lg:text-lg">{rangeLabel}</h2>
-        {(saving || isPending) && <Loader2 size={15} className="animate-spin text-gray-400" />}
-
-        <div className="ml-auto flex items-center gap-2">
-          <div className="flex shrink-0 items-center gap-1.5">
-            {(["month", "week", "day"] as View[]).map((v) => (
-              <FilterChip key={v} hue={hue} active={view === v} onClick={() => go({ view: v })}>
-                <span className="capitalize">{v}</span>
-              </FilterChip>
-            ))}
-            {view === "day" && users.length > 1 && canDispatch && !team && (
-              <FilterChip hue={hue} active={board} onClick={() => go({ board: !board })}>
-                <Columns3 size={14} />
-                By tech
-              </FilterChip>
-            )}
-            <FilterChip hue={hue} active={false} href={`/app/routes?date=${toParam(anchor)}${team ? `&team=${team}` : ""}`}>
-              <RouteIcon size={14} />
-              Map
-            </FilterChip>
-          </div>
-          {users.length > 1 && (
-            <select
-              value={team}
-              onChange={(e) => go({ team: e.target.value, board: false })}
-              className="min-w-0 rounded-[10px] border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-            >
-              <option value="">All team members</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-      </div>
+      <ScheduleBar
+        view={view}
+        anchor={anchor}
+        today={today}
+        rangeLabel={rangeLabel}
+        shortLabel={shortLabel}
+        busy={saving || isPending}
+        onStep={step}
+        onToday={() => go({ date: new Date() })}
+        onView={(v) => go({ view: v })}
+        onDay={(d) => go({ view: "day", date: d })}
+        load={loadDays}
+        mapHref={`/app/routes?date=${toParam(anchor)}${team ? `&team=${team}` : ""}`}
+        byTech={view === "day" && users.length > 1 && canDispatch && !team ? { on: board, toggle: () => go({ board: !board }) } : null}
+        users={users}
+        team={team}
+        onTeam={(id) => go({ team: id, board: false })}
+      />
 
       {armed && (
         <div className="mb-3 flex items-center justify-between gap-3 rounded-lg bg-[color:var(--ds-primary-soft)] px-3 py-2 text-sm text-[color:var(--ds-ink)]">

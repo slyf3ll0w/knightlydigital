@@ -1,1 +1,372 @@
 /* schedule page look (heavy pilot round 6). Loaded after ds.css from app/layout.tsx. */
+
+/* ── Schedule: page actions ─────────────────────────────────────────────
+   Schedule someone (palette toggle) + a split New button. */
+.ds .sch-act {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 40px;
+  padding: 0 11px;
+  border-radius: 12px;
+  border: 1px solid var(--ds-line-strong);
+  background: var(--ds-surface);
+  color: var(--ds-ink-2);
+  font-size: 14px;
+  font-weight: 600;
+  transition: background var(--ds-dur) var(--ds-ease), color var(--ds-dur) var(--ds-ease), border-color var(--ds-dur) var(--ds-ease);
+}
+@media (min-width: 768px) { .ds .sch-act { padding: 0 14px; } }
+.ds .sch-act:hover { background: var(--ds-surface-2); color: var(--ds-ink); }
+.ds .sch-act[data-on] { background: var(--ds-primary-soft); border-color: transparent; color: var(--ds-primary); }
+.ds .sch-act-count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--ds-warn);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 800;
+  line-height: 20px;
+  text-align: center;
+  font-family: var(--ds-num-font);
+}
+html[data-mode="dark"] .ds .sch-act-count { color: #0B1220; background: #F59E0B; }
+
+.ds .sch-new {
+  display: inline-flex;
+  height: 40px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--ds-primary);
+  color: var(--ds-on-primary);
+  box-shadow: 0 1px 2px rgba(10, 19, 40, 0.12), 0 8px 18px -10px var(--ds-primary);
+}
+.ds .sch-new-main,
+.ds .sch-new-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  transition: background var(--ds-dur) var(--ds-ease);
+}
+.ds .sch-new-main { padding: 0 12px; }
+@media (min-width: 640px) { .ds .sch-new-main { padding: 0 15px 0 13px; } }
+.ds .sch-new-caret { width: 34px; border-left: 1px solid color-mix(in srgb, var(--ds-on-primary) 28%, transparent); }
+.ds .sch-new-main:hover,
+.ds .sch-new-caret:hover { background: var(--ds-primary-strong); }
+.ds .sch-new-caret svg { transition: transform 260ms var(--ds-ease-spring); }
+.ds .sch-new-caret:hover svg { transform: translateY(2px); }
+
+/* ── Schedule: the bar above the calendar ───────────────────────────────
+   Left: ‹ ›, the range as the title, "this week" under it, and a
+   seven-day load line (bar height = how much is booked that day).
+   Right: sliding Day/Week/Month switch, By tech, Map, who. */
+.ds .sch-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: var(--ds-r-lg);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-1);
+}
+@media (min-width: 1024px) {
+  .ds .sch-bar { flex-direction: row; align-items: center; justify-content: space-between; padding: 12px 14px 12px 12px; }
+}
+.ds .sch-when { display: flex; align-items: center; gap: 12px; min-width: 0; }
+
+.ds .sch-nav {
+  display: inline-flex;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1px solid var(--ds-line-strong);
+  overflow: hidden;
+}
+.ds .sch-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  color: var(--ds-ink-2);
+  transition: background var(--ds-dur) var(--ds-ease), color var(--ds-dur) var(--ds-ease);
+}
+.ds .sch-nav-btn + .sch-nav-btn { border-left: 1px solid var(--ds-line); }
+.ds .sch-nav-btn:hover { background: var(--ds-surface-2); color: var(--ds-ink); }
+.ds .sch-nav-btn:active svg { transform: scale(0.86); }
+
+.ds .sch-title {
+  display: flex;
+  align-items: baseline;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--ds-ink);
+}
+@media (min-width: 1024px) { .ds .sch-title { font-size: 24px; } }
+.ds .sch-title-year { margin-left: 6px; color: var(--ds-muted); font-weight: 600; }
+.ds .sch-rel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 18px;
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ds-muted);
+}
+.ds .sch-today {
+  color: var(--ds-primary);
+  font-weight: 650;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition: text-decoration-color var(--ds-dur) var(--ds-ease);
+}
+.ds .sch-today:hover { text-decoration-color: currentColor; }
+
+/* the week's load line */
+.ds .sch-load {
+  display: none;
+  align-items: flex-end;
+  gap: 3px;
+  height: 42px;
+  margin-left: 10px;
+  padding-left: 16px;
+  border-left: 1px solid var(--ds-line);
+}
+@media (min-width: 1024px) { .ds .sch-load { display: inline-flex; } }
+.ds .sch-load-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  width: 18px;
+  height: 100%;
+  border-radius: 6px;
+}
+.ds .sch-load-bar {
+  width: 8px;
+  height: var(--h, 3px);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ds-primary) 30%, transparent);
+  transform-origin: bottom;
+  animation: sch-load-grow 620ms var(--ds-ease-spring) both;
+  transition: background var(--ds-dur) var(--ds-ease), width var(--ds-dur) var(--ds-ease);
+}
+.ds .sch-load-day:nth-child(2) .sch-load-bar { animation-delay: 30ms; }
+.ds .sch-load-day:nth-child(3) .sch-load-bar { animation-delay: 60ms; }
+.ds .sch-load-day:nth-child(4) .sch-load-bar { animation-delay: 90ms; }
+.ds .sch-load-day:nth-child(5) .sch-load-bar { animation-delay: 120ms; }
+.ds .sch-load-day:nth-child(6) .sch-load-bar { animation-delay: 150ms; }
+.ds .sch-load-day:nth-child(7) .sch-load-bar { animation-delay: 180ms; }
+@keyframes sch-load-grow { from { transform: scaleY(0); } }
+.ds .sch-load-dow { font-size: 10px; font-weight: 700; line-height: 1; color: var(--ds-muted); }
+.ds .sch-load-day:hover .sch-load-bar { background: var(--ds-primary); width: 10px; }
+.ds .sch-load-day[data-today] .sch-load-dow { color: var(--ds-primary); }
+.ds .sch-load-day[data-anchor] .sch-load-bar,
+.ds .sch-load-day[data-today] .sch-load-bar { background: var(--ds-primary); }
+.ds .sch-load-day[data-anchor] .sch-load-dow { color: var(--ds-ink); }
+
+/* tools */
+.ds .sch-tools { display: flex; align-items: center; gap: 6px; min-width: 0; }
+@media (max-width: 1023px) { .ds .sch-tools { overflow-x: auto; scrollbar-width: none; margin: 0 -2px; padding: 0 2px; } }
+
+.ds .sch-seg {
+  --i: 0;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  flex: 1 0 auto;
+  padding: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ds-ink) 6%, transparent);
+}
+@media (min-width: 1024px) { .ds .sch-seg { flex: 0 0 auto; } }
+.ds .sch-seg-thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / 3);
+  border-radius: 999px;
+  background: var(--ds-surface);
+  box-shadow: 0 1px 2px rgba(10, 19, 40, 0.1), 0 4px 10px -4px rgba(10, 19, 40, 0.22);
+  transform: translateX(calc(var(--i) * 100%));
+  transition: transform 380ms var(--ds-ease-spring);
+}
+html[data-mode="dark"] .ds .sch-seg-thumb { background: var(--ds-line-strong); box-shadow: none; }
+.ds .sch-seg-btn {
+  position: relative;
+  z-index: 1;
+  padding: 6px 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ds-muted);
+  transition: color var(--ds-dur) var(--ds-ease);
+}
+.ds .sch-seg-btn:hover { color: var(--ds-ink-2); }
+.ds .sch-seg-btn[aria-selected="true"] { color: var(--ds-ink); font-weight: 700; }
+
+.ds .sch-tool {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ds-ink-2);
+  transition: background var(--ds-dur) var(--ds-ease), color var(--ds-dur) var(--ds-ease);
+}
+.ds .sch-tool:hover { background: color-mix(in srgb, var(--ds-ink) 6%, transparent); color: var(--ds-ink); }
+.ds .sch-tool[data-on] { background: var(--ds-primary-soft); color: var(--ds-primary); }
+
+.ds .sch-who {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 28px 0 5px;
+  border-radius: 999px;
+  border: 1px solid var(--ds-line-strong);
+  cursor: pointer;
+  transition: border-color var(--ds-dur) var(--ds-ease);
+}
+.ds .sch-who:hover { border-color: var(--ds-muted); }
+.ds .sch-who:focus-within { outline: 2px solid var(--ds-primary); outline-offset: 1px; }
+.ds .sch-who select {
+  appearance: none;
+  -webkit-appearance: none;
+  max-width: 150px;
+  border: 0;
+  background: transparent;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ds-ink);
+  cursor: pointer;
+  outline: none;
+}
+.ds .sch-who select option { color: #0A1328; background: #fff; }
+.ds .sch-who-all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ds-ink) 9%, transparent);
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--ds-ink-2);
+}
+.ds .sch-who-caret { position: absolute; right: 10px; pointer-events: none; color: var(--ds-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ds .sch-load-bar { animation: none; }
+  .ds .sch-seg-thumb { transition: none; }
+}
+
+/* ── Appointments: the next two weeks ───────────────────────────────────
+   Fourteen day columns; each carries the faces of who's booked. Phones
+   scroll the strip sideways (seven days fit the screen). */
+.ds .appt-strip {
+  display: grid;
+  grid-template-columns: repeat(14, minmax(46px, 1fr));
+  gap: 2px;
+  margin-top: 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x mandatory;
+}
+.ds .appt-strip::-webkit-scrollbar { display: none; }
+@media (max-width: 639px) { .ds .appt-strip { grid-template-columns: repeat(14, calc((100% - 12px) / 7)); } }
+.ds .appt-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 2px 8px;
+  border-radius: 10px;
+  scroll-snap-align: start;
+  transition: background var(--ds-dur) var(--ds-ease);
+}
+.ds .appt-day:hover { background: var(--ds-surface-2); }
+.ds .appt-day[data-weekend] { background: color-mix(in srgb, var(--ds-ink) 3%, transparent); }
+/* a hairline between the two weeks */
+.ds .appt-day:nth-child(8) { box-shadow: inset 1px 0 0 var(--ds-line-strong); border-radius: 0 10px 10px 0; }
+.ds .appt-day-head { display: flex; flex-direction: column; align-items: center; gap: 1px; color: var(--ds-ink); }
+.ds .appt-day-dow { font-size: 11.5px; font-weight: 600; color: var(--ds-muted); }
+.ds .appt-day-date { min-width: 26px; padding: 1px 5px; border-radius: 7px; text-align: center; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ds .appt-day-month { font-size: 10.5px; font-weight: 700; color: var(--ds-muted); line-height: 1; }
+.ds .appt-day[data-today] .appt-day-dow { color: var(--ds-primary); font-weight: 700; }
+.ds .appt-day[data-today] .appt-day-date { background: var(--ds-primary); color: var(--ds-on-primary); }
+.ds .appt-day-head:hover .appt-day-date { text-decoration: underline; text-underline-offset: 3px; }
+
+.ds .appt-day-faces { display: flex; flex-direction: column; align-items: center; min-height: 66px; }
+.ds .appt-face {
+  display: block;
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px var(--ds-surface);
+  animation: appt-face-in 520ms var(--ds-ease-spring) both;
+  animation-delay: calc(var(--d, 0) * 28ms + 160ms);
+  transition: transform 260ms var(--ds-ease-spring);
+}
+.ds .appt-face + .appt-face { margin-top: -9px; }
+.ds .appt-face:hover { transform: translateY(-2px) scale(1.12); position: relative; z-index: 2; }
+.ds .appt-face[data-tentative] { box-shadow: 0 0 0 2px var(--ds-surface), 0 0 0 3.5px var(--ds-warn); opacity: 0.85; }
+.ds .appt-face-more {
+  margin-top: 4px;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--ds-ink-2);
+}
+.ds .appt-face-more:hover { color: var(--ds-primary); }
+.ds .appt-day-empty { width: 5px; height: 5px; margin-top: 12px; border-radius: 999px; background: var(--ds-line-strong); }
+@keyframes appt-face-in { from { opacity: 0; transform: translateY(6px) scale(0.6); } }
+
+/* list: day headings and times */
+.ds .appt-dayrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px 6px;
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--ds-ink);
+  background: var(--ds-surface);
+}
+.ds .appt-dayrow[data-today] { color: var(--ds-primary); }
+.ds .appt-dayrow-count {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ds-ink) 7%, transparent);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 19px;
+  text-align: center;
+  color: var(--ds-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.ds .appt-time { font-weight: 700; color: var(--ds-ink); font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ds .appt-face { animation: none; }
+}
