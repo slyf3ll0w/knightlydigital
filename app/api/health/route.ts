@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { planGatingLive } from "@/lib/plans";
+import { cameThroughEdge } from "@/lib/rate-limit";
 
 // Railway's deploy healthcheck (and any uptime monitor) hits this. It must
 // prove the app can actually serve tenants — process up AND database
@@ -34,7 +35,16 @@ export async function GET(req: NextRequest) {
   // `planGating` lets the e2e plan-gate spec know whether the Pro feature
   // gates (lib/plans.ts, PLAN_GATING=1) are live on this deployment.
   const planGating = planGatingLive();
-  if (req.nextUrl.searchParams.get("cron") !== "1") return NextResponse.json({ ok: true, commit, processor, planGating });
+  // `edge` says whether THIS request carried Cloudflare's shared header
+  // (EDGE_SHARED_SECRET, lib/rate-limit.ts cameThroughEdge), so the rule in
+  // Cloudflare and the variable here can be checked against each other
+  // without either value being shown: "on" = they match, "missing" = the
+  // variable is set but the request came without the right header (Railway's
+  // own healthcheck always reads "missing": it does not pass through
+  // Cloudflare), "off" = never believed (staging), "unset" = not configured.
+  const secret = process.env.EDGE_SHARED_SECRET?.trim();
+  const edge = !secret ? "unset" : secret.toLowerCase() === "off" ? "off" : cameThroughEdge(req.headers) ? "on" : "missing";
+  if (req.nextUrl.searchParams.get("cron") !== "1") return NextResponse.json({ ok: true, commit, processor, planGating, edge });
 
   const latest = await prisma.reconcileRun.findFirst({
     orderBy: { startedAt: "desc" },
