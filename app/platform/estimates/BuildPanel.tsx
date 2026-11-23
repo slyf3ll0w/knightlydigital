@@ -407,7 +407,33 @@ export default function BuildPanel({
       {/* ── the ask ── */}
       {!stage && !questions && (
         <div className={compact ? "" : "p-4 sm:p-6"}>
-          {!compact && <SectionHeader size="block" className="mb-4" title="Build an estimate tool" hint={`Say how you price the job, the way you'd explain it to a new hire — or attach a photo of your price sheet. ${atlas.name} uses your price book and past quotes for the rest, writes the questions and the math, then proves it on sample jobs.`} />}
+          {/* A new tool (round 7, 2026-11-23): the page says what happens — your words, then the questions, then a price — instead of a plain form header */}
+          {!compact && !estimatorId && (
+            <div className="ds-ebuild-hero">
+              <h2 className="ds-ebuild-title">Tell {atlas.name} how you price a job.</h2>
+              <p className="ds-ebuild-sub">It writes the questions and the math, then proves it on sample jobs. Your team runs it onsite, and your website can run it for you.</p>
+              <ol className="ds-ebuild-steps" aria-hidden>
+                <li style={{ "--s": 0 } as React.CSSProperties}>
+                  <span className="ds-ebuild-art is-words">&ldquo;$28 a foot, gates $250&hellip;&rdquo;</span>
+                  <b>You say it</b>
+                </li>
+                <li style={{ "--s": 1 } as React.CSSProperties}>
+                  <span className="ds-ebuild-art is-qs">
+                    <i />
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                  <b>{atlas.name} writes the questions</b>
+                </li>
+                <li style={{ "--s": 2 } as React.CSSProperties}>
+                  <span className="ds-ebuild-art is-price">$1,840</span>
+                  <b>Anyone gets the price</b>
+                </li>
+              </ol>
+            </div>
+          )}
+          {!compact && estimatorId && <SectionHeader size="block" className="mb-4" title="Build an estimate tool" hint={`Say how you price the job, the way you'd explain it to a new hire — or attach a photo of your price sheet. ${atlas.name} uses your price book and past quotes for the rest, writes the questions and the math, then proves it on sample jobs.`} />}
           <Textarea
             ref={boxRef}
             value={prompt}
@@ -452,15 +478,26 @@ export default function BuildPanel({
               {estimatorId ? "Make the change" : "Build it"}
             </button>
           </div>
-          {!compact && !estimatorId && !prompt && (
-            <div className="mt-4">
-              <p className="mb-1.5 text-[11px] font-medium text-gray-500">Try one</p>
-              <div className="flex flex-wrap gap-1.5">
-                {EXAMPLES.map((e) => (
-                  <button key={e} type="button" onClick={() => setPrompt(e)} className="rounded-full border border-gray-200 px-3 py-1.5 text-left text-xs font-medium text-gray-700 hover:border-gray-300 hover:bg-gray-50">
-                    {e.split(":")[0]}
-                  </button>
-                ))}
+          {!compact && !estimatorId && (
+            <div className="mt-5">
+              <p className="ds-ebuild-try">Or start from one of these</p>
+              <div className="ds-ebuild-examples">
+                {EXAMPLES.map((e, i) => {
+                  const [trade, ...rest] = e.split(":");
+                  const prices = Math.min(6, (e.match(/\$/g) ?? []).length);
+                  return (
+                    <button key={e} type="button" onClick={() => setPrompt(e)} aria-pressed={prompt === e} className="ds-ebuild-ex" style={{ "--i": i } as React.CSSProperties} title={e}>
+                      <span className="ds-ebuild-ex-name">{trade}</span>
+                      <span className="ds-ebuild-ex-text">{rest.join(":").trim()}</span>
+                      <span className="ds-ebuild-ex-dots" aria-hidden>
+                        {Array.from({ length: prices }, (_, k) => (
+                          <i key={k} />
+                        ))}
+                        <b>$</b>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

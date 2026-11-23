@@ -262,7 +262,7 @@ export default function EstimatesClient({
             </>
           )}
 
-          {tools.length === 0 ? (
+          {tools.length === 0 && !filtered && manager && building ? null : tools.length === 0 ? (
             <div className="ds-card">
               <EmptyState
                 art="quotes"
