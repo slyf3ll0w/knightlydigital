@@ -130,7 +130,7 @@ export const jobsSection: HelpSection = {
       slug: "recurring-visits",
       title: "Set up recurring visits and plans",
       summary: "Weekly mowing, monthly pest control, quarterly filters: visits that schedule and bill themselves.",
-      keywords: ["recurring", "repeat", "subscription", "maintenance plan", "weekly", "monthly", "autopay", "ready to bill", "visit series"],
+      keywords: ["recurring", "repeat", "subscription", "maintenance plan", "weekly", "monthly", "autopay", "ready to bill", "visit series", "discount", "percent off", "first month off"],
       where: { label: "Recurring", href: "/app/subscriptions" },
       roles: "Owners and admins",
       blocks: [
@@ -159,8 +159,40 @@ export const jobsSection: HelpSection = {
           text: "Selling a recurring service from your price book on a quote or invoice starts a plan automatically.",
         },
         {
+          type: "h",
+          text: "Give a plan a discount",
+        },
+        {
+          type: "steps",
+          items: [
+            "On a new plan, turn billing on and find **Discount** under the price. On a plan you already have, go to **Recurring**, press `Edit` on the plan, and find **Discount** there.",
+            "Pick **$ off** or **% off** and type the amount.",
+            "Under **Applies to**, pick **Every invoice**, or **Only the next…** and type how many invoices get it. Then save.",
+          ],
+        },
+        {
+          type: "p",
+          text: "The discount comes off each invoice the plan makes, before tax, and the client sees it as a Discount line. A counted discount drops by one with each invoice and removes itself after the last one, so the plan goes back to full price without you doing anything. The plan's row on **Recurring** shows the discount and the price after it. To take a discount off, set **Discount** to **None**.",
+        },
+        {
           type: "faq",
           items: [
+            {
+              q: "Does a discount change invoices I already sent?",
+              a: "No. It applies to invoices the plan makes from now on. Invoices that already exist keep their amounts.",
+            },
+            {
+              q: "I gave a discount on the first invoice. Does the plan keep it?",
+              a: "Only if you ticked **Keep this discount on later invoices** when you made that invoice. Otherwise the discount was for that invoice alone and the plan bills full price. Add it to the plan with `Edit` on **Recurring**.",
+            },
+            {
+              q: "What if the discount covers the whole invoice?",
+              a: "The invoice is made at $0 and marked Paid. Nothing is charged and no pay link is sent.",
+            },
+            {
+              q: "How do dollars off work on a plan that bills several visits on one invoice?",
+              a: "The dollars come off the invoice once, not once per visit. Use **% off** if you want every visit discounted.",
+            },
             {
               q: "An autopay charge failed.",
               a: "Temporary declines retry automatically after 1, 3 and 7 days. A hard decline (like a closed card) stops, and the client is emailed to update their card in the portal. Clients are also reminded about 30 days before a saved card expires.",
