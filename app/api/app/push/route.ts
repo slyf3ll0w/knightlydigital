@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { pushPublicKey } from "@/lib/push";
+import { isPushServiceEndpoint } from "@/lib/public-fetch";
 
 /**
  * Push subscription management for the signed-in user. GET hands the browser
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
   const endpoint = typeof body?.endpoint === "string" ? body.endpoint : "";
   const p256dh = typeof body?.keys?.p256dh === "string" ? body.keys.p256dh : "";
   const auth = typeof body?.keys?.auth === "string" ? body.keys.auth : "";
-  if (!endpoint.startsWith("https://") || !p256dh || !auth) {
+  if (!isPushServiceEndpoint(endpoint) || !p256dh || !auth) {
     return NextResponse.json({ error: "Invalid subscription." }, { status: 400 });
   }
 

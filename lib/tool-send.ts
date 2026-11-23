@@ -40,6 +40,17 @@ export const SESSION_TTL_MS = 30 * 86_400_000;
 export const SENDER_COOKIE = "wb_tool_sender";
 /** A recipient address hears from the free tools at most this often, whoever sends. */
 export const PER_RECIPIENT_PER_DAY = 3;
+/**
+ * Every sender put together, per 24 hours. The per-sender and per-address
+ * caps hold one person in; this holds in a crowd of made-up senders (a
+ * catch-all domain mints as many verified addresses as it likes). Past it
+ * the tool says "download the PDF" and the operator is emailed (David
+ * 2026-11-23: 300). TOOLS_EMAIL_DAILY_CAP overrides.
+ */
+export function overallDailyCap(): number {
+  const n = Number(process.env.TOOLS_EMAIL_DAILY_CAP);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 300;
+}
 
 const APP_URL = (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/+$/, "");
 
@@ -166,13 +177,17 @@ export async function checkVerification(rawEmail: unknown, rawCode: unknown): Pr
   });
   if (!row || !row.codeHash || !row.codeExpiresAt || row.blockedAt) return bad;
   if (row.codeExpiresAt < new Date()) return { ok: false, status: 400, error: "That code has expired. Send a new one." };
-  if (row.codeAttempts >= CODE_MAX_ATTEMPTS) return { ok: false, status: 429, error: "Too many tries. Send a new code." };
+  // Spend the try BEFORE comparing, in one conditional write: a burst of
+  // parallel guesses each has to win its own slot, so a code gets
+  // CODE_MAX_ATTEMPTS guesses and no more (2026-11-23 security review).
+  const slot = await prisma.toolSender.updateMany({
+    where: { id: row.id, codeHash: row.codeHash, codeAttempts: { lt: CODE_MAX_ATTEMPTS } },
+    data: { codeAttempts: { increment: 1 } },
+  });
+  if (slot.count === 0) return { ok: false, status: 429, error: "Too many tries. Send a new code." };
   const a = Buffer.from(hashCode(email, code));
   const b = Buffer.from(row.codeHash);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) {
-    await prisma.toolSender.update({ where: { id: row.id }, data: { codeAttempts: { increment: 1 } }, select: { id: true } });
-    return bad;
-  }
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return bad;
   await prisma.toolSender.update({
     where: { id: row.id },
     data: { verifiedAt: new Date(), codeHash: null, codeExpiresAt: null, codeAttempts: 0, lastSeenAt: new Date() },
@@ -218,6 +233,14 @@ export async function sendToolDocument(input: SendInput): Promise<SendResult> {
     if (!(await limit(`tools-rcpt:${r}`, PER_RECIPIENT_PER_DAY, 86_400_000)).ok) {
       return { ok: false, status: 429, error: `${r} has had a few of these today already. Try again tomorrow, or download the PDF.` };
     }
+  }
+
+  const overall = await prisma.toolSend.count({ where: { sentAt: { gte: since } } });
+  if (overall >= overallDailyCap()) {
+    void import("@/lib/ops-alert")
+      .then((m) => m.alertToolEmailCap(overall))
+      .catch(() => {});
+    return { ok: false, status: 429, error: "Emailing from the free tool is paused for today. Download the PDF instead, or open a free WorkBench account to send it." };
   }
 
   const logo = parseLogoDataUrl(input.logo);

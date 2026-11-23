@@ -545,7 +545,7 @@ export default function AssistantDrawer({
     const { index, msg } = r;
     const cards = (msg.proposals ?? []).map((p) => ({
       title: p.title,
-      guarded: Boolean(p.danger || p.money || p.confirmText),
+      guarded: !voiceConfirmable(p),
     }));
     return {
       reply: msg.content,

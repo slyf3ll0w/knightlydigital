@@ -52,6 +52,16 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
     name: "reauth",
   },
   {
+    // The two other places a signed-in request is checked against the
+    // current password (changing it on My Profile, deleting the company):
+    // the same guessing surface for a copied session cookie. Looser than
+    // reauth because ordinary profile saves share the first path.
+    match: (p) => p === "/api/app/profile" || p.startsWith("/api/app/company/delete"),
+    max: 30,
+    windowMs: 15 * 60_000,
+    name: "password-check",
+  },
+  {
     match: (p) => p.startsWith("/api/app/register"),
     max: 3,
     windowMs: 60 * 60_000,
@@ -524,6 +534,8 @@ export const config = {
     "/api/auth/callback/apple-native",
     "/api/auth/callback/apple",
     "/api/app/auth/reauth",
+    "/api/app/profile",
+    "/api/app/company/delete",
     "/api/app/register",
     "/api/app/invite-check",
     "/api/app/activate/invite",

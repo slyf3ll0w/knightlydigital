@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { pushPublicKey } from "@/lib/push";
+import { isPushServiceEndpoint } from "@/lib/public-fetch";
 
 /**
  * Public (hub-token-authed): web-push subscriptions for CLIENTS — the hub
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
   const endpoint = typeof body?.subscription?.endpoint === "string" ? body.subscription.endpoint : "";
   const p256dh = typeof body?.subscription?.keys?.p256dh === "string" ? body.subscription.keys.p256dh : "";
   const auth = typeof body?.subscription?.keys?.auth === "string" ? body.subscription.keys.auth : "";
-  if (!endpoint.startsWith("https://") || !p256dh || !auth) {
+  if (!isPushServiceEndpoint(endpoint) || !p256dh || !auth) {
     return NextResponse.json({ error: "Invalid subscription." }, { status: 400 });
   }
 

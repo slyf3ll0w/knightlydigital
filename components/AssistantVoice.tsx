@@ -267,7 +267,7 @@ export default function AssistantVoice({
             ? { heldForApproval: r.held, sent: false, holdNote: "NOT SENT — these go to a client and are still waiting. Never tell the user it was sent. Read the message to them word for word and ask; when they then say yes, call confirm_cards again and report what it says." }
             : {}),
           ...(r.failed > 0 ? { failed: r.failures, note: "These didn't go through for the reason given — fix the cause and redo, or ask one question." } : {}),
-          ...(r.needsTap > 0 ? { needsTap: r.needsTap, tapNote: "Those move money or can't be undone — the user taps the card on screen." } : {}),
+          ...(r.needsTap > 0 ? { needsTap: r.needsTap, tapNote: "Those move money, can't be undone, or change the team, settings or automations — the user taps the card on screen. You cannot confirm them." } : {}),
         };
       }
       if (toolName === "skip_cards") {
@@ -314,10 +314,10 @@ export default function AssistantVoice({
         recentActions.current.set(actionKey, { at: Date.now(), ids: data.proposals.map((p) => p.id) });
         data.proposals.forEach((p) => stagedAtTurn.current.set(p.id, userTurn.current));
         turnProposals.current = [...turnProposals.current, ...data.proposals];
-        const guarded = data.proposals.filter((p) => p.danger || p.money || p.confirmText).length;
+        const guarded = data.proposals.filter((p) => !voiceConfirmable(p)).length;
         return {
           ...(data.result ?? {}),
-          staged: data.proposals.map((p) => ({ title: p.title, needsTap: Boolean(p.danger || p.money || p.confirmText) })),
+          staged: data.proposals.map((p) => ({ title: p.title, needsTap: !voiceConfirmable(p) })),
           howToConfirm:
             guarded === data.proposals.length
               ? "These move money or can't be undone — tell the user they need a tap in the chat."
@@ -785,7 +785,7 @@ export default function AssistantVoice({
                   {cards.some((c) => c.card.state === "pending" && voiceConfirmable(c.card))
                     ? "Say “yes” or “I confirm” for these, or tap. "
                     : ""}
-                  {cards.some((c) => c.card.state === "pending" && !voiceConfirmable(c.card)) ? "Money and permanent changes need a tap." : ""}
+                  {cards.some((c) => c.card.state === "pending" && !voiceConfirmable(c.card)) ? "Money, team, settings and permanent changes need a tap." : ""}
                 </p>
               )}
             </div>

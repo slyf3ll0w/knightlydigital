@@ -19,6 +19,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { prisma } from "@/lib/db";
+import { limit } from "@/lib/rate-limit";
 import { isManager, type Actor, type Role } from "@/lib/permissions";
 import { issuer } from "./metadata";
 
@@ -43,6 +44,37 @@ const cleanName = (raw: unknown, fallback: string) =>
     .trim()
     .slice(0, 60) || fallback;
 
+/**
+ * An app names itself, so a name alone proves nothing: anyone could register
+ * as "Claude" and have the consent page ask "Let Claude use WorkBench?" while
+ * the sign-in returns to their own server. A name that uses one of these
+ * brands is kept only when every return address is that brand's own site (or
+ * the person's own machine, where a desktop app listens). Otherwise the app
+ * is shown by where it returns to (2026-11-23 security review). Pure.
+ */
+const BRAND_HOSTS: Array<{ brand: RegExp; hosts: RegExp }> = [
+  { brand: /claude|anthropic/i, hosts: /(^|\.)(claude\.ai|claude\.com|anthropic\.com)$/ },
+  { brand: /chat\s*gpt|open\s*ai/i, hosts: /(^|\.)(chatgpt\.com|openai\.com)$/ },
+  { brand: /work\s*bench|atlas/i, hosts: /(^|\.)workbenchfsm\.com$/ },
+  { brand: /google|gemini/i, hosts: /(^|\.)google\.com$/ },
+  { brand: /microsoft|copilot/i, hosts: /(^|\.)(microsoft\.com|live\.com)$/ },
+];
+export function honestName(name: string, redirectUris: string[]): string {
+  const claimed = BRAND_HOSTS.filter((b) => b.brand.test(name));
+  if (claimed.length === 0) return name;
+  const hosts: string[] = [];
+  for (const uri of redirectUris) {
+    try {
+      const u = new URL(uri);
+      if (!isLoopback(u)) hosts.push(u.hostname.toLowerCase());
+    } catch {
+      return "An app";
+    }
+  }
+  const honest = claimed.every((b) => hosts.every((h) => b.hosts.test(h)));
+  return honest ? name : `An app at ${hosts.find((h) => !claimed.some((b) => b.hosts.test(h))) ?? "an unknown address"}`;
+}
+
 /** A redirect address an app may use: https anywhere, or http on the person's own machine (desktop apps). */
 export function validRedirectUri(uri: unknown): uri is string {
   if (typeof uri !== "string" || uri.length > 500) return false;
@@ -56,7 +88,9 @@ export function validRedirectUri(uri: unknown): uri is string {
   }
 }
 
-const isLoopback = (u: URL) => u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1" || u.hostname === "[::1]");
+function isLoopback(u: URL): boolean {
+  return u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1" || u.hostname === "[::1]");
+}
 
 /** Exact match, except a desktop app's loopback address may use any port (RFC 8252). */
 export function redirectAllowed(client: ConnectorClientInfo, uri: string): boolean {
@@ -82,6 +116,29 @@ function privateAddress(ip: string): boolean {
   return a === 10 || a === 127 || a === 0 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
 }
 
+/** A response body as text, or null once it passes `max` bytes: the rest is never read into memory. */
+async function readCapped(res: Response, max: number): Promise<string | null> {
+  if (Number(res.headers.get("content-length") ?? 0) > max) {
+    await res.body?.cancel().catch(() => {});
+    return null;
+  }
+  const reader = res.body?.getReader();
+  if (!reader) return "";
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
 /**
  * An app that identifies by a metadata URL: fetch the document and read its
  * name and redirect addresses. The URL is the app's choice, so it is only
@@ -99,15 +156,20 @@ async function clientFromMetadataUrl(clientId: string): Promise<ConnectorClientI
   try {
     const found = await lookup(url.hostname, { all: true });
     if (found.length === 0 || found.some((a) => privateAddress(a.address))) return null;
+    // Anyone can open /connect with any address, signed in or not, so the
+    // fetch is rationed: per host and overall (2026-11-23 security review).
+    const perHost = await limit(`connector-meta:${url.hostname.toLowerCase()}`, 120, 10 * 60_000);
+    const overall = await limit("connector-meta", 600, 10 * 60_000);
+    if (!perHost.ok || !overall.ok) return null;
     const res = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(5000), headers: { Accept: "application/json" } });
     if (!res.ok) return null;
-    const text = await res.text();
-    if (text.length > 20_000) return null;
+    const text = await readCapped(res, 20_000);
+    if (text === null) return null;
     const doc = JSON.parse(text) as { client_id?: unknown; client_name?: unknown; redirect_uris?: unknown };
     if (doc.client_id !== clientId || !Array.isArray(doc.redirect_uris)) return null;
     const redirectUris = doc.redirect_uris.filter(validRedirectUri).slice(0, 10);
     if (redirectUris.length === 0) return null;
-    return { clientId, name: cleanName(doc.client_name, url.hostname), redirectUris };
+    return { clientId, name: honestName(cleanName(doc.client_name, url.hostname), redirectUris), redirectUris };
   } catch {
     return null;
   }
@@ -119,7 +181,7 @@ export async function resolveClient(clientId: unknown): Promise<ConnectorClientI
   const row = await prisma.connectorClient.findUnique({ where: { clientId } });
   if (!row) return null;
   const redirectUris = Array.isArray(row.redirectUris) ? row.redirectUris.filter(validRedirectUri) : [];
-  return { clientId: row.clientId, name: row.name, redirectUris };
+  return { clientId: row.clientId, name: honestName(row.name, redirectUris), redirectUris };
 }
 
 /** Dynamic client registration: an app registers its name and redirect addresses and gets an id (no secret — PKCE protects the exchange). */
@@ -127,7 +189,7 @@ export async function registerClient(body: { client_name?: unknown; redirect_uri
   const uris = Array.isArray(body.redirect_uris) ? body.redirect_uris : [];
   if (uris.length === 0 || uris.length > 10 || !uris.every(validRedirectUri)) return { error: "redirect_uris must be 1 to 10 https (or loopback http) addresses." };
   const clientId = mint("wbc");
-  const name = cleanName(body.client_name, "An AI app");
+  const name = honestName(cleanName(body.client_name, "An AI app"), uris as string[]);
   await prisma.connectorClient.create({ data: { clientId, name, redirectUris: uris } });
   return { clientId, name, redirectUris: uris as string[] };
 }
@@ -230,7 +292,7 @@ export async function revokeGrant(grantId: string): Promise<void> {
   await prisma.$transaction([
     prisma.connectorGrant.updateMany({ where: { id: grantId, revokedAt: null }, data: { revokedAt: new Date() } }),
     prisma.connectorToken.deleteMany({ where: { grantId } }),
-    prisma.connectorAction.updateMany({ where: { grantId, status: "pending" }, data: { status: "dismissed", decidedAt: new Date() } }),
+    prisma.connectorAction.updateMany({ where: { grantId, status: "pending" }, data: { status: "dismissed", decidedAt: new Date(), proposal: {} } }),
   ]);
 }
 

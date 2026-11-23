@@ -23,9 +23,30 @@ export type CardProposal = Proposal & { state: CardState; resultNote?: string; /
 /** A card with its place in the chat — what the talk screen renders and settles. */
 export type PlacedCard = { msgIdx: number; card: CardProposal };
 
-/** Cards a spoken "yes" may confirm: ordinary ones (no money, nothing permanent, no typed phrase). */
+/**
+ * Cards that always take a tap, even in voice: who can sign in and what they
+ * may do, anything that runs on its own later, company-wide settings, and
+ * money written into the books. In live voice the MODEL calls confirm, so
+ * words a stranger typed into a booking form could talk it into one of
+ * these; a tap is the one thing only the person holding the phone can give
+ * (2026-11-23 security review, David's choice).
+ */
+const TAP_ONLY_KINDS = new Set([
+  "add_team_member",
+  "update_team_member",
+  "update_team_policy",
+  "manage_automation",
+  "update_company_settings",
+  "manage_lead_webhook",
+  "record_payment",
+]);
+export function tapOnly(p: Pick<Proposal, "kind">): boolean {
+  return TAP_ONLY_KINDS.has(p.kind);
+}
+
+/** Cards a spoken "yes" may confirm: ordinary ones (no money, nothing permanent, no typed phrase, not tap-only). */
 export function voiceConfirmable(p: Proposal): boolean {
-  return !p.danger && !p.money && !p.confirmText;
+  return !p.danger && !p.money && !p.confirmText && !tapOnly(p);
 }
 
 /** Cards that put words in front of a client (email, text, portal message,

@@ -5,6 +5,7 @@ import { RESERVED_SLUGS, slugWhere, slugify } from "@/lib/company-slug";
 import { pricebookForIndustry } from "@/lib/pricebooks";
 import { paymentsSetupGateEnabled } from "@/lib/payments-gate";
 import type { Arrival } from "@/lib/lead-source";
+import { isProvisionalPassword, replaceProvisionalPassword } from "@/lib/team-login";
 
 /**
  * Company creation shared by the two ways in:
@@ -92,7 +93,9 @@ export async function createCompanySignup(opts: {
       attempt === 0 ? slugify(opts.companyName) : `${slugify(opts.companyName)}-${attempt}`
     );
     try {
-      return await createInTransaction(opts, slug);
+      const created = await createInTransaction(opts, slug);
+      await dropProvisionalPassword(opts.owner, created.userId);
+      return created;
     } catch (e) {
       const slugClash =
         e instanceof Prisma.PrismaClientKnownRequestError &&
@@ -100,6 +103,29 @@ export async function createCompanySignup(opts: {
         (e.meta?.target as string[] | undefined)?.includes("slug");
       if (!slugClash || attempt >= 2) throw e;
     }
+  }
+}
+
+/**
+ * A company opened on an EXISTING login must not be reachable with a
+ * starting password a manager of another company typed for that login
+ * (Account.passwordChangedAt null, lib/team-login.ts). Every door that
+ * attaches ends here: the app sign-up, /apply, a company request and
+ * support opening one. The password is dropped and the person is emailed a
+ * link to set their own (2026-11-23 security review; the team route has done
+ * this for its own attach since 2026-11-01). Never fails the sign-up.
+ */
+async function dropProvisionalPassword(owner: Parameters<typeof createCompanySignup>[0]["owner"], userId: string) {
+  if (!("account" in owner)) return;
+  try {
+    const login = await prisma.account.findUnique({
+      where: { id: owner.account.id },
+      select: { passwordHash: true, passwordChangedAt: true },
+    });
+    if (!login || !isProvisionalPassword(login)) return;
+    await replaceProvisionalPassword({ accountId: owner.account.id, userId, email: owner.account.email, name: owner.ownerName });
+  } catch (e) {
+    reportError("[signup] provisional password not replaced", e);
   }
 }
 

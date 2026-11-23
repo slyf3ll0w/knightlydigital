@@ -57,6 +57,20 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
  * The tenant already got a calm "paused on our side" message; this is the
  * operator's side of it. `context` says what was refused and for whom.
  */
+/** The free tool's overall daily email ceiling was reached (lib/tool-send.ts overallDailyCap). */
+export async function alertToolEmailCap(sentToday: number): Promise<void> {
+  reportError(`[tools] free-tool email ceiling reached: ${sentToday} in 24 h`);
+  await alertOperator(
+    "tool-email-cap",
+    "Free-tool emails are paused: the daily ceiling was reached",
+    `<p>The free invoice / estimate tool has sent ${sentToday} emails in the last 24 hours, which is the overall ceiling.
+Further sends are refused with a "download the PDF" message until older ones age out.</p>
+<p>If this is real demand, raise <code>TOOLS_EMAIL_DAILY_CAP</code> on Railway. If it is not, look at the newest senders
+on the leads board (source Free tool) and at Resend's log for <code>tools.workbenchfsm.com</code>.</p>
+<p style="color:#6b7280;font-size:12px">You'll get this email at most once every six hours while the condition lasts.</p>`
+  );
+}
+
 export async function alertTelnyxFunds(context: string): Promise<void> {
   reportError(`[telnyx] out of funds: ${context}`);
   await alertOperator(
