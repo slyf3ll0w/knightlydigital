@@ -31,7 +31,8 @@ export default async function LeadsPage() {
   const hideConverted = company?.hideConvertedLeads ?? false;
   const workingStageIds = stages.filter((s) => !s.isConverted).map((s) => s.id);
 
-  const [contacts, convertedContacts, convertedTotal, team, lostRows] = await Promise.all([
+  const since30 = new Date(Date.now() - 30 * 86_400_000);
+  const [contacts, convertedContacts, convertedTotal, team, lostRows, won30] = await Promise.all([
     prisma.contact.findMany({
       where: { companyId, pipelineStageId: { in: workingStageIds }, ...contactScope(actor) },
       orderBy: [{ pipelineOrder: "asc" }, { stageChangedAt: "desc" }],
@@ -84,6 +85,8 @@ export default async function LeadsPage() {
       take: LOST_SHOWN,
       select: { id: true, firstName: true, lastName: true, companyName: true, lostAt: true, lostReason: true, status: true, timesWon: true, updatedAt: true },
     }),
+    // The board tail: wins in the last 30 days
+    prisma.contact.count({ where: { companyId, wonAt: { gte: since30 }, ...contactScope(actor) } }),
   ]);
   const lost: LostLead[] = lostRows.map((c) => ({
     id: c.id,
@@ -118,6 +121,7 @@ export default async function LeadsPage() {
       manager={isManager(actor.role)}
       convertedOverflow={Math.max(0, convertedTotal - convertedContacts.length)}
       lost={lost}
+      won30={won30}
     />
   );
 }
@@ -154,6 +158,19 @@ const contactCardSelect = {
     orderBy: { createdAt: "desc" as const },
     take: 1,
   },
+  // The card's next step: the soonest booked appointment, else the soonest open task
+  appointments: {
+    where: { status: "SCHEDULED" as const, scheduledAt: { gte: new Date(Date.now() - 6 * 3_600_000) } },
+    orderBy: { scheduledAt: "asc" as const },
+    take: 1,
+    select: { scheduledAt: true, title: true },
+  },
+  tasks: {
+    where: { doneAt: null },
+    orderBy: [{ dueAt: { sort: "asc" as const, nulls: "last" as const } }],
+    take: 1,
+    select: { dueAt: true, title: true },
+  },
   _count: {
     select: {
       requests: true,
@@ -186,6 +203,8 @@ type CardRow = {
   assignedTo: { id: string; name: string } | null;
   quotes: { total: unknown }[];
   requests: { id: string }[];
+  appointments: { scheduledAt: Date; title: string }[];
+  tasks: { dueAt: Date | null; title: string }[];
   _count: { requests: number; quotes: number; appointments: number };
 };
 
@@ -221,6 +240,12 @@ function toCard(c: CardRow, inConverted: boolean): BoardCard {
     value: c.quotes.reduce((s, q) => s + Number(q.total), 0),
     assignedTo: c.assignedTo,
     openRequestId: c.requests[0]?.id ?? null,
+    next: c.appointments[0]
+      ? { kind: "appointment", at: c.appointments[0].scheduledAt.toISOString(), title: c.appointments[0].title }
+      : c.tasks[0]
+        ? { kind: "task", at: c.tasks[0].dueAt ? c.tasks[0].dueAt.toISOString() : null, title: c.tasks[0].title }
+        : null,
+    createdAt: c.createdAt.toISOString(),
     searchBlob: searchBlob(c),
     counts: {
       requests: c._count.requests,
