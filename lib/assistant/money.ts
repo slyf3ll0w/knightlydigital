@@ -866,7 +866,10 @@ export const moneyTools: Tool[] = [
           lines: [
             `Client: ${clientName(sub.contact)}`,
             "Issues this cycle's invoice immediately and advances the next bill date.",
+            "If the client has a card on file for autopay, it is charged now.",
           ],
+          // It can charge a saved card, so it is a money card: a tap, never a spoken yes, never a connected app.
+          money: true,
           endpoint: `/api/app/subscriptions/${sub.id}`,
           method: "PATCH",
           payload: { action: "billNow" },

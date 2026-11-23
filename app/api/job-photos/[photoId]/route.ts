@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getActor } from "@/lib/permissions";
+import { getActor, jobScope } from "@/lib/permissions";
 import { photoResponse } from "@/lib/photos";
 
 /**
@@ -28,6 +28,9 @@ export async function GET(
     where: {
       id: photoId,
       OR: [{ companyId: actor.companyId }, { companyId: null, job: { companyId: actor.companyId } }],
+      // A photo on a job follows the job's own visibility: a tech sees the jobs
+      // they are on, sales their own clients'. Their own uploads always open.
+      AND: [{ OR: [{ jobId: null }, { userId: actor.id }, { job: jobScope(actor) }] }],
     },
     select: { id: true, data: true, mimeType: true, storageKey: true, thumbKey: true },
   });

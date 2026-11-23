@@ -42,7 +42,13 @@ export type LiveHandle = {
   setMuted: (m: boolean) => void;
 };
 
-type TokenReply = { token: string; model: string; setup: Record<string, unknown>; assistantName: string; error?: string };
+type TokenReply = { token: string; model: string; setup: Record<string, unknown>; assistantName: string; sessionId?: string; error?: string };
+
+/** The metering session of the newest token (a reconnect mints a new one); usage reports name it. */
+let liveSessionId: string | null = null;
+export function currentLiveSessionId(): string | null {
+  return liveSessionId;
+}
 
 // A tiny AudioWorklet that ships raw Float32 frames to the main thread.
 const WORKLET_SRC = `
@@ -167,6 +173,7 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
       throw new Error(data.error ?? "Live voice is unavailable right now.");
     }
     voiceLog("live: token ok", `${data.model} ${since()}`);
+    liveSessionId = typeof data.sessionId === "string" ? data.sessionId : null;
     return data as TokenReply;
   };
   const tokenData = await mintToken();

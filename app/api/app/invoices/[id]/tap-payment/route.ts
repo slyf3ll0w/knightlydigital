@@ -70,8 +70,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: msg }, { status: 424 });
   }
 
-  if (payment.reference_id && payment.reference_id !== invoice.id) {
-    return NextResponse.json({ error: "That payment belongs to a different invoice." }, { status: 409 });
+  // The phone app stamps every Tap to Pay sale with the invoice it was taken
+  // for. A sale with no stamp, or another invoice's, is never booked here:
+  // otherwise any Square sale on the account could be written onto any
+  // invoice (2026-11-23 security review). A sale taken outside WorkBench is
+  // recorded from Payments → "Record on an invoice", which checks the amount.
+  if (payment.reference_id !== invoice.id) {
+    return NextResponse.json({ error: payment.reference_id ? "That payment belongs to a different invoice." : "That Square payment wasn't taken for this invoice. Record it from the Payments page instead." }, { status: 409 });
   }
   if (invoice.company.squareLocationId && payment.location_id && payment.location_id !== invoice.company.squareLocationId) {
     return NextResponse.json({ error: "That payment is at a different Square location." }, { status: 409 });

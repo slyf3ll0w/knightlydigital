@@ -15,7 +15,7 @@ import {
   type MicState,
   type SpeakHandle,
 } from "@/lib/voice-chat-client";
-import { startLiveSession, type LiveHandle, type LiveStatus } from "@/lib/live-voice-client";
+import { currentLiveSessionId, startLiveSession, type LiveHandle, type LiveStatus } from "@/lib/live-voice-client";
 import { voiceLog } from "@/lib/voice-log";
 import { cardsSpeech, isAffirmative, isNegative, isStopPhrase, spokenForm, type SpokenCard } from "@/lib/voice-chat-shared";
 import type { Proposal } from "@/lib/assistant";
@@ -384,7 +384,7 @@ export default function AssistantVoice({
           void fetch("/api/app/assistant/live/usage", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ inSeconds, outSeconds }),
+            body: JSON.stringify({ inSeconds, outSeconds, sessionId: currentLiveSessionId() }),
             keepalive: true,
           }).catch(() => undefined);
         },

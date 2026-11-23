@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { getActor } from "@/lib/permissions";
 import { finixEnvironment } from "@/lib/finix";
 import { syncFromFinix } from "@/lib/finix-status";
 import { paymentsGateStatus } from "@/lib/payments-gate";
@@ -23,9 +24,13 @@ export default async function ActivatePage({
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.companyId) redirect(session ? "/app/dashboard" : "/app/login");
+  // The cookie alone is not enough: the live user is re-read, so someone removed or
+  // deactivated since signing in sees nothing here (2026-11-23 security review).
+  const actor = await getActor();
+  if (!actor) redirect("/app/dashboard");
   const { payments } = await searchParams;
 
-  const companyId = session.user.companyId;
+  const companyId = actor.companyId;
   const company = await prisma.company.findUnique({
     where: { id: companyId },
     select: {
@@ -54,7 +59,7 @@ export default async function ActivatePage({
       state={state}
       started={Boolean(company.finixOnboardingFormId)}
       justSubmitted={payments === "submitted"}
-      isOwner={session.user.role === "OWNER"}
+      isOwner={actor.role === "OWNER"}
       sandbox={finixEnvironment() === "sandbox"}
       companyName={company.name}
       email={session.user.email ?? ""}

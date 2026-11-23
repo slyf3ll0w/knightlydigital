@@ -17,7 +17,8 @@ import { limit, clientIp } from "@/lib/rate-limit";
  * calls enterPipeline/autoAdvance.)
  */
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body !== "object" || typeof body.token !== "string") return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   const { token, title, details } = body;
 
   if (!token || !title) {

@@ -1,3 +1,4 @@
+import { requireSuperadminPage } from "@/lib/superadmin";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { PLATFORM_COMPANY_ID, usageDay } from "@/lib/usage";
@@ -21,6 +22,8 @@ export const dynamic = "force-dynamic";
 const RANGES = [7, 30, 90] as const;
 
 export default async function ProfitabilityPage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
+  // Checked here as well as in the layout: a page segment can be fetched on its own.
+  await requireSuperadminPage();
   const params = await searchParams;
   const days = RANGES.includes(Number(params.days) as (typeof RANGES)[number]) ? Number(params.days) : 30;
   const sinceDate = new Date(Date.now() - days * 86400000);

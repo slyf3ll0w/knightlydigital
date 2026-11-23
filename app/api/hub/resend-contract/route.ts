@@ -1,3 +1,4 @@
+import { limit } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sendEmail, contractSignEmail } from "@/lib/email";
@@ -11,8 +12,12 @@ import { suspendedResponse } from "@/lib/suspension";
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const { token, contractId } = body ?? {};
-  if (!token || !contractId) {
+  if (typeof token !== "string" || typeof contractId !== "string" || !token || !contractId) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  }
+  // Each call emails the client again: a few an hour per agreement is plenty.
+  if (!(await limit(`hub-resend-contract:${contractId}`, 4, 60 * 60_000)).ok) {
+    return NextResponse.json({ error: "That was just sent. Check your inbox, or try again in a while." }, { status: 429 });
   }
 
   const contact = await prisma.contact.findUnique({

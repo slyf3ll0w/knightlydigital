@@ -3,6 +3,7 @@ import { reportError } from "@/lib/report-error";
 import { DEFAULT_ACCENT, isAccentCode, isVoiceId } from "@/lib/atlas-voices";
 import { prisma } from "@/lib/db";
 import { voiceGate } from "@/lib/assistant-voice-gate";
+import { PREPAID_CENTS, UNREPORTED_GRACE_MS, mintVerdict } from "@/lib/live-voice-meter";
 import { liveSystemInstruction, toolsForActor } from "@/lib/assistant";
 
 /**
@@ -39,6 +40,17 @@ export async function POST(req: NextRequest) {
   if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
   const key = process.env.GEMINI_API_KEY;
   if (!key) return NextResponse.json({ error: "Live voice isn't configured." }, { status: 503 });
+  // The browser reports its own seconds, so the server rations sessions (lib/live-voice-meter.ts).
+  const day = new Date(Date.now() - 86_400_000);
+  const [sessions24h, unreported24h] = await Promise.all([
+    prisma.liveVoiceSession.count({ where: { userId: gate.actor.id, startedAt: { gte: day } } }),
+    prisma.liveVoiceSession.count({ where: { userId: gate.actor.id, startedAt: { gte: day, lt: new Date(Date.now() - UNREPORTED_GRACE_MS) }, lastReportAt: null } }),
+  ]);
+  const verdict = mintVerdict({ sessions24h, unreported24h });
+  if (verdict !== "ok") {
+    reportError(`live token: refused (${verdict}) for user ${gate.actor.id} — ${sessions24h} sessions, ${unreported24h} never reported, in 24 h`);
+    return NextResponse.json({ error: "Talk to Atlas is paused on this login for today. Type to Atlas instead, or try again tomorrow." }, { status: 429 });
+  }
   // The listener's voice + accent pick (lib/atlas-voices.ts), validated.
   const body = (await req.json().catch(() => ({}))) as { voice?: unknown; accent?: unknown };
   // No pick in the request → the one saved on the account (follows the
@@ -124,7 +136,18 @@ export async function POST(req: NextRequest) {
       reportError("live token: no name in response", JSON.stringify(data).slice(0, 300));
       return NextResponse.json({ error: "Live voice is unavailable right now." }, { status: 424 });
     }
+    // The session row is what usage reports are counted against; it is prepaid now and the
+    // reports are charged only past that. A week of rows is plenty for the daily counts.
+    const session = await prisma.liveVoiceSession.create({
+      data: { companyId: gate.actor.companyId, userId: gate.actor.id, chargedCents: PREPAID_CENTS },
+      select: { id: true },
+    });
+    await gate.charge(PREPAID_CENTS);
+    if (Math.random() < 0.05) {
+      void prisma.liveVoiceSession.deleteMany({ where: { startedAt: { lt: new Date(Date.now() - 7 * 86_400_000) } } }).catch(() => {});
+    }
     return NextResponse.json({
+      sessionId: session.id,
       token: data.name,
       model: `models/${LIVE_MODEL}`,
       setup: setupConfig,

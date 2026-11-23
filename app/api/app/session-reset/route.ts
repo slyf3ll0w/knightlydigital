@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
  * here. Idempotent and unauthenticated on purpose: its whole job is to fix
  * broken sessions.
  */
-export function GET(_req: NextRequest) {
+export function GET(req: NextRequest) {
   // Never build this from req.url: in a route handler that is the address
   // the server listens on (`next start -H ::` → https://[::]:8080), not the
   // public host, and people landed on a dead "[::]:8080" page. Same base
@@ -20,6 +20,12 @@ export function GET(_req: NextRequest) {
   const res = base
     ? NextResponse.redirect(new URL("/app/login", base), 303)
     : new NextResponse(null, { status: 303, headers: { Location: "/app/login" } });
+  // Another website linking or redirecting here must not be able to sign a
+  // visitor out. Browsers say where a navigation came from; our own redirects
+  // arrive as same-origin (or with no initiator), a link on someone else's
+  // page as cross-site. Those just land on the sign-in page, cookies intact
+  // (2026-11-23 security review). A browser too old to say is trusted.
+  if (req.headers.get("sec-fetch-site") === "cross-site") return res;
   const gone = { value: "", maxAge: 0, path: "/", httpOnly: true, sameSite: "lax" as const };
   // Both the plain (http/localhost) and prefixed (https) NextAuth v4 cookie
   // names — browsers ignore misapplied Secure-prefixed sets, so clearing all

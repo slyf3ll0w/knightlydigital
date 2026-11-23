@@ -376,6 +376,7 @@ model Company {
   followUpSkips FollowUpSkip[]
   connectorActions      ConnectorAction[]
   connectorCalls        ConnectorCall[]
+  liveVoiceSessions     LiveVoiceSession[]
   libraryListings       EstimatorListing[]
   libraryLikes          EstimatorListingLike[]
   automations           Automation[]
@@ -4548,4 +4549,24 @@ model SearchIndexStatus {
   googleCanonical String?
   lastCrawlTime   DateTime?
   checkedAt       DateTime
+}
+
+// One Talk to Atlas (live voice) connection: minted by /api/app/assistant/live/token,
+// metered by /live/usage. The browser reports its own seconds, so the server keeps
+// this row to prepay each session, cap how many a login opens in a day, and pause a
+// login whose sessions never report (lib/live-voice-meter.ts, 2026-11-23 security
+// review). Rows are pruned after a week.
+model LiveVoiceSession {
+  id           String    @id @default(cuid())
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId       String
+  startedAt    DateTime  @default(now())
+  lastReportAt DateTime?
+  inSeconds    Int       @default(0)
+  outSeconds   Int       @default(0)
+  chargedCents Float     @default(0)
+
+  @@index([userId, startedAt])
+  @@index([startedAt])
 }

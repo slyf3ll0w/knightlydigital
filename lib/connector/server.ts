@@ -107,6 +107,12 @@ export async function handleRpc(caller: ConnectorCaller, msg: RpcRequest, header
         logCall(caller, name, typeof result.error === "string" ? "error" : mode === "draft" ? "prepared" : "read");
         return text(scrubResult(result), typeof result.error === "string");
       }
+      // A card that moves money is never prepared for an outside AI app, whichever tool staged it
+      // (a tool on the PREPARE list can have one action that charges a card: manage_subscription billNow).
+      if (proposals.some((p) => p.money)) {
+        logCall(caller, name, "error");
+        return text({ error: "That moves money, which is done inside Workbench only. Ask the person to do it there." }, true);
+      }
       // a read tool must never stage anything; if one ever does, it does not get through
       if (mode !== "prepare") {
         reportError(`connector: read tool ${name} staged a card`, new Error(name));

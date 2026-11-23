@@ -22,6 +22,7 @@ import { meteredOneShot } from "./atlas-oneshot";
 import { quoteDepositAmount, money as moneyLabel } from "./statuses";
 import { AUTOMATION_LIMITS, ATLAS_TEXT_FIELD, renderAction, textDeferUntil, type CompiledAutomation, type AutomationAction, type Step } from "./automations";
 import { inSmsQuietHours } from "./reminder-stage";
+import { pinnedHttpsRequest } from "./public-fetch";
 import { baseUrl, money, type Loaded } from "./automations-context";
 
 /**
@@ -530,16 +531,17 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
       const fields = Object.fromEntries(Object.entries(loaded.ctx).filter(([k]) => !/hub/i.test(k) && k !== "job_report_link"));
       const body = JSON.stringify({ event: compiled.spec.trigger.event, entityType: compiled.entity, link: `${baseUrl()}${loaded.link}`, fields, automation: { id: automation.id, name: automation.name }, sentAt: now.toISOString() });
       if (Buffer.byteLength(body) > AUTOMATION_LIMITS.webhookBodyBytes) return "skipped: payload too large";
-      const ctl = new AbortController();
-      const timer = setTimeout(() => ctl.abort(), AUTOMATION_LIMITS.webhookTimeoutMs);
-      try {
-        const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "User-Agent": "WorkBench-Automations/1" }, body, redirect: "manual", signal: ctl.signal });
-        return res.ok ? `sent (HTTP ${res.status})` : `failed: HTTP ${res.status}`;
-      } catch (e) {
-        return `failed: ${e instanceof Error && e.name === "AbortError" ? "timed out" : "couldn't reach the URL"}`;
-      } finally {
-        clearTimeout(timer);
-      }
+      // The address is checked again at the connection itself, so a host that
+      // changes its answer between the check above and the send gets nowhere.
+      const res = await pinnedHttpsRequest(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "User-Agent": "WorkBench-Automations/1" },
+        body,
+        timeoutMs: AUTOMATION_LIMITS.webhookTimeoutMs,
+        maxBytes: 1_000_000,
+      });
+      if (!res) return "failed: couldn't reach the URL";
+      return res.status >= 200 && res.status < 300 ? `sent (HTTP ${res.status})` : `failed: HTTP ${res.status}`;
     }
     case "atlas_draft": {
       const userId = await actorUserId(companyId, automation.createdById);

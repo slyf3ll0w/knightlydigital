@@ -1396,6 +1396,8 @@ NEXTAUTH_URL=    # deployed URL (production https://workbenchfsm.com; staging it
 CRON_SECRET=     # shared secret for the recurring-billing cron (generate: openssl rand -base64 32)
 UNIVERSAL_INVITE_CODE=    # optional shared tester invite code; unset or "off" = none (no built-in default since 2026-11-01)
 CANONICAL_HOST_ALIASES=   # optional, comma-separated: extra hostnames (behind the same edge) that may serve the app besides NEXTAUTH_URL's; every other Host is sent to the canonical one (lib/canonical-host.ts)
+EDGE_SHARED_SECRET=       # production: a long random string that a Cloudflare Transform Rule also sets as the request header x-wb-edge. cf-connecting-ip (the rate-limit key) is believed only when it matches, so a caller who reaches the Railway address directly can't pick their own bucket. Staging (no Cloudflare): "off". Unset = believed as before (lib/rate-limit.ts cameThroughEdge)
+TOOLS_EMAIL_DAILY_CAP=    # optional: overall free-tool emails per 24 h across every sender (default 300, lib/tool-send.ts)
 PAYMENT_PROCESSOR=square  # unset = square (the platform processor, SQUARE_* below); "finix" (FINIX_* below) or "manual" (no money moves) to override
 # Square — developer.squareup.com → Developer Console → the WorkBench app.
 # Sandbox and production have DIFFERENT ids/secrets; the host, the web SDK

@@ -1,3 +1,4 @@
+import { requireSuperadminPage } from "@/lib/superadmin";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -30,6 +31,8 @@ export default async function CompanyPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ tab?: string; range?: string }>;
 }) {
+  // Checked here as well as in the layout: a page segment can be fetched on its own.
+  await requireSuperadminPage();
   const { id } = await params;
   const sp = await searchParams;
   const tab: Tab = TABS.includes(sp.tab as Tab) ? (sp.tab as Tab) : "overview";

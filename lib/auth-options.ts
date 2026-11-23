@@ -6,6 +6,7 @@ import AppleProvider from "next-auth/providers/apple";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
+import { limit } from "@/lib/rate-limit";
 import { normalizeEmail } from "@/lib/user-email";
 import { eligibleMembershipsFor, findOrAdoptAccountByEmail, pickMembership } from "@/lib/account";
 import { isAppleSignInConfigured, isGoogleSignInConfigured } from "@/lib/sign-in-options";
@@ -194,6 +195,12 @@ export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAut
             const captchaOk = await verifyCaptcha(credentials.captchaToken, "login");
             if (!captchaOk) throw new Error("captcha");
           }
+          // Per ADDRESS, not only per visitor: password guessing spread over
+          // many internet addresses still meets one counter. Counted for
+          // every address, known or not, so the answer never says which
+          // exist; Google / Apple sign-in is unaffected (2026-11-23 review).
+          const tries = await limit(`login-address:${email}`, LOGIN_TRIES_PER_ADDRESS, 15 * 60_000);
+          if (!tries.ok) throw new Error("rate-limit");
           if (!account || !user) return null;
 
           // No hash = a social-only account. Same generic failure: the form
@@ -446,4 +453,7 @@ export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAut
 }
 
 /** Request-agnostic options — session reads everywhere in the app. */
+/** Password sign-in attempts allowed per email address in 15 minutes, whoever makes them. */
+const LOGIN_TRIES_PER_ADDRESS = 20;
+
 export const authOptions: NextAuthOptions = buildAuthOptions();

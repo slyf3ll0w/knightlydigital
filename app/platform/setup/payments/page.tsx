@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
+import { getActor } from "@/lib/permissions";
 import { PAYMENTS_SETUP_SELECT, paymentsSetupGateEnabled, paymentsSetupRequired } from "@/lib/payments-gate";
 import { squareEnvironment, squareSignupUrl } from "@/lib/square";
 import { squareStatusForCompany } from "@/lib/square-connection";
@@ -30,23 +31,27 @@ export default async function SetupPaymentsPage({
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.companyId) redirect(session ? "/app/dashboard" : "/app/login");
+  // The cookie alone is not enough: the live user is re-read, so someone removed or
+  // deactivated since signing in sees nothing here (2026-11-23 security review).
+  const actor = await getActor();
+  if (!actor) redirect("/app/dashboard");
   if (!paymentsSetupGateEnabled()) redirect("/app/dashboard");
   const { square: outcome } = await searchParams;
 
   const company = await prisma.company.findUnique({
-    where: { id: session.user.companyId },
+    where: { id: actor.companyId },
     select: { name: true, surchargeEnabled: true, suspendedAt: true, ...PAYMENTS_SETUP_SELECT },
   });
   if (!company || company.suspendedAt) redirect("/app/dashboard");
 
   const connected = Boolean(company.squareMerchantId) && company.squareConnectedAt != null;
-  const status = connected ? await squareStatusForCompany(session.user.companyId) : null;
+  const status = connected ? await squareStatusForCompany(actor.companyId) : null;
 
   return (
     <SetupPaymentsClient
       companyName={company.name}
       email={session.user.email ?? ""}
-      isOwner={session.user.role === "OWNER"}
+      isOwner={actor.role === "OWNER"}
       required={paymentsSetupRequired(company)}
       connected={connected}
       businessName={status?.connected ? status.businessName : null}

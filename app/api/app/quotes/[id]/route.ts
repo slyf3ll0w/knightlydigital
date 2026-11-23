@@ -1,3 +1,4 @@
+import { keepOwnWorkItemIds } from "@/lib/own-work-items";
 import { NextRequest, NextResponse } from "next/server";
 import { CLEAR } from "@/lib/send-document";
 import { fireAutomations } from "@/lib/automations-server";
@@ -51,6 +52,8 @@ export async function PATCH(
   if (!quote) return NextResponse.json({ error: "Quote not found." }, { status: 404 });
 
   const body = await req.json();
+  // A price-book id on a line must be this company's own (lib/own-work-items.ts)
+  await keepOwnWorkItemIds(actor.companyId, body?.lineItems);
 
   if (body.status && !allowedStatuses.includes(body.status)) {
     return NextResponse.json({ error: "Invalid status." }, { status: 400 });

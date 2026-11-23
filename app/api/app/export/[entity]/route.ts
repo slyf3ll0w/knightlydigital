@@ -197,7 +197,8 @@ export async function GET(
     case "payments": {
       if (!canSeeMoney(actor)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       const rows = await prisma.payment.findMany({
-        where: { companyId, ...range("paidAt") },
+        // Sales roles export only their own clients' payments, as the Payments page shows them.
+        where: { companyId, ...viaContactScope(actor), ...range("paidAt") },
         include: {
           invoice: { select: { invoiceNumber: true } },
           contact: { select: { firstName: true, lastName: true } },

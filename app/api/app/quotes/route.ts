@@ -1,3 +1,4 @@
+import { keepOwnWorkItemIds } from "@/lib/own-work-items";
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import type { RecurringInterval } from "@prisma/client";
@@ -27,6 +28,8 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
+  // A price-book id on a line must be this company's own (lib/own-work-items.ts)
+  await keepOwnWorkItemIds(actor.companyId, body?.lineItems);
   const {
     contactId,
     requestId,

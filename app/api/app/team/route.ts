@@ -109,8 +109,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Account-level identity: an attached member keeps the name/phone/avatar
-  // they already use on WorkBench, not whatever the owner typed.
+  // An attached member's name, phone and photo from their OTHER companies are
+  // not this manager's to see: typing somebody's email must not hand back who
+  // they are and what their number is (2026-11-23 security review). The new
+  // membership starts with what the manager typed; the person's own profile
+  // edits take over once they sign in. The lookup is kept only so the
+  // heads-up email can greet them by the name they use.
   const identity = account
     ? await prisma.user.findFirst({
         where: { accountId: account.id },
@@ -132,12 +136,9 @@ export async function POST(req: NextRequest) {
     return tx.user.create({
       data: {
         companyId: actor.companyId,
-        name: identity?.name ?? String(name).trim().slice(0, 100),
+        name: String(name).trim().slice(0, 100),
         email: login.email,
-        phone: identity?.phone ?? (phone ? String(phone).trim().slice(0, 30) : null),
-        avatarData: identity?.avatarData ?? null,
-        avatarMime: identity?.avatarMime ?? null,
-        avatarUpdatedAt: identity?.avatarUpdatedAt ?? null,
+        phone: phone ? String(phone).trim().slice(0, 30) : null,
         role,
         accountId: login.id,
       },

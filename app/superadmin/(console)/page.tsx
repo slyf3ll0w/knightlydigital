@@ -1,3 +1,4 @@
+import { requireSuperadminPage } from "@/lib/superadmin";
 import Link from "next/link";
 import { AlertTriangle, ChevronRight } from "lucide-react";
 import { Card, Chip, DsPage, ListRow, PageHeader, SectionTitle, Stat } from "@/components/ds";
@@ -19,6 +20,8 @@ export const dynamic = "force-dynamic";
 const RANGES = [7, 30, 90] as const;
 
 export default async function AccountsPage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
+  // Checked here as well as in the layout: a page segment can be fetched on its own.
+  await requireSuperadminPage();
   const params = await searchParams;
   const days = RANGES.includes(Number(params.days) as (typeof RANGES)[number]) ? Number(params.days) : 30;
   const [data, history] = await Promise.all([loadAccounts(days), loadOnlineHistory()]);

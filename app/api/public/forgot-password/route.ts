@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { reportError } from "@/lib/report-error";
 import { createHash, randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { sendEmail, passwordResetEmail } from "@/lib/email";
@@ -55,7 +56,8 @@ export async function POST(req: NextRequest) {
   // and the link only ever lands in this address's own inbox.
   const resetUrl = `${base}/reset-password?token=${token}&email=${encodeURIComponent(user.email)}`;
   const { subject, html } = passwordResetEmail({ name: user.name, resetUrl, hasPassword });
-  await sendEmail({ to: user.email, subject, html });
+  // Sent after the answer, so how long the reply takes says nothing about whether the address has a login.
+  after(() => sendEmail({ to: user.email, subject, html }).then(() => undefined).catch((e) => reportError("[forgot-password] email failed", e)));
 
   return ok;
 }

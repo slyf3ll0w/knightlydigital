@@ -41,6 +41,10 @@ export type Proposal = {
   /** Extra authentication for destructive cards: the user must type this
    *  exact text before Confirm arms (matches the force-delete page UX). */
   confirmText?: string;
+  /** The whole message when `lines` previews only its start (a long email
+   *  or text). The card will not arm until the person has opened it: nobody
+   *  approves words they were never shown (2026-11-23 security review). */
+  fullText?: string;
   /** Bulk work: one card, one Confirm, many requests run in order.
    *  When present, endpoint/method/payload above are ignored. */
   batch?: BatchItem[];
