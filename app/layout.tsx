@@ -1,6 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./ds.css";
+import "./ds-home.css";
+import "./ds-schedule.css";
+import "./ds-estimates.css";
+import "./ds-clients.css";
+import "./ds-routes.css";
 import "./moment.css";
 
 export const viewport: Viewport = {
