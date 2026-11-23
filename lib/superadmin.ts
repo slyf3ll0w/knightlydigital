@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { SUPERADMIN_COOKIE, verifySuperadminSessionToken } from "@/lib/superadmin-session";
+import { SUPERADMIN_COOKIE, readSuperadminSessionToken } from "@/lib/superadmin-session";
 
 /**
  * Platform-owner auth. The console rides its own signed cookie
@@ -18,13 +18,18 @@ export type SuperadminUser = { id: string; email: string; name: string };
 async function loadSuperadmin(): Promise<SuperadminUser | null> {
   const token = (await cookies()).get(SUPERADMIN_COOKIE)?.value;
   if (!token) return null;
-  const userId = await verifySuperadminSessionToken(token);
-  if (!userId) return null;
+  const session = await readSuperadminSessionToken(token);
+  if (!session) return null;
   const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, email: true, name: true, role: true, isActive: true },
+    where: { id: session.userId },
+    select: { id: true, email: true, name: true, role: true, isActive: true, account: { select: { passwordChangedAt: true } } },
   });
   if (!user || !user.isActive || user.role !== "SUPERADMIN") return null;
+  // A password change ends every console session minted before it, the way
+  // it ends tenant sessions: a copied console cookie must not outlive the
+  // reset that was meant to lock its holder out (2026-11-23 security review).
+  const changedAt = user.account?.passwordChangedAt?.getTime() ?? 0;
+  if (changedAt && session.issuedAt < changedAt - 5_000) return null;
   return { id: user.id, email: user.email, name: user.name };
 }
 

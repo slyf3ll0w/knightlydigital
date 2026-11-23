@@ -143,8 +143,8 @@ export function cardsSpeech(cards: SpokenCard[]): { text: string; voiceConfirmab
   if (guarded.length > 0) {
     parts.push(
       guarded.length === 1
-        ? `One more, ${guarded[0].title}, moves money or can't be undone, so that one needs a tap in the chat.`
-        : `${guarded.length} of them move money or can't be undone, so those need a tap in the chat.`
+        ? `One more, ${guarded[0].title}, can't be confirmed by voice, so that one needs a tap in the chat.`
+        : `${guarded.length} of them can't be confirmed by voice, so those need a tap in the chat.`
     );
   }
   return { text: parts.join(" "), voiceConfirmable: ordinary.length > 0 };

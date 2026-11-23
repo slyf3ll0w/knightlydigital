@@ -132,6 +132,16 @@ function logCall(caller: ConnectorCaller, tool: string, outcome: "read" | "prepa
     .catch(() => {});
 }
 
+/**
+ * A card line that carries a generated password ("Starting password: Hub-…")
+ * is for the person approving in Workbench, never for the outside AI: a
+ * password it holds sits in a chat history at another company (2026-11-23
+ * security review).
+ */
+export function withholdPassword(line: string): string {
+  return /password\s*:/i.test(line) ? "A password is set — shown only on the approval card in Workbench." : line;
+}
+
 /** Store the cards a tool staged and tell the outside AI, in plain words, that nothing has happened yet. */
 async function holdForApproval(caller: ConnectorCaller, proposals: Proposal[]): Promise<Record<string, unknown>> {
   const waiting = await prisma.connectorAction.count({ where: { userId: caller.actor.id, status: "pending" } });
@@ -150,6 +160,6 @@ async function holdForApproval(caller: ConnectorCaller, proposals: Proposal[]): 
     status: "waiting_for_approval",
     message: `Nothing has been saved, sent or charged. ${caller.actor.name} must approve ${proposals.length === 1 ? "this" : "these"} in Workbench first.`,
     approveAt: approvalUrl(),
-    prepared: proposals.map((p) => ({ what: p.title, details: p.lines.slice(0, 12) })),
+    prepared: proposals.map((p) => ({ what: p.title, details: scrubResult(p.lines.slice(0, 12).map(withholdPassword)) })),
   };
 }
