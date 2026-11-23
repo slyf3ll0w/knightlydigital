@@ -171,15 +171,18 @@ export default function SuperadminLoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     autoComplete="current-password"
-                    className="w-full pr-10"
+                    className="w-full pr-12"
                     placeholder="••••••••"
                   />
+                  {/* Same as the app login: a 44 px target that keeps focus in the field. */}
                   <button
                     type="button"
+                    onPointerDown={(e) => e.preventDefault()}
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => setShowPassword((v) => !v)}
                     tabIndex={-1}
                     aria-label={showPassword ? "Hide password" : "Show password"}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute inset-y-0 right-0 flex w-11 touch-manipulation items-center justify-center text-gray-400 hover:text-gray-600"
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
