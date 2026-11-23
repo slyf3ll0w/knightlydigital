@@ -86,7 +86,7 @@ function suggestName(trigger: TriggerSpec, steps: Step[]): string {
   return (first ? `${cap} → ${ACTIONS[first.type].label}` : cap).slice(0, 80);
 }
 
-export default function Builder({ initial, initialRuns, atlasFirst = false }: { initial: Row | null; initialRuns: Run[]; atlasFirst?: boolean }) {
+export default function Builder({ initial, initialRuns, atlasFirst = false, initialAsk = "" }: { initial: Row | null; initialRuns: Run[]; atlasFirst?: boolean; initialAsk?: string }) {
   const router = useRouter();
   const atlas = useAssistant();
   const options = useOptions();
@@ -443,7 +443,7 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
       {atlas.available && (
         <div>
           <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500"><Sparkles size={12} /> {initial ? `Change it with ${atlas.name}` : `Or describe it to ${atlas.name}`}</p>
-          <AutomationBuildPanel current={initial || st.steps.length > 0 ? { name: st.name, description: st.description, spec: compiled.ok ? compiled.compiled.spec : null } : null} onDraft={onDraft} autoFocus={atlasFirst} compact />
+          <AutomationBuildPanel current={initial || st.steps.length > 0 ? { name: st.name, description: st.description, spec: compiled.ok ? compiled.compiled.spec : null } : null} onDraft={onDraft} autoFocus={atlasFirst} initialPrompt={initial ? "" : initialAsk} compact />
         </div>
       )}
       {isWebhook && <WebhookUrl url={webhookUrl} />}
@@ -486,7 +486,7 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
         </div>
         {atlas.available ? (
           <div className="mt-4">
-            <AutomationBuildPanel current={st.steps.length > 0 ? { name: st.name, description: st.description, spec: compiled.ok ? compiled.compiled.spec : null } : null} onDraft={onDraft} autoFocus={atlasFirst} compact placeholder={initial ? "What should change?" : "When a quote is sent, wait 3 days, then…"} />
+            <AutomationBuildPanel current={st.steps.length > 0 ? { name: st.name, description: st.description, spec: compiled.ok ? compiled.compiled.spec : null } : null} onDraft={onDraft} autoFocus={atlasFirst} initialPrompt={initial ? "" : initialAsk} compact placeholder={initial ? "What should change?" : "When a quote is sent, wait 3 days, then…"} />
           </div>
         ) : null}
         {/* Phones: nothing to press until there is something to save — a

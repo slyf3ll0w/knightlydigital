@@ -3,9 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Pause, Play, Plus, Sparkles, Trash2, X, Zap } from "lucide-react";
+import { ArrowRight, ChevronRight, Pause, Play, Plus, Sparkles, Trash2, X, Zap } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
-import EmptyState from "@/components/EmptyState";
 import { Chip } from "@/components/ds";
 import BottomSheet from "@/components/BottomSheet";
 import SwipeRow from "@/components/SwipeRow";
@@ -17,29 +16,104 @@ import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import { ENTITY_PATH, describeAutomation } from "@/lib/automations";
 import AutomationBuildPanel from "./AutomationBuildPanel";
+import Flow, { type FlowNode } from "./Flow";
 import { ago, runDot, type Draft, type Row, type Run } from "./types";
 
 /**
- * The Automations list. Desktop: a ledger of rules with pause / delete and
- * links into the card builder. Phones: iOS list rows (swipe for pause /
- * delete), a detail sheet in plain English, and Atlas as the only way to
- * create or change a rule on a phone (the cards are a desktop thing).
+ * The Automations list. Every rule is drawn as its own little flow (trigger →
+ * wait → action, the same pieces the card builder makes) with a real on/off
+ * switch and its last few runs as dots. Desktop links into the card builder;
+ * phones get swipe rows, a detail sheet in plain English, and Atlas as the
+ * only way to create or change a rule on a phone (the cards are a desktop
+ * thing).
  */
 
-const EXAMPLES = [
-  "When a quote has sat unanswered for 5 days, email the client a friendly nudge and notify me.",
-  "When a job is marked complete, wait a day, then send the client a review request.",
-  "When an invoice is 10 days overdue and over $500, notify the managers.",
-  "When a lead sits in the same stage for two weeks, move it to Follow-up and add a note.",
-  "When a call is missed, text the caller that we'll ring back within the hour.",
-  "Every Monday at 8am, email the office how many quotes are still waiting.",
+/** Starting points for an empty list: drawn as flows, each one hands its sentence to Atlas. */
+const EXAMPLES: { ask: string; flow: FlowNode[] }[] = [
+  {
+    ask: "When a quote has sat unanswered for 5 days, email the client a friendly nudge and notify me.",
+    flow: [
+      { kind: "trigger", text: "a quote is sent" },
+      { kind: "wait", text: "Wait 5 days" },
+      { kind: "filter", text: "Only if it's still unanswered" },
+      { kind: "action", text: "Email the client a friendly nudge" },
+      { kind: "action", text: "Notify me" },
+    ],
+  },
+  {
+    ask: "When a job is marked complete, wait a day, then send the client a review request.",
+    flow: [
+      { kind: "trigger", text: "a job is marked complete" },
+      { kind: "wait", text: "Wait 1 day" },
+      { kind: "action", text: "Send the client a review request" },
+    ],
+  },
+  {
+    ask: "When an invoice is 10 days overdue and over $500, notify the managers.",
+    flow: [
+      { kind: "trigger", text: "an invoice is 10 days overdue" },
+      { kind: "filter", text: "Only if it's over $500" },
+      { kind: "action", text: "Notify the managers" },
+    ],
+  },
+  {
+    ask: "When a call is missed, text the caller that we'll ring back within the hour.",
+    flow: [
+      { kind: "trigger", text: "a call is missed" },
+      { kind: "action", text: "Text the caller we'll ring back within the hour" },
+    ],
+  },
 ];
 
 type Filter = "all" | "live" | "paused";
 
-function stepsWord(r: Row): string {
-  const n = r.summary?.steps.filter((s) => s.kind === "action").length ?? 0;
-  return `${n} step${n === 1 ? "" : "s"}`;
+function flowOf(r: Row): FlowNode[] {
+  if (!r.summary) return [];
+  return [{ kind: "trigger", text: r.summary.trigger }, ...r.summary.steps];
+}
+
+function firedLine(a: Row): string {
+  const parts = [a.runs === 0 ? "Hasn't run yet" : `Ran ${a.runs} ${a.runs === 1 ? "time" : "times"}`];
+  if (a.lastRunAt) parts.push(`last ${ago(a.lastRunAt)}`);
+  if ((a.waiting ?? 0) > 0) parts.push(`${a.waiting} waiting`);
+  return parts.join(" · ");
+}
+
+/** A real on/off switch (role="switch"); the label says what it is now. */
+function OnSwitch({ on, disabled, onChange, name }: { on: boolean; disabled?: boolean; onChange: (v: boolean) => void; name: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={on ? `Pause ${name}` : `Turn on ${name}`}
+      title={on ? "On: click to pause" : "Paused: click to turn on"}
+      disabled={disabled}
+      onClick={(e) => {
+        e.stopPropagation();
+        onChange(!on);
+      }}
+      className={`auto-switch ${on ? "is-on" : ""}`}
+    >
+      <span className="auto-switch-track" aria-hidden>
+        <span className="auto-switch-thumb" />
+      </span>
+      <span className="auto-switch-word">{on ? "On" : "Paused"}</span>
+    </button>
+  );
+}
+
+/** The last few runs, oldest → newest, as dots: green ran, amber waiting, red failed, grey skipped. */
+function RunDots({ runs }: { runs: Run[] }) {
+  if (runs.length === 0) return null;
+  const last = runs.slice(0, 8).reverse();
+  return (
+    <span className="auto-runs" aria-label={`Last ${last.length} runs`}>
+      {last.map((r) => (
+        <span key={r.id} className={`auto-run ${runDot(r.status)}`} title={`${r.detail || r.event} · ${ago(r.createdAt)}`} />
+      ))}
+    </span>
+  );
 }
 
 export default function AutomationsClient({ automations: initial, recentRuns }: { automations: Row[]; recentRuns: Run[] }) {
@@ -52,6 +126,7 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
   const [filter, setFilter] = useState<Filter>("all");
   const [detail, setDetail] = useState<Row | null>(null);
   const [creating, setCreating] = useState(false);
+  const [creatingAsk, setCreatingAsk] = useState("");
   const [pendingDraft, setPendingDraft] = useState<Draft | null>(null);
   // An Atlas draft waiting on "Turn it on" / "Save changes" is unsaved work
   useUnsavedWarning(pendingDraft !== null, {
@@ -60,7 +135,13 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
   });
 
   const nameOf = useMemo(() => new Map(rows.map((a) => [a.id, a.name])), [rows]);
+  const runsOf = useMemo(() => {
+    const m = new Map<string, Run[]>();
+    for (const r of recentRuns) m.set(r.automationId, [...(m.get(r.automationId) ?? []), r]);
+    return m;
+  }, [recentRuns]);
   const shown = rows.filter((r) => (filter === "all" ? true : filter === "live" ? r.isActive : !r.isActive));
+  const liveCount = rows.filter((r) => r.isActive && !r.broken).length;
 
   async function setActive(a: Row, isActive: boolean) {
     setBusy(a.id);
@@ -135,47 +216,47 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
     router.refresh();
   }
 
-  const tile = (
-    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]" aria-hidden>
-      <Zap size={18} strokeWidth={2.25} />
-    </span>
-  );
+  function openCreate(ask = "") {
+    hapticImpact("MEDIUM");
+    setCreatingAsk(ask);
+    setCreating(true);
+  }
 
-  function DesktopRow({ a }: { a: Row }) {
+  function DesktopCard({ a }: { a: Row }) {
+    const nodes = flowOf(a);
     return (
-      <div className={`flex items-start gap-3 px-4 py-3 ${a.isActive ? "" : "opacity-70"}`}>
-        {tile}
-        <Link href={`/app/automations/${a.id}`} prefetch={false} className="group min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <p className="text-sm font-semibold text-[color:var(--ds-ink)] group-hover:underline">{a.name}</p>
-            {!a.isActive && <Chip>Paused</Chip>}
-            {a.broken && <Chip tone="bad">Needs rebuilding</Chip>}
-          </div>
-          {a.summary && (
-            <p className="mt-0.5 truncate text-sm text-gray-700">
-              {a.summary.trigger} <span className="text-gray-400">→</span> {stepsWord(a)}
-            </p>
-          )}
-          <p className="mt-1 text-xs text-gray-500">
-            {a.runs === 0 ? "Hasn't fired yet" : `Fired ${a.runs}×`}
-            {a.lastRunAt && ` · last ${ago(a.lastRunAt)}`}
-            {(a.waiting ?? 0) > 0 && ` · ${a.waiting} waiting`}
-            {a.description && ` · ${a.description}`}
-          </p>
-        </Link>
-        <div className="flex shrink-0 items-center gap-1">
-          <button type="button" disabled={busy === a.id || a.broken} onClick={() => void setActive(a, !a.isActive)} aria-label={a.isActive ? "Pause" : "Resume"} title={a.isActive ? "Pause" : "Resume"} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-50">
-            {a.isActive ? <Pause size={16} /> : <Play size={16} />}
-          </button>
-          <button type="button" disabled={busy === a.id} onClick={() => void remove(a)} aria-label="Delete" title="Delete" className="rounded-lg p-2 text-gray-400 hover:bg-[color:var(--ds-bad-soft)] hover:text-[color:var(--ds-bad)] disabled:opacity-50">
-            <Trash2 size={16} />
-          </button>
+      <article className={`auto-card ${a.isActive ? "" : "is-paused"} ${a.broken ? "is-broken" : ""}`}>
+        <div className="auto-card-head">
+          <Link href={`/app/automations/${a.id}`} prefetch={false} className="auto-card-name">
+            {a.name}
+            <ChevronRight size={15} strokeWidth={2.4} aria-hidden />
+          </Link>
+          {a.broken && <Chip tone="bad">Needs rebuilding</Chip>}
+          <span className="ml-auto flex items-center gap-1">
+            <button type="button" disabled={busy === a.id} onClick={() => void remove(a)} aria-label="Delete" title="Delete" className="auto-del">
+              <Trash2 size={15} />
+            </button>
+            <OnSwitch on={a.isActive} disabled={busy === a.id || a.broken} onChange={(v) => void setActive(a, v)} name={a.name} />
+          </span>
         </div>
-      </div>
+        {nodes.length > 0 ? (
+          <Link href={`/app/automations/${a.id}`} prefetch={false} className="block" tabIndex={-1} aria-hidden>
+            <Flow nodes={nodes} paused={!a.isActive} />
+          </Link>
+        ) : (
+          <p className="ds-small mt-2">This rule needs rebuilding in the builder.</p>
+        )}
+        <div className="auto-card-foot">
+          <RunDots runs={runsOf.get(a.id) ?? []} />
+          <span>{firedLine(a)}</span>
+          {a.description && <span className="auto-card-desc">· {a.description}</span>}
+        </div>
+      </article>
     );
   }
 
   function PhoneRow({ a }: { a: Row }) {
+    const nodes = flowOf(a);
     return (
       <SwipeRow
         actions={[
@@ -183,36 +264,57 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
           { key: "delete", label: "Delete", icon: Trash2, bg: "var(--ds-bad)", onClick: () => void remove(a) },
         ]}
       >
-        <button type="button" onClick={() => { hapticImpact("LIGHT"); setDetail(a); }} className={`flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-100 ${a.isActive ? "" : "opacity-60"}`}>
-          {tile}
-          <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-2">
-              <span className={`h-2 w-2 shrink-0 rounded-full ${a.broken ? "bg-[color:var(--ds-bad)]" : a.isActive ? "bg-[color:var(--ds-good)]" : "bg-[color:var(--ds-faint)]"}`} aria-hidden />
-              <span className="truncate text-[15px] font-semibold text-[color:var(--ds-ink)]">{a.name}</span>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => { hapticImpact("LIGHT"); setDetail(a); }}
+          onKeyDown={(e) => e.key === "Enter" && setDetail(a)}
+          className={`auto-card is-phone ${a.isActive ? "" : "is-paused"} ${a.broken ? "is-broken" : ""}`}
+        >
+          <div className="auto-card-head">
+            <span className="auto-card-name">{a.name}</span>
+            <span className="ml-auto">
+              <OnSwitch on={a.isActive} disabled={busy === a.id || a.broken} onChange={(v) => void setActive(a, v)} name={a.name} />
             </span>
-            <span className="mt-0.5 block truncate text-xs text-gray-500">
-              {a.summary ? `${a.summary.trigger} → ${stepsWord(a)}` : "Needs rebuilding"}
-            </span>
-          </span>
-          <span className="shrink-0 text-right text-[11px] tabular-nums text-gray-400">
-            {a.runs > 0 ? `${a.runs}×` : "—"}
-            {a.lastRunAt && <span className="block">{ago(a.lastRunAt)}</span>}
-            {(a.waiting ?? 0) > 0 && <span className="block text-[color:var(--ds-warn)]">{a.waiting} waiting</span>}
-          </span>
-          <ChevronRight size={16} className="shrink-0 text-gray-300" />
-        </button>
+          </div>
+          {nodes.length > 0 ? <Flow nodes={nodes} paused={!a.isActive} max={3} /> : <p className="ds-small mt-1 text-[color:var(--ds-bad)]">Needs rebuilding</p>}
+          <div className="auto-card-foot">
+            <RunDots runs={runsOf.get(a.id) ?? []} />
+            <span>{firedLine(a)}</span>
+          </div>
+        </div>
       </SwipeRow>
     );
   }
 
   const empty = (
-    <EmptyState icon={Zap} title="No automations yet" body="“When this happens, do that” rules that run on their own. For example:">
-      <ul className="mt-3 w-full max-w-md space-y-2 text-left">
-        {EXAMPLES.map((e) => (
-          <li key={e} className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">“{e}”</li>
+    <div className="auto-empty">
+      <div>
+        <h2 className="auto-empty-title">No automations yet</h2>
+        <p className="ds-small mt-1 max-w-md">
+          &ldquo;When this happens, do that&rdquo; rules that run on their own. Start from one of these, or describe your own.
+        </p>
+      </div>
+      <ul className="auto-examples">
+        {EXAMPLES.map((e, i) => (
+          <li key={e.ask} className="auto-example" style={{ ["--i" as string]: i }}>
+            <Flow nodes={e.flow} />
+            {atlas.available ? (
+              <>
+                <Link href={`/app/automations/new?atlas=1&ask=${encodeURIComponent(e.ask)}`} prefetch={false} className="auto-example-go hidden lg:inline-flex">
+                  Start from this <ArrowRight size={14} strokeWidth={2.4} />
+                </Link>
+                <button type="button" onClick={() => openCreate(e.ask)} className="auto-example-go inline-flex lg:hidden">
+                  Start from this <ArrowRight size={14} strokeWidth={2.4} />
+                </button>
+              </>
+            ) : (
+              <p className="ds-small">&ldquo;{e.ask}&rdquo;</p>
+            )}
+          </li>
         ))}
       </ul>
-      <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+      <div className="mt-5 flex flex-wrap items-center gap-2">
         <Link href="/app/automations/new" prefetch={false} className="btn-primary hidden lg:inline-flex">
           <Plus size={15} /> Build one
         </Link>
@@ -221,17 +323,17 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
             <Link href="/app/automations/new?atlas=1" prefetch={false} className="btn-tool-line hidden h-10 items-center gap-1.5 px-4 text-sm font-medium lg:inline-flex">
               <Sparkles size={15} /> Ask {atlas.name}
             </Link>
-            <button type="button" onClick={() => setCreating(true)} className="btn-primary inline-flex lg:hidden">
+            <button type="button" onClick={() => openCreate()} className="btn-primary inline-flex lg:hidden">
               <Sparkles size={15} /> Ask {atlas.name}
             </button>
           </>
         )}
       </div>
-    </EmptyState>
+    </div>
   );
 
   return (
-    <div className="mx-auto max-w-3xl p-4 lg:p-8">
+    <div className="mx-auto max-w-4xl p-4 lg:p-8">
       <div className="flex items-start justify-between gap-3">
         <PageTitle section="business" icon={Zap} info="“When this happens, do that” rules that run on their own. Each fires at most once per record, never moves money, and pauses with one tap.">
           Automations
@@ -246,12 +348,24 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
             <Plus size={15} /> New automation
           </Link>
           {atlas.available && (
-            <button type="button" onClick={() => { hapticImpact("MEDIUM"); setCreating(true); }} aria-label="New automation" className="glass-control flex h-10 w-10 items-center justify-center rounded-full text-gray-800 lg:hidden">
+            <button type="button" onClick={() => openCreate()} aria-label="New automation" className="glass-control flex h-10 w-10 items-center justify-center rounded-full text-gray-800 lg:hidden">
               <Plus size={20} />
             </button>
           )}
         </div>
       </div>
+
+      {rows.length > 0 && (
+        <p className="auto-lede">
+          <b>{liveCount}</b> {liveCount === 1 ? "rule is" : "rules are"} on
+          {rows.length > liveCount && (
+            <>
+              , <b>{rows.length - liveCount}</b> paused
+            </>
+          )}
+          . Each one runs by itself, at most once per record.
+        </p>
+      )}
 
       {error && (
         <div role="alert" className="form-error mb-4 mt-3 flex items-center justify-between">
@@ -272,87 +386,77 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
         </div>
       )}
 
-      <div className="ds-card mb-6 mt-3 divide-y divide-[color:var(--ds-line)] lg:mt-6">
+      <div className="mb-6 mt-3 lg:mt-6">
         {rows.length === 0 ? (
           empty
         ) : shown.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-gray-500">Nothing {filter}.</p>
+          <p className="px-4 py-8 text-center text-sm text-[color:var(--ds-muted)]">Nothing {filter}.</p>
         ) : (
           <>
-            <div className="hidden lg:block lg:divide-y lg:divide-[color:var(--ds-line)]">{shown.map((a) => <DesktopRow key={a.id} a={a} />)}</div>
-            <div className="divide-y divide-[color:var(--ds-line)] lg:hidden">{shown.map((a) => <PhoneRow key={a.id} a={a} />)}</div>
+            <div className="auto-list hidden lg:flex lg:flex-col">{shown.map((a) => <DesktopCard key={a.id} a={a} />)}</div>
+            <div className="auto-list auto-list-phone flex flex-col lg:hidden">{shown.map((a) => <PhoneRow key={a.id} a={a} />)}</div>
           </>
         )}
       </div>
 
       {recentRuns.length > 0 && (
-        <>
-          <button type="button" onClick={() => setShowRuns((v) => !v)} className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-gray-800">
-            Recent activity ({recentRuns.length}) {showRuns ? "▾" : "▸"}
+        <section className="auto-activity">
+          <button type="button" onClick={() => setShowRuns((v) => !v)} className="auto-activity-toggle" aria-expanded={showRuns}>
+            <ChevronRight size={15} strokeWidth={2.4} className={`transition-transform ${showRuns ? "rotate-90" : ""}`} aria-hidden />
+            Recent activity <span className="ds-small font-normal">· {recentRuns.length}</span>
           </button>
           {showRuns && (
-            <div className="ds-card divide-y divide-[color:var(--ds-line)]">
+            <ol className="auto-timeline">
               {recentRuns.map((r) => (
-                <div key={r.id} className="flex items-start gap-3 px-4 py-2.5 text-xs">
-                  <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${runDot(r.status)}`} aria-hidden />
+                <li key={r.id} className="auto-timeline-row">
+                  <span className={`auto-timeline-dot ${runDot(r.status)}`} aria-hidden />
                   <div className="min-w-0 flex-1">
-                    <p className="text-gray-800">
-                      <span className="font-medium">{nameOf.get(r.automationId) ?? "Deleted rule"}</span> · {r.event} ·{" "}
+                    <p className="text-[color:var(--ds-ink)]">
+                      <span className="font-semibold">{nameOf.get(r.automationId) ?? "Deleted rule"}</span> · {r.event} ·{" "}
                       {ENTITY_PATH[r.entityType as keyof typeof ENTITY_PATH] ? (
-                        <Link href={`${ENTITY_PATH[r.entityType as keyof typeof ENTITY_PATH]}/${r.entityId.split(":")[0]}`} className="underline decoration-gray-300 hover:text-gray-900">{r.entityType}</Link>
+                        <Link href={`${ENTITY_PATH[r.entityType as keyof typeof ENTITY_PATH]}/${r.entityId.split(":")[0]}`} className="underline decoration-[color:var(--ds-line-strong)] underline-offset-2 hover:decoration-current">{r.entityType}</Link>
                       ) : (
                         r.entityType
                       )}
                     </p>
-                    {r.detail && <p className="text-gray-500">{r.detail}</p>}
+                    {r.detail && <p className="ds-small">{r.detail}</p>}
                   </div>
-                  <span className="shrink-0 text-gray-400">{ago(r.createdAt)}</span>
-                </div>
+                  <span className="ds-small shrink-0 tabular-nums">{ago(r.createdAt)}</span>
+                </li>
               ))}
-            </div>
+            </ol>
           )}
-        </>
+        </section>
       )}
 
       {/* ── phone: detail sheet ─────────────────────────────────────────── */}
       <BottomSheet open={detail !== null} onClose={() => { setDetail(null); setPendingDraft(null); }} title={detail?.name} closeButton>
         {detail && (
           <div className="max-h-[78dvh] overflow-y-auto px-5 pb-2">
-            <div className="mb-3 flex items-center gap-2">
-              <button type="button" disabled={busy === detail.id || detail.broken} onClick={() => void setActive(detail, !detail.isActive)} className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold ${detail.isActive ? "bg-gray-100 text-gray-800" : "btn-primary"}`}>
-                {detail.isActive ? <><Pause size={14} /> Pause</> : <><Play size={14} /> Resume</>}
-              </button>
-              <span className="text-xs text-gray-500">{detail.runs === 0 ? "Hasn't fired yet" : `Fired ${detail.runs}×${detail.lastRunAt ? ` · ${ago(detail.lastRunAt)}` : ""}`}{(detail.waiting ?? 0) > 0 && ` · ${detail.waiting} waiting`}</span>
+            <div className="mb-4 flex items-center gap-3">
+              <OnSwitch on={detail.isActive} disabled={busy === detail.id || detail.broken} onChange={(v) => void setActive(detail, v)} name={detail.name} />
+              <span className="ds-small">{firedLine(detail)}</span>
               <button type="button" disabled={busy === detail.id} onClick={() => void remove(detail)} aria-label="Delete" className="ml-auto rounded-full p-2 text-[color:var(--ds-bad)] active:bg-[color:var(--ds-bad-soft)]"><Trash2 size={16} /></button>
             </div>
 
             {pendingDraft ? (
               <div className="ds-card p-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">New version</p>
+                <p className="auto-sheet-label">New version</p>
                 <PlainSteps spec={pendingDraft} />
                 <div className="mt-3 flex gap-2">
                   <button type="button" disabled={busy === detail.id} onClick={() => void saveDraftTo(detail, pendingDraft)} className="btn-primary flex-1 justify-center">Save changes</button>
                   <button type="button" onClick={() => setPendingDraft(null)} className="btn-tool-line h-10 px-4 text-sm">Discard</button>
                 </div>
               </div>
+            ) : (detail.summary?.steps ?? []).length === 0 ? (
+              <p className="text-sm text-[color:var(--ds-bad)]">This rule needs rebuilding.</p>
             ) : (
-              <ol className="space-y-1.5">
-                {(detail.summary?.steps ?? []).length === 0 ? (
-                  <li className="text-sm text-[color:var(--ds-bad)]">This rule needs rebuilding.</li>
-                ) : (
-                  [{ kind: "trigger", text: detail.summary!.trigger }, ...detail.summary!.steps].map((s, i) => (
-                    <li key={i} className="flex gap-2.5 text-sm text-gray-800">
-                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-semibold text-gray-600">{i + 1}</span>
-                      <span className={s.kind === "filter" || s.kind === "wait" ? "text-gray-500" : ""}>{s.text}</span>
-                    </li>
-                  ))
-                )}
-              </ol>
+              <Flow nodes={flowOf(detail)} layout="column" paused={!detail.isActive} />
             )}
 
             {atlas.available && !pendingDraft && (
-              <div className="mt-4">
-                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Change with {atlas.name}</p>
+              <div className="mt-5">
+                <p className="auto-sheet-label">Change with {atlas.name}</p>
                 <AutomationBuildPanel
                   compact
                   current={{ name: detail.name, description: detail.description ?? "", spec: detail.spec }}
@@ -362,21 +466,21 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
               </div>
             )}
 
-            {recentRuns.some((r) => r.automationId === detail.id) && (
-              <div className="mt-4">
-                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Run history</p>
-                <div className="ds-card divide-y divide-[color:var(--ds-line)]">
-                  {recentRuns.filter((r) => r.automationId === detail.id).slice(0, 10).map((r) => (
-                    <div key={r.id} className="flex items-center gap-2.5 px-3 py-2 text-xs">
-                      <span className={`h-2 w-2 shrink-0 rounded-full ${runDot(r.status)}`} aria-hidden />
-                      <span className="min-w-0 flex-1 truncate text-gray-700">{r.detail || r.event}</span>
-                      <span className="shrink-0 text-gray-400">{ago(r.createdAt)}</span>
-                    </div>
+            {(runsOf.get(detail.id) ?? []).length > 0 && (
+              <div className="mt-5">
+                <p className="auto-sheet-label">Run history</p>
+                <ol className="auto-timeline">
+                  {(runsOf.get(detail.id) ?? []).slice(0, 10).map((r) => (
+                    <li key={r.id} className="auto-timeline-row">
+                      <span className={`auto-timeline-dot ${runDot(r.status)}`} aria-hidden />
+                      <span className="min-w-0 flex-1 truncate text-[color:var(--ds-ink)]">{r.detail || r.event}</span>
+                      <span className="ds-small shrink-0">{ago(r.createdAt)}</span>
+                    </li>
                   ))}
-                </div>
+                </ol>
               </div>
             )}
-            <p className="mt-4 text-center text-[11px] text-gray-400">Edit the cards on a desktop.</p>
+            <p className="ds-small mt-4 text-center">Edit the cards on a desktop.</p>
           </div>
         )}
       </BottomSheet>
@@ -386,8 +490,8 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
         <div className="max-h-[78dvh] overflow-y-auto px-5 pb-2">
           {pendingDraft && !detail ? (
             <div>
-              <p className="text-[15px] font-semibold text-gray-900">{pendingDraft.name}</p>
-              {pendingDraft.description && <p className="mb-2 text-xs text-gray-500">{pendingDraft.description}</p>}
+              <p className="text-[15px] font-semibold text-[color:var(--ds-ink)]">{pendingDraft.name}</p>
+              {pendingDraft.description && <p className="ds-small mb-2">{pendingDraft.description}</p>}
               <PlainSteps spec={pendingDraft} />
               {pendingDraft.notes.length > 0 && (
                 <ul className="mt-2 space-y-1 text-xs text-[color:var(--ds-warn)]">{pendingDraft.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
@@ -399,10 +503,14 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
             </div>
           ) : (
             <>
-              <AutomationBuildPanel current={null} onDraft={(d) => setPendingDraft(d)} />
+              <AutomationBuildPanel key={creatingAsk} current={null} initialPrompt={creatingAsk} onDraft={(d) => setPendingDraft(d)} />
               <ul className="mt-3 space-y-1.5">
                 {EXAMPLES.slice(0, 3).map((e) => (
-                  <li key={e} className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">“{e}”</li>
+                  <li key={e.ask}>
+                    <button type="button" onClick={() => setCreatingAsk(e.ask)} className="auto-ask-chip">
+                      &ldquo;{e.ask}&rdquo;
+                    </button>
+                  </li>
                 ))}
               </ul>
             </>
@@ -413,17 +521,8 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
   );
 }
 
-/** A drafted rule in plain English (phone sheets). */
+/** A drafted rule as a vertical flow (phone sheets). */
 function PlainSteps({ spec }: { spec: Draft }) {
   const d = describeAutomation(spec.spec);
-  return (
-    <ol className="space-y-1.5">
-      {[{ kind: "trigger", text: d.trigger }, ...d.steps].map((s, i) => (
-        <li key={i} className="flex gap-2.5 text-sm text-gray-800">
-          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-semibold text-gray-600">{i + 1}</span>
-          <span className={s.kind === "filter" || s.kind === "wait" ? "text-gray-500" : ""}>{s.text}</span>
-        </li>
-      ))}
-    </ol>
-  );
+  return <Flow nodes={[{ kind: "trigger", text: d.trigger }, ...d.steps]} layout="column" />;
 }
