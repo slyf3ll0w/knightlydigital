@@ -31,6 +31,7 @@ import EstimatorEditor, { type EditorSection } from "../EstimatorEditor";
 import PublishPanel from "../PublishPanel";
 import SharePanel from "../SharePanel";
 import { toolFacts } from "../EstimatesClient";
+import { FlowMap, OutcomeBar, PriceLine, WebFunnel } from "@/components/EstimatorFlow";
 
 /**
  * One tool's page, laid out like a client's page: back link + stamps, the
@@ -263,6 +264,17 @@ export default function ToolClient({
     };
   }, [spec, section, tool.id]);
 
+  const priceRange = useMemo(() => {
+    const vals = Object.entries(samplePrices)
+      .filter(([label, v]) => typeof v === "number" && !/\b(tiny|smallest)\b/i.test(label))
+      .map(([, v]) => v as number);
+    if (vals.length === 0) return null;
+    const lo = Math.min(...vals);
+    const hi = Math.max(...vals);
+    const r = (n: number) => `${Math.round(n).toLocaleString("en-US")}`;
+    return lo === hi ? r(lo) : `${r(lo)} – ${r(hi)}`;
+  }, [samplePrices]);
+
   async function patch(body: Record<string, unknown>, kind: NonNullable<typeof busy>): Promise<boolean> {
     setBusy(kind);
     setError("");
@@ -414,19 +426,16 @@ export default function ToolClient({
   const railItem = (s: (typeof SECTIONS)[number]) => {
     const active = section === s.key;
     return (
-      <button key={s.key} type="button" onClick={() => go(s.key)} className={`flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-left text-sm transition-colors ${active ? "bg-[color:var(--ds-primary-soft)] font-semibold text-[color:var(--ds-primary)]" : "font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}>
-        <s.icon size={16} className={active ? undefined : "text-gray-400"} />
+      <button key={s.key} type="button" onClick={() => go(s.key)} aria-current={active ? "page" : undefined} className={`ds-est-tab ${active ? "is-on" : ""}`}>
         {s.label}
-        {s.key === "leads" && leads.length > 0 && <span className="ml-auto text-xs font-normal tabular-nums text-gray-400">{leads.length}</span>}
+        {s.key === "leads" && leads.length > 0 && <span className="ds-est-tab-n">{leads.length}</span>}
       </button>
     );
   };
 
   const indexRow = (s: (typeof SECTIONS)[number]) => (
     <button key={s.key} type="button" onClick={() => (s.key === "try" ? run() : go(s.key))} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-100">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]">
-        <s.icon size={17} strokeWidth={2.25} />
-      </span>
+      <s.icon size={19} strokeWidth={2.3} className="shrink-0 text-[color:var(--ds-primary)]" aria-hidden />
       <span className="min-w-0 flex-1">
         <span className="block text-[15px] font-medium text-gray-900">{s.key === "atlas" ? `Change it — ask ${atlas.name}` : s.label}</span>
         <span className="block truncate text-xs text-gray-500">{subline[s.key]}</span>
@@ -510,8 +519,13 @@ export default function ToolClient({
           )}
           <div className="flex shrink-0 items-center gap-2">
             {tool.isActive && spec && (
-              <button type="button" onClick={run} className="btn-primary hidden h-10 justify-center lg:flex">
+              <button type="button" onClick={run} className="ds-btn ds-btn-primary hidden h-10 lg:inline-flex">
                 <Play size={15} /> Run
+              </button>
+            )}
+            {manager && spec && (
+              <button type="button" onClick={() => go("atlas")} className="ds-btn ds-btn-outline hidden h-10 lg:inline-flex">
+                <Sparkles size={15} /> Change it
               </button>
             )}
             {manager && (
@@ -521,7 +535,7 @@ export default function ToolClient({
                   const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
                   setMenu({ x: r.right, y: r.bottom + 4, alignRight: true });
                 }}
-                className="btn-tool-line flex h-10 w-10 items-center justify-center rounded-[10px] bg-white text-gray-500 hover:bg-gray-50"
+                className="ds-btn ds-btn-outline h-10 w-10 !px-0"
                 aria-label="More"
               >
                 <MoreHorizontal size={16} />
@@ -529,6 +543,22 @@ export default function ToolClient({
             )}
           </div>
         </div>
+        {spec && spec.inputs.length > 0 && (
+          <section className="ds-est-hero ds-rise" aria-label="How it works">
+            <div className="ds-est-hero-head">
+              <p className="ds-pic-title">
+                <b>{spec.inputs.length} question{spec.inputs.length === 1 ? "" : "s"}</b>
+                {spec.inputs.some((i) => i.section) ? <> in <b>{new Set(spec.inputs.map((i) => i.section ?? "")).size} steps</b></> : null}, then the price
+                {priceRange ? <span className="ds-pic-quiet"> · its sample jobs run {priceRange}</span> : null}
+              </p>
+              <p className="ds-est-hero-key" aria-hidden>
+                <span><i className="is-maybe" /> only asked sometimes</span>
+                {assessed && <span><i className="is-atlas" /> {atlas.name} can answer</span>}
+              </p>
+            </div>
+            <FlowMap spec={spec} atlasName={atlas.name} price={priceRange} />
+          </section>
+        )}
       </div>
 
       {/* ── phone header inside a section: back to the index + the section's title ── */}
@@ -553,9 +583,9 @@ export default function ToolClient({
         </div>
       )}
 
-      <div className="lg:grid lg:grid-cols-[230px_minmax(0,1fr)] lg:items-start lg:gap-10">
-        <nav className="sticky top-8 hidden lg:block">
-          <div className="space-y-0.5">{allowed.map(railItem)}</div>
+      <div>
+        <nav aria-label="Tool sections" className="ds-est-tabs mb-5 hidden lg:flex">
+          {allowed.map(railItem)}
         </nav>
 
         <div className="min-w-0">
@@ -575,114 +605,103 @@ export default function ToolClient({
               {placeholders.length > 0 && manager && <RatesToConfirm items={placeholders} onDone={(i) => void confirmRate(i)} onOpenPricing={() => go("advanced", "pricing")} />}
 
               {stats && stats.quotes > 0 && (
-                <div className="ds-card overflow-hidden">
-                  <SectionHeader className="px-4 pt-4 sm:px-5" title="How it's doing" hint={`${stats.quotes} quote${stats.quotes === 1 ? "" : "s"} started from this tool.`} />
-                  <dl className="mt-3 grid grid-cols-2 divide-y divide-gray-100 border-t border-gray-100 sm:grid-cols-4 sm:divide-x sm:divide-y-0">
-                    {[
-                      { k: "Win rate", v: stats.winRate === null ? "—" : `${stats.winRate}%`, hint: stats.winRate === null ? "Needs 3 decided quotes" : `${stats.won} won · ${stats.lost} lost` },
-                      { k: "Open", v: String(stats.open), hint: "Sent, no answer yet" },
-                      { k: "Average quote", v: stats.avgTicket === null ? "—" : moneyExact(stats.avgTicket), hint: "All quotes" },
-                      { k: "Average won", v: stats.avgWonTicket === null ? "—" : moneyExact(stats.avgWonTicket), hint: "Approved quotes" },
-                    ].map((s) => (
-                      <div key={s.k} className="px-4 py-3 sm:px-5">
-                        <dt className="text-xs font-medium text-gray-500">{s.k}</dt>
-                        <dd className="numeral-ledger mt-0.5 text-lg font-semibold tabular-nums text-gray-900">{s.v}</dd>
-                        <dd className="text-[11px] text-gray-400">{s.hint}</dd>
-                      </div>
-                    ))}
-                  </dl>
+                <section className="ds-pic">
+                  <p className="ds-pic-title">
+                    <b>{stats.quotes} quote{stats.quotes === 1 ? "" : "s"}</b> started here
+                    {stats.winRate !== null ? <> · <b>{stats.winRate}%</b> won</> : <span className="ds-pic-quiet"> · a win rate needs 3 decided</span>}
+                  </p>
+                  <OutcomeBar won={stats.won} open={stats.open} lost={stats.lost} />
+                  <p className="ds-est-note">
+                    {stats.avgTicket !== null ? <>Average quote <b>{moneyExact(stats.avgTicket)}</b></> : null}
+                    {stats.avgWonTicket !== null ? <> · average won <b>{moneyExact(stats.avgWonTicket)}</b></> : null}
+                  </p>
                   {manager && stats.winRate !== null && (stats.winRate >= 85 || stats.winRate <= 30) && (
-                    <p className="border-t border-gray-100 px-4 py-2.5 text-xs text-gray-600 sm:px-5">
+                    <p className="ds-est-note is-tip">
                       {stats.winRate >= 85 ? "Nearly every quote wins — the rates may be low." : "Most quotes don't win — the rates may be high, or the tool asks the wrong things."} Ask {atlas.name} about the pricing: it sees these numbers.
                     </p>
                   )}
-                </div>
+                </section>
               )}
 
               {spec && spec.samples && spec.samples.length > 0 && (
-                <div className="ds-card overflow-hidden">
-                  <SectionHeader className="px-4 pt-4 sm:px-5" title="What it prices" hint="Sample jobs, priced by today's rules." />
-                  <dl className="mt-3 grid grid-cols-1 divide-y divide-gray-100 border-t border-gray-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-                    {spec.samples.filter((s) => !/\b(tiny|smallest)\b/i.test(s.label)).map((s) => (
-                      <div key={s.label} className="flex items-baseline justify-between gap-3 px-4 py-3 sm:block sm:px-5">
-                        <dt className="text-xs font-medium text-gray-500">{s.label}</dt>
-                        <dd className="numeral-ledger text-lg font-semibold tabular-nums text-gray-900 sm:mt-0.5">{s.label in samplePrices ? (samplePrices[s.label] === null ? <span className="text-sm font-medium text-gray-400">didn&apos;t run</span> : moneyExact(samplePrices[s.label] as number)) : <span className="text-sm font-medium text-gray-400">…</span>}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                  {/* the smallest jobs: what the minimum does to them */}
-                  {spec.samples.some((s) => /\b(tiny|smallest)\b/i.test(s.label)) && (
-                    <div className="border-t border-gray-100 px-4 py-3 sm:px-5">
-                      <p className="text-xs font-medium text-gray-500">The smallest jobs{spec.minimumTotal ? ` — your minimum is ${moneyExact(spec.minimumTotal)}` : ""}</p>
-                      <ul className="mt-1.5 space-y-1">
-                        {spec.samples
-                          .filter((s) => /\b(tiny|smallest)\b/i.test(s.label))
-                          .map((s) => {
-                            const price = samplePrices[s.label];
-                            const min = sampleMinimum[s.label];
-                            return (
-                              <li key={s.label} className="flex items-baseline justify-between gap-3 text-sm">
-                                <span className="min-w-0 text-gray-700">{s.label.replace(/^tiny job:?\s*/i, "").replace(/^./, (c) => c.toUpperCase())}</span>
-                                <span className="shrink-0 text-right tabular-nums text-gray-900">
-                                  {!(s.label in samplePrices) ? "…" : price === null ? "didn't run" : moneyExact(price as number)}
-                                  {typeof price === "number" && min ? <span className="block text-xs text-gray-500">{moneyExact(price - min)} of work, topped up to the minimum</span> : null}
-                                </span>
-                              </li>
-                            );
-                          })}
-                      </ul>
-                    </div>
+                <section className="ds-pic">
+                  <p className="ds-pic-title">
+                    What it charges <span className="ds-pic-quiet">· its sample jobs, priced by today&apos;s rules{spec.minimumTotal ? <> · the dashed line is your {moneyExact(spec.minimumTotal)} minimum</> : null}</span>
+                  </p>
+                  {spec.samples.every((x) => x.label in samplePrices) ? (
+                    <PriceLine
+                      fmt={moneyExact}
+                      minimum={spec.minimumTotal}
+                      points={spec.samples.map((x) => ({ label: x.label, price: samplePrices[x.label] ?? null, tiny: /\b(tiny|smallest)\b/i.test(x.label), minimumAdded: sampleMinimum[x.label] }))}
+                    />
+                  ) : (
+                    <p className="ds-est-note">Pricing the samples…</p>
                   )}
-                </div>
+                  {spec.samples.some((x) => samplePrices[x.label] === null) && <p className="ds-est-note">{spec.samples.filter((x) => samplePrices[x.label] === null).map((x) => x.label).join(", ")} didn&apos;t run.</p>}
+                  {spec.samples.some((x) => sampleMinimum[x.label]) && (
+                    <p className="ds-est-note">
+                      {spec.samples
+                        .filter((x) => sampleMinimum[x.label] && typeof samplePrices[x.label] === "number")
+                        .map((x) => `${x.label.replace(/^tiny job:?\s*/i, "")}: ${moneyExact((samplePrices[x.label] as number) - sampleMinimum[x.label])} of work, topped up to the ${moneyExact(spec.minimumTotal ?? 0)} minimum`)
+                        .join(" · ")}
+                    </p>
+                  )}
+                </section>
               )}
 
               {/* phones: the index rows; desktop: the three things people come here for */}
               <div className="ds-card divide-y divide-gray-100 overflow-hidden lg:hidden">{allowed.filter((s) => s.key !== "overview").map(indexRow)}</div>
 
-              <div className="ds-card hidden divide-y divide-gray-100 lg:block">
-                <button type="button" onClick={run} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50">
-                  <Play size={16} className="text-[color:var(--ds-primary)]" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium text-gray-900">Try it</span>
-                    <span className="block text-xs text-gray-500">{subline.try}</span>
-                  </span>
-                  <ChevronRight size={14} className="text-gray-400" />
-                </button>
-                {manager && (
-                  <button type="button" onClick={() => go("atlas")} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50">
-                    <Sparkles size={16} className="text-[color:var(--ds-primary)]" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium text-gray-900">Change it — just tell {atlas.name}</span>
-                      <span className="block text-xs text-gray-500">{subline.atlas}</span>
-                    </span>
-                    <ChevronRight size={14} className="text-gray-400" />
-                  </button>
-                )}
-                {manager && (
-                  <div className="flex items-center gap-3 px-4 py-3">
-                    <Globe size={16} className="text-[color:var(--ds-primary)]" />
-                    <button type="button" onClick={() => void publishNow()} disabled={busy === "publish"} className="min-w-0 flex-1 text-left">
-                      <span className="block text-sm font-medium text-gray-900">{tool.isPublic ? "Published as a web form" : "Publish as a web form"}</span>
-                      <span className="block truncate text-xs text-gray-500">{tool.isPublic ? `Share the link or embed it on your site · ${hostedUrl}` : "One tap — you get a link to share and an embed code for your website."}</span>
-                    </button>
-                    {busy === "publish" ? (
-                      <Loader2 size={14} className="animate-spin text-gray-400" />
-                    ) : tool.isPublic ? (
-                      <button type="button" onClick={() => void copyLink()} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-gray-200 px-2 text-xs font-medium text-gray-700 hover:bg-gray-100">
-                        {copied ? <Check size={12} className="text-[color:var(--ds-good)]" /> : <Copy size={12} />} {copied ? "Copied" : "Copy link"}
+              <section className="ds-pic ds-est-where">
+                <div className="ds-est-where-col">
+                  <p className="ds-est-where-title">In the app</p>
+                  <p className="ds-pic-title">
+                    {tool.runs > 0 ? <><b>{tool.runs.toLocaleString("en-US")}</b> run{tool.runs === 1 ? "" : "s"} by your team</> : <span className="ds-pic-quiet">Nobody has run it yet</span>}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {tool.isActive && spec && (
+                      <button type="button" onClick={run} className="ds-btn ds-btn-outline ds-btn-sm">
+                        <Play size={14} /> Try it
                       </button>
-                    ) : null}
+                    )}
+                    <button type="button" onClick={() => go("leads")} className="ds-btn ds-btn-outline ds-btn-sm">
+                      <Users size={14} /> {leads.length === 0 ? "Leads" : `${leads.length} ${leads.length === 1 ? "lead" : "leads"}`}
+                    </button>
                   </div>
-                )}
-                <button type="button" onClick={() => go("leads")} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50">
-                  <Users size={16} className="text-[color:var(--ds-primary)]" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium text-gray-900">Leads</span>
-                    <span className="block text-xs text-gray-500">{subline.leads}</span>
-                  </span>
-                  <ChevronRight size={14} className="text-gray-400" />
-                </button>
-              </div>
+                </div>
+                <div className="ds-est-where-col">
+                  <p className="ds-est-where-title">On your website</p>
+                  {published ? (
+                    <>
+                      <WebFunnel views={tool.publicViews} calcs={tool.publicCalcs} leads={tool.submissions} />
+                      {manager && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button type="button" onClick={() => void copyLink()} className="ds-btn ds-btn-outline ds-btn-sm">
+                            {copied ? <Check size={14} className="text-[color:var(--ds-good)]" /> : <Copy size={14} />} {copied ? "Copied" : "Copy link"}
+                          </button>
+                          <button type="button" onClick={() => go("website")} className="ds-btn ds-btn-outline ds-btn-sm">
+                            <Globe size={14} /> Web form
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className="ds-pic-title">
+                        <span className="ds-pic-quiet">Not on your website yet</span>
+                      </p>
+                      {manager && (
+                        <div className="mt-3">
+                          <button type="button" onClick={() => void publishNow()} disabled={busy === "publish"} className="ds-btn ds-btn-primary ds-btn-sm">
+                            {busy === "publish" ? <Loader2 size={14} className="animate-spin" /> : <Globe size={14} />} {tool.isPublic ? "Published as a web form" : "Publish as a web form"}
+                          </button>
+                          <p className="ds-est-note">One tap — you get a link to share and an embed code for your website.</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </section>
 
               {manager && spec && (
                 <div className="ds-card p-4 sm:p-5">
@@ -718,13 +737,6 @@ export default function ToolClient({
                 </div>
               )}
 
-              {(tool.runs > 0 || tool.publicViews > 0) && (
-                <p className="px-1 text-xs text-gray-500">
-                  {tool.runs > 0 ? `Run ${tool.runs.toLocaleString()} time${tool.runs === 1 ? "" : "s"} in the app` : ""}
-                  {tool.runs > 0 && tool.publicViews > 0 ? " · " : ""}
-                  {tool.publicViews > 0 ? `website: ${tool.publicViews.toLocaleString()} views → ${tool.publicCalcs.toLocaleString()} estimates → ${tool.submissions.toLocaleString()} leads` : ""}
-                </p>
-              )}
             </div>
           )}
 
