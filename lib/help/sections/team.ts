@@ -29,7 +29,7 @@ export const teamSection: HelpSection = {
         },
         {
           type: "tip",
-          text: "The starting password is theirs to change. Until they set their own (Settings → My Profile, or Forgot password), it only works at your company: if another business later adds the same email to its team, that password is dropped and they get an email to set a new one — so nobody can sign in to someone else's company with a password a manager typed.",
+          text: "The starting password is theirs to change. Until they set their own (Settings → My Profile, or Forgot password), it only works at your company: if another business later adds the same email to its team, that password is dropped and they get an email to set a new one — so nobody can sign in to someone else's company with a password a manager typed. The same happens when they open a company of their own, and the first time they sign in with Google or Apple the starting password simply stops working.",
         },
         {
           type: "h",

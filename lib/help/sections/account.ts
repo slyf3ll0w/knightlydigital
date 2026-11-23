@@ -437,6 +437,10 @@ export const mobileSection: HelpSection = {
           ],
         },
         {
+          type: "tip",
+          text: "The first time you sign in with Google or Apple on a login that already had a password, WorkBench may switch that password off and sign your other devices out. It does this when the password was never set from a link emailed to you, so nobody who merely typed your email address at sign-up can keep a way in. You get an email saying so. To use a password as well, choose **Forgot password** on the sign-in page.",
+        },
+        {
           type: "p",
           text: "The apps update themselves. New features show up without a store update. Turn on **App lock** in My Profile to open the app with Face ID or your fingerprint.",
         },
