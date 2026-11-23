@@ -1,1 +1,161 @@
 /* clients page look (heavy pilot round 6). Loaded after ds.css from app/layout.tsx. */
+
+/* ── Clients: the book, month by month (components/ClientBook.tsx) ──────
+   Twelve month columns standing on one baseline; the clients added in a
+   month stand in its column as their own monogram circles, newest on top.
+   A quiet month is a bare tick. This month is the brand color. Phones show
+   the last six months. */
+.ds-cbook {
+  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); align-items: end;
+  margin-top: 16px; border-bottom: 2px solid var(--ds-line-strong);
+}
+.ds-cbook-month { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-height: 150px; }
+.ds-cbook-count { height: 18px; font-size: 13px; font-weight: 800; color: var(--ds-ink); font-variant-numeric: tabular-nums; }
+.ds-cbook-stack { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 6px; }
+.ds-cbook-person {
+  display: inline-flex; margin-top: -9px; border-radius: 999px; box-shadow: 0 0 0 2.5px var(--ds-surface);
+  transition: transform 200ms var(--ds-ease-spring, var(--ds-ease));
+  animation: ds-cbook-in 520ms var(--ds-ease-spring, var(--ds-ease)) both;
+  animation-delay: calc(140ms + var(--k, 0) * 40ms + (4 - var(--j, 0)) * 50ms);
+}
+.ds-cbook-stack > :first-child { margin-top: 0; }
+.ds-cbook-person:hover { transform: translateX(4px) scale(1.12); z-index: 2; }
+.ds-cbook-more {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 20px; margin-bottom: 4px;
+  padding: 0 5px; border-radius: 999px; font-size: 11px; font-weight: 800;
+  background: var(--ds-surface-2); color: var(--ds-ink-2); box-shadow: inset 0 0 0 1px var(--ds-line-strong);
+}
+@keyframes ds-cbook-in { from { opacity: 0; transform: translateY(18px) scale(0.6); } to { opacity: 1; transform: none; } }
+.ds-cbook-tick { width: 1px; height: 6px; background: var(--ds-line-strong); }
+.ds-cbook-month:not(.is-empty) .ds-cbook-tick { width: 2px; height: 10px; background: var(--ds-ink-2); }
+.ds-cbook-month.is-now .ds-cbook-tick { width: 3px; height: 14px; border-radius: 2px 2px 0 0; background: var(--ds-primary); }
+.ds-cbook-label { position: absolute; top: 100%; margin-top: 6px; font-size: 11.5px; font-weight: 600; color: var(--ds-muted); white-space: nowrap; }
+.ds-cbook-month.is-now .ds-cbook-label { color: var(--ds-primary); font-weight: 800; }
+.ds-cbook-month.is-now .ds-cbook-count { color: var(--ds-primary); }
+.ds-cbook-pic { padding-bottom: 36px; }
+@media (min-width: 1024px) { .ds-cbook-pic { padding-bottom: 40px; } }
+@media (max-width: 639px) {
+  .ds-cbook { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .ds-cbook-month:nth-child(-n + 6) { display: none; }
+  .ds-cbook-month { min-height: 130px; }
+}
+
+/* ── Clients list rows ─────────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .ds-cl-row { grid-template-columns: var(--cl-cols); }
+  .ds-cl-row .ds-cl-mono { width: 30px !important; height: 30px !important; font-size: 11px !important; }
+}
+.ds-cl-mono { transition: transform 260ms var(--ds-ease-spring, var(--ds-ease)); }
+.ds-trow:hover .ds-cl-mono { transform: scale(1.1) rotate(-6deg); }
+.ds-cl-owes { font-weight: 700; color: var(--ds-faint); font-variant-numeric: tabular-nums; }
+.ds-cl-owes.is-open { color: var(--ds-ink); }
+.ds-cl-owes.is-late { color: var(--ds-bad); }
+.ds-cl-owes-inline { font-weight: 700; color: var(--ds-ink-2); }
+.ds-cl-owes-inline.is-late { color: var(--ds-bad); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-cbook-person { animation: none; }
+  .ds-cbook-person:hover, .ds-trow:hover .ds-cl-mono { transform: none; }
+}
+
+/* ── Tasks: the week ahead (app/platform/tasks/TaskWeek.tsx) ────────────
+   An Overdue pile, then today and the next six days on one baseline. Each
+   open task stands in its day as a circle: on Team, whoever it's for; on
+   My tasks, the client it's about (or a plain dot). */
+.ds-tweek {
+  display: grid; grid-template-columns: 1.15fr repeat(7, minmax(0, 1fr)); gap: 4px; margin-top: 16px;
+}
+.ds-tweek-day { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.ds-tweek-stack { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 112px; padding-bottom: 6px; }
+.ds-tweek-task {
+  display: inline-flex; margin-top: -8px; border-radius: 999px; box-shadow: 0 0 0 2.5px var(--ds-surface);
+  transition: transform 200ms var(--ds-ease-spring, var(--ds-ease));
+  animation: ds-tweek-in 480ms var(--ds-ease-spring, var(--ds-ease)) both;
+  animation-delay: calc(140ms + var(--k, 0) * 45ms + (4 - var(--j, 0)) * 45ms);
+}
+.ds-tweek-stack > :first-child { margin-top: 0; }
+.ds-tweek-task:hover { transform: translateY(-3px) scale(1.12); z-index: 2; }
+.ds-tweek-task:focus-visible { outline: 2px solid var(--ds-primary); outline-offset: 2px; }
+.ds-tweek-task.is-high { box-shadow: 0 0 0 2px var(--ds-surface), 0 0 0 4px var(--ds-warn); }
+.ds-tweek-dot {
+  display: block; width: 22px; height: 22px; border-radius: 999px;
+  background: color-mix(in srgb, var(--ds-primary) 22%, var(--ds-surface)); box-shadow: inset 0 0 0 2px var(--ds-primary);
+}
+.ds-tweek-day.is-overdue .ds-tweek-dot { background: color-mix(in srgb, var(--ds-bad) 18%, var(--ds-surface)); box-shadow: inset 0 0 0 2px var(--ds-bad); }
+.ds-tweek-more {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 20px; margin-bottom: 4px;
+  padding: 0 5px; border-radius: 999px; font-size: 11px; font-weight: 800;
+  background: var(--ds-surface-2); color: var(--ds-ink-2); box-shadow: inset 0 0 0 1px var(--ds-line-strong);
+}
+@keyframes ds-tweek-in { from { opacity: 0; transform: translateY(14px) scale(0.6); } to { opacity: 1; transform: none; } }
+.ds-tweek-track { width: 100%; height: 0; border-bottom: 2px solid var(--ds-line-strong); }
+.ds-tweek-day.is-today .ds-tweek-track { border-bottom: 3px solid var(--ds-primary); }
+.ds-tweek-day.is-overdue .ds-tweek-track { border-bottom: 2px dashed color-mix(in srgb, var(--ds-bad) 60%, var(--ds-line-strong)); }
+.ds-tweek-day.is-overdue { margin-right: 8px; }
+.ds-tweek-dow { margin-top: 6px; font-size: 11.5px; font-weight: 600; color: var(--ds-muted); white-space: nowrap; }
+.ds-tweek-date { font-size: 14px; font-weight: 800; color: var(--ds-ink); }
+.ds-tweek-day.is-today .ds-tweek-dow { color: var(--ds-primary); font-weight: 800; }
+.ds-tweek-day.is-today .ds-tweek-date { min-width: 24px; padding: 0 5px; border-radius: 6px; text-align: center; background: var(--ds-primary); color: var(--ds-on-primary); }
+.ds-tweek-day.is-overdue .ds-tweek-dow { color: var(--ds-bad); font-weight: 800; }
+.ds-tweek-day:not(.has-tasks):not(.is-today) .ds-tweek-date { color: var(--ds-faint); }
+@media (max-width: 639px) {
+  .ds-tweek { gap: 2px; }
+  .ds-tweek-stack { height: 92px; }
+  .ds-tweek-task > span { width: 22px !important; height: 22px !important; font-size: 8px !important; }
+  .ds-tweek-dot { width: 18px; height: 18px; }
+  .ds-tweek-day.is-overdue { margin-right: 4px; }
+  .ds-tweek-dow { font-size: 10.5px; }
+}
+
+/* ── Tasks: the desktop board ──────────────────────────────────────────── */
+.ds-tboard { grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: 16px; align-items: start; }
+.ds-tcol { min-width: 0; padding: 10px; border-radius: var(--ds-r-xl); background: color-mix(in srgb, var(--ds-surface-2) 70%, transparent); box-shadow: inset 0 0 0 1px var(--ds-line); }
+.ds-tcol-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 2px 6px 10px; font-size: 14px; font-weight: 800; color: var(--ds-ink); }
+.ds-tcol-count { font-size: 13px; font-weight: 700; color: var(--ds-muted); font-variant-numeric: tabular-nums; }
+.ds-tcol[data-bucket="overdue"] .ds-tcol-head > span:first-child { color: var(--ds-bad); }
+.ds-tcol[data-bucket="today"] .ds-tcol-head > span:first-child { color: var(--ds-primary); }
+.ds-tcol-cards { display: flex; flex-direction: column; gap: 8px; }
+
+.ds-tcard {
+  position: relative; display: flex; align-items: flex-start; gap: 10px; padding: 12px 12px 12px 14px;
+  border-radius: 12px; background: var(--ds-surface); color: var(--ds-ink); box-shadow: var(--ds-shadow-1);
+  transition: transform 220ms var(--ds-ease-spring, var(--ds-ease)), box-shadow 220ms var(--ds-ease);
+}
+.ds-tcard::before {
+  content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: transparent;
+}
+.ds-tcard[data-bucket="overdue"]::before { background: var(--ds-bad); }
+.ds-tcard.is-high::before { background: var(--ds-warn); }
+.ds-tcard:hover { transform: translateY(-2px); box-shadow: var(--ds-shadow-2); }
+.ds-tcard .ds-task-hit { margin-top: -10px; }
+.ds-tcard-body { display: flex; flex: 1 1 auto; min-width: 0; flex-direction: column; gap: 3px; text-align: left; }
+.ds-tcard-title { font-size: 14px; line-height: 1.35; font-weight: 650; color: var(--ds-ink); overflow-wrap: anywhere; }
+.ds-tcard-due { font-size: 12.5px; font-weight: 700; color: var(--ds-ink-2); }
+.ds-tcard-due.is-late { color: var(--ds-bad); }
+.ds-tcard-links { font-size: 12px; font-weight: 550; color: var(--ds-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ds-tcard-who { flex: none; display: inline-flex; border-radius: 999px; }
+
+/* Ticking one off: the line draws through the title, the circle rings out,
+   then the card folds away (TasksClient drops it after 650ms). */
+.ds-tcard-strike {
+  background-image: linear-gradient(currentColor, currentColor); background-repeat: no-repeat;
+  background-position: 0 58%; background-size: 0 2px; transition: background-size 320ms var(--ds-ease), color 320ms var(--ds-ease);
+}
+.ds-tcard.is-leaving .ds-tcard-strike { background-size: 100% 2px; color: var(--ds-muted); }
+.ds-tcard.is-leaving { animation: ds-tcard-out 300ms var(--ds-ease) 360ms both; }
+.ds-trow-task.is-leaving { animation: ds-tcard-fade 300ms var(--ds-ease) 360ms both; }
+.ds-tcard .ds-task-hit, .ds-trow-task .ds-task-hit { position: relative; }
+.ds-tcard.is-leaving .ds-task-hit::after, .ds-trow-task.is-leaving .ds-task-hit::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px;
+  border-radius: 999px; box-shadow: 0 0 0 2px var(--ds-good); pointer-events: none;
+  animation: ds-tcheck-ring 520ms var(--ds-ease) both;
+}
+@keyframes ds-tcheck-ring { from { opacity: 0.9; transform: scale(1); } to { opacity: 0; transform: scale(2.2); } }
+@keyframes ds-tcard-out { to { opacity: 0; transform: translateX(24px) scale(0.97); } }
+@keyframes ds-tcard-fade { to { opacity: 0.35; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-tweek-task, .ds-tcard.is-leaving, .ds-trow-task.is-leaving,
+  .ds-tcard.is-leaving .ds-task-hit::after, .ds-trow-task.is-leaving .ds-task-hit::after { animation: none; }
+  .ds-tweek-task:hover, .ds-tcard:hover { transform: none; }
+}

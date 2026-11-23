@@ -10,7 +10,11 @@ import Pager from "@/components/Pager";
 import { shortDate } from "@/lib/statuses";
 import ContactStatus from "@/components/ContactStatus";
 import EmptyState from "@/components/EmptyState";
-import { requirePageActor, canSell, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
+import { requirePageActor, canSell, contactScope, seesAllLeads, isManager, canSeeMoney, viaContactScope } from "@/lib/permissions";
+import { money } from "@/lib/statuses";
+import { invoiceBalance } from "@/lib/payments";
+import { zonedMidnight, zonedParts } from "@/lib/timezone";
+import ClientBook, { type BookMonth } from "@/components/ClientBook";
 import EntityRowActions from "@/components/EntityRowActions";
 import CallLink from "@/components/CallLink";
 import { contactSearchWhere } from "@/lib/contact-search";
@@ -90,6 +94,90 @@ export default async function ContactsPage({
     prisma.contact.count({ where: listWhere }),
   ]);
 
+  // Row extras for the clients on this page: when their last job was and
+  // what they still owe (open invoices, less payments).
+  const seeMoney = canSeeMoney(actor);
+  const ids = contacts.map((c) => c.id);
+  // The picture: the default Clients view only (not a search, tab or later page)
+  const showBook = !q && !validStatus && page === 1;
+  const nowParts = zonedParts(tz, new Date());
+  const monthStarts = Array.from({ length: 12 }, (_, k) => zonedMidnight(tz, nowParts.y, nowParts.m - (11 - k), 1));
+  const bookWhere = {
+    companyId,
+    ...contactScope(actor),
+    ...(mineOnly ? { assignedToId: actor.id } : {}),
+    placeholder: false,
+    status: "ACTIVE" as const,
+    kind: "CLIENT" as const,
+  };
+  const [lastJobs, openInvoices, newClients, owedAll] = await Promise.all([
+    ids.length
+      ? prisma.job.groupBy({
+          by: ["contactId"],
+          where: { companyId, contactId: { in: ids }, scheduledAt: { not: null } },
+          _max: { scheduledAt: true },
+        })
+      : Promise.resolve([] as { contactId: string; _max: { scheduledAt: Date | null } }[]),
+    seeMoney && ids.length
+      ? prisma.invoice.findMany({
+          where: { companyId, contactId: { in: ids }, status: { in: ["PAST_DUE", "AWAITING_PAYMENT"] } },
+          select: { contactId: true, status: true, total: true, payments: { select: { amount: true, surchargeAmount: true } } },
+        })
+      : Promise.resolve([]),
+    showBook
+      ? prisma.contact.findMany({
+          where: { ...bookWhere, createdAt: { gte: monthStarts[0] } },
+          select: { id: true, firstName: true, lastName: true, createdAt: true },
+          orderBy: { createdAt: "desc" },
+          take: 2000,
+        })
+      : Promise.resolve([]),
+    showBook && seeMoney
+      ? prisma.invoice.findMany({
+          where: { companyId, ...viaContactScope(actor), status: { in: ["PAST_DUE", "AWAITING_PAYMENT"] } },
+          select: { contactId: true, total: true, payments: { select: { amount: true, surchargeAmount: true } } },
+        })
+      : Promise.resolve([]),
+  ]);
+  const lastJobBy = new Map(lastJobs.map((j) => [j.contactId, j._max.scheduledAt]));
+  const owesBy = new Map<string, { amount: number; late: boolean }>();
+  for (const i of openInvoices) {
+    const bal = Math.max(0, invoiceBalance(i));
+    if (bal <= 0 || !i.contactId) continue;
+    const prev = owesBy.get(i.contactId) ?? { amount: 0, late: false };
+    owesBy.set(i.contactId, { amount: prev.amount + bal, late: prev.late || i.status === "PAST_DUE" });
+  }
+  let owed: { clients: number; amount: number; href: string } | null = null;
+  if (seeMoney) {
+    const per = new Map<string, number>();
+    for (const i of owedAll) {
+      const bal = Math.max(0, invoiceBalance(i));
+      if (bal > 0 && i.contactId) per.set(i.contactId, (per.get(i.contactId) ?? 0) + bal);
+    }
+    owed = { clients: per.size, amount: [...per.values()].reduce((a, b) => a + b, 0), href: "/app/invoices" };
+  }
+  const months: BookMonth[] = monthStarts.map((start, k) => {
+    const end = monthStarts[k + 1]?.getTime() ?? Infinity;
+    const inMonth = newClients.filter((c) => c.createdAt.getTime() >= start.getTime() && c.createdAt.getTime() < end);
+    return {
+      label: start.toLocaleDateString("en-US", { month: "short", timeZone: tz }),
+      long: start.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: tz }),
+      count: inMonth.length,
+      people: inMonth.slice(0, 4).map((c) => ({ id: c.id, name: `${c.firstName} ${c.lastName}`.trim() || "Client" })),
+      now: k === 11,
+    };
+  });
+  // Desktop ledger columns: Name · Address · Status · (Assigned) · Last job · (Owes) · call
+  const cols = [
+    "minmax(0,1.3fr)",
+    "minmax(0,1fr)",
+    "110px",
+    ...(showAll ? ["120px"] : []),
+    "96px",
+    ...(seeMoney ? ["96px"] : []),
+    "40px",
+  ].join(" ");
+
   const cur = { q, status: validStatus, assignee: mineOnly ? "me" : undefined, sort: sortRaw };
 
   return (
@@ -97,7 +185,7 @@ export default async function ContactsPage({
       {/* Header — secondary actions collapse to icon circles on phones so the
           row never crams; labels return at sm. */}
       <div className="flex items-center justify-between gap-2 mb-6">
-        <PageTitle section="clients" icon={Users}>
+        <PageTitle heavy section="clients" icon={Users}>
           Clients
         </PageTitle>
         <div className="flex items-center gap-2">
@@ -172,6 +260,8 @@ export default async function ContactsPage({
         }}
       />
 
+      {showBook && listCount > 0 && <ClientBook total={listCount} months={months} owed={owed} />}
+
       <div className="ds-card overflow-hidden">
         {contacts.length === 0 ? (
           <EmptyState
@@ -196,51 +286,69 @@ export default async function ContactsPage({
         ) : (
           <>
             <div className="divide-y divide-gray-100">
-              <div className="hidden lg:grid grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
+              <div
+                className="ds-cl-head hidden lg:grid gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50"
+                style={{ gridTemplateColumns: cols }}
+              >
                 <span>Name</span>
                 <span>Address</span>
                 <span>Status</span>
-                <span>Assigned To</span>
-                <span>Last Activity</span>
+                {showAll && <span>Assigned To</span>}
+                <span>Last job</span>
+                {seeMoney && <span className="text-right">Owes</span>}
                 <span></span>
               </div>
-              {contacts.map((c) => (
+              {contacts.map((c) => {
+                const owes = owesBy.get(c.id);
+                const lastJob = lastJobBy.get(c.id) ?? null;
+                return (
                 <EntityRowActions
                   key={c.id}
                   meta={{ kind: "client", id: c.id, name: `${c.firstName} ${c.lastName}`, phone: c.phone, status: c.status, canDelete: isManager(actor.role) }}
                 >
                 <Link
                   prefetch={false} href={`/app/contacts/${c.id}`}
-                  style={{ "--row-tone": monogramColor(`${c.firstName} ${c.lastName}`) } as React.CSSProperties}
-                  className="ds-trow flex lg:grid lg:grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-3 lg:gap-4 items-center px-4 py-3 lg:py-2.5 hover:bg-[color:var(--ds-surface-2)] active:bg-[color:var(--ds-line)] transition-colors"
+                  style={{ "--row-tone": monogramColor(`${c.firstName} ${c.lastName}`), "--cl-cols": cols } as React.CSSProperties}
+                  className="ds-trow ds-cl-row flex lg:grid gap-3 lg:gap-4 items-center px-4 py-3 lg:py-2.5 hover:bg-[color:var(--ds-surface-2)] active:bg-[color:var(--ds-line)] transition-colors"
                 >
                   {/* Monogram anchors the phone row (identity color, not a
                       section hue) — desktop keeps the dense ledger grid */}
-                  <Monogram
-                    name={`${c.firstName} ${c.lastName}`}
-                    size={40}
-                    className="lg:hidden"
-                  />
-                  <div className="min-w-0 flex-1 lg:flex-none">
-                    <p className="ds-trow-name text-[15.5px] lg:text-sm font-semibold lg:font-medium text-gray-900 truncate">
-                      {c.firstName} {c.lastName}
-                    </p>
-                    {(c.companyName || c.phone || c.email) && (
-                      <p className="text-[13px] lg:text-xs text-gray-500 truncate">
-                        {[c.companyName, c.phone || c.email].filter(Boolean).join(" · ")}
+                  <div className="flex min-w-0 flex-1 items-center gap-3 lg:flex-none">
+                    <Monogram name={`${c.firstName} ${c.lastName}`} size={40} className="ds-cl-mono" />
+                    <div className="min-w-0 flex-1">
+                      <p className="ds-trow-name text-[15.5px] lg:text-sm font-semibold text-gray-900 truncate">
+                        {c.firstName} {c.lastName}
                       </p>
-                    )}
+                      {(c.companyName || c.phone || c.email || owes) && (
+                        <p className="text-[13px] lg:text-xs text-gray-500 truncate">
+                          {owes && (
+                            <span className={`ds-cl-owes-inline lg:hidden ${owes.late ? "is-late" : ""}`}>
+                              Owes {money(owes.amount)}
+                              {c.companyName || c.phone || c.email ? " · " : ""}
+                            </span>
+                          )}
+                          {[c.companyName, c.phone || c.email].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <span className="hidden lg:block text-sm text-gray-500 truncate">
                     {[c.address, c.city, c.state].filter(Boolean).join(", ") || "—"}
                   </span>
                   <ContactStatus status={c.status} kind={c.kind} />
-                  <span className="hidden lg:block text-sm text-gray-500 truncate">
-                    {c.assignedTo?.name ?? "—"}
+                  {showAll && (
+                    <span className="hidden lg:block text-sm text-gray-500 truncate">
+                      {c.assignedTo?.name ?? "—"}
+                    </span>
+                  )}
+                  <span className="hidden lg:block text-sm text-gray-500" title={`Last updated ${shortDate(c.updatedAt, tz)}`}>
+                    {lastJob ? shortDate(lastJob, tz) : <span className="text-gray-400">No jobs</span>}
                   </span>
-                  <span className="hidden lg:block text-sm text-gray-500">
-                    {shortDate(c.updatedAt, tz)}
-                  </span>
+                  {seeMoney && (
+                    <span className={`ds-cl-owes hidden lg:block text-right text-sm ${owes ? (owes.late ? "is-late" : "is-open") : ""}`}>
+                      {owes ? money(owes.amount) : "—"}
+                    </span>
+                  )}
                   {/* The last column holds the Call button (below, outside the link) when there's a phone. */}
                   {c.phone ? <span className="hidden lg:block w-9" /> : <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />}
                 </Link>
@@ -258,7 +366,8 @@ export default async function ContactsPage({
                   </CallLink>
                 )}
                 </EntityRowActions>
-              ))}
+                );
+              })}
             </div>
             {/* Ledger foot — entry count */}
             <div className="border-t border-[color:var(--ds-line)] bg-[color:var(--ds-surface-2)] px-4 py-2.5">
