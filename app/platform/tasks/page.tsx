@@ -5,6 +5,7 @@ import { featureAllowedFor } from "@/lib/plan-gate";
 import { companyTz, listTasks, parseTaskView } from "@/lib/tasks";
 import type { TaskLink, TaskPrefill } from "@/lib/tasks-shared";
 import TasksClient from "./TasksClient";
+import { zonedParts } from "@/lib/timezone";
 
 export const metadata: Metadata = { title: "Tasks" };
 
@@ -73,6 +74,11 @@ async function resolvePrefill(sp: Params, actor: Actor): Promise<TaskPrefill | n
   };
 }
 
+function todayYmd(tz: string): string {
+  const p = zonedParts(tz, new Date());
+  return `${p.y}-${String(p.m).padStart(2, "0")}-${String(p.d).padStart(2, "0")}`;
+}
+
 export default async function TasksPage({ searchParams }: { searchParams: Promise<Params> }) {
   const actor = await requirePageActor();
   const sp = await searchParams;
@@ -110,6 +116,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       canAssign={manager}
       openTaskId={typeof sp.task === "string" ? sp.task : null}
       prefill={prefill}
+      today={todayYmd(tz)}
     />
   );
 }

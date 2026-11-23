@@ -13,6 +13,8 @@ import TaskDetail from "@/components/tasks/TaskDetail";
 import { alertSheet, confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { hapticImpact } from "@/lib/haptics";
+import Monogram from "@/components/Monogram";
+import TaskWeek from "./TaskWeek";
 import {
   TASK_BUCKET_LABELS,
   TASK_BUCKET_ORDER,
@@ -40,6 +42,7 @@ export default function TasksClient({
   canAssign,
   openTaskId,
   prefill,
+  today,
 }: {
   view: TaskView;
   initial: TaskDTO[];
@@ -49,6 +52,8 @@ export default function TasksClient({
   canAssign: boolean;
   openTaskId: string | null;
   prefill: TaskPrefill | null;
+  /** YYYY-MM-DD in the company's zone (the week picture starts here). */
+  today: string;
 }) {
   const router = useRouter();
   // Done tab: my finished tasks, or (managers) the whole team's
@@ -291,7 +296,7 @@ export default function TasksClient({
         { key: "delete", label: "Delete", icon: Trash2, destructive: true, onSelect: () => remove(t) },
       ]}
     >
-      <div className="ds-row items-center">
+      <div className={`ds-row ds-trow-task items-center ${leavingNow(t) ? "is-leaving" : ""}`}>
         <TaskCheck task={t} onChange={onChanged} />
         <button type="button" onClick={() => openTask(t)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
           <span className="min-w-0 flex-1">
@@ -318,14 +323,61 @@ export default function TasksClient({
         { key: "delete", label: "Delete", icon: Trash2, bg: "var(--ds-bad)", onClick: () => void remove(t) },
       ]}
     >
-      <div className="ds-row items-center">
+      <div className={`ds-row ds-trow-task items-center ${leavingNow(t) ? "is-leaving" : ""}`}>
         <TaskCheck task={t} onChange={onChanged} />
         <button type="button" onClick={() => openTask(t)} className="min-w-0 flex-1 py-0.5 text-left active:opacity-70">
           {titleEl(t)}
           {subFor(t) && <span className="ds-small mt-0.5 block truncate">{subFor(t)}</span>}
         </button>
+        {(view === "team" || view === "team_done") && <Monogram name={t.assigneeName || "?"} size={26} />}
       </div>
     </SwipeRow>
+  );
+
+  // A finished (or, on Done, un-finished) task plays its exit before it leaves
+  const leavingNow = (t: TaskDTO) => (doneView ? !t.doneAt : Boolean(t.doneAt));
+
+  // Desktop board card: the check, the task, and whose it is
+  const boardCard = (t: TaskDTO) => (
+    <RowActions
+      key={t.id}
+      title={t.title}
+      actions={[
+        {
+          key: "done",
+          label: t.doneAt ? "Mark not done" : "Mark done",
+          icon: t.doneAt ? RotateCcw : Check,
+          onSelect: () => quickDone(t),
+        },
+        { key: "edit", label: "Edit", icon: Pencil, onSelect: () => editTask(t) },
+        { key: "delete", label: "Delete", icon: Trash2, destructive: true, onSelect: () => remove(t) },
+      ]}
+    >
+      <div
+        className={`ds-tcard ${leavingNow(t) ? "is-leaving" : ""} ${t.priority === "HIGH" && !t.doneAt ? "is-high" : ""}`}
+        data-bucket={t.bucket}
+      >
+        <TaskCheck task={t} onChange={onChanged} />
+        <button type="button" onClick={() => openTask(t)} className="ds-tcard-body">
+          <span className="ds-tcard-title">
+            <span className="ds-tcard-strike">{t.title}</span>
+            {t.priority === "HIGH" && !t.doneAt && (
+              <Flag size={13} className="ml-1 inline shrink-0 align-[-1px] text-[color:var(--ds-warn)]" aria-label="High priority" />
+            )}
+            {t.remindAt && !t.doneAt && <Bell size={12} className="ml-1 inline align-[-1px] text-[color:var(--ds-faint)]" aria-hidden />}
+          </span>
+          {(t.dueLabel || (view === "done" && t.doneLabel)) && (
+            <span className={`ds-tcard-due ${t.bucket === "overdue" && !t.doneAt ? "is-late" : ""}`}>
+              {view === "done" && t.doneLabel ? `Done ${t.doneLabel}` : t.dueLabel}
+            </span>
+          )}
+          {t.links.length > 0 && <span className="ds-tcard-links">{t.links.map((l) => l.label).join(" · ")}</span>}
+        </button>
+        <span className="ds-tcard-who" title={`For ${t.assigneeName}`}>
+          <Monogram name={t.assigneeName || "?"} size={24} />
+        </span>
+      </div>
+    </RowActions>
   );
 
   return (
@@ -391,8 +443,46 @@ export default function TasksClient({
         )}
       </div>
 
+      {!doneView && tasks.length > 0 && (
+        <div className="mt-4 lg:mt-0">
+          <TaskWeek tasks={tasks} today={today} onOpen={openTask} showWho={view === "team"} />
+        </div>
+      )}
+
       {groups.length === 0 ? (
         <div className="mt-4 lg:mt-0">{empty}</div>
+      ) : !doneView ? (
+        <>
+          {/* Desktop: a board, one column per due group */}
+          <div
+            className="ds-tboard hidden lg:grid"
+            style={{ "--cols": Math.min(groups.length, 5) } as React.CSSProperties}
+          >
+            {groups.map((g, gi) => (
+              <section key={g.key} className="ds-tcol ds-rise" data-bucket={g.key} style={{ "--ds-i": gi + 2 } as React.CSSProperties}>
+                <h2 className="ds-tcol-head">
+                  <span>{g.label}</span>
+                  <span className="ds-tcol-count">{g.rows.length}</span>
+                </h2>
+                <div className="ds-tcol-cards">{g.rows.map(boardCard)}</div>
+              </section>
+            ))}
+          </div>
+          {/* Phones: the grouped list */}
+          <div className="mt-4 space-y-6 lg:hidden">
+            {groups.map((g, gi) => (
+              <section key={g.key} className="ds-rise" style={{ "--ds-i": gi } as React.CSSProperties}>
+                <h2 className="mb-1.5 flex items-center gap-3 px-1 text-[13px] font-semibold text-[color:var(--ds-ink-2)]">
+                  <span className={g.key === "overdue" ? "text-[color:var(--ds-bad)]" : ""}>{g.label}</span>
+                  <span className="numeral-ledger ml-auto font-normal text-[color:var(--ds-faint)]">{g.rows.length}</span>
+                </h2>
+                <Card className="ds-divide overflow-hidden">
+                  <div className="divide-y divide-[color:var(--ds-line)]">{g.rows.map(phoneRow)}</div>
+                </Card>
+              </section>
+            ))}
+          </div>
+        </>
       ) : (
         <div className="mt-4 space-y-6 lg:mt-0">
           {groups.map((g, gi) => (
