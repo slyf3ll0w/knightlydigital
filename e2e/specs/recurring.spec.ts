@@ -37,6 +37,59 @@ test.describe("recurring billing", () => {
     );
   });
 
+  test("a plan discount comes off its invoices and counts down", async () => {
+    // $25 off the next invoice only: the first bill is $35, then full price.
+    const sub = await api.post("/api/app/subscriptions", {
+      name: "E2E discounted plan",
+      contactId,
+      interval: "MONTHLY",
+      unitPrice: 60,
+      invoiceMode: "DRAFT",
+      discountType: "FIXED",
+      discountValue: 25,
+      discountInvoices: 1,
+    });
+    expect(sub.firstBill).toBe("drafted");
+    const first = await db().invoice.findFirst({ where: { subscriptionId: sub.id } });
+    expect(Number(first!.subtotal)).toBeCloseTo(60, 2);
+    expect(first!.discountType).toBe("FIXED");
+    expect(Number(first!.discount)).toBeCloseTo(25, 2);
+    expect(Number(first!.total)).toBeCloseTo(35, 2);
+    let dbSub = await db().subscription.findUnique({ where: { id: sub.id } });
+    expect(dbSub!.discountType).toBe("NONE");
+    expect(dbSub!.discountInvoicesLeft).toBeNull();
+
+    await api.patch(`/api/app/subscriptions/${sub.id}`, { action: "billNow" });
+    const second = await db().invoice.findFirst({
+      where: { subscriptionId: sub.id, id: { not: first!.id } },
+    });
+    expect(second!.discount).toBeNull();
+    expect(Number(second!.total)).toBeCloseTo(60, 2);
+
+    // 10% off every invoice: stays on the plan after it is used.
+    await api.patch(`/api/app/subscriptions/${sub.id}`, {
+      discountType: "PERCENT",
+      discountValue: 10,
+      discountInvoices: null,
+    });
+    await api.patch(`/api/app/subscriptions/${sub.id}`, { action: "billNow" });
+    const third = await db().invoice.findFirst({
+      where: { subscriptionId: sub.id, id: { notIn: [first!.id, second!.id] } },
+    });
+    expect(third!.discountType).toBe("PERCENT");
+    expect(Number(third!.total)).toBeCloseTo(54, 2);
+    dbSub = await db().subscription.findUnique({ where: { id: sub.id } });
+    expect(dbSub!.discountType).toBe("PERCENT");
+    expect(Number(dbSub!.discountValue)).toBeCloseTo(10, 2);
+
+    // A bad discount is refused, and NONE takes it off.
+    await api.patch(`/api/app/subscriptions/${sub.id}`, { discountType: "PERCENT", discountValue: 150 }, 400);
+    await api.patch(`/api/app/subscriptions/${sub.id}`, { discountType: "NONE" });
+    dbSub = await db().subscription.findUnique({ where: { id: sub.id } });
+    expect(dbSub!.discountType).toBe("NONE");
+    await api.patch(`/api/app/subscriptions/${sub.id}`, { status: "CANCELLED" });
+  });
+
   test("monthly plan bills at signup and anchors to the first payment", async () => {
     const sub = await api.post("/api/app/subscriptions", {
       name: "E2E monthly plan",

@@ -12,6 +12,13 @@ import PageTitle from "@/components/PageTitle";
 import { Chip, InfoTip } from "@/components/ds";
 import { DateField } from "@/components/DateField";
 import { SERVICE_FEE_CARD } from "@/lib/service-fee";
+import { seriesDiscountLabel, seriesDiscountedPrice } from "@/lib/series-discount";
+import SeriesDiscountFields, {
+  EMPTY_DISCOUNT_DRAFT,
+  discountDraftBody,
+  discountDraftFrom,
+  discountDraftProblem,
+} from "@/components/SeriesDiscountFields";
 
 type Frequency = "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "QUARTERLY" | "ANNUALLY";
 
@@ -37,6 +44,10 @@ type Sub = {
   visitAssigneeIds: string[];
   // Autopay card pinned to this series (null = the client's default card)
   savedCardId: string | null;
+  // A discount on the invoices this series makes (lib/series-discount.ts)
+  discountType?: "NONE" | "FIXED" | "PERCENT";
+  discountValue?: number | string | null;
+  discountInvoicesLeft?: number | null;
   contact: {
     id: string;
     firstName: string;
@@ -80,6 +91,11 @@ const DURATION_OPTIONS = [
   { value: "240", label: "4 hours" },
   { value: "480", label: "8 hours" },
 ];
+
+/** What one invoice of the series comes to before tax, discount taken off. */
+function billedAmount(s: Sub): number {
+  return seriesDiscountedPrice(s, Number(s.unitPrice) * Number(s.quantity));
+}
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -133,6 +149,7 @@ export default function SubscriptionsClient({
     visitDuration: "60",
     visitAssignees: [] as string[],
     savedCardId: "", // "" = default card
+    discount: EMPTY_DISCOUNT_DRAFT,
   });
 
   function openEdit(s: Sub) {
@@ -148,6 +165,7 @@ export default function SubscriptionsClient({
       visitDuration: String(s.visitDurationMinutes ?? 60),
       visitAssignees: s.visitAssigneeIds ?? [],
       savedCardId: s.savedCardId ?? "",
+      discount: discountDraftFrom(s),
     });
     setError("");
     setEditId(s.id);
@@ -168,12 +186,20 @@ export default function SubscriptionsClient({
     const sub = subs.find((s) => s.id === id);
     const bills = Boolean(sub?.interval);
     const perVisit = Boolean(sub?.billPerVisit);
+    if (bills || perVisit) {
+      const problem = discountDraftProblem(editForm.discount);
+      if (problem) {
+        setError(problem);
+        return;
+      }
+    }
     const data = await patch(id, {
       name: editForm.name,
       ...((bills || perVisit) && {
         unitPrice: parseFloat(editForm.unitPrice) || 0,
         quantity: parseFloat(editForm.quantity) || 1,
         savedCardId: editForm.savedCardId || null,
+        ...discountDraftBody(editForm.discount),
       }),
       ...(bills && {
         interval: editForm.interval,
@@ -503,6 +529,13 @@ export default function SubscriptionsClient({
                         </>
                       )}
                     </div>
+                    {(s.interval || s.billPerVisit) && (
+                      <SeriesDiscountFields
+                        value={editForm.discount}
+                        onChange={(discount) => setEditForm((f) => ({ ...f, discount }))}
+                        inputCls="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+                      />
+                    )}
                     {/* Visit schedule — visit cadence decoupled from billing */}
                     <div className="pt-3 border-t border-gray-200">
                       <p className="text-[13px] font-semibold text-gray-500 mb-2 flex items-center gap-1.5">
@@ -650,7 +683,7 @@ export default function SubscriptionsClient({
                       </p>
                       {(s.interval || s.billPerVisit) && (
                         <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
-                          {money(Number(s.unitPrice) * Number(s.quantity))}
+                          {money(billedAmount(s))}
                         </p>
                       )}
                     </div>
@@ -669,6 +702,9 @@ export default function SubscriptionsClient({
                           <span className="text-[color:var(--ds-primary)]">
                             {" · "}visits {FREQ_LABEL[s.visitFrequency].toLowerCase()}
                           </span>
+                        )}
+                        {(s.interval || s.billPerVisit) && seriesDiscountLabel(s) && (
+                          <span data-series-discount-label> · {seriesDiscountLabel(s)}</span>
                         )}
                         {!s.visitFrequency && s.createsJob && " · creates a job"}
                         {(s.interval || s.billPerVisit) && s.invoiceMode === "DRAFT" && " · drafts only"}
@@ -776,7 +812,7 @@ export default function SubscriptionsClient({
                         </Link>
                         {" · "}
                         {s.interval
-                          ? `${INTERVAL_LABEL[s.interval]} plan · ${money(Number(s.unitPrice) * Number(s.quantity))}`
+                          ? `${INTERVAL_LABEL[s.interval]} plan · ${money(billedAmount(s))}`
                           : s.billPerVisit
                             ? `${money(Number(s.unitPrice) * Number(s.quantity))} per visit${
                                 s.consolidateMonthly
@@ -786,6 +822,9 @@ export default function SubscriptionsClient({
                                   : " · bills on completion"
                               }`
                             : "Recurring job — no billing"}
+                        {(s.interval || s.billPerVisit) && seriesDiscountLabel(s) && (
+                          <span data-series-discount-label> · {seriesDiscountLabel(s)}</span>
+                        )}
                         {s.visitFrequency && (
                           <span className="text-[color:var(--ds-primary)]">
                             {" · "}visits {FREQ_LABEL[s.visitFrequency].toLowerCase()}

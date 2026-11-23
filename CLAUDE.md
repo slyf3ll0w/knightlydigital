@@ -1752,6 +1752,23 @@ creates a `Subscription` on the client. The engine in `lib/subscriptions.ts` the
 generates the next invoice (and optionally a job) each cycle. See the
 Subscriptions page (`/app/subscriptions`) to pause/cancel or bill a cycle now.
 
+**Series discount (2026-11-23, tickets #kw6905 / #cil2or; `lib/series-discount.ts`,
+`npx tsx scripts/test-series-discount.ts`).** A series can carry a discount:
+`Subscription.discountType` FIXED (dollars off each invoice) or PERCENT,
+`discountValue`, and `discountInvoicesLeft` (null = every invoice; a number
+counts down per invoice made and the discount clears itself at zero). Every
+invoice the engine makes goes through `seriesMoney` (lib/subscriptions.ts):
+discount off the subtotal, then tax, written to the invoice's own discount
+columns so the page, PDF and pay page show it. A discount that covers the
+whole invoice books it PAID with nothing charged. Set on the Recurring page's
+edit form and New recurring plan (`components/SeriesDiscountFields.tsx`), by
+`POST`/`PATCH /api/app/subscriptions` (`discountType`, `discountValue`,
+`discountInvoices`), and by Atlas `manage_subscription`. A discount typed on
+an invoice stays on that invoice unless "Keep this discount on later
+invoices" is ticked on the new-invoice form (`seriesDiscount: true`), which
+puts it on the plan that invoice starts. WorkBench's own plan series use the
+same thing: the customer's Plans page quotes the price with it taken off.
+
 **Per-visit billing (`Subscription.billPerVisit`).** The third billing shape,
 alongside scheduled billing (`interval`) and visits-only (neither): completing
 one of the series' visit jobs calls `billCompletedVisit` (lib/subscriptions.ts,

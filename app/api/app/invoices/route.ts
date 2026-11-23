@@ -313,7 +313,9 @@ export async function POST(req: NextRequest) {
           .map((li) => ({
             workItemId: li.workItemId,
             quantity: Number(li.quantity) || 1,
-          }))
+          })),
+        // "Keep this discount on later invoices" on the invoice form
+        body.seriesDiscount === true && discount > 0 ? { discount: { discountType, discountValue } } : {}
       );
     }
     // This invoice IS the new plan's first bill: link it, so paying it

@@ -20,6 +20,7 @@ import LineItemsEditor, {
   payloadRecurringInterval,
 } from "@/components/LineItemsEditor";
 import { DateField } from "@/components/DateField";
+import { InfoTip } from "@/components/ds";
 import { newLocalClient, type ToolClient, type ToolEditorMode } from "@/lib/tool-editor";
 
 type Contact = { id: string; firstName: string; lastName: string; paymentTermsDays?: number };
@@ -214,6 +215,10 @@ export default function InvoiceEditor({
     return sum + (parseInt(li.quantity, 10) || 0) * (parseFloat(li.unitPrice) || 0);
   }, 0);
   const discountNum = parseFloat(discountValue) || 0;
+  // A new invoice whose recurring line starts a plan: does the discount stay
+  // on the plan's later invoices, or is it this invoice only? (lib/series-discount.ts)
+  const [keepDiscount, setKeepDiscount] = useState(false);
+  const startsPlan = !editInvoice && lineItems.some((li) => payloadRecurringInterval(li));
   const discount =
     discountType === "PERCENT"
       ? Math.round(subtotal * Math.min(Math.max(discountNum, 0), 100)) / 100
@@ -305,6 +310,7 @@ export default function InvoiceEditor({
       jobId: jobId || null,
       appointmentId: prefillAppointment?.id ?? null,
       ...payload,
+      seriesDiscount: startsPlan && discountType !== "NONE" && discountNum > 0 && keepDiscount,
     });
 
     if (!ok || !data?.id) { setLoading(false); setError(data?.error ?? GENERIC_ERROR); return; }
@@ -433,6 +439,24 @@ export default function InvoiceEditor({
                       />
                     )}
                   </div>
+                  {startsPlan && discountType !== "NONE" && discountNum > 0 && (
+                    <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={keepDiscount}
+                        onChange={(e) => setKeepDiscount(e.target.checked)}
+                        className="h-4 w-4 accent-[color:var(--ds-primary)]"
+                      />
+                      <span className="inline-flex items-center gap-1.5">
+                        Keep this discount on later invoices
+                        <InfoTip label="What does this change?">
+                          This invoice starts a recurring plan. On = every later invoice of the plan gets
+                          the same discount. Off = this invoice only. You can change it on the Recurring
+                          page.
+                        </InfoTip>
+                      </span>
+                    </label>
+                  )}
                 </div>
               ) : (
                 <button type="button" onClick={() => setAdjust(true)} className="ds-link text-xs font-medium">
