@@ -289,7 +289,8 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
 
       {!onVoicePlan && <VoicePlanNote what="calls" manager={manager} planPage={Boolean(company?.addonEnabled)} />}
 
-      <div className="mt-3 lg:mt-6 lg:grid lg:grid-cols-[312px_minmax(0,1fr)] lg:items-start lg:gap-6">
+      {/* Two columns only when the line panel is there: without it the list (or the "No business line yet" empty) would sit in the 312px panel column, off-center. */}
+      <div className={`mt-3 lg:mt-6 ${phone ? "lg:grid lg:grid-cols-[312px_minmax(0,1fr)] lg:items-start lg:gap-6" : ""}`}>
         {phone && <LinePanel {...phone} stats={stats} className="hidden lg:sticky lg:top-6 lg:block" />}
         <div className="min-w-0">{list}</div>
       </div>

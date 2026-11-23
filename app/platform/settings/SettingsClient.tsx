@@ -39,7 +39,9 @@ import {
 import {
   ADDON_LINK,
   QUICKBOOKS_LINK,
+  SETTINGS_KEYWORDS,
   SETTINGS_PARAM,
+  SETTINGS_SEARCH_PAGES,
   SETTINGS_SECTION_LINKS,
   SETTINGS_SECTIONS,
   normalizeSettingsSection,
@@ -1235,7 +1237,9 @@ export default function SettingsClient({
   const [navQ, setNavQ] = useState("");
   const nq = navQ.trim().toLowerCase();
   const navMatch = (label: string, sub?: string) => !nq || label.toLowerCase().includes(nq) || (sub ?? "").toLowerCase().includes(nq);
-  const railSections = SETTINGS_SECTIONS.filter((s) => navMatch(s.label, s.sub));
+  const railSections = SETTINGS_SECTIONS.filter((s) => navMatch(s.label, `${s.sub} ${SETTINGS_KEYWORDS[s.key]}`));
+  // Search also finds pages (Services, Team, QuickBooks…), not just the six groups.
+  const railPages = nq ? SETTINGS_SEARCH_PAGES.filter((p) => (!p.testOnly || Boolean(company.isTest)) && navMatch(p.label, p.sub)) : [];
   // Test-only doors (Website, while the studio feature is unfinished — 2026-10-30) show for test accounts only.
   const visibleLink = (l: SettingsLink) => !l.testOnly || Boolean(company.isTest);
   const sectionLinks = (SETTINGS_SECTION_LINKS[active] ?? []).filter(visibleLink);
@@ -1641,7 +1645,7 @@ export default function SettingsClient({
               className="w-full rounded-[10px] bg-[color:var(--ds-surface)] py-1.5 pl-8 pr-2 text-[13px] text-[color:var(--ds-ink)] shadow-[inset_0_0_0_1px_var(--ds-line)] outline-none placeholder:text-[color:var(--ds-faint)] focus:shadow-[inset_0_0_0_2px_var(--ds-primary)]"
             />
           </label>
-          {nq && railSections.length === 0 && (
+          {nq && railSections.length === 0 && railPages.length === 0 && (
             <p className="px-2 py-3 text-[13px] text-[color:var(--ds-muted)]">Nothing matches “{navQ.trim()}”.</p>
           )}
           <div className="space-y-0.5">
@@ -1662,6 +1666,19 @@ export default function SettingsClient({
               );
             })}
           </div>
+          {railPages.length > 0 && (
+            <div className="mt-3 border-t border-[color:var(--ds-line)] pt-3">
+              <p className="ds-small px-2 pb-1">Pages</p>
+              <div className="space-y-0.5">
+                {railPages.map((p) => (
+                  <Link key={p.href} href={p.href} prefetch={false} className="ds-settings-group" title={p.sub}>
+                    <span className="min-w-0 flex-1 truncate">{p.label}</span>
+                    <ChevronRight size={15} className="shrink-0 opacity-50" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </nav>
 
         {/* Phones: the index — one card of the six groups */}

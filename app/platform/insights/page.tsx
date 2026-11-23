@@ -1,19 +1,19 @@
 import { prisma } from "@/lib/db";
+import RangeRuler from "@/components/RangeRuler";
 import { canonicalLeadSource, UNTRACKED_SOURCE } from "@/lib/lead-source";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import ReportsHeader from "@/components/ReportsHeader";
-import { FilterRow, FilterChip } from "@/components/FilterChips";
 import EmptyState from "@/components/EmptyState";
 import { Chip, InfoTip } from "@/components/ds";
 import { money } from "@/lib/statuses";
 import { invoiceBalance } from "@/lib/payments";
 
 const ranges = [
-  { value: "30", label: "30 days" },
-  { value: "90", label: "90 days" },
-  { value: "365", label: "12 months" },
-  { value: "all", label: "2 years" },
+  { value: "30", label: "30 days", days: 30 },
+  { value: "90", label: "90 days", days: 90 },
+  { value: "365", label: "12 months", days: 365 },
+  { value: "all", label: "2 years", days: 730 },
 ];
 
 // "All time" used to hydrate every payment the company ever took, with its
@@ -279,6 +279,7 @@ export default async function InsightsPage({
   const topDebtors = [...byDebtor.values()].sort((a, b) => b.balance - a.balance).slice(0, 6);
 
   const activeRange = range ?? "90";
+  const periodMax = Math.max(totalRevenue, totalExpenses);
   const paymentCount = `${payments.length} ${payments.length === 1 ? "payment" : "payments"}`;
 
   return (
@@ -286,21 +287,8 @@ export default async function InsightsPage({
       {/* Reports (2026-11-21): Insights is the first tab of the Reports page */}
       <ReportsHeader companyId={actor.companyId} tab="insights" />
 
-      {/* Range picker — a scrolling chip rail on phones (four buttons in one
-          flex row used to squeeze into unreadable slivers), the same control
-          every list page uses for its filters. */}
-      <FilterRow>
-        {ranges.map((r) => (
-          <FilterChip
-            key={r.value}
-            hue="var(--ds-primary)"
-            active={activeRange === r.value}
-            href={`/app/insights?range=${r.value}`}
-          >
-            {r.label}
-          </FilterChip>
-        ))}
-      </FilterRow>
+      {/* Range: a ruler ending at Today, the picked period shaded (was a row of pills, 2026-11-23) */}
+      <RangeRuler stops={ranges} active={activeRange} href={(v) => `/app/insights?range=${v}`} label="Report period" />
 
       {/* Money summary. Phones get one card that reads like a mini P&L —
           revenue, expenses, and the profit line underneath — because three
@@ -329,34 +317,34 @@ export default async function InsightsPage({
         />
       </div>
 
-      <div className="mb-6 hidden gap-4 lg:grid lg:grid-cols-3">
-        <div className="ds-card p-5">
-          <p className="mb-1 text-xs font-medium text-gray-500">Collected revenue</p>
-          <p className="numeral-ledger text-3xl font-bold text-gray-900">{money(totalRevenue)}</p>
-          <p className="mt-0.5 text-xs text-gray-500">{paymentCount} in this period</p>
-        </div>
-        <div className="ds-card p-5">
-          <p className="mb-1 text-xs font-medium text-gray-500">Expenses</p>
-          <p className="numeral-ledger text-3xl font-bold text-gray-900">{money(totalExpenses)}</p>
-          <Link href="/app/expenses" className="mt-0.5 inline-block text-xs text-[color:var(--ds-primary)] hover:underline">
-            {expenseAgg._count > 0
-              ? `${expenseAgg._count} logged — manage →`
-              : "Log expenses to track profit →"}
+      {/* Desktop: the period in one sentence, came in vs went out as two bars
+          (three figure cards read as generic KPI tiles — David, 2026-11-22). */}
+      <div className="ds-card ds-period mb-6 hidden lg:block">
+        <p className="ds-period-line">
+          You collected <b>{money(totalRevenue)}</b> from {paymentCount}, spent <b>{money(totalExpenses)}</b>, and{" "}
+          {profit >= 0 ? "kept" : "are down"}{" "}
+          <b style={{ color: profit >= 0 ? "var(--ds-good)" : "var(--ds-bad)" }}>{money(Math.abs(profit))}</b>
+          <InfoTip>Revenue minus expenses.</InfoTip>
+        </p>
+        <div className="ds-period-bars">
+          <span>Came in</span>
+          <span className="ds-period-bar">
+            <span style={{ width: `${periodMax > 0 ? (totalRevenue / periodMax) * 100 : 0}%`, background: "var(--ds-good)" }} />
+          </span>
+          <span className="ds-period-amt">{money(totalRevenue)}</span>
+          <span>Went out</span>
+          <span className="ds-period-bar">
+            <span style={{ width: `${periodMax > 0 ? (totalExpenses / periodMax) * 100 : 0}%`, background: "var(--ds-bad)", animationDelay: "120ms" }} />
+          </span>
+          <Link href="/app/expenses" className="ds-period-amt hover:underline">
+            {money(totalExpenses)}
           </Link>
         </div>
-        <div className="ds-card p-5">
-          <p className="mb-1 flex items-center gap-1 text-xs font-medium text-gray-500">
-            Profit
-            <InfoTip>Revenue minus expenses.</InfoTip>
-          </p>
-          <p
-            className={`numeral-ledger text-3xl font-bold ${
-              profit >= 0 ? "text-[color:var(--ds-good)]" : "text-[color:var(--ds-bad)]"
-            }`}
-          >
-            {money(profit)}
-          </p>
-        </div>
+        <p className="ds-small mt-3">
+          <Link href="/app/expenses" className="text-[color:var(--ds-primary)] hover:underline">
+            {expenseAgg._count > 0 ? `${expenseAgg._count} expenses logged — manage →` : "Log expenses to track profit →"}
+          </Link>
+        </p>
       </div>
 
       {/* A/R aging — who owes what, and how stale it's getting. The
@@ -379,7 +367,7 @@ export default async function InsightsPage({
         <div className="grid grid-cols-5 divide-x divide-[color:var(--ds-line)] border-b border-[color:var(--ds-line)]">
           {AGING_BUCKETS.map((b, i) => (
             <div key={b} className="px-2 py-3 text-center lg:px-4">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 lg:text-[11px]">
+              <p className="text-[11px] font-semibold text-gray-500 lg:text-[12px]">
                 {b}
               </p>
               <p

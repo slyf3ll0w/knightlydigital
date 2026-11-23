@@ -197,3 +197,42 @@ export const SETTINGS_SECTION_LINKS: Readonly<Partial<Record<SettingsSectionKey,
     },
   ],
 };
+
+/**
+ * Search words per group: the names of the settings inside each one, so
+ * "tax", "time zone" or "logo" find the right group, not just its title.
+ */
+export const SETTINGS_KEYWORDS: Readonly<Record<SettingsSectionKey, string>> = {
+  business:
+    "company name phone email address time zone timezone industry hours business hours sending email reply-to website url service area",
+  brand:
+    "logo colors colours accent font wallpaper sidebar portal link client portal booking page look theme review requests google reviews",
+  phone:
+    "business line phone number calls voicemail forwarding ring texting sms text messages notifications on my way texts toll-free",
+  money:
+    "payments online payments square card ach bank payouts service fee surcharge deposits tax sales tax rate quickbooks plan billing subscription seats tap to pay",
+  documents:
+    "numbering invoice numbers quote numbers prefixes custom fields lead pipeline stages agreement templates contracts import csv clients terms footer",
+  ai: "email notifications alerts automations connected apps integrations zapier atlas assistant ai",
+};
+
+/** A page you can reach from Settings search (sidebar pages and setup pages). */
+export type SettingsSearchPage = { href: string; label: string; sub: string; testOnly?: boolean };
+
+/**
+ * Pages Settings search also finds: the setup pages inside the groups and
+ * the work pages that moved to the sidebar (David's map, 2026-11-21), so
+ * someone who still looks for "Services" in Settings is taken there.
+ */
+export const SETTINGS_SEARCH_PAGES: readonly SettingsSearchPage[] = [
+  { href: "/app/settings/products", label: "Services", sub: "Your services and prices, the price book" },
+  { href: "/app/settings/booking", label: "Booking & forms", sub: "Online booking, request forms, what clients can book" },
+  { href: "/app/settings/website", label: "Website", sub: "Your WorkBench website", testOnly: true },
+  { href: "/app/settings/team", label: "Team & roles", sub: "Invite people, roles, permissions, pay rates" },
+  { href: "/app/settings/profile", label: "My Profile", sub: "Your name, photo, password, sign-in" },
+  { href: "/app/automations", label: "Automations", sub: "Follow-ups and reminders that run on their own" },
+  { href: "/app/settings/connected-apps", label: "Connected apps", sub: "Zapier, Google and other apps" },
+  QUICKBOOKS_LINK,
+  ADDON_LINK,
+  ...Object.values(SETTINGS_SECTION_LINKS).flatMap((l) => l ?? []),
+];
