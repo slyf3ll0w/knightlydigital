@@ -762,35 +762,64 @@ html[data-mode="dark"] .ds { --rail-news: var(--ds-secondary); }
 .ds-spark-bar.is-now, .ds-spark-col:hover .ds-spark-bar { background: var(--tone); }
 @keyframes ds-pic-grow { from { transform: scaleY(0); } to { transform: none; } }
 
-/* Quotes: lanes */
-.ds-lanes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
-@media (min-width: 1024px) { .ds-lanes { gap: 34px; } }
-.ds-lane { position: relative; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.ds-lane-arrow { position: absolute; left: -24px; top: 58px; color: var(--ds-faint); }
-@media (max-width: 1023px) { .ds-lane-arrow { display: none; } }
-.ds-lane-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: var(--ds-ink); }
-.ds-lane-label { min-width: 0; font-size: 13px; font-weight: 700; color: var(--ds-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ds-lane-count { font-size: 22px; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
-.ds-lane-head:hover .ds-lane-count { color: var(--ds-primary); }
-.ds-lane-track {
-  display: flex; align-items: center; min-height: 58px; padding: 10px 12px; border-radius: 14px;
-  background: var(--ds-surface-2); box-shadow: inset 0 0 0 1px var(--ds-line);
+/* Quotes: the pipeline (round 8) — one bar by dollar value, figures typeset
+   above each part, stage-to-stage rates under the joins; then a ledger of the
+   longest waits and the won running total against the 30 days before. One
+   hue, three steps (draft → awaiting → approved), 2px surface gaps. */
+.ds-pipe { margin-top: 18px; }
+.ds-pipe-heads, .ds-pipe-bar { display: flex; gap: 2px; }
+.ds-pipe-head { min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 0 0 8px; color: var(--ds-ink); }
+.ds-pipe-head + .ds-pipe-head { padding-left: 8px; border-left: 1px solid var(--ds-line-strong); }
+.ds-pipe-label { font-size: 12.5px; font-weight: 600; color: var(--ds-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ds-pipe-fig { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ds-pipe-fig b { font-size: 20px; line-height: 1.1; font-weight: 750; letter-spacing: -0.02em; }
+.ds-pipe-fig span { font-size: 13px; font-weight: 600; color: var(--ds-ink-2); overflow: hidden; text-overflow: ellipsis; }
+.ds-pipe-head:hover .ds-pipe-label { color: var(--ds-ink); }
+.ds-pipe-bar { height: 10px; }
+.ds-pipe-seg { display: block; min-width: 0; height: 100%; transform-origin: left; animation: ds-pipe-grow 640ms var(--ds-ease) both; transition: filter 140ms; }
+.ds-pipe-seg:first-child { border-radius: 4px 0 0 4px; }
+.ds-pipe-seg:last-child { border-radius: 0 4px 4px 0; }
+.ds-pipe-seg[data-stage="DRAFT"] { background: color-mix(in srgb, var(--ds-primary) 28%, var(--ds-surface)); }
+.ds-pipe-seg[data-stage="AWAITING_RESPONSE"] { background: color-mix(in srgb, var(--ds-primary) 62%, var(--ds-surface)); animation-delay: 80ms; }
+.ds-pipe-seg[data-stage="APPROVED"] { background: var(--ds-primary); animation-delay: 160ms; }
+.ds-pipe-seg:hover { filter: brightness(1.08); }
+.ds-pipe-rates { position: relative; height: 34px; margin-top: 6px; }
+.ds-pipe-rate {
+  position: absolute; top: 0; padding-top: 10px; transform: translateX(-1px);
+  font-size: 12px; font-weight: 550; color: var(--ds-muted); white-space: nowrap;
+  border-left: 1px solid var(--ds-line-strong); padding-left: 8px;
 }
-.ds-lane[data-stage="APPROVED"] .ds-lane-track { background: color-mix(in srgb, var(--ds-good) 9%, var(--ds-surface)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ds-good) 22%, transparent); }
-.ds-lane-people { display: flex; flex-wrap: wrap; align-items: center; padding-left: 8px; }
-.ds-lane-person, .ds-lane-more {
-  margin-left: -8px; border-radius: 999px; box-shadow: 0 0 0 2.5px var(--ds-surface);
-  transition: transform 180ms var(--ds-ease-spring, var(--ds-ease));
+.ds-pipe-rate b { font-weight: 750; color: var(--ds-ink); font-variant-numeric: tabular-nums; }
+.ds-pipe-rate-note { position: absolute; right: 0; top: 10px; font-size: 11.5px; font-weight: 550; color: var(--ds-faint); }
+@keyframes ds-pipe-grow { from { transform: scaleX(0); } }
+
+.ds-pipe-foot { display: grid; gap: 18px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--ds-line); }
+@media (min-width: 1024px) {
+  .ds-pipe-foot { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; }
+  .ds-pipe-col + .ds-pipe-col { padding-left: 24px; border-left: 1px solid var(--ds-line); }
+  .ds-pipe-col:first-child:not(:last-child) { padding-right: 24px; }
 }
-.ds-lane-person:hover { transform: translateY(-4px) scale(1.08); z-index: 1; }
-.ds-lane-more {
-  display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px;
-  font-size: 12px; font-weight: 800; background: var(--ds-surface); color: var(--ds-ink-2);
-  box-shadow: 0 0 0 2.5px var(--ds-surface), inset 0 0 0 1.5px var(--ds-line-strong);
-}
-.ds-lane-empty { font-size: 13px; font-weight: 600; color: var(--ds-faint); }
-.ds-lane-money { font-size: 13.5px; font-weight: 700; color: var(--ds-ink-2); font-variant-numeric: tabular-nums; }
-@media (max-width: 639px) { .ds-lane-track { padding: 8px; min-height: 48px; } .ds-lane-count { font-size: 18px; } }
+.ds-pipe-col { min-width: 0; display: flex; flex-direction: column; }
+.ds-pipe-col-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.ds-pipe-col-title { font-size: 13px; font-weight: 650; color: var(--ds-muted); }
+a.ds-pipe-col-title:hover { color: var(--ds-ink); }
+.ds-pipe-col-fig { display: inline-flex; align-items: baseline; gap: 8px; font-size: 12.5px; font-weight: 550; color: var(--ds-muted); white-space: nowrap; }
+.ds-pipe-col-fig b { font-size: 17px; font-weight: 750; color: var(--ds-ink); font-variant-numeric: tabular-nums; }
+.ds-pipe-ledger { list-style: none; margin: 0; padding: 0; }
+.ds-pipe-ledger li + li { border-top: 1px solid var(--ds-line); }
+.ds-pipe-row { display: grid; grid-template-columns: minmax(0, 9rem) minmax(0, 1fr) 6.5rem 3rem; gap: 12px; align-items: baseline; height: 32px; padding-top: 7px; font-size: 13px; color: var(--ds-ink); }
+.ds-pipe-row-name { font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ds-pipe-row-title { color: var(--ds-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ds-pipe-row-num { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ds-pipe-row-num.is-late { color: var(--ds-bad); }
+.ds-pipe-row:hover .ds-pipe-row-name { color: var(--ds-primary); }
+.ds-pipe-none { font-size: 13px; color: var(--ds-muted); padding-top: 6px; }
+.ds-pipe-key, .ds-pay-key { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; font-size: 11.5px; font-weight: 550; color: var(--ds-muted); }
+.ds-pipe-key span, .ds-pay-key span { display: inline-flex; align-items: center; gap: 6px; }
+.ds-pipe-key i, .ds-pay-key i { display: inline-block; width: 12px; }
+.ds-pipe-key i.is-cur, .ds-pay-key i.is-cur { height: 2px; border-radius: 2px; background: var(--ds-primary); }
+.ds-pipe-key i.is-prev, .ds-pay-key i.is-prev { border-top: 1.5px dashed var(--ds-muted); }
+@media (max-width: 639px) { .ds-pipe-row { grid-template-columns: minmax(0, 1fr) 5.5rem 2.5rem; } .ds-pipe-row-title { display: none; } }
 
 /* Invoices: the aging line */
 .ds-aging { margin-top: 16px; }
@@ -877,19 +906,29 @@ html[data-mode="dark"] .ds-letter-flag { color: #0B1220; }
 .ds-days-axis span:last-child { transform: translateX(-100%); }
 @media (max-width: 639px) { .ds-days-bill > span { width: 18px !important; height: 18px !important; font-size: 7px !important; } }
 
-/* Payments: money on its way */
-.ds-flow { display: grid; gap: 10px; margin-top: 16px; }
-@media (min-width: 768px) { .ds-flow { grid-template-columns: 1.25fr 1fr 1fr; gap: 34px; } }
-.ds-flow-step { position: relative; min-width: 0; }
-.ds-flow-arrow { position: absolute; left: -27px; top: 50%; margin-top: -10px; color: var(--ds-faint); }
-@media (max-width: 767px) { .ds-flow-arrow { display: none; } }
-.ds-flow-box { display: flex; flex-direction: column; gap: 3px; height: 100%; padding: 14px 16px; border-radius: 14px; background: var(--ds-surface-2); box-shadow: inset 0 0 0 1px var(--ds-line); color: var(--ds-ink); }
-a.ds-flow-box:hover { box-shadow: inset 0 0 0 1.5px var(--ds-primary); }
-.ds-flow-step.is-lead .ds-flow-box { background: color-mix(in srgb, var(--ds-good) 9%, var(--ds-surface)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ds-good) 22%, transparent); }
-.ds-flow-label { font-size: 12.5px; font-weight: 700; color: var(--ds-muted); }
-.ds-flow-value { font-size: 26px; line-height: 1.1; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
-.ds-flow-step.is-lead .ds-flow-value { font-size: 32px; }
-.ds-flow-note { font-size: 12.5px; font-weight: 550; color: var(--ds-ink-2); }
+/* Payments (round 8): one card — the figure and chart left, a typeset ledger
+   (gross − refunds − fees = net) and the payout on its way right. */
+.ds-pay { display: grid; overflow: hidden; }
+@media (min-width: 1024px) { .ds-pay { grid-template-columns: minmax(0, 1fr) 19rem; } }
+.ds-pay-main { min-width: 0; padding: 20px 22px 16px; }
+.ds-pay-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.ds-pay-label { font-size: 13px; font-weight: 650; color: var(--ds-muted); }
+.ds-pay-fig { margin-top: 2px; font-size: 32px; line-height: 1.1; font-weight: 750; letter-spacing: -0.03em; color: var(--ds-ink); font-variant-numeric: tabular-nums; }
+.ds-pay-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 6px; font-size: 12.5px; font-weight: 550; color: var(--ds-muted); }
+.ds-pay-side { display: flex; flex-direction: column; padding: 20px 22px; border-top: 1px solid var(--ds-line); background: color-mix(in srgb, var(--ds-surface-2) 55%, var(--ds-surface)); }
+@media (min-width: 1024px) { .ds-pay-side { border-top: 0; border-left: 1px solid var(--ds-line); } }
+.ds-pay-ledger { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.ds-pay-ledger th { padding: 7px 0; text-align: left; font-weight: 550; color: var(--ds-ink-2); }
+.ds-pay-ledger td { padding: 7px 0; text-align: right; font-weight: 650; color: var(--ds-ink); white-space: nowrap; }
+.ds-pay-ledger tr + tr th, .ds-pay-ledger tr + tr td { border-top: 1px solid var(--ds-line); }
+.ds-pay-ledger tr.is-total th, .ds-pay-ledger tr.is-total td { border-top: 1.5px solid var(--ds-ink-2); padding-top: 9px; font-weight: 750; color: var(--ds-ink); }
+.ds-pay-ledger tr.is-total td { font-size: 17px; letter-spacing: -0.01em; }
+.ds-pay-way { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--ds-line); color: var(--ds-ink); }
+.ds-pay-way-label { font-size: 13px; font-weight: 650; color: var(--ds-muted); }
+.ds-pay-way-fig { grid-row: span 2; align-self: center; font-size: 17px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.ds-pay-way-note { font-size: 12px; color: var(--ds-muted); }
+.ds-pay-way:hover .ds-pay-way-label { color: var(--ds-primary); }
+.ds-pay-alert { margin-top: auto; padding-top: 14px; }
 
 /* Jobs: the week (inside its picture) */
 .ds-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-top: 14px; }
@@ -942,7 +981,8 @@ a.ds-flow-box:hover { box-shadow: inset 0 0 0 1.5px var(--ds-primary); }
 @media (prefers-reduced-motion: reduce) {
   .ds-spark-bar, .ds-week-bar, .ds-aging-dot, .ds-days-bill, .ds-sheet-sig path { animation: none; }
   .ds-letter, .ds-letter:hover { transform: none; }
-  .ds-sheet:hover, .ds-lane-person:hover { transform: none; }
+  .ds-sheet:hover { transform: none; }
+  .ds-pipe-seg { animation: none; }
 }
 
 /* ── Settings pop-up (components/SettingsPopup.tsx + SettingsClient,

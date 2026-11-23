@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ArrowRight, ChevronRight, Check } from "lucide-react";
+import { ChevronRight, Check } from "lucide-react";
 import CountUp from "@/components/CountUp";
+import VolumeChart, { type VolumePoint } from "@/app/platform/payments/square/VolumeChart";
 import Monogram from "@/components/Monogram";
 import { money } from "@/lib/statuses";
 
@@ -122,34 +123,50 @@ export function Spark({ points, summary }: { points: SparkPoint[]; summary: stri
 
 /* ── Quotes: lanes holding the actual clients ───────────────────────────── */
 
-export type LanePerson = { id: string; name: string; href: string; title: string };
 export type PipelineStage = {
   key: string;
   label: string;
   count: number;
   amount: number;
   href: string;
-  people?: LanePerson[];
 };
 
+export type WaitingQuote = { id: string; name: string; title: string; amount: number; days: number; href: string };
+
+/**
+ * Quotes (round 8, 2026-11-23 — "cool but a little AI generated"): the
+ * pipeline as one exact bar split by dollar value, with the stage figures
+ * typeset above each part and the stage-to-stage rates under the joins;
+ * then a ledger of who has kept you waiting longest, and the won total
+ * against the 30 days before it as a running line (prior period dashed).
+ */
 export function PipelineBand({
   stages,
-  won30,
-  conversion,
-  wonHref,
   showMoney,
-  wonWeeks,
+  rates,
+  waiting,
+  won,
 }: {
   stages: PipelineStage[];
-  won30: number;
-  conversion: number | null;
-  wonHref: string;
   showMoney: boolean;
-  wonWeeks?: SparkPoint[];
+  /** Last 90 days: share of new quotes that were sent, and of sent quotes that were approved. */
+  rates: { sent: number | null; approved: number | null };
+  waiting: { avgDays: number | null; count: number; stalest: WaitingQuote[]; href: string };
+  won: { total: number; prevTotal: number; points: VolumePoint[]; href: string };
 }) {
   const open = stages.filter((s) => s.key !== "APPROVED");
   const openCount = open.reduce((n, s) => n + s.count, 0);
   const openAmount = open.reduce((n, s) => n + s.amount, 0);
+  const all = stages.reduce((n, s) => n + (showMoney ? s.amount : s.count), 0);
+  // widths by dollar value (or count without money access); a floor keeps every label readable
+  const raw = stages.map((s) => (all > 0 ? (showMoney ? s.amount : s.count) / all : 1 / stages.length));
+  const floored = raw.map((f) => Math.max(f, 0.16));
+  const fsum = floored.reduce((a, b) => a + b, 0);
+  const widths = floored.map((f) => (f / fsum) * 100);
+  const joins = widths.slice(0, -1).map((_, i) => widths.slice(0, i + 1).reduce((a, b) => a + b, 0));
+  const rateAt = [rates.sent, rates.approved];
+  const rateWord = ["of new quotes get sent", "of sent quotes get approved"];
+  const change = won.prevTotal > 0 ? (won.total - won.prevTotal) / won.prevTotal : null;
   return (
     <Picture
       title={
@@ -165,57 +182,91 @@ export function PipelineBand({
           </>
         )
       }
-      aside={
-        showMoney && (
-          <Link prefetch={false} href={wonHref} className="ds-pic-won">
-            <span>
-              <span className="ds-pic-won-label">Won · 30 days</span>
-              <span className="ds-pic-won-value">
-                <CountUp value={money(won30)} />
-              </span>
-              <span className="ds-pic-won-note">
-                {conversion === null ? "nothing sent" : `${conversion}% approved`}
-              </span>
-            </span>
-            {wonWeeks && <Spark points={wonWeeks} summary="Approved quote value per week, last 8 weeks" />}
-          </Link>
-        )
-      }
     >
-      <ol className="ds-lanes">
-        {stages.map((s, k) => {
-          const people = s.people ?? [];
-          const more = Math.max(0, s.count - people.length);
-          return (
-            <li key={s.key} className="ds-lane" data-stage={s.key}>
-              {k > 0 && <ArrowRight size={18} strokeWidth={2.4} className="ds-lane-arrow" aria-hidden />}
-              <Link prefetch={false} href={s.href} className="ds-lane-head">
-                <span className="ds-lane-label">{s.label}</span>
-                <span className="ds-lane-count">{s.count}</span>
+      <div className="ds-pipe">
+        <div className="ds-pipe-heads">
+          {stages.map((s, i) => (
+            <Link key={s.key} prefetch={false} href={s.href} className="ds-pipe-head" style={{ width: `${widths[i]}%` }}>
+              <span className="ds-pipe-label">{s.label}</span>
+              <span className="ds-pipe-fig">
+                <b>{s.count}</b>
+                {showMoney && <span>{money(s.amount)}</span>}
+              </span>
+            </Link>
+          ))}
+        </div>
+        <div className="ds-pipe-bar" role="img" aria-label={stages.map((s) => `${s.label}: ${s.count}${showMoney ? `, ${money(s.amount)}` : ""}`).join("; ")}>
+          {stages.map((s, i) => (
+            <Link key={s.key} prefetch={false} href={s.href} className="ds-pipe-seg" data-stage={s.key} style={{ width: `${widths[i]}%` }} title={`${s.label} · ${s.count}${showMoney ? ` · ${money(s.amount)}` : ""}`} tabIndex={-1} aria-hidden />
+          ))}
+        </div>
+        <div className="ds-pipe-rates" aria-label="Last 90 days">
+          {joins.map((at, i) => (
+            <span key={i} className="ds-pipe-rate" style={{ left: `${at}%` }}>
+              <b>{rateAt[i] == null ? "—" : `${rateAt[i]}%`}</b> {rateWord[i]}
+            </span>
+          ))}
+          <span className="ds-pipe-rate-note">Last 90 days</span>
+        </div>
+      </div>
+
+      <div className="ds-pipe-foot">
+        <section className="ds-pipe-col">
+          <header className="ds-pipe-col-head">
+            <Link prefetch={false} href={waiting.href} className="ds-pipe-col-title">
+              Waiting on a reply
+            </Link>
+            <span className="ds-pipe-col-fig">
+              {waiting.avgDays == null ? "—" : <><b>{waiting.avgDays.toFixed(1)}</b> days on average</>}
+            </span>
+          </header>
+          {waiting.stalest.length === 0 ? (
+            <p className="ds-pipe-none">Nothing out with a client right now.</p>
+          ) : (
+            <ol className="ds-pipe-ledger">
+              {waiting.stalest.map((q) => (
+                <li key={q.id}>
+                  <Link prefetch={false} href={q.href} className="ds-pipe-row">
+                    <span className="ds-pipe-row-name">{q.name}</span>
+                    <span className="ds-pipe-row-title">{q.title}</span>
+                    {showMoney && <span className="ds-pipe-row-num">{money(q.amount)}</span>}
+                    <span className={`ds-pipe-row-num ${q.days >= 14 ? "is-late" : ""}`}>{q.days}d</span>
+                  </Link>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+        {showMoney && (
+          <section className="ds-pipe-col">
+            <header className="ds-pipe-col-head">
+              <Link prefetch={false} href={won.href} className="ds-pipe-col-title">
+                Won · 30 days
               </Link>
-              <div className="ds-lane-track">
-                {people.length === 0 ? (
-                  <span className="ds-lane-empty">None</span>
-                ) : (
-                  <span className="ds-lane-people">
-                    {people.map((p) => (
-                      <Link key={p.id} prefetch={false} href={p.href} className="ds-lane-person" title={`${p.name}${p.title ? ` · ${p.title}` : ""}`}>
-                        <Monogram name={p.name} size={34} />
-                      </Link>
-                    ))}
-                    {more > 0 && (
-                      <Link prefetch={false} href={s.href} className="ds-lane-more">
-                        +{more}
-                      </Link>
-                    )}
+              <span className="ds-pipe-col-fig">
+                <b>{money(won.total)}</b>
+                {change != null && (
+                  <span className={`ds-stat-change ${change >= 0 ? "is-up" : "is-down"}`}>
+                    {change >= 0 ? "+" : "−"}
+                    {Math.abs(Math.round(change * 100))}%
                   </span>
                 )}
-              </div>
-              {showMoney && <span className="ds-lane-money">{money(s.amount)}</span>}
-            </li>
-          );
-        })}
-      </ol>
+              </span>
+            </header>
+            <VolumeChart
+              points={won.points}
+              ariaLabel="Approved quote value, running total over the last 30 days and the 30 days before"
+              heightClass="h-[92px]"
+              curName="By"
+              prevName="By"
+            />
+            <p className="ds-pipe-key">
+              <span><i className="is-cur" />Last 30 days</span>
+              <span><i className="is-prev" />30 days before · {money(won.prevTotal)}</span>
+            </p>
+          </section>
+        )}
+      </div>
     </Picture>
   );
 }
@@ -558,45 +609,3 @@ export function SignBand({
   );
 }
 
-/* ── Payments: money on its way ─────────────────────────────────────────── */
-
-export function PayFlow({
-  label,
-  aside,
-  steps,
-  footer,
-}: {
-  label: React.ReactNode;
-  aside?: React.ReactNode;
-  steps: { label: string; value: React.ReactNode; note?: React.ReactNode; href?: string; lead?: boolean }[];
-  footer?: React.ReactNode;
-}) {
-  return (
-    <Picture title={label} aside={aside}>
-      <ol className="ds-flow">
-        {steps.map((s, k) => {
-          const inner = (
-            <>
-              <span className="ds-flow-label">{s.label}</span>
-              <span className="ds-flow-value">{s.value}</span>
-              {s.note && <span className="ds-flow-note">{s.note}</span>}
-            </>
-          );
-          return (
-            <li key={k} className={`ds-flow-step ${s.lead ? "is-lead" : ""}`}>
-              {k > 0 && <ArrowRight size={20} strokeWidth={2.4} className="ds-flow-arrow" aria-hidden />}
-              {s.href ? (
-                <Link prefetch={false} href={s.href} className="ds-flow-box">
-                  {inner}
-                </Link>
-              ) : (
-                <div className="ds-flow-box">{inner}</div>
-              )}
-            </li>
-          );
-        })}
-      </ol>
-      {footer}
-    </Picture>
-  );
-}
