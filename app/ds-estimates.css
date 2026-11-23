@@ -1,1 +1,208 @@
 /* estimates page look (heavy pilot round 6). Loaded after ds.css from app/layout.tsx. */
+
+/* ── Estimates list: each tool draws its own shape (round 6, 2026-11-23) ── */
+.ds-est-card-name { min-width: 0; font-size: 16.5px; line-height: 1.3; font-weight: 700; letter-spacing: -0.012em; color: var(--ds-ink); }
+.ds-est-card-flow { margin-top: 16px; }
+.ds-est-card-facts { margin-top: 8px; font-size: 12.5px; font-weight: 600; color: var(--ds-muted); }
+.ds-est-card-use {
+  margin-top: auto; padding-top: 14px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px;
+  font-size: 12.5px; font-weight: 500; color: var(--ds-muted);
+}
+.ds-est-card-use b { font-weight: 800; color: var(--ds-ink); font-variant-numeric: tabular-nums; }
+
+/* the dotted line: one dot per question, sections set apart, the price at the end */
+.ds-fdots { position: relative; display: inline-flex; max-width: 100%; align-items: center; gap: 12px; flex-wrap: nowrap; overflow: hidden; }
+.ds-fdots::before, .ds-fdots::after {
+  content: ""; position: absolute; left: 4px; right: 10px; top: 50%; height: 2px; margin-top: -1px; border-radius: 2px;
+  background: var(--ds-line-strong);
+}
+.ds-fdots::after { background: var(--ds-primary); transform: scaleX(0); transform-origin: left center; transition: transform 620ms var(--ds-ease); }
+.ds-est-card:hover .ds-fdots::after, .ds-est-card:focus-visible .ds-fdots::after { transform: scaleX(1); }
+.ds-fdots-group { position: relative; z-index: 1; display: flex; align-items: center; gap: 5px; }
+.ds-fdot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--ds-ink-2);
+  box-shadow: 0 0 0 3px var(--ds-surface);
+}
+.ds-fdot.is-maybe { background: var(--ds-surface); border: 2px dashed var(--ds-ink-2); }
+.ds-fdot.is-atlas { background: var(--ds-primary); }
+.ds-fdot.is-maybe.is-atlas { background: var(--ds-surface); border-color: var(--ds-primary); }
+.ds-fdots-price {
+  position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 22px; height: 22px; border-radius: 50%; background: var(--ds-primary); color: var(--ds-on-primary);
+  font-size: 12px; font-weight: 800; box-shadow: 0 0 0 3px var(--ds-surface);
+}
+.ds-est-card.is-off .ds-fdots-price { background: var(--ds-muted); }
+
+/* the last card: build another */
+.ds-est-new {
+  display: flex; flex-direction: column; align-items: flex-start; height: 100%; min-height: 170px; width: 100%;
+  padding: 18px; border-radius: var(--ds-r-lg); border: 2px dashed var(--ds-line-strong); background: transparent;
+  text-align: left; color: var(--ds-ink); transition: border-color var(--ds-dur) var(--ds-ease), background var(--ds-dur) var(--ds-ease);
+}
+.ds-est-new:hover, .ds-est-new:focus-visible { border-color: var(--ds-primary); background: var(--ds-surface); }
+.ds-est-new-dots { display: flex; align-items: center; gap: 6px; }
+.ds-est-new-dots i { width: 10px; height: 10px; border-radius: 50%; border: 2px dashed var(--ds-line-strong); transition: border-color 200ms var(--ds-ease), background 200ms var(--ds-ease); }
+.ds-est-new-dots b {
+  display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%;
+  border: 2px dashed var(--ds-line-strong); font-size: 12px; font-weight: 800; color: var(--ds-muted);
+}
+.ds-est-new:hover .ds-est-new-dots i { border-style: solid; border-color: var(--ds-ink-2); background: var(--ds-ink-2); }
+.ds-est-new:hover .ds-est-new-dots i:nth-child(2) { transition-delay: 80ms; }
+.ds-est-new:hover .ds-est-new-dots i:nth-child(3) { transition-delay: 160ms; }
+.ds-est-new:hover .ds-est-new-dots b { border-style: solid; border-color: var(--ds-primary); background: var(--ds-primary); color: var(--ds-on-primary); transition: all 200ms var(--ds-ease) 240ms; }
+.ds-est-new-title { margin-top: auto; padding-top: 22px; font-size: 16.5px; font-weight: 700; letter-spacing: -0.012em; }
+.ds-est-new-sub { margin-top: 4px; font-size: 13.5px; line-height: 1.4; color: var(--ds-ink-2); }
+
+/* ── One tool's page ─────────────────────────────────────────────────────── */
+.ds-est-hero {
+  margin-bottom: 20px; padding: 18px 18px 16px; border-radius: var(--ds-r-xl);
+  background: var(--ds-surface); color: var(--ds-ink); box-shadow: var(--ds-shadow-1);
+}
+@media (min-width: 1024px) { .ds-est-hero { padding: 22px 26px 20px; margin-bottom: 24px; } }
+.ds-est-hero-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 20px; }
+.ds-est-hero-key { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; font-weight: 600; color: var(--ds-muted); }
+.ds-est-hero-key span { display: inline-flex; align-items: center; gap: 6px; }
+.ds-est-hero-key i { width: 10px; height: 10px; border-radius: 50%; }
+.ds-est-hero-key i.is-maybe { border: 2px dashed var(--ds-ink-2); }
+.ds-est-hero-key i.is-atlas { background: var(--ds-primary); }
+
+/* the flow map: steps → questions → the price, one line drawn through */
+.ds-fmap {
+  display: flex; margin-top: 16px; padding-bottom: 4px; overflow-x: auto; scrollbar-width: thin;
+  animation: ds-fmap-draw 900ms var(--ds-ease) both 120ms;
+}
+@keyframes ds-fmap-draw { from { clip-path: inset(-4px 100% -4px 0); } to { clip-path: inset(-4px -4px -4px 0); } }
+.ds-fmap-step { position: relative; flex-shrink: 0; padding-right: 22px; }
+.ds-fmap-step::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 46px; height: 2px; border-radius: 2px; background: var(--ds-line-strong);
+}
+.ds-fmap-step:first-child::before { left: 46px; }
+.ds-fmap-step.is-price { padding-right: 0; }
+.ds-fmap-step.is-price::before { right: 50%; }
+.ds-fmap-step + .ds-fmap-step { padding-left: 0; }
+.ds-fmap-step-title {
+  height: 18px; margin-bottom: 10px; padding-left: 10px; white-space: nowrap;
+  font-size: 12.5px; font-weight: 700; color: var(--ds-muted);
+}
+.ds-fmap-step + .ds-fmap-step:not(.is-price) .ds-fmap-step-title { border-left: 2px solid var(--ds-line); }
+.ds-fmap-nodes { display: flex; gap: 2px; }
+.ds-fmap-node { position: relative; display: flex; flex-direction: column; align-items: center; width: 92px; text-align: center; }
+.ds-fmap-node.is-price { width: 110px; }
+.ds-fmap-label {
+  margin-top: 8px; padding: 0 4px; font-size: 12.5px; line-height: 1.3; font-weight: 600; color: var(--ds-ink-2);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.ds-fmap-node.is-price .ds-fmap-label { font-size: 14px; font-weight: 800; color: var(--ds-ink); font-variant-numeric: tabular-nums; }
+.ds-fmap-node.is-maybe .ds-fmap-label { color: var(--ds-muted); }
+
+/* one question's glyph: its shape is the kind of answer */
+.ds-qg, .ds-qg i, .ds-fdot, .ds-funnel-bar, .ds-pline-dot { box-sizing: border-box; }
+.ds-qg {
+  flex-shrink: 0;
+  --g: var(--ds-ink-2);
+  position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: 2px;
+  width: 36px; height: 36px; border-radius: 50%; background: var(--ds-surface); border: 2px solid var(--g);
+  box-shadow: 0 0 0 4px var(--ds-surface);
+  transition: transform 220ms var(--ds-ease), border-color 220ms var(--ds-ease);
+}
+.ds-fmap-node:hover .ds-qg { transform: translateY(-2px); --g: var(--ds-primary); }
+.ds-fmap-node.is-maybe .ds-qg { border-style: dashed; }
+.ds-fmap-node.is-atlas .ds-qg { --g: var(--ds-primary); }
+.ds-fmap-node.is-atlas .ds-qg::after {
+  content: ""; position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--ds-primary); box-shadow: 0 0 0 2px var(--ds-surface);
+}
+.ds-qg.is-number, .ds-qg.is-packages { align-items: flex-end; padding: 9px 0; }
+.ds-qg.is-number i { width: 4px; border-radius: 1px; background: var(--g); }
+.ds-qg.is-packages i { width: 5px; border-radius: 1.5px; background: var(--g); }
+.ds-qg.is-select i { width: 5px; height: 5px; border-radius: 50%; border: 1.5px solid var(--g); }
+.ds-qg.is-multi i { width: 5px; height: 5px; border-radius: 1.5px; border: 1.5px solid var(--g); }
+.ds-qg.is-select i.is-on, .ds-qg.is-multi i.is-on { background: var(--g); }
+.ds-qg.is-counts b { font-size: 18px; line-height: 1; font-weight: 800; color: var(--g); }
+.ds-qg.is-map i { width: 11px; height: 11px; border-radius: 50% 50% 50% 0; border: 2px solid var(--g); transform: rotate(-45deg); margin-top: -2px; }
+.ds-qg.is-toggle i { position: relative; width: 18px; height: 10px; border-radius: 999px; border: 2px solid var(--g); }
+.ds-qg.is-toggle i::after { content: ""; position: absolute; right: 1px; top: 1px; width: 4px; height: 4px; border-radius: 50%; background: var(--g); }
+.ds-qg.is-text { flex-direction: column; gap: 3px; }
+.ds-qg.is-text i { width: 14px; height: 2px; border-radius: 1px; background: var(--g); }
+.ds-qg.is-text i:last-child { width: 9px; margin-right: 5px; }
+.ds-qg.is-price { border: 0; background: var(--ds-primary); color: var(--ds-on-primary); font-size: 17px; font-weight: 800; }
+
+/* section tabs (desktop) */
+.ds-est-tabs {
+  width: max-content; max-width: 100%; gap: 4px; overflow-x: auto; padding: 4px; border-radius: 12px; background: var(--ds-surface-2);
+}
+.ds-est-tab {
+  display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; flex-shrink: 0; white-space: nowrap; border-radius: 9px;
+  font-size: 13.5px; font-weight: 600; color: var(--ds-muted); transition: color 160ms var(--ds-ease), background 160ms var(--ds-ease);
+}
+.ds-est-tab:hover { color: var(--ds-ink); }
+.ds-est-tab.is-on { background: var(--ds-surface); color: var(--ds-ink); font-weight: 700; box-shadow: var(--ds-shadow-1); }
+.ds-est-tab-n { font-size: 12px; font-weight: 700; color: var(--ds-muted); font-variant-numeric: tabular-nums; }
+
+.ds-est-note { margin-top: 10px; font-size: 13px; line-height: 1.45; color: var(--ds-ink-2); }
+.ds-est-note:empty { display: none; }
+.ds-est-note b { font-weight: 800; color: var(--ds-ink); font-variant-numeric: tabular-nums; }
+.ds-est-note.is-tip { color: var(--ds-muted); }
+
+/* what it charges: sample jobs on one price line */
+.ds-pline { position: relative; height: 104px; margin: 14px 46px 0; }
+.ds-pline-track { position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px; border-radius: 3px; background: var(--ds-line-strong); }
+.ds-pline-min {
+  position: absolute; top: 18%; bottom: 18%; width: 0; border-left: 2px dashed var(--ds-warn);
+}
+.ds-pline-pt { position: absolute; top: 50%; width: 0; animation: ds-pop 360ms var(--ds-ease) both; animation-delay: calc(var(--k, 0) * 90ms + 150ms); }
+.ds-pline-dot {
+  position: absolute; left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--ds-primary); box-shadow: 0 0 0 3px var(--ds-surface);
+}
+.ds-pline-pt.is-tiny .ds-pline-dot { background: var(--ds-surface); border: 2.5px solid var(--ds-primary); }
+.ds-pline-tag {
+  position: absolute; bottom: 12px; left: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center;
+  white-space: nowrap; text-align: center;
+}
+.ds-pline-pt.is-low .ds-pline-tag { bottom: auto; top: 12px; }
+.ds-pline-tag b { font-size: 14px; font-weight: 800; color: var(--ds-ink); font-variant-numeric: tabular-nums; }
+.ds-pline-tag span { max-width: 130px; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; font-weight: 600; color: var(--ds-muted); }
+
+/* how the quotes went: won / waiting / lost */
+.ds-obar {
+  display: flex; gap: 3px; height: 14px; margin-top: 14px; border-radius: 7px; overflow: hidden;
+  animation: ds-fmap-draw 800ms var(--ds-ease) both 120ms;
+}
+.ds-obar-part { min-width: 6px; }
+.ds-obar-part.is-won, .ds-obar-key.is-won i { background: var(--ds-good); }
+.ds-obar-part.is-open, .ds-obar-key.is-open i { background: color-mix(in srgb, var(--ds-primary) 45%, var(--ds-surface)); }
+.ds-obar-part.is-lost, .ds-obar-key.is-lost i { background: color-mix(in srgb, var(--ds-bad) 70%, var(--ds-surface)); }
+.ds-obar-keys { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 9px; font-size: 13px; color: var(--ds-ink-2); }
+.ds-obar-key { display: inline-flex; align-items: center; gap: 6px; }
+.ds-obar-key i { width: 9px; height: 9px; border-radius: 3px; }
+.ds-obar-key b { font-weight: 800; color: var(--ds-ink); font-variant-numeric: tabular-nums; }
+
+/* where it runs: in the app | on the website */
+.ds-est-where { display: grid; gap: 20px; }
+@media (min-width: 768px) {
+  .ds-est-where { grid-template-columns: 1fr 1fr; gap: 0; }
+  .ds-est-where-col + .ds-est-where-col { padding-left: 26px; margin-left: 0; border-left: 1px solid var(--ds-line); }
+  .ds-est-where-col:first-child { padding-right: 26px; }
+}
+.ds-est-where-title { margin-bottom: 6px; font-size: 13px; font-weight: 700; color: var(--ds-muted); }
+
+/* the website funnel: views → priced → leads */
+.ds-funnel { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.ds-funnel-row { display: grid; grid-template-columns: minmax(150px, auto) minmax(0, 1fr); align-items: center; gap: 12px; min-height: 26px; }
+.ds-funnel-track { display: block; min-width: 0; }
+.ds-funnel-bar {
+  display: block; height: 22px; border-radius: 6px; transform-origin: left center;
+  animation: ds-funnel-grow 600ms var(--ds-ease) both; animation-delay: calc(var(--k, 0) * 110ms + 120ms);
+}
+@keyframes ds-funnel-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.ds-funnel-row.is-views .ds-funnel-bar { background: color-mix(in srgb, var(--ds-primary) 28%, var(--ds-surface)); }
+.ds-funnel-row.is-calcs .ds-funnel-bar { background: color-mix(in srgb, var(--ds-primary) 60%, var(--ds-surface)); }
+.ds-funnel-row.is-leads .ds-funnel-bar { background: var(--ds-primary); }
+.ds-funnel-text { font-size: 13.5px; color: var(--ds-ink-2); white-space: nowrap; }
+.ds-funnel-text b { font-weight: 800; color: var(--ds-ink); font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-fmap, .ds-obar, .ds-pline-pt, .ds-funnel-bar { animation: none; }
+  .ds-fdots::after, .ds-qg, .ds-est-new-dots i, .ds-est-new-dots b { transition: none; }
+}

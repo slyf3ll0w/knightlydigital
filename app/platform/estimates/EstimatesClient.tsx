@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, BookOpen, Calculator, Play, Plus, X } from "lucide-react";
+import { FlowDots } from "@/components/EstimatorFlow";
 import PageTitle from "@/components/PageTitle";
 import EmptyState from "@/components/EmptyState";
 import FilterBar, { listHref } from "@/components/FilterBar";
@@ -73,37 +74,60 @@ function ToolStamp({ t }: { t: Tool }) {
   return null;
 }
 
-/** One tool card — hoisted so a parent re-render (opening the runner, the builder) never remounts it and drops an open menu. Heavy look (2026-11-21): tools read as a shelf of solid cards, not a ledger. */
+/** One tool card — hoisted so a parent re-render (opening the runner, the builder) never remounts it and drops an open menu. Round 6 (2026-11-23): each card draws the tool's own shape — its questions as a dotted line ending in the price — and what it has done, in words. */
 function ToolCard({ t, manager, atlasName, tz, onRun }: { t: Tool; manager: boolean; atlasName: string; tz: string; onRun: (t: Tool) => void }) {
   const placeholders = (t.spec.placeholders?.length ?? 0) + (t.spec.rates ?? []).filter((r) => r.source !== "owner").length;
-  const facts = toolFacts(t, atlasName);
+  const facts = toolFacts(t, atlasName).slice(1);
   const missing = t.missingItems?.length ?? 0;
   const warn = [placeholders > 0 && manager ? `${placeholders} rate${placeholders === 1 ? "" : "s"} to confirm` : null, missing > 0 && manager ? `can't run — ${missing === 1 ? "a price-book item is" : `${missing} price-book items are`} missing` : null].filter(Boolean).join(" · ");
+  const n = t.spec.inputs.length;
+  const web = t.isPublic && t.publicSlug;
   return (
     <EntityRowActions meta={{ kind: "tool", id: t.id, name: t.name, isActive: t.isActive, isPublic: Boolean(t.isPublic && t.publicSlug), manager }} onRun={t.isActive ? () => onRun(t) : undefined}>
-      <Link href={`/app/estimates/${t.id}`} prefetch={false} className={`ds-card ds-card-raised ds-tool-card ${t.isActive ? "" : "is-off"}`}>
+      <Link href={`/app/estimates/${t.id}`} prefetch={false} className={`ds-card ds-card-raised ds-tool-card ds-est-card ${t.isActive ? "" : "is-off"}`}>
         <div className="flex items-start justify-between gap-3">
-          <span className="ds-tool-icon" aria-hidden>
-            <Calculator size={18} strokeWidth={2.2} />
-          </span>
+          <p className="ds-est-card-name">{t.name}</p>
           <ToolStamp t={t} />
         </div>
-        <p className="mt-3 text-[16.5px] font-bold leading-snug tracking-[-0.012em] text-[color:var(--ds-ink)]">{t.name}</p>
         {t.description && <p className="mt-1 line-clamp-2 text-[13.5px] leading-snug text-[color:var(--ds-ink-2)]">{t.description}</p>}
-        {facts.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {facts.map((f) => (
-              <span key={f} className="ds-tool-fact">{f}</span>
-            ))}
-          </div>
-        )}
+        <div className="ds-est-card-flow">
+          <FlowDots spec={t.spec} />
+          <p className="ds-est-card-facts">
+            {n} question{n === 1 ? "" : "s"}
+            {facts.length > 0 ? ` · ${facts.join(" · ")}` : ""}
+          </p>
+        </div>
         {warn && <p className="mt-2 text-[12.5px] font-semibold text-[color:var(--ds-warn)]">{warn}</p>}
-        <div className="ds-tool-foot">
-          <span>{t.runs === 1 ? "Run once" : `Run ${t.runs} times`}</span>
-          <span>Updated {shortDate(t.updatedAt, tz)}</span>
+        <div className="ds-est-card-use">
+          <span>
+            {t.runs === 0 ? "Not run yet" : <><b>{t.runs.toLocaleString("en-US")}</b> {t.runs === 1 ? "run" : "runs"} by your team</>}
+          </span>
+          {web ? (
+            <span>
+              <b>{t.publicCalcs.toLocaleString("en-US")}</b> priced online → <b>{t.submissions.toLocaleString("en-US")}</b> {t.submissions === 1 ? "lead" : "leads"}
+            </span>
+          ) : (
+            <span className="ds-est-card-quiet">Updated {shortDate(t.updatedAt, tz)}</span>
+          )}
         </div>
       </Link>
     </EntityRowActions>
+  );
+}
+
+/** The last card on the shelf: a new tool is one sentence to Atlas. */
+function NewToolCard({ atlasName, onBuild }: { atlasName: string; onBuild: () => void }) {
+  return (
+    <button type="button" onClick={onBuild} className="ds-est-new">
+      <span className="ds-est-new-dots" aria-hidden>
+        <i />
+        <i />
+        <i />
+        <b>$</b>
+      </span>
+      <span className="ds-est-new-title">Build another tool</span>
+      <span className="ds-est-new-sub">Tell {atlasName} how you price a job. It writes the questions and the math.</span>
+    </button>
   );
 }
 
@@ -170,12 +194,12 @@ export default function EstimatesClient({
           </Link>
         )}
         {view === "tools" && manager ? (
-          <button type="button" onClick={() => setBuilding((b) => !b)} aria-label={building ? "Close the builder" : "Build a tool"} className={building ? "btn-tool-line flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-[10px] bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 sm:px-4" : "btn-primary h-10 shrink-0 justify-center sm:px-4"}>
+          <button type="button" onClick={() => setBuilding((b) => !b)} aria-label={building ? "Close the builder" : "Build a tool"} className={building ? "ds-btn ds-btn-outline h-10 shrink-0" : "ds-btn ds-btn-primary h-10 shrink-0"}>
             {building ? <X size={15} /> : <Plus size={15} />}
             <span className="hidden sm:inline">{building ? "Close" : "Build a tool"}</span>
           </button>
         ) : view === "tools" && active.length > 0 ? (
-          <button type="button" onClick={() => setRunning(active)} className="btn-primary h-10 shrink-0 justify-center">
+          <button type="button" onClick={() => setRunning(active)} className="ds-btn ds-btn-primary h-10 shrink-0">
             <Play size={15} /> Run a tool
           </button>
         ) : null}
@@ -245,6 +269,17 @@ export default function EstimatesClient({
                     <ToolCard t={t} manager={manager} atlasName={atlas.name} tz={tz} onRun={(x) => setRunning([x])} />
                   </div>
                 ))}
+                {manager && !building && !filtered && (
+                  <div className="ds-rise" style={{ "--ds-i": tools.length } as React.CSSProperties}>
+                    <NewToolCard
+                      atlasName={atlas.name}
+                      onBuild={() => {
+                        setBuilding(true);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                    />
+                  </div>
+                )}
               </div>
               <p className="mt-3 text-xs font-medium text-[color:var(--ds-muted)]">
                 {tools.length} {tools.length === 1 ? "tool" : "tools"}
