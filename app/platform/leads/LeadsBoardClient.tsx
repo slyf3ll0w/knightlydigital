@@ -563,9 +563,8 @@ export default function LeadsBoardClient({
                           <p className="text-sm font-semibold text-gray-900 truncate">
                             {card.name}
                           </p>
-                          {card.companyName && (
-                            <p className="text-xs text-gray-500 truncate">{card.companyName}</p>
-                          )}
+                          {/* flush (2026-11-23): the company line and the source/value line keep their space on every card, so cards in a column are the same height */}
+                          <p className="h-4 text-xs leading-4 text-gray-500 truncate">{card.companyName ?? "\u00a0"}</p>
                         </div>
                         {card.repeat && (
                           <span className="shrink-0" title="Has worked with you before">
@@ -574,8 +573,8 @@ export default function LeadsBoardClient({
                         )}
                       </div>
 
-                      {(card.value > 0 || card.leadSource) && (
-                        <div className="flex items-center justify-between gap-2 mt-2">
+                      {(
+                        <div className="flex h-5 items-center justify-between gap-2 mt-2">
                           <span className="text-xs text-gray-500 truncate">
                             {card.leadSource ?? ""}
                           </span>

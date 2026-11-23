@@ -6,6 +6,7 @@ import "./ds-schedule.css";
 import "./ds-estimates.css";
 import "./ds-clients.css";
 import "./ds-routes.css";
+import "./ds-flush.css";
 import "./moment.css";
 
 export const viewport: Viewport = {

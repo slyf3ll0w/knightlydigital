@@ -242,10 +242,11 @@ export default function HelpHome({
                       <span className="help-tile">
                         <Icon className="h-5 w-5" strokeWidth={2} />
                       </span>
-                      <span className="min-w-0 flex-1">
+                      {/* flush (2026-11-23): on wider screens the "N guides" line sits at the foot of every topic card */}
+                      <span className="min-w-0 flex-1 sm:flex sm:flex-col sm:self-stretch">
                         <h3 className="text-[17px] font-extrabold leading-snug">{s.title}</h3>
                         <span className="mt-1 hidden text-[14px] leading-relaxed text-gray-600 sm:block">{s.tagline}</span>
-                        <span className="mt-3 hidden sm:inline-flex items-center gap-0.5 text-[13.5px] font-bold text-[color:var(--hb-ink)]">
+                        <span className="mt-3 hidden sm:mt-auto sm:inline-flex sm:self-start sm:pt-3 items-center gap-0.5 text-[13.5px] font-bold text-[color:var(--hb-ink)]">
                           {s.articles.length} {s.articles.length === 1 ? "guide" : "guides"}
                           <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" strokeWidth={2.5} />
                         </span>

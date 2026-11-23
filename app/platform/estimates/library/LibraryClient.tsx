@@ -185,26 +185,29 @@ export default function LibraryClient({ manager, defaultIndustry, embedded = fal
           <div className="divide-y divide-gray-100">
             {rows.map((r) => {
               const open = expanded.has(r.id);
-              const long = r.description.length > 220 || r.description.includes("\n");
+              const long = r.description.length > 140 || r.description.includes("\n");
               const just = added[r.id];
               return (
                 <div key={r.id} className="px-4 py-4">
                   <div className="flex items-start gap-3">
                     <Monogram name={r.name} size={40} />
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                        <span className="text-[15px] font-semibold text-gray-900">{r.name}</span>
+                      <div className="flex items-center gap-x-2 gap-y-0.5">
+                        <span className="min-w-0 truncate text-[15px] font-semibold text-gray-900" title={r.name}>{r.name}</span>
                         <Chip>{r.industry}</Chip>
                         {r.mine && <Chip tone="primary">Yours</Chip>}
                       </div>
                       <p className="mt-0.5 text-xs text-gray-500">{r.byName ? `by ${r.byName}` : "Shared anonymously"}</p>
-                      <p className={`mt-2 whitespace-pre-line text-sm text-gray-700 ${open ? "" : "line-clamp-3"}`}>{r.description}</p>
+                      {/* flush (2026-11-23): collapsed, every description takes the same two lines and the More slot is always there, so rows match */}
+                      <p className={`mt-2 whitespace-pre-line text-sm text-gray-700 ${open ? "" : "line-clamp-2 min-h-[2.5rem]"}`} title={open ? undefined : r.description}>{r.description}</p>
+                      <div className="mt-1 h-4">
                       {long && (
-                        <button type="button" onClick={() => setExpanded((s) => { const n = new Set(s); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); return n; })} className="mt-1 text-xs font-medium text-gray-500 hover:text-gray-900">
+                        <button type="button" onClick={() => setExpanded((s) => { const n = new Set(s); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); return n; })} className="text-xs font-medium leading-4 text-gray-500 hover:text-gray-900">
                           {open ? "Less" : "More"}
                         </button>
                       )}
-                      <p className="mt-2 text-xs text-gray-500">
+                      </div>
+                      <p className="mt-2 truncate text-xs text-gray-500">
                         {r.facts.join(" · ")}
                         {r.adds > 0 ? ` · added ${r.adds.toLocaleString()} time${r.adds === 1 ? "" : "s"}` : ""}
                       </p>

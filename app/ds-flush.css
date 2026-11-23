@@ -1,0 +1,9 @@
+/* ── Flush (2026-11-23, David: "it makes things very confusing to look at
+   when things aren't flush"). Sibling cards shown together are the same
+   height and their parts line up. Page-specific fixes that don't belong in
+   one page's own CSS file live here. Loaded after the per-page files. */
+
+/* Estimator page, "In the app" / "On your website": the buttons in both
+   columns sit on the same line at the bottom. */
+.ds-est-where-col { display: flex; flex-direction: column; min-width: 0; }
+.ds-est-where-col > div.flex.flex-wrap:last-child { margin-top: auto; padding-top: 12px; }

@@ -125,12 +125,13 @@ export default function ReportsTab({
 
       {any && (
         <div className="grid gap-6 lg:grid-cols-2">
-          <div>
+          {/* flush (2026-11-23): the two lists stand the same height, their totals on one line */}
+          <div className="flex flex-col">
             <RuledLabel info="Who was on the job the invoice billed. A payment on a job with several people is split evenly between them so the column adds up; Unassigned is money with no job or nobody assigned.">
               By tech
             </RuledLabel>
-            <div className="ds-card overflow-hidden">
-              <div className="divide-y divide-gray-100">
+            <div className="ds-card flex flex-1 flex-col overflow-hidden">
+              <div className="flex-1 divide-y divide-gray-100">
                 {report.byTech.map((b) => (
                   <div key={b.name} className="flex items-center justify-between gap-4 px-4 py-2.5">
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">{b.name}</span>
@@ -144,12 +145,12 @@ export default function ReportsTab({
               </div>
             </div>
           </div>
-          <div>
+          <div className="flex flex-col">
             <RuledLabel info="The kind of work: the price-book services on the job (or its title). No job is money on invoices that weren't tied to a job, plus Square sales taken outside WorkBench.">
               By job type
             </RuledLabel>
-            <div className="ds-card overflow-hidden">
-              <div className="divide-y divide-gray-100">
+            <div className="ds-card flex flex-1 flex-col overflow-hidden">
+              <div className="flex-1 divide-y divide-gray-100">
                 {report.byJobType.map((b) => (
                   <div key={b.name} className="flex items-center justify-between gap-4 px-4 py-2.5">
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">{b.name}</span>

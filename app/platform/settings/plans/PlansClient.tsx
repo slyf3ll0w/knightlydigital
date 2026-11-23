@@ -395,7 +395,9 @@ function PlanCardView({
           {more ? "Less" : `${plan.includes.length - 4} more`}
         </button>
       )}
-      <div className="mt-4 flex items-center justify-between gap-2 border-t border-[color:var(--ds-line)] pt-3">
+      {/* flush (2026-11-23): the foot sits at the bottom of every plan card, whatever the list above it */}
+      <div className="min-h-4 flex-1" aria-hidden />
+      <div className="flex items-center justify-between gap-2 border-t border-[color:var(--ds-line)] pt-3">
         <span className="ds-small">
           {sub?.entitled && !ending && sub.chargedThrough ? `Renews ${shortDate(sub.chargedThrough)} · ${sub.cadence === "ANNUAL" ? "annual" : "monthly"}` : ""}
         </span>
