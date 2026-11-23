@@ -139,3 +139,46 @@
 .ld-peek-grid dd { min-width: 0; font-weight: 600; color: var(--ds-ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 
 @media (prefers-reduced-motion: reduce) { .ld-slot, .ld-peek { animation: none; } .ld-card, .ld-share > span { transition: none; } }
+
+/* ── Round 9 (2026-11-23, David: "the leads page needs more color"): each
+   stage wears its own color — a solid top rule and a soft wash on its
+   column, its share bar, and the edge of every card in it. The stage color
+   is the theme-guarded pick (themedBgVars → --bg-l / --bg-d), so a too-light
+   or too-dark pick still reads in both modes. Stale amber/red take over the
+   card edge. Flat color only — no gradients. */
+.ld-col.has-stage { --st: var(--bg-l, var(--ds-primary)); }
+html[data-mode="dark"] .ld-col.has-stage { --st: var(--bg-d, var(--ds-primary)); }
+.ld-col.has-stage {
+  background: color-mix(in srgb, var(--st) 7%, var(--ds-surface-2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st) 22%, var(--ds-line));
+}
+html[data-mode="dark"] .ld-col.has-stage { background: color-mix(in srgb, var(--st) 10%, var(--ds-surface-2)); }
+.ld-col.has-stage .ld-col-head {
+  background: color-mix(in srgb, var(--st) 7%, var(--ds-surface-2));
+  box-shadow: inset 0 3px 0 var(--st);
+  padding-top: 13px;
+}
+html[data-mode="dark"] .ld-col.has-stage .ld-col-head { background: color-mix(in srgb, var(--st) 10%, var(--ds-surface-2)); }
+.ld-col.has-stage .ld-dot { width: 10px; height: 10px; border-radius: 999px; }
+.ld-col.has-stage .ld-col-count {
+  min-width: 20px; height: 18px; padding: 0 6px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  color: color-mix(in srgb, var(--st) 70%, var(--ds-ink)); background: color-mix(in srgb, var(--st) 16%, transparent);
+}
+.ld-col.has-stage .ld-col-value { color: var(--ds-ink); }
+.ld-col.has-stage .ld-share { height: 4px; margin: 9px 0 0; border-radius: 999px; background: color-mix(in srgb, var(--st) 18%, transparent); }
+.ld-col.has-stage .ld-share > span { border-radius: 999px; }
+.ld-col.has-stage .ld-card::before { top: 0; bottom: 0; width: 3px; border-radius: 9px 0 0 9px; background: var(--st); }
+.ld-col.has-stage .ld-card.is-warn::before { background: var(--ds-warn); }
+.ld-col.has-stage .ld-card.is-bad::before { background: var(--ds-bad); }
+.ld-col.has-stage .ld-card:hover { box-shadow: 0 0 0 1px color-mix(in srgb, var(--st) 45%, var(--ds-line-strong)), var(--ds-shadow-1); }
+.ld-col.has-stage.is-drop { box-shadow: inset 0 0 0 2px var(--st); background: color-mix(in srgb, var(--st) 12%, var(--ds-surface-2)); }
+.ld-col.has-stage .ld-slot { border-color: var(--st); color: color-mix(in srgb, var(--st) 75%, var(--ds-ink)); background: color-mix(in srgb, var(--st) 9%, transparent); }
+.ld-col.has-stage .ld-empty.is-add span { color: color-mix(in srgb, var(--st) 75%, var(--ds-ink)); }
+.ld-col.has-stage .ld-empty.is-add:hover { border-color: var(--st); }
+/* collapsed strip: the stage color as its top rule */
+.ld-col.has-stage.is-collapsed { box-shadow: inset 0 3px 0 var(--st), inset 0 0 0 1px color-mix(in srgb, var(--st) 22%, var(--ds-line)); }
+.ld-col.has-stage.is-collapsed:hover { background: color-mix(in srgb, var(--st) 14%, var(--ds-surface-2)); }
+
+/* the header sentence's figures carry meaning: open money in brand, wins in green */
+.ld-lede b.ld-lede-money { color: var(--ds-primary); }
+.ld-lede b.ld-lede-won { color: var(--ds-good); }

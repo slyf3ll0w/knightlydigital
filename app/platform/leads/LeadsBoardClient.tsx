@@ -525,7 +525,7 @@ export default function LeadsBoardClient({
           <p className="ld-lede">
             {totalValue > 0 ? (
               <>
-                <b>{money(totalValue)}</b> open across <b>{working.length}</b> {working.length === 1 ? "lead" : "leads"}
+                <b className="ld-lede-money">{money(totalValue)}</b> open across <b>{working.length}</b> {working.length === 1 ? "lead" : "leads"}
               </>
             ) : (
               <>
@@ -540,7 +540,7 @@ export default function LeadsBoardClient({
                 </button>
               </>
             )}
-            {won30 > 0 && <> · <b>{won30}</b> won in 30 days</>}
+            {won30 > 0 && <> · <b className="ld-lede-won">{won30}</b> won in 30 days</>}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -678,7 +678,8 @@ export default function LeadsBoardClient({
                   type="button"
                   {...dropProps(stage.id)}
                   onClick={() => toggleCollapsed(stage.id)}
-                  className={`ld-col is-collapsed ${dropping ? "is-drop" : ""}`}
+                  className={`ld-col has-stage is-collapsed ${dropping ? "is-drop" : ""}`}
+                  style={themedBgVars(stage.color)}
                   aria-label={`Show ${stage.name} (${count})`}
                   title={`Show ${stage.name}`}
                 >
@@ -691,7 +692,8 @@ export default function LeadsBoardClient({
             return (
               <section
                 key={stage.id}
-                className={`ld-col w-[82vw] sm:w-80 lg:w-[288px] shrink-0 snap-center lg:snap-align-none ${dropping ? "is-drop" : ""}`}
+                className={`ld-col has-stage w-[82vw] sm:w-80 lg:w-[288px] shrink-0 snap-center lg:snap-align-none ${dropping ? "is-drop" : ""}`}
+                style={themedBgVars(stage.color)}
                 aria-label={stage.name}
               >
                 {/* Column header: name, count, value, the stage's share of the pipeline, reach to the next stage */}
