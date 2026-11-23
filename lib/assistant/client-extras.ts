@@ -48,7 +48,8 @@ export const clientExtraTools: Tool[] = [
       // listed, empty ones as null, so the model sees what could be filled.
       const defs = await getActiveFieldDefs(actor.companyId);
       const stored = (full.customFields as Record<string, string> | null) ?? {};
-      const customFields = Object.fromEntries(defs.map((d) => [d.label, stored[d.id] ?? null]));
+      // Values can come straight from a booking form a stranger filled in, so they are fenced like notes.
+      const customFields = Object.fromEntries(defs.map((d) => [d.label, quoted(stored[d.id], 300)]));
       return {
         client: clientName(contact),
         primaryAddress: contact.address,

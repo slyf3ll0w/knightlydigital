@@ -42,6 +42,11 @@ export async function createSuperadminSessionToken(userId: string): Promise<stri
 
 /** Returns the userId for a valid, unexpired token; null otherwise. */
 export async function verifySuperadminSessionToken(token: string): Promise<string | null> {
+  return (await readSuperadminSessionToken(token))?.userId ?? null;
+}
+
+/** The same check, also saying when the token was minted (so a password change can end older ones). */
+export async function readSuperadminSessionToken(token: string): Promise<{ userId: string; issuedAt: number } | null> {
   const dot = token.indexOf(".");
   if (dot < 1) return null;
   const payload = token.slice(0, dot);
@@ -59,7 +64,7 @@ export async function verifySuperadminSessionToken(token: string): Promise<strin
     const data = JSON.parse(atob(std)) as { uid?: string; exp?: number };
     if (typeof data.uid !== "string" || typeof data.exp !== "number") return null;
     if (data.exp < Date.now()) return null;
-    return data.uid;
+    return { userId: data.uid, issuedAt: data.exp - SUPERADMIN_SESSION_TTL_MS };
   } catch {
     return null;
   }

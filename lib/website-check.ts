@@ -43,7 +43,7 @@ export function isPrivateIp(ip: string): boolean {
   const v = isIP(ip);
   if (v === 4) {
     const [a, b] = ip.split(".").map(Number);
-    return a === 10 || a === 127 || a === 0 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254) || a >= 224;
+    return a === 10 || a === 127 || a === 0 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
   }
   if (v === 6) {
     const s = ip.toLowerCase();
@@ -51,6 +51,15 @@ export function isPrivateIp(ip: string): boolean {
     if (s.startsWith("fc") || s.startsWith("fd") || s.startsWith("fe8") || s.startsWith("fe9") || s.startsWith("fea") || s.startsWith("feb")) return true;
     const mapped = s.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
     if (mapped) return isPrivateIp(mapped[1]);
+    // The same IPv4-mapped address written in hex ("::ffff:7f00:1").
+    const hex = s.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+    if (hex) {
+      const hi = parseInt(hex[1], 16);
+      const lo = parseInt(hex[2], 16);
+      return isPrivateIp(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
+    }
+    // NAT64: an IPv4 address in IPv6 clothing, never a public website.
+    if (s.startsWith("64:ff9b:")) return true;
     return false;
   }
   return true;
@@ -85,7 +94,7 @@ function stripHtml(html: string): string {
     .replace(/\s+/g, " ");
 }
 
-async function hostIsPublic(host: string): Promise<boolean> {
+export async function hostIsPublic(host: string): Promise<boolean> {
   try {
     const addrs = await lookup(host, { all: true });
     return addrs.length > 0 && addrs.every((a) => !isPrivateIp(a.address));

@@ -97,6 +97,22 @@ function displayName(name: string | null | undefined, email: string): string {
  * signs in as. Never throws for expected outcomes — every refusal is a
  * reason the login page can explain.
  */
+/**
+ * Has the address's owner ever shown this password is theirs? Only a
+ * password set through an emailed link counts (a reset, or the set-password
+ * link a new teammate gets): that link went to the inbox. A password typed
+ * at sign-up, or by a manager, proves nothing about who holds the inbox.
+ */
+async function passwordProvenByOwner(account: { id: string; passwordChangedAt: Date | null }): Promise<boolean> {
+  if (!account.passwordChangedAt) return false;
+  const [reset, moved] = await Promise.all([
+    prisma.passwordResetToken.findFirst({ where: { usedAt: { not: null }, user: { accountId: account.id } }, select: { id: true } }),
+    // A confirmed change of sign-in address: its link went to this inbox too.
+    prisma.emailChangeToken.findFirst({ where: { usedAt: { not: null }, user: { accountId: account.id } }, select: { id: true } }),
+  ]);
+  return Boolean(reset || moved);
+}
+
 export async function resolveSocialSignIn(
   profile: SocialProfile,
   ctx: SocialSignInContext = {}
@@ -105,6 +121,7 @@ export async function resolveSocialSignIn(
 
   let accountId: string | null = null;
   let outcome: "existing" | "linked" | "created" = "existing";
+  let passwordRemoved = false;
 
   const identity = await prisma.accountIdentity.findUnique({
     where: identityKey(profile),
@@ -140,6 +157,17 @@ export async function resolveSocialSignIn(
     if (existing) {
       accountId = existing.id;
       outcome = "linked";
+      // Google / Apple has just proven who owns this address. A password on
+      // the login that the owner never proved was theirs stops working now:
+      // a starting password a manager typed, or one a stranger chose by
+      // signing up with somebody else's address and waiting for them to
+      // arrive (sign-up does not verify email). Stamping passwordChangedAt
+      // also ends every session opened with it. (2026-11-23 security review,
+      // David's choice: drop the password, no extra sign-up step.)
+      if (existing.passwordHash && !(await passwordProvenByOwner(existing))) {
+        await prisma.account.update({ where: { id: existing.id }, data: { passwordHash: null, passwordChangedAt: new Date() } });
+        passwordRemoved = true;
+      }
     } else {
       try {
         const created = await prisma.account.create({
@@ -201,6 +229,7 @@ export async function resolveSocialSignIn(
     const notice = signInMethodLinkedEmail({
       provider: PROVIDER_LABEL[profile.provider],
       providerEmail: email || null,
+      passwordRemoved,
     });
     sendEmail({ to: account.email, ...notice }).catch(() => {});
   }

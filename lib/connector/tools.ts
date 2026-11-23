@@ -122,7 +122,7 @@ export function toolTitle(name: string): string {
 
 /** Links that work like passwords (approve a quote, pay an invoice, sign an agreement, open a client's portal). */
 const SECRET_KEYS = new Set(["clientlink", "paylink", "signinglink", "publictoken", "hubtoken", "managetoken", "portallink", "hublink"]);
-const SECRET_URL = /https?:\/\/[^\s"'<>]+\/(?:quote|pay|contract|hub|portal|t|message)\/[A-Za-z0-9_-]{16,}[^\s"'<>]*/g;
+const SECRET_URL = /https?:\/\/[^\s"'<>]+\/(?:quote|pay|contract|hub|portal|t|message|api\/public\/leads|api\/public\/automations|api\/public\/calendar|api\/public\/ads-conversions)\/[A-Za-z0-9_-]{16,}[^\s"'<>]*/g;
 export const LINK_WITHHELD = "[link kept in Workbench — open the record there to share it]";
 
 /**

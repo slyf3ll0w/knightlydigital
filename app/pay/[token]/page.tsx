@@ -1,3 +1,4 @@
+import { publicInvoiceWithholdsClient } from "@/lib/public-doc-privacy";
 import { notFound } from "next/navigation";
 import { publicEmail } from "@/lib/public-email";
 import { prisma } from "@/lib/db";
@@ -116,6 +117,8 @@ export default async function PublicPayPage({
   if (!invoice) notFound();
   // "Keep my email off client pages" — swap before it serializes into the HTML
   invoice.company.email = publicEmail(invoice.company);
+  // A shop order placed against a client already on file shows nothing about them (lib/public-doc-privacy.ts)
+  const withheld = await publicInvoiceWithholdsClient(token);
 
   // The server charge path bills the remaining balance (invoiceBalance —
   // total + collected surcharges − payments) — the page must display and
@@ -138,7 +141,7 @@ export default async function PublicPayPage({
     <>
       <ViewBeacon kind="invoice" token={token} disabled={preview === "1"} />
       <PayPage
-        invoice={JSON.parse(JSON.stringify(invoice))}
+        invoice={JSON.parse(JSON.stringify(withheld ? { ...invoice, contact: null } : invoice))}
         balance={balance}
         pay={pay}
         preview={preview === "1"}

@@ -20,6 +20,7 @@ import { computeQuoteTotals } from "@/lib/quote-totals";
 import { money, shortDate, quoteDepositAmount, paymentMethodLabel } from "@/lib/statuses";
 import { loadJobReport, type JobReport } from "@/lib/job-report";
 import { readPhotoBytes } from "@/lib/photos";
+import { fetchPublicUrl } from "@/lib/public-fetch";
 import { STAGE_LABEL } from "@/lib/photos-shared";
 
 // ─── Shared bits ──────────────────────────────────────────────────────────────
@@ -146,8 +147,9 @@ async function loadLogo(company: CompanyForPdf): Promise<LogoSrc> {
   }
   if (company.logoUrl && /^https?:\/\//i.test(company.logoUrl)) {
     try {
-      const res = await fetch(company.logoUrl, { signal: AbortSignal.timeout(4000) });
-      if (!res.ok) return null;
+      // The address is whatever the company saved: public hosts only, every hop.
+      const res = await fetchPublicUrl(company.logoUrl, { timeoutMs: 4000 });
+      if (!res || !res.ok) return null;
       const format = fmt(res.headers.get("content-type")?.split(";")[0].trim());
       if (!format) return null;
       const bytes = Buffer.from(await res.arrayBuffer());
@@ -305,13 +307,15 @@ const QUOTE_STATUS_LABEL: Record<string, string> = {
 };
 
 export async function quotePdf(
-  where: import("@prisma/client").Prisma.QuoteWhereInput
+  where: import("@prisma/client").Prisma.QuoteWhereInput,
+  /** hideClient: leave the PREPARED FOR block off (lib/public-doc-privacy.ts). */
+  opts: { hideClient?: boolean } = {}
 ): Promise<{ buffer: Buffer; filename: string } | null> {
   const quote = await prisma.quote.findFirst({ where, include: quoteInclude });
   if (!quote) return null;
   const logo = await loadLogo(quote.company);
   return {
-    buffer: await renderToBuffer(buildQuoteDocument(quote, logo)),
+    buffer: await renderToBuffer(buildQuoteDocument(opts.hideClient ? { ...quote, contact: null } : quote, logo)),
     filename: `Quote-${quote.quoteNumber}.pdf`,
   };
 }
@@ -438,13 +442,15 @@ const invoiceInclude = {
 };
 
 export async function invoicePdf(
-  where: import("@prisma/client").Prisma.InvoiceWhereInput
+  where: import("@prisma/client").Prisma.InvoiceWhereInput,
+  /** hideClient: leave the PREPARED FOR block off (lib/public-doc-privacy.ts). */
+  opts: { hideClient?: boolean } = {}
 ): Promise<{ buffer: Buffer; filename: string } | null> {
   const invoice = await prisma.invoice.findFirst({ where, include: invoiceInclude });
   if (!invoice) return null;
   const logo = await loadLogo(invoice.company);
   return {
-    buffer: await renderToBuffer(buildInvoiceDocument(invoice, logo)),
+    buffer: await renderToBuffer(buildInvoiceDocument(opts.hideClient ? { ...invoice, contact: null } : invoice, logo)),
     filename: `Invoice-${invoice.invoiceNumber}.pdf`,
   };
 }

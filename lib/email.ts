@@ -689,14 +689,18 @@ export function teamAddedEmail({
 export function signInMethodLinkedEmail({
   provider,
   providerEmail,
+  passwordRemoved,
 }: {
   provider: string;
   providerEmail: string | null;
+  /** The login's old password was dropped at the link (lib/social-login.ts). */
+  passwordRemoved?: boolean;
 }): { subject: string; html: string } {
   const html = wbShell({
     inner: `
       ${hello()}
       ${p(`Sign in with ${esc(provider)} was just connected to your WorkBench login${providerEmail ? ` (${esc(providerEmail)})` : ""}. That ${esc(provider)} account can now open WorkBench without a password.`)}
+      ${passwordRemoved ? p(`For your safety, the password that was on this login no longer works and other devices were signed out. To use a password as well, choose Forgot password on the sign-in page.`) : ""}
       ${wbBtn(`${APP_URL}/app/settings/profile`, "Review sign-in methods")}
       ${aside("If this wasn't you, disconnect it under Settings, My Profile, Connected sign-ins, then change your password and reply to this email.")}`,
   });

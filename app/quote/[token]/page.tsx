@@ -1,3 +1,4 @@
+import { publicQuoteWithholdsClient } from "@/lib/public-doc-privacy";
 import { notFound } from "next/navigation";
 import { publicEmail } from "@/lib/public-email";
 import { prisma } from "@/lib/db";
@@ -100,12 +101,14 @@ export default async function PublicQuotePage({
   if (!quote) notFound();
   // "Keep my email off client pages" — swap before it serializes into the HTML
   quote.company.email = publicEmail(quote.company);
+  // A quote an open form started against a client already on file shows nothing about them (lib/public-doc-privacy.ts)
+  const withheld = await publicQuoteWithholdsClient(token);
 
   return (
     <>
       <ViewBeacon kind="quote" token={token} disabled={preview === "1"} />
       <QuoteAcceptPage
-        quote={JSON.parse(JSON.stringify(quote))}
+        quote={JSON.parse(JSON.stringify(withheld ? { ...quote, contact: null } : quote))}
         preview={preview === "1"}
         // Same rule the approve route applies: valid through the END of the
         // valid-until day in the company's timezone, not from noon.
