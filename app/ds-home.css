@@ -230,5 +230,5 @@ a.hm-money-read:hover .hm-money-read-text svg, a.hm-money-read-text:hover svg { 
 }
 
 /* "· 9 jobs" stays on the figure's line next to the week bars */
-.hm-money-read-text { white-space: nowrap; }
+.hm-money-read-text { white-space: nowrap; flex-wrap: nowrap; }
 .hm-money-read-text .ds-pic-quiet { white-space: nowrap; }
