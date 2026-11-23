@@ -15,7 +15,6 @@ import {
   ChevronUp,
   Check,
   Coffee,
-  CornerDownRight,
   Crosshair,
   GripVertical,
   Lock,
@@ -31,7 +30,6 @@ import {
   PanelLeftOpen,
   Plus,
   Printer,
-  Route as RouteIcon,
   Send,
   ShoppingBag,
   SquareCheck,
@@ -42,6 +40,7 @@ import {
 } from "lucide-react";
 import Modal from "@/components/Modal";
 import AddStopSheet from "./AddStopSheet";
+import { CrewPicker, DayRibbon, EmptyRouteArt } from "./RouteBits";
 import { Chip, InfoTip } from "@/components/ds";
 import { hapticImpact } from "@/lib/haptics";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -294,16 +293,6 @@ function shiftDate(dateStr: string, days: number): string {
   const dt = new Date(y, m - 1, d + days);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
-}
-
-/** "8:00 AM – 3:30 PM" from a route's first start to its last end. */
-function spanLabel(stops: RouteStop[], tz: string): string {
-  const timed = stops.filter((s) => !s.scheduledAnytime && s.scheduledAt);
-  if (!timed.length) return "Anytime";
-  const first = timed[0];
-  const last = timed[timed.length - 1];
-  const end = last.scheduledEnd ?? last.scheduledAt;
-  return `${fmtTime(first.scheduledAt, tz)} – ${fmtTime(end, tz)}`;
 }
 
 function miles(km: number | undefined): string | null {
@@ -1315,6 +1304,38 @@ export default function RouteMapClient({
     ? `${stopCount} stop${stopCount === 1 ? "" : "s"}${crewCount > 0 ? ` · ${crewCount} ${crewCount === 1 ? "crew" : "crews"}` : ""}`
     : "Loading the day…";
 
+  // The day in one sentence: stops, crews, time on the road, distance (visible crews only)
+  const visibleIds = new Set(groups.map((g) => g.userId));
+  const sumFor = (m: Record<string, number> | undefined) => Object.entries(m ?? {}).reduce((n, [k, v]) => (visibleIds.has(k) ? n + v : n), 0);
+  const driveMin = Math.round(sumFor(data?.drive?.totals));
+  const driveMi = miles(sumFor(data?.drive?.kmTotals));
+  const driveWords = driveMin >= 60 ? `${Math.floor(driveMin / 60)} hr${driveMin % 60 ? ` ${driveMin % 60} min` : ""}` : `${driveMin} min`;
+  const summaryEl = data ? (
+    <span className="route-sum">
+      <b>{stopCount}</b> stop{stopCount === 1 ? "" : "s"}
+      {crewCount > 0 && (
+        <>
+          {" "}for <b>{crewCount}</b> {crewCount === 1 ? "crew" : "crews"}
+        </>
+      )}
+      {driveMin > 0 && (
+        <>
+          {" "}· <b>{tilde}{driveWords}</b> on the road
+        </>
+      )}
+      {driveMi && (
+        <>
+          {" "}· <b>{tilde}{driveMi}</b>
+        </>
+      )}
+    </span>
+  ) : (
+    "Loading the day…"
+  );
+  const nowMs = date === today ? Date.now() : null;
+  const activePeople = canDispatch ? users.filter((u) => u.isActive) : [];
+  const crewColor = (id: string) => TECH_COLORS[Math.max(0, roster.findIndex((r) => r.id === id)) % TECH_COLORS.length];
+
   const ctl = "wb-map-ctl";
 
   /** The stop list — one element, styled as a floating panel on desktop and a bottom sheet on phones. */
@@ -1411,7 +1432,7 @@ export default function RouteMapClient({
 
       {!loading && groups.length === 0 && (
         <div className="ds-card px-4 py-10 text-center">
-          <RouteIcon size={22} className="mx-auto mb-2 text-gray-300" />
+          <EmptyRouteArt />
           <p className="flex items-center justify-center gap-1 text-sm font-semibold text-gray-900">
             Nothing scheduled this day
             <InfoTip>
@@ -1475,7 +1496,7 @@ export default function RouteMapClient({
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold text-gray-900">{g.name}</p>
                   <p className="numeral-ledger text-[11px] text-gray-500">
-                    {g.stops.length} stop{g.stops.length === 1 ? "" : "s"} · {spanLabel(g.stops, tz)}
+                    {g.stops.length} stop{g.stops.length === 1 ? "" : "s"}{g.stops.every((x) => x.scheduledAnytime || !x.scheduledAt) ? " · Anytime" : ""}
                     {(data?.drive?.totals[g.userId] ?? 0) > 0 && ` · ${tilde}${Math.round(data!.drive!.totals[g.userId])} min drive`}
                     {mi && ` · ${tilde}${mi}`}
                   </p>
@@ -1548,7 +1569,11 @@ export default function RouteMapClient({
                 )}
               </div>
             </div>
-            <ul className="divide-y divide-gray-100">
+            <DayRibbon stops={g.stops} color={g.color} tz={tz} now={nowMs} />
+            <ul
+              className="route-spine"
+              style={{ ["--tech" as string]: g.color, ["--spine-x" as string]: (g.userId ? mayOptimize(g.userId) || canDispatch : canDispatch) ? "49px" : "35px" }}
+            >
               {g.stops.map((s, i) => {
                 const key = `${g.userId}:${s.id}`;
                 const leg = data?.drive?.legs[g.userId]?.[s.id];
@@ -1564,11 +1589,19 @@ export default function RouteMapClient({
                 const mayTick = extra && (canDispatch || g.userId === meId);
                 const beforeTitle = s.beforeStopId ? g.stops.find((x) => x.id === s.beforeStopId)?.title ?? null : null;
                 return (
-                  <li key={s.id} data-stop-row data-stop-key={key} data-group={g.userId} data-index={i} className={insertBefore ? "border-t-2 border-t-[color:var(--ds-primary)]" : ""}>
+                  <li
+                    key={s.id}
+                    data-stop-row
+                    data-stop-key={key}
+                    data-group={g.userId}
+                    data-index={i}
+                    className={`route-stop ${i === 0 && !(leg != null && leg > 0) ? "is-first" : ""} ${i === g.stops.length - 1 ? "is-last" : ""} ${done ? "is-done" : ""} ${insertBefore ? "border-t-2 border-t-[color:var(--ds-primary)]" : ""}`}
+                  >
                     {leg != null && leg > 0 && (
-                      <p className="numeral-ledger flex items-center gap-1.5 px-4 pt-2 text-[10.5px] text-gray-400">
-                        <CornerDownRight size={11} className="shrink-0" />
-                        {tilde}{leg} min drive{legMi ? ` · ${tilde}${legMi}` : ""}{i === 0 ? " from HQ" : ""}
+                      <p className={`route-leg numeral-ledger ${tilde ? "is-est" : ""} ${i === 0 ? "is-from-hq" : ""}`}>
+                        <span className="route-leg-text">
+                          {tilde}{leg} min drive{legMi ? ` · ${tilde}${legMi}` : ""}{i === 0 ? " from HQ" : ""}
+                        </span>
                       </p>
                     )}
                     <div
@@ -1615,7 +1648,7 @@ export default function RouteMapClient({
                           }}
                           aria-label={done ? `Mark ${s.title} not done` : `Mark ${s.title} done`}
                           title={done ? "Not done after all" : "Done"}
-                          className={`no-print flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors disabled:opacity-50 ${
+                          className={`route-dot ${done ? "" : "is-open"} no-print flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors disabled:opacity-50 ${
                             done ? "bg-[color:var(--ds-good)] text-white" : "border-2 text-transparent hover:text-gray-400"
                           }`}
                           style={done ? undefined : { borderColor: s.kind === "break" ? "var(--ds-faint)" : g.color }}
@@ -1624,7 +1657,7 @@ export default function RouteMapClient({
                         </button>
                       ) : (
                         <span
-                          className={`numeral-ledger flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
+                          className={`route-dot numeral-ledger flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
                             s.progress === "active" ? "route-stop-active" : ""
                           }`}
                           style={{ background: s.lat == null && s.kind !== "break" ? "var(--ds-faint)" : done ? "var(--ds-good)" : s.kind === "break" ? "var(--ds-faint)" : g.color }}
@@ -1928,7 +1961,17 @@ export default function RouteMapClient({
               </button>
             )}
           </div>
-          {canDispatch && users.length > 1 && (
+          {canDispatch && activePeople.length > 1 && activePeople.length <= 8 && (
+            <div className="wb-map-glass hidden rounded-[12px] px-1 py-1 lg:block">
+              <CrewPicker
+                people={activePeople.map((u) => ({ id: u.id, name: u.name, color: crewColor(u.id) }))}
+                team={team}
+                onPick={(id) => go({ team: id })}
+                meId={meId}
+              />
+            </div>
+          )}
+          {canDispatch && users.length > 1 && !(activePeople.length > 1 && activePeople.length <= 8) && (
             <div className="wb-map-glass hidden rounded-[12px] px-1 py-1 lg:block">
               <select
                 value={team}
@@ -2056,7 +2099,7 @@ export default function RouteMapClient({
           >
             <div className="mx-auto mt-2.5 h-1 w-9 rounded-full bg-gray-300/90" />
             <div className="flex items-center justify-between gap-2 px-4 pb-1.5 pt-2">
-              <p className="numeral-ledger min-w-0 truncate text-sm font-bold text-gray-900">{summary}</p>
+              <p className="numeral-ledger min-w-0 truncate text-sm text-gray-900">{summaryEl}</p>
               <div className="flex shrink-0 items-center gap-1.5">
                 {canDispatch && users.length > 1 && (
                   <select
@@ -2080,7 +2123,7 @@ export default function RouteMapClient({
           </div>
           {/* Desktop head: summary + collapse */}
           <div className="route-dock-head hidden shrink-0 items-center justify-between gap-2 border-b border-gray-200/80 px-3 py-2 lg:flex">
-            <p className="numeral-ledger min-w-0 truncate text-[13px] font-semibold text-gray-800">{summary}</p>
+            <p className="numeral-ledger min-w-0 truncate text-[13px] text-gray-800">{summaryEl}</p>
             <button
               type="button"
               onClick={() => setPanelOpen(false)}

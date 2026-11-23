@@ -53,6 +53,7 @@ export default function AutomationBuildPanel({
   compact = false,
   autoFocus = false,
   placeholder,
+  initialPrompt = "",
 }: {
   /** The rule on screen — set → the box changes it instead of starting fresh. */
   current: { name: string; description: string; spec: AutomationSpec | null } | null;
@@ -62,10 +63,12 @@ export default function AutomationBuildPanel({
   compact?: boolean;
   autoFocus?: boolean;
   placeholder?: string;
+  /** Pre-fills the box (an example picked on the list, `?ask=` on /new). Nothing runs until they press go. */
+  initialPrompt?: string;
 }) {
   const atlas = useAssistant();
   const changing = Boolean(current);
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(initialPrompt);
   const [running, setRunning] = useState(false);
   const [phaseIdx, setPhaseIdx] = useState(0);
   const [error, setError] = useState("");
