@@ -23,6 +23,7 @@ import type { SocialSignIn } from "@/lib/sign-in-options";
 
 type SocialLoginPlugin = {
   initialize?: (options: unknown) => Promise<void>;
+  logout?: (options: { provider: string }) => Promise<void>;
   login?: (options: unknown) => Promise<{
     provider?: string;
     result?: {
@@ -93,15 +94,25 @@ export async function nativeGoogleIdToken(social: SocialSignIn): Promise<NativeS
   if (!p || social.google !== "native" || !social.googleServerClientId) return { ok: false, canceled: false };
   try {
     await ensureInitialized(p, social);
+    // The full account sheet every time, matching the web flow's
+    // prompt=select_account: people with a work and a personal Google
+    // account must be able to pick. Two things were defeating that:
+    // - iOS: without forcePrompt the plugin calls the Google SDK's
+    //   restorePreviousSignIn and hands back the LAST account silently,
+    //   so the picker never opened after the first sign-in.
+    // - Android: Credential Manager remembers the last pick. logout() only
+    //   clears the plugin's local state (GIDSignIn.signOut on iOS,
+    //   clearCredentialState on Android); it never signs anyone out of
+    //   Google or of WorkBench. Best effort: a failure here must not stop
+    //   the sign-in.
+    await p.logout?.({ provider: "google" }).catch(() => undefined);
     const res = await p.login?.({
       provider: "google",
       options: {
         scopes: ["email", "profile"],
-        // The full account sheet every time, matching the web flow's
-        // prompt=select_account: people with a work and a personal Google
-        // account must be able to pick.
         style: "standard",
         filterByAuthorizedAccounts: false,
+        forcePrompt: true,
       },
     });
     const idToken = res?.result?.idToken;
