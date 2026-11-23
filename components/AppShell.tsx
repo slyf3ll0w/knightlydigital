@@ -36,6 +36,9 @@ import {
   ChevronsUpDown,
   CircleUserRound,
   LifeBuoy,
+  Wrench,
+  Wallet,
+  BarChart3,
   Wand2,
   MessageSquare,
   MessagesSquare,
@@ -352,6 +355,20 @@ const railGroups: { key: string; label: string; items: NavItem[] }[] = [
       { href: "/app/settings/team", label: "Team & roles", icon: UserPlus, show: isManagerRole },
     ],
   },
+];
+
+// ── Desktop dock (2026-11-23, David picked the "two-column dock") ────────────
+// Left: one bold icon per area. Right: that area's pages. The areas are the
+// rail's daily drivers (Home) plus its three groups.
+type RailArea = { key: string; label: string; icon: typeof Home; items: NavItem[] };
+const railAreas: RailArea[] = [
+  { key: "home", label: "Home", icon: Home, items: railDrivers },
+  ...railGroups.map((g) => ({
+    key: g.key,
+    label: g.label,
+    icon: g.key === "work" ? Wrench : g.key === "money" ? Wallet : BarChart3,
+    items: g.items,
+  })),
 ];
 
 // Which Pro feature sits behind a nav href (from the item definitions above,
@@ -746,12 +763,15 @@ function UserMenu({
   userId,
   companyName,
   suggestChanges = false,
+  compact = false,
 }: {
   userName?: string | null;
   userEmail?: string | null;
   userId?: string | null;
   companyName?: string | null;
   suggestChanges?: boolean;
+  /** The dock: just the avatar; the menu opens to the right of it. */
+  compact?: boolean;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -784,7 +804,7 @@ function UserMenu({
   return (
     <div className="relative" ref={ref}>
       {open && (
-        <div className="sheet-material absolute bottom-full left-2 right-2 mb-1.5 z-50 rounded-lg shadow-xl ring-1 ring-black/5 py-1.5 overflow-hidden">
+        <div className={`sheet-material absolute z-50 rounded-lg shadow-xl ring-1 ring-black/5 py-1.5 overflow-hidden ${compact ? "bottom-0 left-full ml-2 w-64" : "bottom-full left-2 right-2 mb-1.5"}`}>
           <p className="px-3.5 pb-1 pt-1.5 text-[11px] font-semibold text-gray-400">
             Your companies
           </p>
@@ -856,6 +876,18 @@ function UserMenu({
           </p>
         </div>
       )}
+      {compact ? (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-label={userName ? `${userName} — account` : "Account"}
+          aria-expanded={open}
+          data-tip={userName ?? "Account"}
+          className="rail-dock-btn rail-dock-me"
+        >
+          <Avatar name={userName} userId={userId} size={30} />
+        </button>
+      ) : (
       <button
         onClick={() => setOpen((v) => !v)}
         className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[var(--rail-hover)] transition-colors text-left"
@@ -869,6 +901,7 @@ function UserMenu({
         </div>
         <ChevronsUpDown size={13} className="text-[color:var(--rail-faint)] shrink-0" />
       </button>
+      )}
     </div>
   );
 }
@@ -1837,28 +1870,11 @@ export default function AppShell({
   };
   const mainRef = useRef<HTMLElement>(null);
 
-  // Rail v2: collapsible group open-state, remembered per user (a group
-  // holding the active route is additionally forced open at render, so
-  // "where am I" never hides).
-  const groupsKey = `wb-rail-groups:${userId ?? "shared"}`;
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
-  useEffect(() => {
-    try {
-      setOpenGroups(JSON.parse(localStorage.getItem(groupsKey) ?? "{}") ?? {});
-    } catch {
-      // storage blocked — groups just start collapsed
-    }
-  }, [groupsKey]);
-  const toggleGroup = (key: string) =>
-    setOpenGroups((prev) => {
-      const next = { ...prev, [key]: !(prev[key] ?? false) };
-      try {
-        localStorage.setItem(groupsKey, JSON.stringify(next));
-      } catch {
-        // ignore
-      }
-      return next;
-    });
+  // Dock (2026-11-23): which area's pages the second column lists. null =
+  // the area holding the current page; clicking an area icon picks another
+  // (it doesn't navigate) until the route changes, then it snaps back.
+  const [dockPick, setDockPick] = useState<string | null>(null);
+  useEffect(() => setDockPick(null), [pathname]);
 
   // The sliding accent bar: ONE indicator that travels to the active row
   // instead of each row painting its own. Repositioned after every render —
@@ -1881,23 +1897,6 @@ export default function AppShell({
     ind.style.height = `${el.offsetHeight}px`;
     ind.classList.add("rail-indicator-on");
   });
-  // A section easing open or closed above the active row moves it after the
-  // render-time measure above, so settle the puck when that height lands.
-  useEffect(() => {
-    const nav = railNavRef.current;
-    const ind = railIndRef.current;
-    if (!nav || !ind) return;
-    const settle = (e: TransitionEvent) => {
-      if (!(e.target instanceof HTMLElement) || !e.target.classList.contains("rail-group-body")) return;
-      const el = nav.querySelector<HTMLElement>('[data-rail-active="true"]');
-      if (!el) return;
-      const top = el.getBoundingClientRect().top - nav.getBoundingClientRect().top + nav.scrollTop;
-      ind.style.transform = `translateY(${Math.round(top)}px)`;
-    };
-    nav.addEventListener("transitionend", settle);
-    return () => nav.removeEventListener("transitionend", settle);
-  });
-
   // iOS large-title collapse: TitleSentinel (inside each PageTitle) reports
   // when the big in-page title scrolls away; the header raises a small one.
   const [headerTitle, setHeaderTitle] = useState<{ text: string; shown: boolean }>({
@@ -2410,10 +2409,9 @@ export default function AppShell({
   // (the sliding indicator paints it — rows carry no per-section hue), and
   // counts as right-aligned ledger numerals instead of badge pills.
   const railCreates = forRole(createItems, role ?? "", salesMoney);
-  // `tree`: the row sits in an open sidebar section — it wears the branch
-  // of the section's tree line (.rail-tree in globals.css) and cascades in
-  // with the section's open animation (--i = its place in the section).
-  const navLink = (href: string, label: string, Icon: typeof Home, animIndex?: number, tree?: { i: number; last: boolean }) => {
+  // Dock list rows: every row exactly 34px, icon and label on fixed columns,
+  // counts right-aligned; animIndex cascades the rows in when the list changes.
+  const navLink = (href: string, label: string, Icon: typeof Home, animIndex?: number) => {
     const active = isActive(href);
     const badge = badgeCount(href);
     return (
@@ -2422,15 +2420,8 @@ export default function AppShell({
         href={href}
         data-tour={tourKeys[href]}
         data-rail-active={active ? "true" : undefined}
-        data-tree={tree ? (tree.last ? "last" : "mid") : undefined}
-        style={
-          tree
-            ? ({ "--i": tree.i } as React.CSSProperties)
-            : animIndex !== undefined
-              ? { animationDelay: `${animIndex * 22}ms` }
-              : undefined
-        }
-        className={`${animIndex !== undefined ? "rail-item-in " : ""}rail-row group font-display relative mx-2 flex items-center gap-2.5 rounded-[10px] py-[7px] pl-3 pr-3 text-[13.5px] transition-colors ${
+        style={animIndex !== undefined ? { animationDelay: `${animIndex * 24}ms` } : undefined}
+        className={`${animIndex !== undefined ? "rail-item-in " : ""}rail-row group font-display relative mx-2 flex h-[34px] items-center gap-2.5 rounded-[9px] pl-2.5 pr-2.5 text-[13.5px] transition-colors ${
           active
             ? "font-bold text-[color:var(--rail-ink)]" /* the solid puck behind it is .rail-indicator */
             : "font-medium text-[color:var(--rail-muted)] hover:bg-[var(--rail-hover)] hover:text-[color:var(--rail-ink)]"
@@ -2469,76 +2460,85 @@ export default function AppShell({
     );
   };
 
+  // ── The dock ──────────────────────────────────────────────────────────
+  const dockAreas = railAreas
+    .map((a) => ({ ...a, items: forStudio(forRole(a.items, userRole, salesMoney), websiteStudio) }))
+    .filter((a) => a.items.length > 0);
+  const hereArea = dockAreas.find((a) => a.items.some((i) => isActive(i.href)))?.key ?? null;
+  const shownArea = dockAreas.find((a) => a.key === (dockPick ?? hereArea)) ?? dockAreas[0];
+  const areaCount = (a: (typeof dockAreas)[number]) => a.items.reduce((n, i) => n + badgeCount(i.href), 0);
+
+  const dockBtn = (key: string, label: string, Icon: typeof Home, on: boolean, count: number, here: boolean) => (
+    <button
+      key={key}
+      type="button"
+      onClick={() => setDockPick(key)}
+      aria-pressed={on}
+      aria-label={count > 0 ? `${label}, ${count} new` : label}
+      data-tip={label}
+      className={`rail-dock-btn ${on ? "is-on" : ""} ${here ? "is-here" : ""}`}
+    >
+      <Icon size={20} strokeWidth={on ? 2.6 : 2.3} />
+      {count > 0 && <span className="rail-dock-count">{count > 99 ? "99+" : count}</span>}
+    </button>
+  );
+
+  const dockMark = companyLogoUrl ? (
+    <span
+      className="theme-fixed rail-dock-mark overflow-hidden"
+      style={{ backgroundColor: sidebarLogoColor || "#FFFFFF" }}
+      title={companyName ?? undefined}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={companyLogoUrl} alt={companyName ?? ""} className="h-full w-full object-contain p-1" />
+    </span>
+  ) : (
+    <span className="rail-dock-mark font-display text-[17px] font-bold" style={{ backgroundColor: railAccent, color: textOn(railAccent) }} title={companyName ?? undefined}>
+      {companyName?.charAt(0).toUpperCase() ?? "W"}
+    </span>
+  );
+
   const sidebarInner = (
     <>
-      {/* Rail v2: six daily drivers, then collapsible groups. Full-bleed
-          rows on a calm rail — the sliding indicator is the only accent.
-          Create moved to the top bar; the rail is pure navigation. */}
-      <nav ref={railNavRef} className="relative flex-1 py-3 overflow-y-auto">
-        <span ref={railIndRef} aria-hidden className="rail-indicator" />
-        {forRole(railDrivers, userRole, salesMoney).map(({ href, label, icon: Icon }) =>
-          navLink(href, label, Icon)
-        )}
-        {railGroups
-          .map((g) => ({ ...g, items: forStudio(forRole(g.items, userRole, salesMoney), websiteStudio) }))
-          .filter((g) => g.items.length > 0)
-          .map((g) => {
-            const open = (openGroups[g.key] ?? false) || g.items.some((i) => isActive(i.href));
-            const rollup = open ? 0 : g.items.reduce((n, i) => n + badgeCount(i.href), 0);
-            return (
-              // Ledger section head: the label sits set INTO a hairline that
-              // runs out to the chevron — the label IS the divider, so the
-              // plain border-top these groups used to wear is gone.
-              <div key={g.key} className="mt-3">
-                <button
-                  type="button"
-                  onClick={() => toggleGroup(g.key)}
-                  aria-expanded={open}
-                  className={`w-full font-display flex items-center gap-2.5 py-2 pl-5 pr-4 text-[12.5px] font-bold transition-colors hover:text-[color:var(--rail-muted)] ${
-                    open ? "text-[color:var(--rail-muted)]" : "text-[color:var(--rail-faint)]"
-                  }`}
-                >
-                  <span className="shrink-0">{g.label}</span>
-                  <span aria-hidden className="rail-head-rule" />
-                  {rollup > 0 && (
-                    <span key={rollup} className="rail-count shrink-0 text-[color:var(--rail-num)]">
-                      {rollup > 99 ? "99+" : rollup}
-                    </span>
-                  )}
-                  <ChevronDown
-                    size={13}
-                    className={`rail-head-chev shrink-0 ${open ? "" : "-rotate-90"}`}
-                  />
-                </button>
-                {/* Always mounted so opening can animate: the body's height
-                    eases open (grid 0fr → 1fr), the tree line draws down and
-                    the rows cascade in. `inert` keeps a closed section's
-                    rows out of tab order. */}
-                <div className={`rail-group-body ${open ? "is-open" : ""}`} inert={!open}>
-                  <div className="rail-tree">
-                    {g.items.map(({ href, label, icon: Icon }, i) =>
-                      navLink(href, label, Icon, undefined, { i, last: i === g.items.length - 1 }),
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+      {/* Left: one bold icon per area; Help, Settings and you at the foot */}
+      <div className="rail-dock">
+        <Link prefetch={false} href="/app/dashboard" aria-label={companyName ? `${companyName} home` : "Home"} className="rail-dock-home">
+          {dockMark}
+        </Link>
+        <div className="rail-dock-areas" role="group" aria-label="Areas">
+          {dockAreas.map((a) => dockBtn(a.key, a.label, a.icon, a.key === shownArea?.key, a.key === shownArea?.key ? 0 : areaCount(a), a.key === hereArea))}
+        </div>
+        <div className="rail-dock-foot">
+          <Link prefetch={false} href="/app/help" aria-label="Help" data-tip="Help" className={`rail-dock-btn ${isActive("/app/help") ? "is-here" : ""}`}>
+            <LifeBuoy size={20} strokeWidth={2.3} />
+          </Link>
+          {manager && (
+            <Link prefetch={false} href="/app/settings" aria-label="Settings" data-tip="Settings" className="rail-dock-btn">
+              <Settings size={20} strokeWidth={2.3} data-anim="turn" />
+            </Link>
+          )}
+          <UserMenu
+            compact
+            userName={userName}
+            userEmail={userEmail}
+            userId={userId}
+            companyName={companyName}
+            suggestChanges={suggestChanges}
+          />
+        </div>
+      </div>
 
-        {/* Team chat lives in the top bar on desktop (and the More sheet on
-            mobile) — it's a companion to every page, not a destination */}
-      </nav>
-
-      {/* Settings + identity */}
-      <div className="py-1.5 border-t border-[color:var(--rail-line)]">
-        {manager && navLink("/app/settings", "Settings", Settings)}
-        <UserMenu
-          userName={userName}
-          userEmail={userEmail}
-          userId={userId}
-          companyName={companyName}
-          suggestChanges={suggestChanges}
-        />
+      {/* Right: the picked area's pages. Only that area is mounted, so the
+          other areas' rows are out of the tab order. */}
+      <div className="rail-list">
+        <div className="rail-list-head">
+          <p className="rail-list-title">{shownArea?.label}</p>
+          <p className="rail-list-sub">{companyName ?? "WorkBench"}</p>
+        </div>
+        <nav ref={railNavRef} key={shownArea?.key} aria-label={shownArea ? `${shownArea.label} pages` : "Pages"} className="relative flex-1 overflow-y-auto py-2">
+          <span ref={railIndRef} aria-hidden className="rail-indicator" />
+          {shownArea?.items.map(({ href, label, icon: Icon }, i) => navLink(href, label, Icon, i))}
+        </nav>
       </div>
     </>
   );
@@ -2552,39 +2552,6 @@ export default function AppShell({
   // only — the rail's width is fixed, so the plate can grow tall, never wide.
   // The --rail-logo-h var lets the settings slider preview live while
   // dragging; the stored value is the fallback.
-  const logoPlateH = Math.min(Math.max(sidebarLogoSize ?? 56, 36), 128);
-  const logo = companyLogoUrl ? (
-    <div className="px-3 py-2.5 border-b border-[color:var(--rail-line)]">
-      <span
-        className="theme-fixed flex w-full items-center justify-center overflow-hidden rounded-xl shadow-sm ring-1 ring-[color:var(--rail-line)]"
-        style={{
-          backgroundColor: sidebarLogoColor || "#FFFFFF",
-          height: `var(--rail-logo-h, ${logoPlateH}px)`,
-        }}
-        title={companyName ?? undefined}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={companyLogoUrl}
-          alt={companyName ?? ""}
-          className="h-full w-full object-contain p-1.5"
-        />
-      </span>
-    </div>
-  ) : (
-    <div className="flex items-center gap-3 px-3.5 min-h-[57px] border-b border-[color:var(--rail-line)] min-w-0">
-      <span
-        className="w-11 h-11 rounded-[10px] flex items-center justify-center shrink-0 font-display font-bold text-lg shadow-sm"
-        style={{ backgroundColor: railAccent, color: textOn(railAccent) }}
-      >
-        {companyName?.charAt(0).toUpperCase() ?? "W"}
-      </span>
-      <span className="font-display font-semibold text-[15px] tracking-tight text-[color:var(--rail-ink)] truncate">
-        {companyName ?? "WorkBench"}
-      </span>
-    </div>
-  );
-
   // Tenant brand color → per-theme mobile accent tokens (globals.css holds
   // the WorkBench-blue defaults; CSS resolves light vs dark, so the
   // active tab / create button read on BOTH bars).
@@ -2661,7 +2628,7 @@ export default function AppShell({
       </Suspense>
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
       <aside
-        className="hidden lg:flex flex-col w-[232px] shrink-0 rail-gray border-r border-[color:var(--rail-line)]"
+        className="rail-gray rail-docked hidden lg:flex shrink-0 border-r border-[color:var(--rail-line)]"
         style={
           {
             "--rail-accent-l": railAccent,
@@ -2669,7 +2636,6 @@ export default function AppShell({
           } as React.CSSProperties
         }
       >
-        {logo}
         {sidebarInner}
       </aside>
 
