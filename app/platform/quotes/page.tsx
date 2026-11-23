@@ -83,20 +83,11 @@ export default async function QuotesPage({
     ...search,
   };
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
 
-  const eightWeeksAgo = new Date(Date.now() - 56 * 86400000);
+  const sixtyDaysAgo = new Date(Date.now() - 60 * 86400000);
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000);
 
-  // The pipeline picture: the clients sitting in each lane (newest first)
-  const lanePeople = (status: QuoteStatus) =>
-    prisma.quote.findMany({
-      where: { companyId, ...scope, status },
-      orderBy: { updatedAt: "desc" },
-      take: 7,
-      select: { id: true, title: true, contact: { select: { firstName: true, lastName: true } } },
-    });
-
-  const [quotes, listCount, byStatus, sent30, approved30, approved8w, laneDraft, laneAwaiting, laneApproved] = await Promise.all([
+  const [quotes, listCount, byStatus, approved60, made90, madeSent90, sent90, sentWon90, waitingRows] = await Promise.all([
     prisma.quote.findMany({
       where: listWhere,
       include: { contact: true },
@@ -111,42 +102,59 @@ export default async function QuotesPage({
       _count: true,
       _sum: { total: true },
     }),
-    prisma.quote.count({ where: { companyId, ...scope, sentAt: { gte: thirtyDaysAgo } } }),
-    prisma.quote.aggregate({
-      where: {
-        companyId,
-        ...scope,
-        approvedAt: { gte: thirtyDaysAgo },
-      },
-      _count: true,
-      _sum: { total: true },
-    }),
-    // The Won card's spark: approved value per week over the last 8 weeks
+    // Won: every approval in the last 60 days (this 30 and the 30 before), by day
     prisma.quote.findMany({
-      where: { companyId, ...scope, approvedAt: { gte: eightWeeksAgo } },
+      where: { companyId, ...scope, approvedAt: { gte: sixtyDaysAgo } },
       select: { approvedAt: true, total: true },
     }),
-    lanePeople("DRAFT"),
-    lanePeople("AWAITING_RESPONSE"),
-    lanePeople("APPROVED"),
+    // Stage-to-stage rates over 90 days: new → sent, sent → approved
+    prisma.quote.count({ where: { companyId, ...scope, createdAt: { gte: ninetyDaysAgo } } }),
+    prisma.quote.count({ where: { companyId, ...scope, createdAt: { gte: ninetyDaysAgo }, sentAt: { not: null } } }),
+    prisma.quote.count({ where: { companyId, ...scope, sentAt: { gte: ninetyDaysAgo } } }),
+    prisma.quote.count({ where: { companyId, ...scope, sentAt: { gte: ninetyDaysAgo }, approvedAt: { not: null } } }),
+    // Waiting on a reply: oldest send first (the average reads all of them, capped)
+    prisma.quote.findMany({
+      where: { companyId, ...scope, status: "AWAITING_RESPONSE", sentAt: { not: null } },
+      orderBy: { sentAt: "asc" },
+      take: 300,
+      select: { id: true, title: true, total: true, sentAt: true, contact: { select: { firstName: true, lastName: true } } },
+    }),
   ]);
-  const lanes: Record<string, typeof laneDraft> = { DRAFT: laneDraft, AWAITING_RESPONSE: laneAwaiting, APPROVED: laneApproved };
-
   const nowMs = Date.now();
-  const dayFmt = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: tz });
-  const wonWeeks = Array.from({ length: 8 }, (_, k) => {
-    const back = 7 - k; // 7 = oldest week … 0 = the last 7 days
-    const end = nowMs - back * 7 * 86400000;
-    const start = end - 7 * 86400000;
-    const value = approved8w
-      .filter((q) => q.approvedAt && q.approvedAt.getTime() > start && q.approvedAt.getTime() <= end)
-      .reduce((sum, q) => sum + Number(q.total), 0);
-    return { label: back === 0 ? "Last 7 days" : `${dayFmt(start + 86400000)} – ${dayFmt(end)}`, value, display: money(value) };
+  const DAYMS = 86400000;
+  // Won: running total of approved value by day, the last 30 days against the 30 before
+  const dayKey = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" });
+  const dayLabel = new Intl.DateTimeFormat("en-US", { timeZone: tz, month: "short", day: "numeric" });
+  const wonByDay = new Map<string, number>();
+  for (const q of approved60) {
+    if (!q.approvedAt) continue;
+    const k = dayKey.format(q.approvedAt);
+    wonByDay.set(k, (wonByDay.get(k) ?? 0) + Number(q.total));
+  }
+  let runCur = 0;
+  let runPrev = 0;
+  const wonPoints = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(nowMs - (29 - i) * DAYMS);
+    const pd = new Date(d.getTime() - 30 * DAYMS);
+    runCur += wonByDay.get(dayKey.format(d)) ?? 0;
+    runPrev += wonByDay.get(dayKey.format(pd)) ?? 0;
+    return { label: dayLabel.format(d), cur: runCur, prev: runPrev, prevLabel: dayLabel.format(pd) };
   });
+  const wonTotal = runCur;
+  const wonPrevTotal = runPrev;
 
-  const conversionRate = sent30 > 0 ? Math.round((approved30._count / sent30) * 100) : null;
+  const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : null);
+  const waitDays = waitingRows.map((q) => Math.max(0, Math.floor((nowMs - q.sentAt!.getTime()) / DAYMS)));
+  const avgWait = waitDays.length > 0 ? waitDays.reduce((a, b) => a + b, 0) / waitDays.length : null;
+  const stalest = waitingRows.slice(0, 3).map((q, i) => ({
+    id: q.id,
+    name: `${q.contact.firstName} ${q.contact.lastName}`.trim() || "No name",
+    title: q.title ?? "Quote",
+    amount: Number(q.total),
+    days: waitDays[i],
+    href: `/app/quotes/${q.id}`,
+  }));
 
-  const approved30Total = Number(approved30._sum.total) || 0;
   const stage = (st: QuoteStatus) => byStatus.find((b) => b.status === st);
   const pipeline = (
     [
@@ -160,12 +168,6 @@ export default async function QuotesPage({
     count: stage(key)?._count ?? 0,
     amount: Number(stage(key)?._sum.total ?? 0),
     href: `/app/quotes?status=${key}`,
-    people: lanes[key].map((q) => ({
-      id: q.id,
-      name: `${q.contact.firstName} ${q.contact.lastName}`.trim(),
-      title: q.title ?? "",
-      href: `/app/quotes/${q.id}`,
-    })),
   }));
 
   const pageTotal = quotes.reduce((s, q) => s + Number(q.total), 0);
@@ -204,11 +206,10 @@ export default async function QuotesPage({
 
       <PipelineBand
         stages={pipeline}
-        won30={approved30Total}
-        conversion={conversionRate}
-        wonHref="/app/quotes?status=APPROVED"
-        wonWeeks={wonWeeks}
         showMoney
+        rates={{ sent: pct(madeSent90, made90), approved: pct(sentWon90, sent90) }}
+        waiting={{ avgDays: avgWait, count: waitingRows.length, stalest, href: "/app/quotes?status=AWAITING_RESPONSE" }}
+        won={{ total: wonTotal, prevTotal: wonPrevTotal, points: wonPoints, href: "/app/quotes?status=APPROVED" }}
       />
 
       <FilterBar

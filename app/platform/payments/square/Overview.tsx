@@ -4,7 +4,6 @@ import { listHref } from "@/components/FilterBar";
 import { money } from "@/lib/statuses";
 import { startOfDayIn, startOfMonthIn } from "@/lib/timezone";
 import type { ReportRow } from "@/lib/payments-reports";
-import { PayFlow } from "@/components/ListBands";
 import VolumeChart, { type VolumePoint } from "./VolumeChart";
 
 /**
@@ -106,24 +105,33 @@ export default function Overview({
   });
   const rangeLabel = RANGES.find((r) => r.value === range)!.label;
 
-  const side = [
-    { label: "Net volume", value: money(net / 100), note: "after fees and refunds" },
-    { label: "Processing fees", value: t.fees > 0 ? money(t.fees / 100) : "—", note: "kept by Square" },
-    { label: "Refunds", value: t.refunds > 0 ? money(t.refunds / 100) : "—", note: t.refunds > 0 ? "given back" : "none" },
-  ];
-
-  // Heavy look (2026-11-21): the headline numbers sit on the page's one
-  // brand band; the chart and the breakdown are solid cards under it.
+  // Round 8 (2026-11-23 — the boxes-with-arrows band read as AI-made): one
+  // card, Stripe-style. The figure and its change over the chart on the left;
+  // on the right a typeset ledger (gross − refunds − fees = net) and what is
+  // on its way to the bank.
+  const cents = (n: number) => money(n / 100);
   return (
-    <>
-      <PayFlow
-        label={
-          <>
-            <span>Gross volume</span>
-            <span className="ds-pic-quiet"> · {rangeLabel.toLowerCase()}</span>
-          </>
-        }
-        aside={
+    <section className="ds-card ds-card-raised ds-pay mb-6">
+      <div className="ds-pay-main">
+        <header className="ds-pay-head">
+          <div className="min-w-0">
+            <p className="ds-pay-label">
+              <span>Gross volume</span>
+              <span className="ds-pic-quiet"> · {rangeLabel.toLowerCase()}</span>
+            </p>
+            <p className="ds-pay-fig">{cents(t.gross)}</p>
+            <p className="ds-pay-sub">
+              {change != null && (
+                <span className={`ds-stat-change ${change >= 0 ? "is-up" : "is-down"}`}>
+                  {change >= 0 ? <ArrowUpRight size={13} strokeWidth={2.6} /> : <ArrowDownRight size={13} strokeWidth={2.6} />}
+                  {Math.abs(change * 100).toFixed(change !== 0 && Math.abs(change) < 0.1 ? 1 : 0)}%
+                </span>
+              )}
+              <span>
+                {t.count} {t.count === 1 ? "payment" : "payments"} · {cents(p.gross)} the period before
+              </span>
+            </p>
+          </div>
           <nav aria-label="Range" className="ds-stat-range">
             {RANGES.map((r) => (
               <Link
@@ -138,71 +146,53 @@ export default function Overview({
               </Link>
             ))}
           </nav>
-        }
-        steps={[
-          {
-            lead: true,
-            label: `${t.count} ${t.count === 1 ? "payment" : "payments"} in`,
-            value: money(t.gross / 100),
-            note: (
-              <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                {change != null && (
-                  <span className={`ds-stat-change ${change >= 0 ? "is-up" : "is-down"}`}>
-                    {change >= 0 ? <ArrowUpRight size={13} strokeWidth={2.6} /> : <ArrowDownRight size={13} strokeWidth={2.6} />}
-                    {Math.abs(change * 100).toFixed(change !== 0 && Math.abs(change) < 0.1 ? 1 : 0)}%
-                  </span>
-                )}
-                <span>vs {money(p.gross / 100)} before</span>
-              </span>
-            ),
-          },
-          {
-            label: "Yours after fees and refunds",
-            value: money(net / 100),
-            note: `${t.fees > 0 ? money(t.fees / 100) : "No"} fees · ${t.refunds > 0 ? money(t.refunds / 100) : "no"} refunds`,
-          },
-          {
-            label: "On its way to your bank",
-            value: onTheWayCents == null ? "—" : money(onTheWayCents / 100),
-            note: payoutsNote,
-            href: "/app/payments?tab=payouts",
-          },
-        ]}
-        footer={
-          openDisputes ? (
-            <Link prefetch={false} href="/app/payments?tab=disputes" className="ds-pic-alert">
-              {openDisputes} open {openDisputes === 1 ? "dispute" : "disputes"} · answer before the deadline
-            </Link>
-          ) : null
-        }
-      />
-
-      <section className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
-        <div className="ds-card ds-card-raised min-w-0 p-4 sm:p-5">
-          <h2 className="ds-heavy-h2">Volume by day</h2>
-          <div className="mt-4">
-            <VolumeChart points={points} />
-          </div>
-          <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] font-medium text-[color:var(--ds-muted)]">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-0.5 w-3 rounded bg-[color:var(--ds-primary)]" /> {rangeLabel}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-3 border-t border-dashed border-[color:var(--ds-muted)]" /> Period before
-            </span>
-          </p>
+        </header>
+        <div className="mt-4">
+          <VolumeChart points={points} />
         </div>
+        <p className="ds-pay-key">
+          <span>
+            <i className="is-cur" /> {rangeLabel}
+          </span>
+          <span>
+            <i className="is-prev" /> Period before
+          </span>
+        </p>
+      </div>
 
-        <div className="ds-card ds-card-raised grid grid-cols-3 divide-x divide-[color:var(--ds-line)] overflow-hidden lg:grid-cols-1 lg:divide-x-0 lg:divide-y">
-          {side.map((x) => (
-            <div key={x.label} className="px-4 py-4">
-              <p className="text-[12.5px] font-semibold text-[color:var(--ds-muted)]">{x.label}</p>
-              <p className="numeral-ledger mt-1 text-[22px] font-extrabold tracking-[-0.02em] text-[color:var(--ds-ink)]">{x.value}</p>
-              <p className="text-[12px] text-[color:var(--ds-muted)]">{x.note}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-    </>
+      <aside className="ds-pay-side">
+        <table className="ds-pay-ledger">
+          <caption className="sr-only">Where the money went, {rangeLabel.toLowerCase()}</caption>
+          <tbody>
+            <tr>
+              <th scope="row">Gross</th>
+              <td>{cents(t.gross)}</td>
+            </tr>
+            <tr>
+              <th scope="row">Refunds</th>
+              <td>{t.refunds > 0 ? `− ${cents(t.refunds)}` : "—"}</td>
+            </tr>
+            <tr>
+              <th scope="row">Processing fees</th>
+              <td>{t.fees > 0 ? `− ${cents(t.fees)}` : "—"}</td>
+            </tr>
+            <tr className="is-total">
+              <th scope="row">Net volume</th>
+              <td>{cents(net)}</td>
+            </tr>
+          </tbody>
+        </table>
+        <Link prefetch={false} href="/app/payments?tab=payouts" className="ds-pay-way">
+          <span className="ds-pay-way-label">On its way to your bank</span>
+          <span className="ds-pay-way-fig">{onTheWayCents == null ? "—" : cents(onTheWayCents)}</span>
+          <span className="ds-pay-way-note">{payoutsNote}</span>
+        </Link>
+        {openDisputes ? (
+          <Link prefetch={false} href="/app/payments?tab=disputes" className="ds-pic-alert ds-pay-alert">
+            {openDisputes} open {openDisputes === 1 ? "dispute" : "disputes"} · answer before the deadline
+          </Link>
+        ) : null}
+      </aside>
+    </section>
   );
 }

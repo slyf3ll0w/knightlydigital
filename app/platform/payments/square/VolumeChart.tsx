@@ -26,7 +26,22 @@ const axisFmt = (n: number) => (n >= 1000 ? `$${Math.round(n / 100) / 10}k` : `$
  * fill, the previous period as a dashed neutral line, a crosshair + tooltip
  * on hover / touch. One y-axis; the top gridline is labeled, the rest recede.
  */
-export default function VolumeChart({ points }: { points: VolumePoint[] }) {
+export default function VolumeChart({
+  points,
+  ariaLabel = "Gross volume by day, this period and the previous one",
+  heightClass = "h-44 lg:h-64",
+  curName,
+  prevName,
+}: {
+  points: VolumePoint[];
+  /** The chart's accessible name (Payments keeps the default — e2e reads it). */
+  ariaLabel?: string;
+  /** Tailwind height classes for the plot. */
+  heightClass?: string;
+  /** Optional words before each tooltip date ("Won by", "Before"). */
+  curName?: string;
+  prevName?: string;
+}) {
   const gid = useId().replace(/:/g, "");
   const ref = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<number | null>(null);
@@ -70,9 +85,9 @@ export default function VolumeChart({ points }: { points: VolumePoint[] }) {
         ref={ref}
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
-        className="block h-44 w-full overflow-visible touch-pan-y lg:h-64"
+        className={`block w-full overflow-visible touch-pan-y ${heightClass}`}
         role="img"
-        aria-label="Gross volume by day, this period and the previous one"
+        aria-label={ariaLabel}
         onPointerMove={(e) => onMove(e.clientX)}
         onPointerDown={(e) => onMove(e.clientX)}
         onPointerLeave={() => setHover(null)}
@@ -126,7 +141,7 @@ export default function VolumeChart({ points }: { points: VolumePoint[] }) {
           <div className="flex items-center justify-between gap-3">
             <span className="flex items-center gap-1.5 text-[color:var(--ds-muted)]">
               <span className="h-0.5 w-3 rounded bg-[color:var(--ds-primary)]" />
-              {h.label}
+              {curName ? `${curName} ` : ""}{h.label}
             </span>
             <span className="numeral-ledger font-semibold text-[color:var(--ds-ink)]">{fmt(h.cur)}</span>
           </div>
@@ -134,7 +149,7 @@ export default function VolumeChart({ points }: { points: VolumePoint[] }) {
             <div className="mt-1 flex items-center justify-between gap-3">
               <span className="flex items-center gap-1.5 text-[color:var(--ds-muted)]">
                 <span className="h-0 w-3 border-t border-dashed border-[color:var(--ds-muted)]" />
-                {h.prevLabel}
+                {prevName ? `${prevName} ` : ""}{h.prevLabel}
               </span>
               <span className="numeral-ledger text-[color:var(--ds-muted)]">{fmt(h.prev)}</span>
             </div>
