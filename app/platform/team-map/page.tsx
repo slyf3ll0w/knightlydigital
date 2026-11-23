@@ -17,5 +17,5 @@ export default async function TeamMapPage() {
   const actor = await requirePageActor((a) => isManager(a.role));
   if (!(await featureAllowedFor(actor.companyId, "team_map")))
     return <PlanRequired feature="team_map" back={{ href: "/app/insights", label: "Back to Reports" }} />;
-  return <TeamMapClient header={<ReportsHeader companyId={actor.companyId} tab="team-map" compact />} />;
+  return <TeamMapClient header={<ReportsHeader companyId={actor.companyId} tab="team-map" />} />;
 }

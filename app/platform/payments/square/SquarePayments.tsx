@@ -51,6 +51,9 @@ export default async function SquarePayments({
   // What the range chips and filter chips carry from one link to the next.
   const keep = { range: params.range ? range : undefined };
   const listView = tab === "payments" && !params.payment;
+  // The Gross volume card stays on top of every tab (David, 2026-11-23: the top
+  // vanishing when you open Payouts looked weird); a single transaction's page is the only screen without it.
+  const showOverview = !params.payment;
   const needPayouts = !missingScopes.includes("PAYOUTS_READ");
   const needDisputes = !missingScopes.includes("DISPUTES_READ");
   const manager = isManager(actor.role);
@@ -61,7 +64,7 @@ export default async function SquarePayments({
   const { prevStart } = rangeBounds(range, tz, now);
   const windowFrom = new Date(Math.min(prevStart.getTime(), now.getTime() - OUTSIDE_WINDOW_DAYS * 86_400_000));
   const [win, payoutsRead, disputesRead] = await Promise.all([
-    listView ? loadSquareWindow(companyId, windowFrom, now) : Promise.resolve(null),
+    showOverview ? loadSquareWindow(companyId, windowFrom, now) : Promise.resolve(null),
     needPayouts && !unreadable ? listSquarePayouts(companyId, { beginTime: new Date(now.getTime() - 365 * 86_400_000) }) : Promise.resolve(null),
     needDisputes && !unreadable ? listSquareDisputes(companyId) : Promise.resolve(null),
   ]);
@@ -89,6 +92,7 @@ export default async function SquarePayments({
   ].filter(Boolean);
 
   let body: React.ReactNode;
+  let overviewEl: React.ReactNode = null;
   if (tab === "payouts") {
     body = (
       <PayoutsTab
@@ -121,16 +125,16 @@ export default async function SquarePayments({
     body = <ReportsTab report={report} squareFailure={square.failure} squareTruncated={square.truncated} />;
   } else if (params.payment) {
     body = <TransactionDetail companyId={companyId} tz={tz} paymentId={params.payment} canReconnect={isOwner} />;
-  } else {
+  }
+  if (showOverview) {
     const squareWin = win ?? (await loadSquareWindow(companyId, windowFrom, now));
     const { rows } = await loadReportRows(companyId, prevStart, now, squareWin);
-    body = (
-      <>
+    overviewEl = (
         <Overview
           rows={rows}
           tz={tz}
           range={range}
-          tab={undefined}
+          tab={tab === "payments" ? undefined : tab}
           now={now}
           onTheWayCents={payoutsFailure ? null : onTheWay}
           payoutsNote={payoutsFailure ? (payoutsFailure.missingScopes ? payoutsFailure.message : "Square didn't answer") : "payouts Square has sent, not yet posted"}
@@ -145,11 +149,14 @@ export default async function SquarePayments({
                 : "none open"
           }
         />
-        <SquareTabs tab={tab} openDisputes={openDisputes} sandbox={sandbox} keep={keep} />
-        <PaymentsTab companyId={companyId} actor={actor} tz={tz} page={page} filter={filter} window={squareWin} windowDays={OUTSIDE_WINDOW_DAYS} keep={keep} />
-        <SquarePhoneLinks sandbox={sandbox} />
-      </>
     );
+    if (listView)
+      body = (
+        <>
+          <PaymentsTab companyId={companyId} actor={actor} tz={tz} page={page} filter={filter} window={squareWin} windowDays={OUTSIDE_WINDOW_DAYS} keep={keep} />
+          <SquarePhoneLinks sandbox={sandbox} />
+        </>
+      );
   }
 
   return (
@@ -159,8 +166,9 @@ export default async function SquarePayments({
       ) : (
         needsReconnect && listView && <ReconnectCard what={whatIsMissing.join(", ") || "everything Square reports"} canReconnect={isOwner} />
       )}
-      {/* The list view draws the tab bar under its overview; the other tabs open on it. */}
-      {!listView && <SquareTabs tab={tab} openDisputes={openDisputes} sandbox={sandbox} keep={keep} />}
+      {/* Every tab: the Gross volume card on top, the tab bar under it, then the tab. Only a transaction's own page drops the card. */}
+      {overviewEl}
+      <SquareTabs tab={tab} openDisputes={openDisputes} sandbox={sandbox} keep={keep} />
       {body}
     </>
   );
