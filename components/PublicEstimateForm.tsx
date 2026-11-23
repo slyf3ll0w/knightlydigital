@@ -681,7 +681,7 @@ export default function PublicEstimateForm({
           <p className={`text-center text-xs ${muted}`}>
             Preview only.{" "}
             <Link href="/app/estimates" className="underline">
-              Back to Estimates
+              Back to Estimator tools
             </Link>
           </p>
         )}
@@ -783,7 +783,7 @@ export default function PublicEstimateForm({
         <p className={`text-center text-xs ${muted}`}>
           Preview only.{" "}
           <Link href="/app/estimates" className="underline">
-            Back to Estimates
+            Back to Estimator tools
           </Link>
         </p>
       )}

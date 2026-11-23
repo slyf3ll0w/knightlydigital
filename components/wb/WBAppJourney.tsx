@@ -188,7 +188,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { label: "Leads", icon: SquareKanban },
       { label: "Requests", icon: Inbox },
-      { label: "Estimates", icon: Calculator },
+      { label: "Estimator tools", icon: Calculator },
       { label: "Messages", icon: MessageSquare },
       { label: "Calls", icon: PhoneCall },
       { label: "Appointments", icon: CalendarClock },

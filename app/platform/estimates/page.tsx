@@ -12,7 +12,7 @@ import { featureAllowedFor } from "@/lib/plan-gate";
 import PlanRequired from "@/components/PlanRequired";
 import EstimatesClient, { type EstimatesFilter, type Tool } from "./EstimatesClient";
 
-export const metadata: Metadata = { title: "Estimates" };
+export const metadata: Metadata = { title: "Estimator tools" };
 
 const FILTERS: EstimatesFilter[] = ["", "published", "off"];
 

@@ -128,7 +128,7 @@ export const startSection: HelpSection = {
         },
         {
           type: "p",
-          text: "The sidebar has Home, Schedule, Clients, Quotes, Jobs and Invoices at the top, then groups: **Work** (Leads, Requests, Estimates, Messages, Calls, Appointments, Routes, Tasks, Agreements, Timesheets), **Money** (Payments, Recurring) and **Business** (Reports, Automations, Services, Booking & forms, Team & roles). You only see what your role can open.",
+          text: "The sidebar has Home, Schedule, Clients, Quotes, Jobs and Invoices at the top, then groups: **Work** (Leads, Requests, Estimator tools, Messages, Calls, Appointments, Routes, Tasks, Agreements, Timesheets), **Money** (Payments, Recurring) and **Business** (Reports, Automations, Services, Booking & forms, Team & roles). You only see what your role can open.",
         },
         {
           type: "h",

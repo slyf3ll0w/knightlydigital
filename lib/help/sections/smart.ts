@@ -319,7 +319,7 @@ export const estimatorSection: HelpSection = {
       summary: "Describe how you price a job (or snap your price sheet) and Atlas builds a calculator.",
       plan: PRO_CHIP,
       keywords: ["estimator", "calculator", "pricing tool", "price sheet", "estimate tool", "build"],
-      where: { label: "Estimates", href: "/app/estimates" },
+      where: { label: "Estimator tools", href: "/app/estimates" },
       roles: "Owners and admins build; sales roles run them",
       blocks: [
         proTip("Estimate tools"),
@@ -327,7 +327,7 @@ export const estimatorSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Go to **Estimates** and press `Build an estimate tool`.",
+            "Go to **Estimator tools** and press `Build an estimate tool`.",
             "Describe how you price the work, like \"driveways by square foot, $8 a foot, $400 minimum, +15% for stamped.\" Or press **Have a price sheet? Attach a photo**.",
             "Press `Build it` and watch Atlas draft the questions and math, then test it.",
             "Try it with a real job and adjust. You can edit any part by hand or ask Atlas to change it, and restore an earlier version at any time.",
@@ -354,13 +354,13 @@ export const estimatorSection: HelpSection = {
       summary: "Every number a tool prices with is listed in plain words. Set your own, and see which ones are still estimates.",
       plan: PRO_CHIP,
       keywords: ["rates", "rate card", "your rates", "rates to confirm", "market estimate", "placeholder", "minimum job charge", "labor hours", "crew time", "prices changed"],
-      where: { label: "Estimates", href: "/app/estimates" },
+      where: { label: "Estimator tools", href: "/app/estimates" },
       roles: "Owners and admins",
       blocks: [
         proLine("Estimate tools"),
         {
           type: "p",
-          text: "Open a tool from **Estimates**. **Your rates** on its Overview lists every number the tool uses, named for what it buys, like \"Cedar privacy fence, 6 ft tall — $42 per ft\". You never need to read a formula.",
+          text: "Open a tool from **Estimator tools**. **Your rates** on its Overview lists every number the tool uses, named for what it buys, like \"Cedar privacy fence, 6 ft tall — $42 per ft\". You never need to read a formula.",
         },
         {
           type: "steps",
@@ -413,13 +413,13 @@ export const estimatorSection: HelpSection = {
       summary: "Answer the tool's questions, measure on a satellite map, and turn the result into a quote.",
       plan: PRO_CHIP,
       keywords: ["measure", "map", "satellite", "square feet", "area", "length", "onsite", "run estimate"],
-      where: { label: "Estimates", href: "/app/estimates" },
+      where: { label: "Estimator tools", href: "/app/estimates" },
       blocks: [
         proLine("Estimate tools"),
         {
           type: "steps",
           items: [
-            "Open the tool from **Estimates** (or pick `Use an estimate tool` on a new quote).",
+            "Open the tool from **Estimator tools** (or pick `Use an estimate tool` on a new quote).",
             "Answer its questions. For a map question, tap the corners of the area on the satellite view. Tap the first corner again or press `Close shape` to finish, and use `Undo` or `Clear` to fix it.",
             "Check the price and turn it into a quote.",
           ],
@@ -436,7 +436,7 @@ export const estimatorSection: HelpSection = {
       summary: "Let visitors price the job themselves and come in as leads.",
       plan: PRO_CHIP,
       keywords: ["website", "instant quote", "web form", "publish", "embed", "lead form", "online estimate"],
-      where: { label: "Estimates", href: "/app/estimates" },
+      where: { label: "Estimator tools", href: "/app/estimates" },
       roles: "Owners and admins",
       blocks: [
         proLine("Estimate tools"),

@@ -191,7 +191,7 @@ export default function EstimatesClient({
     <div className="mx-auto max-w-6xl p-4 lg:p-8">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-y-3 lg:mb-6">
         <PageTitle heavy section="quotes" icon={Calculator} info={manager ? "Tell Atlas how you price a job. It builds a tool your team runs onsite and your website runs for you." : "Answer a tool's questions, show the number, turn it into a quote."}>
-          Estimates
+          Estimator tools
         </PageTitle>
         <div className="flex items-center gap-2">
         {view === "tools" ? (

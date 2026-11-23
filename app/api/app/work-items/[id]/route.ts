@@ -19,7 +19,7 @@ async function estimatorGuard(companyId: string, itemName: string, what: string)
   const names = used.map((t) => `“${t.name}”`).join(", ");
   return NextResponse.json(
     {
-      error: `${what} — ${used.length === 1 ? "an estimate tool uses it" : `${used.length} estimate tools use it`}: ${names}. Change those pricing lines first (Estimates → the tool → Advanced → Pricing).`,
+      error: `${what} — ${used.length === 1 ? "an estimate tool uses it" : `${used.length} estimate tools use it`}: ${names}. Change those pricing lines first (Estimator tools → the tool → Advanced → Pricing).`,
       estimators: used,
     },
     { status: 409 }

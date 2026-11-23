@@ -92,7 +92,7 @@ const LABELS: [prefix: string, label: string][] = [
   ["/app/subscriptions", "Recurring"],
   ["/app/timesheets", "Timesheets"],
   ["/app/contracts", "Agreements"],
-  ["/app/estimates", "Estimates"],
+  ["/app/estimates", "Estimator tools"],
   ["/app/business", "Reports"],
   ["/app/insights", "Insights"],
   ["/app/expenses", "Expenses"],

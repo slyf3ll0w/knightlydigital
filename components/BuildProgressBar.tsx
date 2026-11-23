@@ -167,7 +167,7 @@ export default function BuildProgressBar() {
           : view.kind === "cancelled"
             ? "Build cancelled"
             : `${changing ? "Changing" : "Building"} “${build.label}”`;
-  const sub = view.kind === "running" ? view.message : view.kind === "questions" ? "Answer it on the Estimates page and the build carries on." : view.kind === "error" ? view.message : view.kind === "done" ? "Try it, publish it, or ask Atlas for changes." : "";
+  const sub = view.kind === "running" ? view.message : view.kind === "questions" ? "Answer it on the Estimator tools page and the build carries on." : view.kind === "error" ? view.message : view.kind === "done" ? "Try it, publish it, or ask Atlas for changes." : "";
   const progress = view.kind === "running" ? view.step / STEPS : view.kind === "done" ? 1 : 0;
 
   // desktop: left of the Atlas bubble (bottom-6 right-6, 52 px) so the two never overlap

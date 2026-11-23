@@ -2836,7 +2836,7 @@ Rules:
 - lookup() on a multi: sum the picks' prices with a variable per pick, e.g. has(rooms, 'kitchen') * 250 + has(rooms, 'bath') * 180 (has() is 1/0 in arithmetic).
 - Never pass a guess off as the business's price. Use the rates the user gave, or the price book. If they gave none, ask (one message, everything at once) — or use a rate marked source "market" / "guess" and SAY which numbers are estimates.
 - Keep it as simple as the pricing really is: a flat-rate business needs one select and two lines, not twelve inputs.
-- The owner can also edit labels, rates and formulas by hand (Estimates → Edit) and roll back to any earlier version — every save is kept. So when they want a rate changed, a small 'update' with the new spec is right; they are never stuck with your version.
+- The owner can also edit labels, rates and formulas by hand (Estimator tools → Edit) and roll back to any earlier version — every save is kept. So when they want a rate changed, a small 'update' with the new spec is right; they are never stuck with your version.
 - Use action 'test' with sample inputs before staging create/update — fix anything it reports.`;
 
 // ── what changed between two specs (version history, Atlas update cards) ─────

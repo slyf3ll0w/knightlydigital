@@ -268,7 +268,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
       { href: "/app/leads", label: "Leads", icon: SquareKanban, show: sellRoles },
       { href: "/app/appointments", label: "Appointments", icon: CalendarClock, show: sellRoles },
       { href: "/app/quotes", label: "Quotes", icon: FileText, show: sellRoles },
-      { href: "/app/estimates", label: "Estimates", icon: Calculator, show: sellRoles, feature: "estimator" },
+      { href: "/app/estimates", label: "Estimator tools", icon: Calculator, show: sellRoles, feature: "estimator" },
       { href: "/app/contracts", label: "Agreements", icon: FileSignature, show: sellRoles, feature: "agreements" },
       { href: "/app/jobs", label: "Jobs", icon: Briefcase },
       { href: "/app/tasks", label: "Tasks", icon: ListChecks },
@@ -318,7 +318,7 @@ const railGroups: { key: string; label: string; items: NavItem[] }[] = [
     items: [
       { href: "/app/leads", label: "Leads", icon: SquareKanban, show: sellRoles },
       { href: "/app/requests", label: "Requests", icon: Inbox, show: sellRoles },
-      { href: "/app/estimates", label: "Estimates", icon: Calculator, show: sellRoles, feature: "estimator" },
+      { href: "/app/estimates", label: "Estimator tools", icon: Calculator, show: sellRoles, feature: "estimator" },
       { href: "/app/messages", label: "Messages", icon: MessageSquare, show: sellRoles },
       { href: "/app/calls", label: "Calls", icon: PhoneCall, show: sellRoles },
       { href: "/app/appointments", label: "Appointments", icon: CalendarClock, show: sellRoles },

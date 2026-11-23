@@ -116,7 +116,7 @@ const GROUPS: { label: string; items: Item[] }[] = [
     items: [
       { icon: SquareKanban, label: "Leads" },
       { icon: Inbox, label: "Requests" },
-      { icon: Calculator, label: "Estimates" },
+      { icon: Calculator, label: "Estimator tools" },
       { icon: MessageSquare, label: "Messages" },
       { icon: PhoneCall, label: "Calls" },
       { icon: CalendarClock, label: "Appointments" },

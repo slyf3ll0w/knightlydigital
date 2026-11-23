@@ -136,7 +136,7 @@ export type WaitingQuote = { id: string; name: string; title: string; amount: nu
 /**
  * Quotes (round 8, 2026-11-23 — "cool but a little AI generated"): the
  * pipeline as one exact bar split by dollar value, with the stage figures
- * typeset above each part and the stage-to-stage rates under the joins;
+ * typeset above each part (rates, ledger and chart dropped 2026-11-23 as too much);
  * then a ledger of who has kept you waiting longest, and the won total
  * against the 30 days before it as a running line (prior period dashed).
  */
@@ -163,12 +163,31 @@ export function PipelineBand({
   const floored = raw.map((f) => Math.max(f, 0.16));
   const fsum = floored.reduce((a, b) => a + b, 0);
   const widths = floored.map((f) => (f / fsum) * 100);
-  const joins = widths.slice(0, -1).map((_, i) => widths.slice(0, i + 1).reduce((a, b) => a + b, 0));
-  const rateAt = [rates.sent, rates.approved];
-  const rateWord = ["of new quotes get sent", "of sent quotes get approved"];
+  const oldest = Math.max(0, ...waiting.stalest.map((q) => q.days));
   const change = won.prevTotal > 0 ? (won.total - won.prevTotal) / won.prevTotal : null;
   return (
+    // Cleaner (David, 2026-11-23: "info overload"): the bar and two quiet links — no rates row, ledger or chart.
     <Picture
+      aside={
+        <>
+          {oldest >= 14 && (
+            <PicLink href={waiting.href} alert="warn">
+              Oldest reply wait {oldest} days
+            </PicLink>
+          )}
+          {showMoney && (
+            <PicLink href={won.href}>
+              {money(won.total)} won · 30 days
+              {change != null && (
+                <span className={`ds-stat-change ml-1 ${change >= 0 ? "is-up" : "is-down"}`}>
+                  {change >= 0 ? "+" : "−"}
+                  {Math.abs(Math.round(change * 100))}%
+                </span>
+              )}
+            </PicLink>
+          )}
+        </>
+      }
       title={
         openCount === 0 ? (
           "No open quotes"
@@ -200,73 +219,8 @@ export function PipelineBand({
             <Link key={s.key} prefetch={false} href={s.href} className="ds-pipe-seg" data-stage={s.key} style={{ width: `${widths[i]}%` }} title={`${s.label} · ${s.count}${showMoney ? ` · ${money(s.amount)}` : ""}`} tabIndex={-1} aria-hidden />
           ))}
         </div>
-        <div className="ds-pipe-rates" aria-label="Last 90 days">
-          {joins.map((at, i) => (
-            <span key={i} className="ds-pipe-rate" style={{ left: `${at}%` }}>
-              <b>{rateAt[i] == null ? "—" : `${rateAt[i]}%`}</b> {rateWord[i]}
-            </span>
-          ))}
-          <span className="ds-pipe-rate-note">Last 90 days</span>
-        </div>
       </div>
 
-      <div className="ds-pipe-foot">
-        <section className="ds-pipe-col">
-          <header className="ds-pipe-col-head">
-            <Link prefetch={false} href={waiting.href} className="ds-pipe-col-title">
-              Waiting on a reply
-            </Link>
-            <span className="ds-pipe-col-fig">
-              {waiting.avgDays == null ? "—" : <><b>{waiting.avgDays.toFixed(1)}</b> days on average</>}
-            </span>
-          </header>
-          {waiting.stalest.length === 0 ? (
-            <p className="ds-pipe-none">Nothing out with a client right now.</p>
-          ) : (
-            <ol className="ds-pipe-ledger">
-              {waiting.stalest.map((q) => (
-                <li key={q.id}>
-                  <Link prefetch={false} href={q.href} className="ds-pipe-row">
-                    <span className="ds-pipe-row-name">{q.name}</span>
-                    <span className="ds-pipe-row-title">{q.title}</span>
-                    {showMoney && <span className="ds-pipe-row-num">{money(q.amount)}</span>}
-                    <span className={`ds-pipe-row-num ${q.days >= 14 ? "is-late" : ""}`}>{q.days}d</span>
-                  </Link>
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
-        {showMoney && (
-          <section className="ds-pipe-col">
-            <header className="ds-pipe-col-head">
-              <Link prefetch={false} href={won.href} className="ds-pipe-col-title">
-                Won · 30 days
-              </Link>
-              <span className="ds-pipe-col-fig">
-                <b>{money(won.total)}</b>
-                {change != null && (
-                  <span className={`ds-stat-change ${change >= 0 ? "is-up" : "is-down"}`}>
-                    {change >= 0 ? "+" : "−"}
-                    {Math.abs(Math.round(change * 100))}%
-                  </span>
-                )}
-              </span>
-            </header>
-            <VolumeChart
-              points={won.points}
-              ariaLabel="Approved quote value, running total over the last 30 days and the 30 days before"
-              heightClass="h-[92px]"
-              curName="By"
-              prevName="By"
-            />
-            <p className="ds-pipe-key">
-              <span><i className="is-cur" />Last 30 days</span>
-              <span><i className="is-prev" />30 days before · {money(won.prevTotal)}</span>
-            </p>
-          </section>
-        )}
-      </div>
     </Picture>
   );
 }
