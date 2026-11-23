@@ -34,6 +34,10 @@ export const invoicesSection: HelpSection = {
           text: "An invoice due today isn't late. It turns **Past Due** only after the due date has fully passed.",
         },
         {
+          type: "p",
+          text: "When a new invoice has a recurring service on it, saving it starts a plan for that client. If you also give that invoice a discount, a checkbox appears under it: **Keep this discount on later invoices**. Leave it off and the discount is for this invoice only. Tick it and every later invoice of the plan gets the same discount. You can change it later on the plan itself (see [Set up recurring visits and plans](/help/recurring-visits)).",
+        },
+        {
           type: "faq",
           items: [
             {
