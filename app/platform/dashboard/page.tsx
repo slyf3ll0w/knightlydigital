@@ -28,7 +28,6 @@ import { formatDuration, mapsHref, mapsSearchHref } from "@/lib/time-entries";
 import { renderMessageTemplate, DEFAULT_ON_MY_WAY_TEMPLATE } from "@/lib/messaging";
 import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import { startOfDayIn, startOfMonthIn, startOfWeekIn, zonedMidnight, zonedParts } from "@/lib/timezone";
-import CountUp from "@/components/CountUp";
 import GetStartedCard from "./GetStartedCard";
 import GetStartedRow from "../settings/GetStartedRow";
 import PayoutNudge from "./PayoutNudge";
@@ -36,12 +35,16 @@ import TalkToAtlas from "@/components/TalkToAtlas";
 import { loadGetStarted } from "@/lib/get-started";
 import { featureAllowedFor } from "@/lib/plan-gate";
 import DashboardTasks from "./DashboardTasks";
+import DayLine from "./DayLine";
+import MoneyPicture from "./MoneyPicture";
+import Monogram from "@/components/Monogram";
+import { PicLink } from "@/components/ListBands";
 import { dashboardTasks } from "@/lib/tasks";
 import UpNextActions from "./UpNextActions";
 import AtlasHomeButton from "@/components/AtlasHomeButton";
 import SwipeRowContact from "@/components/SwipeRowContact";
 import { PushNudge } from "@/components/PushNotifications";
-import { ActionLink, Button, Card, Chip, DsPage, Hint, ListRow, PageHeader, SectionTitle, Stat } from "@/components/ds";
+import { Button, Card, Chip, DsPage, ListRow, PageHeader, SectionTitle } from "@/components/ds";
 import {
   requirePageActor,
   isManager,
@@ -55,38 +58,6 @@ import {
 } from "@/lib/permissions";
 
 const apptIcons = { PHONE_CALL: Phone, VIDEO_CALL: Video, IN_PERSON: MapPin } as const;
-
-/** Tiny daily-revenue bar chart — pure SVG, renders on the server. */
-function Sparkline({ values, className = "" }: { values: number[]; className?: string }) {
-  const max = Math.max(...values, 1);
-  const w = 100;
-  const gap = 1.5;
-  const bw = (w - gap * (values.length - 1)) / values.length;
-  return (
-    <svg
-      viewBox={`0 0 ${w} 24`}
-      className={`mt-4 h-8 w-full ${className}`}
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      {values.map((v, i) => {
-        const h = v > 0 ? Math.max((v / max) * 22, 2) : 1;
-        return (
-          <rect
-            key={i}
-            x={i * (bw + gap)}
-            y={24 - h}
-            width={bw}
-            height={h}
-            rx={0.75}
-            fill={i === values.length - 1 ? "var(--ds-secondary)" : "var(--ds-primary)"}
-            opacity={v > 0 ? (i === values.length - 1 ? 1 : 0.8) : 0.15}
-          />
-        );
-      })}
-    </svg>
-  );
-}
 
 export default async function DashboardPage() {
   const actor = await requirePageActor();
@@ -170,7 +141,7 @@ export default async function DashboardPage() {
     seePerformance
       ? prisma.invoice.findMany({
           where: { companyId, status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] } },
-          include: { payments: true },
+          include: { payments: true, contact: { select: { id: true, firstName: true, lastName: true } } },
         })
       : Promise.resolve([]),
     seePerformance
@@ -274,6 +245,28 @@ export default async function DashboardPage() {
 
   const receivableTotal = receivables.reduce((s, inv) => s + invoiceBalance(inv), 0);
   const receivableClients = new Set(receivables.map((i) => i.contactId).filter(Boolean)).size;
+  // Who owes: one circle per client, biggest balance first (money picture)
+  const owingMap = new Map<string, { id: string; name: string; amount: number }>();
+  for (const inv of receivables) {
+    const bal = invoiceBalance(inv);
+    if (bal <= 0 || !inv.contact) continue;
+    const cur = owingMap.get(inv.contact.id) ?? {
+      id: inv.contact.id,
+      name: `${inv.contact.firstName} ${inv.contact.lastName}`.trim() || "Client",
+      amount: 0,
+    };
+    cur.amount += bal;
+    owingMap.set(cur.id, cur);
+  }
+  const owingAll = [...owingMap.values()].sort((a, b) => b.amount - a.amount);
+  const pastDueOwed = receivables.filter((i) => i.status === "PAST_DUE" && invoiceBalance(i) > 0).length;
+  // Last month's takings by day, for the faint pace line behind this month
+  const lastMonthPayments = seePerformance
+    ? await prisma.payment.findMany({
+        where: { companyId, paidAt: { gte: zonedMidnight(tz, local.y, local.m - 1, 1), lt: startOfMonth } },
+        select: { amount: true, paidAt: true },
+      })
+    : [];
   // Clear-day band (desktop): what's next on the books after today
   const nextOnBooks = await prisma.job.findFirst({
         where: { companyId, ...jScope, status: "ACTIVE", scheduledAt: { gte: endOfDay } },
@@ -284,12 +277,44 @@ export default async function DashboardPage() {
     (s, j) => s + j.lineItems.reduce((t, li) => t + Number(li.total), 0),
     0
   );
-  // Daily revenue buckets for the sparkline (1st of month → today)
-  const monthRevenue = monthPayments.reduce((s, p) => s + Number(p.amount), 0);
+  // Daily takings, 1st of the month → today (the money picture)
   const dailyRevenue = Array.from({ length: local.d }, () => 0);
   for (const p of monthPayments) {
     const day = zonedParts(tz, new Date(p.paidAt)).d - 1;
     if (day >= 0 && day < dailyRevenue.length) dailyRevenue[day] += Number(p.amount);
+  }
+  // The money picture's month: every day of it, today's index, last month's pace
+  const daysInMonth = new Date(Date.UTC(local.y, local.m, 0)).getUTCDate();
+  const monthShortName = now.toLocaleDateString("en-US", { month: "short", timeZone: tz });
+  const monthDays = Array.from({ length: daysInMonth }, (_, i) => ({
+    label: `${monthShortName} ${i + 1}`,
+    amount: i < dailyRevenue.length ? dailyRevenue[i] : 0,
+  }));
+  const lastMonthDays = new Date(Date.UTC(local.y, local.m - 1, 0)).getUTCDate();
+  const lastMonthDaily = Array.from({ length: lastMonthDays }, () => 0);
+  for (const p of lastMonthPayments) {
+    const day = zonedParts(tz, new Date(p.paidAt)).d - 1;
+    if (day >= 0 && day < lastMonthDaily.length) lastMonthDaily[day] += Number(p.amount);
+  }
+  // Booked this week, Sunday → Saturday, as seven bars
+  const weekBooked = Array.from({ length: 7 }, (_, i) => {
+    const d = zonedParts(tz, zonedMidnight(tz, local.y, local.m, local.d - local.weekday + i));
+    const key = `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}`;
+    return {
+      key,
+      dow: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][i],
+      amount: 0,
+      jobs: 0,
+      today: i === local.weekday,
+      past: i < local.weekday,
+      href: `/app/schedule?view=day&date=${key}`,
+    };
+  });
+  for (const j of upcomingJobsWeek) {
+    if (!j.scheduledAt) continue;
+    const wd = zonedParts(tz, new Date(j.scheduledAt)).weekday;
+    weekBooked[wd].amount += j.lineItems.reduce((t, li) => t + Number(li.total), 0);
+    weekBooked[wd].jobs += 1;
   }
 
   // "Needs you" — the same lifecycle counts, but reframed as a prioritized
@@ -522,14 +547,33 @@ export default async function DashboardPage() {
   // an estimate visit isn't a stop on a route.
   const todayAppts = todayItems.filter((i) => i.apptType).length;
   const todayJobs = todayItems.length - todayAppts;
-  const todayCountLabel = [
-    todayJobs > 0 ? `${todayJobs} ${plural(todayJobs, "job", "jobs")}` : null,
-    todayAppts > 0 ? `${todayAppts} ${plural(todayAppts, "appointment", "appointments")}` : null,
-    todayTasks.length > 0 ? `${todayTasks.length} ${plural(todayTasks.length, "task", "tasks")}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
   const onlyKind = upNext?.apptType ? "appointment" : "job";
+
+  // The today line: the work day as a ruler (7a–6p, stretched to fit any
+  // early or late stop), each stop pinned at its time (DayLine.tsx).
+  const hourOf = (ms: number) => {
+    const p = zonedParts(tz, new Date(ms));
+    return p.hour + p.minute / 60;
+  };
+  const timedSorts = todayItems.filter((i) => i.sort !== 0).map((i) => i.sort);
+  const dayStartH = Math.max(0, Math.min(7, ...timedSorts.map((t) => Math.floor(hourOf(t)))));
+  const dayEndH = Math.min(24, Math.max(18, ...timedSorts.map((t) => Math.ceil(hourOf(t) + 1))));
+  const hourLabel = (h: number) => (h === 0 || h === 24 ? "12a" : h < 12 ? `${h}a` : h === 12 ? "12p" : `${h - 12}p`);
+  const dayTicks = Array.from({ length: dayEndH - dayStartH + 1 }, (_, k) => {
+    const h = dayStartH + k;
+    return { at: startOfDay.getTime() + h * 3_600_000, label: hourLabel(h), major: k % 3 === 0 };
+  });
+  const dayPins = todayItems.map((i) => ({
+    id: i.id,
+    href: i.href,
+    name: i.contactName || "Client",
+    title: i.title,
+    time: i.time,
+    at: i.sort === 0 ? null : i.sort,
+    appt: !!i.apptType,
+    next: i === upNext,
+  }));
+  const allDone = todayItems.length > 0 && !upNext;
 
   // Hero action-row context (see UpNextActions): the source records behind the
   // picked item, my clock state on it, and the rendered On-My-Way template.
@@ -561,9 +605,6 @@ export default async function DashboardPage() {
         })
       : null;
 
-  // Whole dollars for the glance strip — cents are for detail pages
-  const moneyRound = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
-
   const firstName = actor.name?.split(" ")[0] ?? "there";
   const hour = local.hour;
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -573,7 +614,6 @@ export default async function DashboardPage() {
   // phone is the iOS-style simple version (hero → numbers → today → needs),
   // the desktop a two-column board. Explanations live in InfoTips.
   const dateLine = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: tz });
-  const monthShort = now.toLocaleDateString("en-US", { month: "short", timeZone: tz });
   const rise = (i: number) => ({ "--ds-i": i }) as React.CSSProperties;
 
   const heroEl = upNext && (
@@ -612,11 +652,24 @@ export default async function DashboardPage() {
     </div>
   );
 
-  const statInfo = {
-    collected: "Payments received since the 1st of this month, card, bank, cash and check. The bars are each day so far; today is highlighted.",
-    outstanding: "What clients owe you on invoices that are sent and not fully paid, past due included.",
-    booked: "The value of jobs on the calendar this week, Sunday through Saturday.",
-  };
+  // The money picture (replaces the three number cards, 2026-11-23)
+  const moneyEl = (phone: boolean) =>
+    seePerformance && (
+      <MoneyPicture
+        phone={phone}
+        monthName={now.toLocaleDateString("en-US", { month: "long", timeZone: tz })}
+        days={monthDays}
+        todayIndex={local.d - 1}
+        lastMonth={lastMonthDaily}
+        owed={receivableTotal}
+        owedClients={owingAll.slice(0, phone ? 5 : 7)}
+        owingCount={Math.max(receivableClients, owingAll.length)}
+        pastDue={pastDueOwed}
+        booked={weekRevenue}
+        bookedJobs={upcomingJobsWeek.length}
+        week={weekBooked}
+      />
+    );
 
   // One row per stop. Jobs wear the primary dot, appointments the secondary.
   const todayRow = (item: (typeof todayItems)[number], phone: boolean) => {
@@ -700,6 +753,95 @@ export default async function DashboardPage() {
   const needsInfo =
     "Work waiting on you, most urgent first: past-due invoices, bookings to approve and overdue tasks lead the list. Tap a row to jump straight to it.";
 
+  // Today: one panel that draws the day (the line) and lists it underneath.
+  // Phones list what's after the hero; the desk lists the whole day.
+  const todayTitle =
+    todayItems.length === 0 ? (
+      "Nothing on the books today"
+    ) : (
+      <>
+        {todayJobs > 0 && (
+          <>
+            <b>{todayJobs}</b> {plural(todayJobs, "job", "jobs")}
+          </>
+        )}
+        {todayJobs > 0 && todayAppts > 0 && " and "}
+        {todayAppts > 0 && (
+          <>
+            <b>{todayAppts}</b> {plural(todayAppts, "appointment", "appointments")}
+          </>
+        )}{" "}
+        today
+        {allDone ? (
+          <span className="ds-pic-quiet"> · all done</span>
+        ) : upNext && upNext !== clockedHero && upNext.time !== "Anytime" ? (
+          <span className="ds-pic-quiet"> · next at {upNext.time}</span>
+        ) : null}
+      </>
+    );
+  const todayPanel = (phone: boolean) => {
+    const rows = phone ? laterToday : todayItems;
+    return (
+      <section className="ds-rise" style={rise(phone ? 3 : 4)} data-tour="today">
+        <div className="ds-pic hm-today">
+          <div className="ds-pic-head">
+            <h2 className="ds-pic-title">{todayTitle}</h2>
+            <div className="ds-pic-aside">
+              <PicLink href="/app/schedule">{phone ? "Schedule" : "Open schedule"}</PicLink>
+            </div>
+          </div>
+          <DayLine
+            pins={dayPins}
+            ticks={dayTicks}
+            start={startOfDay.getTime() + dayStartH * 3_600_000}
+            end={startOfDay.getTime() + dayEndH * 3_600_000}
+            serverNow={nowT}
+            phone={phone}
+          />
+          {todayItems.length === 0 ? (
+            <div className="hm-today-clear">
+              <p className="ds-small">
+                {nextOnBooks?.scheduledAt ? (
+                  <>
+                    Next up:{" "}
+                    <Link prefetch={false} href={`/app/jobs/${nextOnBooks.id}`} className="hm-today-next">
+                      {nextOnBooks.scheduledAt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: tz })}
+                      {nextOnBooks.scheduledAnytime ? "" : ` · ${fmtTime(nextOnBooks.scheduledAt)}`} · {nextOnBooks.title}
+                      {nextOnBooks.contact ? ` · ${nextOnBooks.contact.firstName} ${nextOnBooks.contact.lastName}` : ""}
+                    </Link>
+                  </>
+                ) : (
+                  "Nothing scheduled ahead yet."
+                )}
+              </p>
+              <span className="flex flex-wrap gap-2">
+                <Link prefetch={false} href="/app/jobs/new" className="ds-btn ds-btn-primary ds-btn-sm">
+                  <Plus size={15} strokeWidth={2.4} />
+                  Schedule a job
+                </Link>
+                {!phone && (
+                  <Link prefetch={false} href="/app/schedule" className="ds-btn ds-btn-outline ds-btn-sm">
+                    <CalendarDays size={15} strokeWidth={2.2} />
+                    Open schedule
+                  </Link>
+                )}
+              </span>
+            </div>
+          ) : rows.length === 0 ? (
+            <p className="hm-today-only ds-small">That&apos;s your only {onlyKind} today. Nothing after it.</p>
+          ) : (
+            <div className="hm-today-list ds-divide">{rows.map((item) => todayRow(item, phone))}</div>
+          )}
+        </div>
+        {todayTasks.length > 0 && (
+          <div className="mt-3">
+            <DashboardTasks tasks={todayTasks} phone={phone} />
+          </div>
+        )}
+      </section>
+    );
+  };
+
   const onClockEl = isManager(actor.role) && onClock.length > 0 && (
     <section>
       <SectionTitle info="Everyone clocked in right now, with how long they've been on and where they clocked in.">
@@ -711,9 +853,14 @@ export default async function DashboardPage() {
             key={e.id}
             href={e.job ? `/app/jobs/${e.job.id}` : undefined}
             lead={
-              <span className="relative flex h-2.5 w-2.5 shrink-0">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: "var(--ds-good)" }} />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: "var(--ds-good)" }} />
+              // The ring fills over an 8-hour day; the live dot says "on now"
+              <span
+                className="hm-clock-ring"
+                style={{ "--fill": `${Math.min(100, ((now.getTime() - e.startedAt.getTime()) / (8 * 3_600_000)) * 100)}%` } as React.CSSProperties}
+                title={`${formatDuration(now.getTime() - e.startedAt.getTime())} of an 8-hour day`}
+              >
+                <Monogram name={e.user.name ?? "Teammate"} size={34} />
+                <span className="hm-clock-live" aria-hidden />
               </span>
             }
             title={e.user.name}
@@ -796,62 +943,11 @@ export default async function DashboardPage() {
         {showSetupCard && getStarted && <GetStartedCard data={getStarted} />}
         {heroEl}
 
-        {seePerformance && (
-          <Card className="ds-rise grid grid-cols-3" style={rise(2)}>
-            {[
-              { href: "/app/invoices", label: `Collected · ${monthShort}`, value: moneyRound(monthRevenue), bad: false },
-              { href: "/app/invoices?status=AWAITING_PAYMENT", label: "Outstanding", value: moneyRound(receivableTotal), bad: receivableTotal > 0 },
-              { href: "/app/jobs", label: "This week", value: moneyRound(weekRevenue), bad: false },
-            ].map((s, i) => (
-              <Link
-                prefetch={false}
-                key={s.href}
-                href={s.href}
-                className={`min-w-0 px-3.5 py-4 active:opacity-70 ${i > 0 ? "border-l border-[color:var(--ds-line)]" : ""}`}
-              >
-                {/* Never clipped (a cut-off amount reads as a different one): long figures step down */}
-                <p
-                  className={`whitespace-nowrap font-semibold leading-none tracking-[-0.02em] ${
-                    s.value.length > 9 ? "text-[14px]" : s.value.length > 7 ? "text-[17px]" : "text-[20px]"
-                  }`}
-                  style={s.bad ? { color: "var(--ds-bad)" } : undefined}
-                >
-                  <CountUp value={s.value} />
-                </p>
-                <p className="ds-small mt-1.5 truncate text-[11.5px]">{s.label}</p>
-              </Link>
-            ))}
-          </Card>
-        )}
+        {todayPanel(true)}
+
+        {moneyEl(true)}
 
         <AtlasHomeButton appearance="ds" />
-
-        <section className="ds-rise" style={rise(3)} data-tour="today">
-          <SectionTitle action={<ActionLink href="/app/schedule">Schedule</ActionLink>}>
-            Today
-            {(todayItems.length > 0 || todayTasks.length > 0) && (
-              <span className="ds-small ml-1 font-normal">· {todayCountLabel}</span>
-            )}
-          </SectionTitle>
-          {todayItems.length === 0 ? (
-            todayTasks.length === 0 ? (
-              <Card>
-                <Hint title="Nothing on the books today." action={{ href: "/app/jobs/new", label: "Schedule a job", icon: Plus }} />
-              </Card>
-            ) : null
-          ) : laterToday.length === 0 ? (
-            <Card className="px-5 py-4">
-              <p className="ds-body">That&apos;s your only {onlyKind} today. Nothing after it.</p>
-            </Card>
-          ) : (
-            <Card className="ds-divide overflow-hidden">{laterToday.map((item) => todayRow(item, true))}</Card>
-          )}
-          {todayTasks.length > 0 && (
-            <div className={todayItems.length > 0 ? "mt-3" : ""}>
-              <DashboardTasks tasks={todayTasks} phone />
-            </div>
-          )}
-        </section>
 
         <section className="ds-rise" style={rise(4)} data-tour="workflow">
           <SectionTitle info={needsInfo}>Needs you</SectionTitle>
@@ -875,94 +971,15 @@ export default async function DashboardPage() {
         <PushNudge className="mt-6" />
         <TalkToAtlas className="mt-6" />
 
-        {seePerformance && (
-          <div className="mt-7 grid grid-cols-3 gap-4">
-            <Stat
-              className="ds-rise"
-              style={rise(1)}
-              href="/app/invoices"
-              label="Collected"
-              info={statInfo.collected}
-              value={<CountUp value={money(monthRevenue)} />}
-              foot="this month"
-            >
-              {dailyRevenue.length > 1 && monthRevenue > 0 && <Sparkline values={dailyRevenue} />}
-            </Stat>
-            <Stat
-              className="ds-rise"
-              style={rise(2)}
-              href="/app/invoices?status=AWAITING_PAYMENT"
-              label="Outstanding"
-              info={statInfo.outstanding}
-              tone={receivableTotal > 0 ? "bad" : undefined}
-              value={<CountUp value={money(receivableTotal)} />}
-              foot={`${receivableClients} ${receivableClients === 1 ? "client owes" : "clients owe"} you`}
-            />
-            <Stat
-              className="ds-rise"
-              style={rise(3)}
-              href="/app/jobs"
-              label="Booked this week"
-              info={statInfo.booked}
-              value={<CountUp value={money(weekRevenue)} />}
-              foot={`${upcomingJobsWeek.length} ${upcomingJobsWeek.length === 1 ? "job" : "jobs"} scheduled`}
-            />
-          </div>
-        )}
+        {seePerformance && <div className="mt-7">{moneyEl(false)}</div>}
 
-        <div className="mt-8 grid grid-cols-[1.45fr_1fr] items-start gap-6">
-          <div className="flex flex-col gap-6">
+        <div className="mt-6 grid grid-cols-[1.45fr_1fr] items-start gap-6">
+          <div className="flex min-w-0 flex-col gap-6">
             {heroEl}
-            <section className="ds-rise" style={rise(4)} data-tour="today">
-              <SectionTitle action={<ActionLink href="/app/schedule">Open schedule</ActionLink>}>
-                Today
-                {(todayItems.length > 0 || todayTasks.length > 0) && (
-                  <span className="ds-small ml-1 font-normal">· {todayCountLabel}</span>
-                )}
-              </SectionTitle>
-              {todayItems.length === 0 ? (
-                <div className="ds-stat ds-rise" data-tone="brand" style={rise(4)}>
-                  <div>
-                    <p className="ds-stat-label">Clear day</p>
-                    <p className="mt-1 text-[30px] font-extrabold leading-tight tracking-[-0.03em]">Nothing on the books today</p>
-                    <p className="ds-stat-sub">
-                      {nextOnBooks?.scheduledAt ? (
-                        <>
-                          Next up:{" "}
-                          <Link prefetch={false} href={`/app/jobs/${nextOnBooks.id}`} className="font-semibold text-[color:var(--ds-ink)] underline decoration-[color:var(--ds-line-strong)] underline-offset-[3px] hover:decoration-current">
-                            {nextOnBooks.scheduledAt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: tz })}
-                            {nextOnBooks.scheduledAnytime ? "" : ` · ${fmtTime(nextOnBooks.scheduledAt)}`} · {nextOnBooks.title}
-                            {nextOnBooks.contact ? ` · ${nextOnBooks.contact.firstName} ${nextOnBooks.contact.lastName}` : ""}
-                          </Link>
-                        </>
-                      ) : (
-                        "Nothing scheduled ahead yet."
-                      )}
-                    </p>
-                    <div className="mt-5 flex flex-wrap gap-2">
-                      <Link prefetch={false} href="/app/jobs/new" className="ds-btn ds-btn-primary ds-btn-sm">
-                        <Plus size={15} strokeWidth={2.4} />
-                        Schedule a job
-                      </Link>
-                      <Link prefetch={false} href="/app/schedule" className="ds-btn ds-btn-outline ds-btn-sm">
-                        <CalendarDays size={15} strokeWidth={2.2} />
-                        Open schedule
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <Card className="ds-divide overflow-hidden">{todayItems.map((item) => todayRow(item, false))}</Card>
-              )}
-              {todayTasks.length > 0 && (
-                <div className={todayItems.length > 0 ? "mt-3" : ""}>
-                  <DashboardTasks tasks={todayTasks} phone={false} />
-                </div>
-              )}
-            </section>
+            {todayPanel(false)}
           </div>
 
-          <div className="flex flex-col gap-6">
+          <div className="flex min-w-0 flex-col gap-6">
             <section className="ds-rise" style={rise(5)} data-tour="workflow">
               <SectionTitle info={needsInfo}>Needs you</SectionTitle>
               {needs.length === 0 ? allClear : <Card className="ds-divide overflow-hidden">{needsRows(needs)}</Card>}
@@ -970,6 +987,7 @@ export default async function DashboardPage() {
             {onClockEl}
           </div>
         </div>
+
         {footer}
       </div>
     </DsPage>
