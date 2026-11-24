@@ -34,7 +34,7 @@ export function ReportsTabs({ tab }: { tab: ReportsTab }) {
   return (
     <nav
       aria-label="Reports"
-      className="flex w-full gap-1 overflow-x-auto rounded-[12px] bg-[color:var(--ds-surface-2)] p-1 sm:w-auto sm:inline-flex"
+      className="rp-tabs flex w-full gap-1 overflow-x-auto rounded-[12px] bg-[color:var(--ds-surface-2)] p-1 sm:w-auto sm:inline-flex"
     >
       {TABS.map((t) => {
         const on = t.key === tab;
@@ -44,7 +44,7 @@ export function ReportsTabs({ tab }: { tab: ReportsTab }) {
             prefetch={false}
             href={t.href}
             aria-current={on ? "page" : undefined}
-            className={`font-display flex h-9 flex-1 shrink-0 items-center justify-center whitespace-nowrap rounded-[9px] px-4 text-[13.5px] transition-colors sm:flex-none ${
+            className={`rp-tab ${on ? "is-on" : ""} font-display flex h-9 flex-1 shrink-0 items-center justify-center whitespace-nowrap rounded-[9px] px-4 text-[13.5px] transition-colors sm:flex-none ${
               on
                 ? "bg-[color:var(--ds-surface)] font-bold text-[color:var(--ds-ink)] shadow-[var(--ds-shadow-1)]"
                 : "font-semibold text-[color:var(--ds-muted)] hover:text-[color:var(--ds-ink)]"
@@ -70,7 +70,7 @@ export default async function ReportsHeader({
 }) {
   if (compact) {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="ds-pagehead rp-head flex flex-wrap items-center justify-between gap-3">
         <PageTitle heavy>Reports</PageTitle>
         <ReportsTabs tab={tab} />
       </div>
@@ -125,11 +125,11 @@ export default async function ReportsHeader({
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="ds-pagehead rp-head mb-4 flex flex-wrap items-center justify-between gap-3">
         <PageTitle heavy>Reports</PageTitle>
       </div>
 
-      <section className="ds-card ds-card-raised ds-rise mb-4 grid overflow-hidden lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+      <section className="rp-pic ds-card ds-card-raised ds-rise mb-4 grid overflow-hidden lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         {/* This month: in vs out on one scale; the gap is the profit */}
         <div className="min-w-0 p-5 lg:p-6">
           <div className="flex items-baseline justify-between gap-3">
@@ -243,7 +243,7 @@ export default async function ReportsHeader({
         </div>
       </section>
 
-      <div className="mb-5 lg:mb-6">
+      <div className="rp-tabs-row mb-5 lg:mb-6">
         <ReportsTabs tab={tab} />
       </div>
     </div>

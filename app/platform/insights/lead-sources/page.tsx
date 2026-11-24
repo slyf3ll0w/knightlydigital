@@ -6,7 +6,7 @@ import PageTitle from "@/components/PageTitle";
 import BackLink from "@/components/BackLink";
 import { FilterRow, FilterChip } from "@/components/FilterChips";
 import EmptyState from "@/components/EmptyState";
-import { Chip, InfoTip } from "@/components/ds";
+import { Chip, DsPage, InfoTip } from "@/components/ds";
 import { money } from "@/lib/statuses";
 import { loadLeadSourceReport, loadLeadsForSource, REPORT_LEAD_CAP } from "@/lib/lead-source-report";
 import { leadSourceKey } from "@/lib/lead-source";
@@ -46,8 +46,8 @@ export default async function LeadSourcesPage({ searchParams }: { searchParams: 
   const href = (key?: string) => `/app/insights/lead-sources?range=${activeRange}${key ? `&source=${encodeURIComponent(key)}` : ""}`;
 
   return (
-    <div className="mx-auto max-w-5xl p-4 lg:p-8">
-      <div className="mb-3 flex items-start gap-3 lg:mb-5">
+    <DsPage open className="rp-page">
+      <div className="ds-pagehead mb-3 flex items-start gap-3 lg:mb-5">
         <BackLink href="/app/insights" className="mt-1.5" />
         <PageTitle
           section="business"
@@ -191,6 +191,6 @@ export default async function LeadSourcesPage({ searchParams }: { searchParams: 
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">Facebook ads</span>
         {company?.metaAds?.datasetId || company?.metaAds?.pageId ? <Chip tone="good">On</Chip> : <Chip>Off</Chip>}
       </Link>
-    </div>
+    </DsPage>
   );
 }

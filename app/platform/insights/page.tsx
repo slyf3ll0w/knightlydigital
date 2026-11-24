@@ -5,7 +5,7 @@ import { requirePageActor, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import ReportsHeader from "@/components/ReportsHeader";
 import EmptyState from "@/components/EmptyState";
-import { Chip, InfoTip } from "@/components/ds";
+import { Chip, DsPage, InfoTip } from "@/components/ds";
 import { money } from "@/lib/statuses";
 import { invoiceBalance } from "@/lib/payments";
 
@@ -283,7 +283,8 @@ export default async function InsightsPage({
   const paymentCount = `${payments.length} ${payments.length === 1 ? "payment" : "payments"}`;
 
   return (
-    <div className="mx-auto max-w-5xl p-4 lg:p-8">
+    // Open page (2026-11-24): white page + entrance at a desk; cards open up (app/ds-open-reports.css)
+    <DsPage open className="rp-page">
       {/* Reports (2026-11-21): Insights is the first tab of the Reports page */}
       <ReportsHeader companyId={actor.companyId} tab="insights" />
 
@@ -483,6 +484,6 @@ export default async function InsightsPage({
           total={totalRevenue}
         />
       </div>
-    </div>
+    </DsPage>
   );
 }

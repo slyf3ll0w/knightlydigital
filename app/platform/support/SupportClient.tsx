@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import PageTitle from "@/components/PageTitle";
-import { Chip } from "@/components/ds";
+import { Chip, DsPage } from "@/components/ds";
 
 type TicketType = "BUG" | "SUGGESTION";
 type TicketStatus = "OPEN" | "PLANNED" | "RESOLVED" | "DECLINED";
@@ -113,8 +113,8 @@ export default function SupportClient({
   const isBug = formType === "BUG";
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 p-4 lg:p-8">
-      <div>
+    <DsPage open className="rp-page !max-w-3xl space-y-6">
+      <div className="ds-pagehead">
         <PageTitle info="Report a bug or share an idea. The team reads every ticket.">
           Help &amp; Feedback
         </PageTitle>
@@ -308,6 +308,6 @@ export default function SupportClient({
           })}
         </ul>
       </div>
-    </div>
+    </DsPage>
   );
 }

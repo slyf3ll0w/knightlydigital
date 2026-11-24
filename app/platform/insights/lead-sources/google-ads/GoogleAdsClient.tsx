@@ -222,7 +222,7 @@ export default function GoogleAdsClient({
   );
 
   return (
-    <DsPage className="!max-w-3xl">
+    <DsPage open className="rp-page !max-w-3xl">
       <div className="flex items-end gap-3">
         <BackLink href="/app/insights/lead-sources" className="mb-1.5" />
         <PageHeader

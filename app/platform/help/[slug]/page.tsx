@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import HelpArticleView from "@/components/help/HelpArticleView";
 import { findHelpArticle } from "@/lib/help/search";
 import { requirePageActor } from "@/lib/permissions";
+import { DsPage } from "@/components/ds";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const found = findHelpArticle((await params).slug);
@@ -14,6 +15,8 @@ export default async function AppHelpArticlePage({ params }: { params: Promise<{
   const found = findHelpArticle((await params).slug);
   if (!found) notFound();
   return (
-    <HelpArticleView article={found.article} section={found.section} base="/app/help" inApp />
+    <DsPage open className="rp-help !max-w-none !px-0 !pb-0 !pt-0 lg:!px-0 lg:!pt-0">
+      <HelpArticleView article={found.article} section={found.section} base="/app/help" inApp />
+    </DsPage>
   );
 }

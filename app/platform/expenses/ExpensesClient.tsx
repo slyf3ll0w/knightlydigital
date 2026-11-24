@@ -8,7 +8,7 @@ import EmptyState from "@/components/EmptyState";
 import { money } from "@/lib/statuses";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
-import { InfoTip } from "@/components/ds";
+import { DsPage, InfoTip } from "@/components/ds";
 import { DateField } from "@/components/DateField";
 import { shareAppFile } from "@/components/PdfLink";
 
@@ -226,7 +226,7 @@ export default function ExpensesClient({
   }
 
   return (
-    <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+    <DsPage open className="rp-page">
       {header}
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
@@ -616,6 +616,6 @@ export default function ExpensesClient({
           )
         )}
       </div>
-    </div>
+    </DsPage>
   );
 }

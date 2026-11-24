@@ -9,7 +9,7 @@ import AddEntry from "./AddEntry";
 import PageTitle from "@/components/PageTitle";
 import ReportsHeader from "@/components/ReportsHeader";
 import EmptyState from "@/components/EmptyState";
-import { Chip } from "@/components/ds";
+import { Chip, DsPage } from "@/components/ds";
 import { featureAllowedFor } from "@/lib/plan-gate";
 import PlanRequired from "@/components/PlanRequired";
 import PdfLink from "@/components/PdfLink";
@@ -103,7 +103,7 @@ export default async function TimesheetsPage({
     d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz });
 
   return (
-    <div className={`p-4 lg:p-8 mx-auto ${manager ? "max-w-5xl" : "max-w-4xl"}`}>
+    <DsPage open className="rp-page">
       {/* Reports (2026-11-21): for owners/admins Timesheets is a tab of the
           Reports page; techs still get their own plain Timesheets page. */}
       {manager && <ReportsHeader companyId={actor.companyId} tab="timesheets" />}
@@ -341,6 +341,6 @@ export default async function TimesheetsPage({
           )}
         </div>
       )}
-    </div>
+    </DsPage>
   );
 }

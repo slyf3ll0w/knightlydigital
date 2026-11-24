@@ -1,1 +1,69 @@
 /* Open-page rollout, wave 2 (2026-11-24): reports. Shared pieces live in app/ds-brand.css. */
+
+/* Reports (Insights, Timesheets, Expenses, Team map header), Lead sources,
+   the ad-connection pages, Help & Feedback and the Help Center, on the open
+   page at a desk. The pages keep their pilot pieces (the in-vs-out profit
+   picture and the hours week in the Reports header, the RangeRuler, the
+   period sentence, the charts); their cards open onto the white page — no
+   box, a hairline rule on top. Link cards (doorways, the two big Support
+   choices) and accented notices stay cards: they are buttons. Phones are
+   untouched. */
+@media (min-width: 1024px) {
+  .bb-open .rp-page .ds-card:not(a):not(.ds-card-link):not([class*="border-l-"]) {
+    background: transparent;
+    box-shadow: none;
+    border: 0;
+    border-radius: 0;
+    border-top: 1px solid var(--ds-line-strong);
+  }
+  /* the Reports header's picture: open, ruled above and below */
+  .bb-open .rp-page .rp-pic {
+    border-bottom: 1px solid var(--ds-line);
+    overflow: visible;
+  }
+  .bb-open .rp-head { margin-bottom: 24px; }
+  .bb-open .rp-head .ds-title { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; }
+
+  /* the Reports tabs: underline tabs on a hairline (were a gray pill strip) */
+  .bb-open .rp-tabs {
+    display: flex;
+    width: 100%;
+    gap: 2px;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    border-bottom: 1px solid var(--ds-line-strong);
+    overflow: visible;
+  }
+  .bb-open .rp-head .rp-tabs { width: auto; border-bottom: 0; }
+  .bb-open .rp-tabs .rp-tab {
+    position: relative;
+    flex: none;
+    height: 44px;
+    padding: 0 12px;
+    border-radius: 0;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .bb-open .rp-tabs .rp-tab.is-on { color: var(--ds-ink); }
+  .bb-open .rp-tabs .rp-tab.is-on::after {
+    content: "";
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--ds-primary);
+  }
+  .bb-open .rp-tabs .rp-tab:not(.is-on):hover::after {
+    content: "";
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--ds-line-strong);
+  }
+}
