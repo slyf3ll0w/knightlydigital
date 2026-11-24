@@ -271,6 +271,32 @@ export default function ChatClient({
     return () => clearInterval(interval);
   }, [refresh]);
 
+  // /app/chat?dm=<userId> (the Team page's Message button): open — or start —
+  // the direct message with that teammate. The server dedupes DMs and
+  // refuses anyone outside the company or deactivated.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const dm = params.get("dm");
+    if (!dm || dm === meId) return;
+    params.delete("dm");
+    const qs = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
+    (async () => {
+      const res = await fetch("/api/app/chat/channels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberIds: [dm] }),
+      }).catch(() => null);
+      const data = res ? await res.json().catch(() => null) : null;
+      if (res?.ok && data?.id) {
+        await openChannel(data.id);
+        setMobileOpen(true);
+      }
+    })();
+    // Runs once on arrival
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function openChannel(id: string) {
     // The fixed conversation overlay is a phone thing — on desktop the
     // conversation pane is already visible (and double-mounting it would
