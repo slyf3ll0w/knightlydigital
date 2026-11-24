@@ -1489,6 +1489,7 @@ LIVE_AUDIO_OUT_CENTS_PER_MIN=
 AI_MODEL_ASSISTANT_VOICE=      # the fallback turn-based voice engine's model (default = AI_MODEL_ASSISTANT)
 # Marketing-site analytics, all optional (/superadmin/traffic; 2026-11-05).
 # Page views: Cloudflare Web Analytics — the beacon loads on (wbsite) pages only.
+# Microsoft Clarity (project zivhxcj6tq, no env) is in app/(wbsite)/layout.tsx too: workbenchfsm.com hosts only, never /app or the portal; privacy §9 discloses it.
 NEXT_PUBLIC_CF_BEACON_TOKEN=   # the site token from Cloudflare → Analytics & Logs → Web Analytics (manual snippet)
 CLOUDFLARE_API_TOKEN=          # read it back (lib/cloudflare-analytics.ts): Account Analytics: Read + Account Settings: Read
 CLOUDFLARE_ACCOUNT_ID=
