@@ -368,7 +368,7 @@ export const textingSection: HelpSection = {
       slug: "messages-inbox",
       title: "Message clients from the inbox",
       summary: "One conversation per client: texts, portal messages and replies in one place.",
-      keywords: ["messages", "inbox", "conversation", "thread", "reply", "portal message", "new message", "text a client", "photo", "picture", "mms", "video", "drag and drop", "paste", "screenshot"],
+      keywords: ["messages", "inbox", "conversation", "thread", "reply", "portal message", "new message", "text a client", "photo", "picture", "mms", "video", "drag and drop", "paste", "screenshot", "delete conversation", "delete thread", "remove messages"],
       where: { label: "Messages", href: "/app/messages" },
       roles: "Everyone except Tech",
       blocks: [
@@ -411,6 +411,14 @@ export const textingSection: HelpSection = {
         {
           type: "p",
           text: "It lands in Messages under the number itself, like an unknown caller on your phone. It is not in Clients or on the Leads board yet. Open the thread and the card at the top asks who it is: type a first name and press `Save` as a **Lead** (onto the Leads board — in **Contacted** if you have already replied, otherwise **New**), a **Client**, or a business **Contact**. Or press `Add to existing`, pick someone you already have, and the conversation moves to them and this becomes their number on file (the button says which number it replaces). The same card appears when you start a thread by typing a number. A text from a **short code** (a 5- or 6-digit sender: a verification code, a bank alert) lands here too, but that thread is read-only — nothing you send can reach an automated sender, so there is no reply box, Call button or save card.",
+        },
+        {
+          type: "h",
+          text: "Delete a conversation",
+        },
+        {
+          type: "p",
+          text: "Owners and admins can open a conversation, press the **⋮** button at the top and choose `Delete conversation`. Every message in it goes, photos included, from Messages and from the client's portal. The client stays in Clients with everything else on file. Texts already delivered to their phone can't be unsent, and if they text again a new conversation starts.",
         },
         {
           type: "tip",

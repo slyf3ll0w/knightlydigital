@@ -11,7 +11,7 @@ export const teamSection: HelpSection = {
       slug: "add-team-members",
       title: "Add team members",
       summary: "Add someone, pick their role, and share their sign-in yourself.",
-      keywords: ["invite", "add user", "online", "last seen", "active", "employee", "crew", "technician", "new member", "password", "deactivate", "seat", "one device", "in use on another device", "shared login", "use it here"],
+      keywords: ["invite", "add user", "online", "last seen", "active", "employee", "crew", "technician", "new member", "password", "deactivate", "seat", "one device", "in use on another device", "shared login", "use it here", "profile", "contact info", "team member profile"],
       where: { label: "Team & roles", href: "/app/settings/team" },
       roles: "Owners and admins",
       blocks: [
@@ -30,6 +30,14 @@ export const teamSection: HelpSection = {
         {
           type: "tip",
           text: "The starting password is theirs to change. Until they set their own (Settings → My Profile, or Forgot password), it only works at your company: if another business later adds the same email to its team, that password is dropped and they get an email to set a new one — so nobody can sign in to someone else's company with a password a manager typed. The same happens when they open a company of their own, and the first time they sign in with Google or Apple the starting password simply stops working.",
+        },
+        {
+          type: "h",
+          text: "Someone's profile",
+        },
+        {
+          type: "p",
+          text: "Tap anyone on the list (their name, or an empty part of their row) to open their profile: photo, role, when they were last on, email and phone. `Call` and `Email` open your phone's dialer and mail app, and `Message` opens a direct message with them in Team Chat. The settings below are in the profile too.",
         },
         {
           type: "h",
@@ -121,12 +129,12 @@ export const teamSection: HelpSection = {
       slug: "team-chat",
       title: "Team chat",
       summary: "One Everyone channel, plus direct messages and groups.",
-      keywords: ["chat", "team chat", "message team", "group", "dm", "direct message", "photo", "picture", "video", "attach", "drag and drop", "paste", "screenshot"],
+      keywords: ["chat", "team chat", "message team", "group", "dm", "direct message", "photo", "picture", "video", "attach", "drag and drop", "paste", "screenshot", "group photo", "group picture", "cover photo"],
       where: { label: "Team Chat", href: "/app/chat" },
       blocks: [
         {
           type: "p",
-          text: "Every company has an **Everyone** channel. Press `New chat` for a direct message or a named group, and use `Add people` or `Leave group` inside it. You can edit and delete your own messages.",
+          text: "Every company has an **Everyone** channel. Press `New chat` for a direct message or a named group, and use `Add people` or `Leave group` inside it. You can also start a direct message from someone's profile on **Settings → Team & roles**. You can edit and delete your own messages.",
         },
         {
           type: "h",
@@ -143,6 +151,14 @@ export const teamSection: HelpSection = {
             "Photos and videos stay in the chat for a week. After that the message shows that the photo has expired, so save anything you want to keep.",
             "Deleting your message deletes its photo too.",
           ],
+        },
+        {
+          type: "h",
+          text: "Group photo",
+        },
+        {
+          type: "p",
+          text: "In a group, press the **⋮** button at the top and choose `Add group photo`. It shows beside the group in the chat list and at the top of the conversation for everyone in it. Anyone in the group can change it or take it off from the same menu. Unlike photos sent in the chat, the group photo doesn't expire.",
         },
         {
           type: "p",
