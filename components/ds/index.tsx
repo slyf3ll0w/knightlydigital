@@ -16,9 +16,77 @@ export { InfoTip, Arrow };
 
 type Tone = "primary" | "secondary" | "good" | "warn" | "bad" | "neutral";
 
-/** The page container: turns the design system on for everything inside. */
-export function DsPage({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`ds mx-auto w-full max-w-6xl px-4 pb-10 pt-4 lg:px-8 lg:pt-8 ${className}`}>{children}</div>;
+/**
+ * The page container: turns the design system on for everything inside.
+ * `band` (desktop): the branded header (app/ds-brand.css) — the company's
+ * primary as a deep band behind the PageHeader with a secondary stripe at its
+ * foot, the page opening white underneath. Put the page body in <BandBody>.
+ */
+export function DsPage({
+  children,
+  className = "",
+  band = false,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  band?: boolean;
+}) {
+  const page = (
+    <div className={`ds ${band ? "bb-page" : ""} mx-auto w-full max-w-6xl px-4 pb-10 pt-4 lg:px-8 lg:pt-8 ${className}`}>
+      {children}
+    </div>
+  );
+  if (!band) return page;
+  return (
+    <div className="ds bb-wrap">
+      <div className="bb-band" aria-hidden />
+      {page}
+    </div>
+  );
+}
+
+/** Under a band: the page body, starting where the band ends (desktop). */
+export function BandBody({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <div className={`bb-body ${className}`}>{children}</div>;
+}
+
+/**
+ * An open section (band pages): a bold title with the two-color bar on a
+ * hairline rule, an optional count and right-side action, then its content
+ * straight on the page — no card around it.
+ */
+export function OpenSection({
+  title,
+  count,
+  info,
+  aside,
+  children,
+  className = "",
+  style,
+  "data-tour": tour,
+}: {
+  title: React.ReactNode;
+  count?: React.ReactNode;
+  info?: React.ReactNode;
+  aside?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+  "data-tour"?: string;
+}) {
+  return (
+    <section className={`bb-sec ${className}`} style={style} data-tour={tour}>
+      <div className="bb-sec-head">
+        <h2 className="bb-h2">
+          <span className="bb-h2-text">{title}</span>
+          {count !== undefined && count !== null && <span className="bb-h2-n">{count}</span>}
+          {info && <InfoTip>{info}</InfoTip>}
+        </h2>
+        {aside && <div className="bb-sec-aside">{aside}</div>}
+      </div>
+      <div className="bb-sec-body">{children}</div>
+    </section>
+  );
 }
 
 /** Page header: eyebrow (context like a date), title, optional (i), actions on the right. */
@@ -39,7 +107,7 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <div className={`ds-rise flex flex-wrap items-end justify-between gap-4 ${className}`}>
+    <div className={`ds-pagehead ds-rise flex flex-wrap items-end justify-between gap-4 ${className}`}>
       <div className="min-w-0">
         {eyebrow && <p className="ds-eyebrow ds-eyebrow-plain">{eyebrow}</p>}
         <h1 className={`ds-title ${heavy ? "ds-title-heavy" : ""} mt-1 flex items-center gap-2`}>

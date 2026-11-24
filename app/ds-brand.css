@@ -1,0 +1,234 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   The branded header (David 2026-11-24, "option B"): one loud thing per
+   screen. A band of the company's PRIMARY, almost black at the top and the
+   brand color at its foot, with a 4 px stripe of the SECONDARY where it
+   meets the page. The page title sits in it in white; the accent word and
+   the main button wear the secondary. Everything below is quiet and open
+   (no boxes): sections under bold titles with a short two-color bar,
+   hairline rows, small solid chips — Stripe's restraint.
+
+   Desktop only (lg). Phones keep their own tree until the phone pass.
+   A page opts in with <DsPage band>; the desktop top bar turns the band's
+   deep color on any page that has one (:has), so the band reads as one
+   piece from the top of the window.
+   Mockups: Documents/workbench-round11-more-screens.html (Live + Open).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.ds {
+  /* the band, made only from the company's two colors */
+  --bb-p: var(--ds-primary-l, #0B57D8);
+  --bb-deep: color-mix(in srgb, var(--bb-p) 34%, #050A18);
+  --bb-mid: color-mix(in srgb, var(--bb-p) 64%, #050A18);
+  --bb-foot: var(--bb-p);
+  /* the secondary as it reads on a dark surface (lib/ds-theme.ts lightens it to 3:1) */
+  --bb-s: var(--ds-secondary-d, #F86A0A);
+  --bb-on-s: var(--ds-on-secondary-d, #FFFFFF);
+  --bb-h: 196px;
+}
+html[data-mode="dark"] .ds {
+  --bb-deep: color-mix(in srgb, var(--bb-p) 24%, #03060E);
+  --bb-mid: color-mix(in srgb, var(--bb-p) 50%, #03060E);
+  --bb-foot: color-mix(in srgb, var(--bb-p) 80%, #03060E);
+}
+
+.bb-band { display: none; }
+
+@media (min-width: 1024px) {
+  .bb-wrap { position: relative; min-height: 100%; background: var(--ds-surface); }
+  .bb-band {
+    display: block;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: var(--bb-h);
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, var(--bb-deep) 0%, var(--bb-mid) 58%, var(--bb-foot) 100%) top / 100% calc(100% - 4px) no-repeat,
+      var(--bb-s);
+  }
+  .bb-page { position: relative; }
+
+  /* the header inside the band: fills it, white type, secondary accent */
+  .bb-page .ds-pagehead { min-height: 132px; align-items: center; }
+  .bb-page .ds-pagehead .ds-eyebrow { color: rgba(255, 255, 255, 0.72); }
+  .bb-page .ds-pagehead .ds-title { color: #FFFFFF; font-size: 32px; font-weight: 700; letter-spacing: -0.03em; }
+  .bb-page .ds-pagehead .ds-title .bb-acc { color: var(--bb-s) !important; }
+  .bb-page .ds-pagehead .ds-title button { color: rgba(255, 255, 255, 0.7); }
+  .bb-page .ds-pagehead .ds-title button:hover { color: #FFFFFF; }
+  .bb-page .ds-pagehead .ds-wipe-bar { background: var(--bb-s); }
+  .bb-page .ds-pagehead .ds-chip { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28); }
+  .bb-page .ds-pagehead a:not(.ds-btn), .bb-page .ds-pagehead .bb-crumbs { color: rgba(255, 255, 255, 0.75); }
+  .bb-page .ds-pagehead a:not(.ds-btn):hover { color: #FFFFFF; }
+  .bb-page .ds-pagehead .ds-btn-outline,
+  .bb-page .ds-pagehead .ds-btn-ghost,
+  .bb-page .ds-pagehead .ds-btn-soft {
+    background: rgba(255, 255, 255, 0.1);
+    color: #FFFFFF;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+  }
+  .bb-page .ds-pagehead .ds-btn-outline:hover,
+  .bb-page .ds-pagehead .ds-btn-ghost:hover,
+  .bb-page .ds-pagehead .ds-btn-soft:hover { background: rgba(255, 255, 255, 0.17); }
+  .bb-page .ds-pagehead .ds-btn-primary {
+    background: var(--bb-s);
+    color: var(--bb-on-s);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 1px 2px rgba(0, 0, 0, 0.3),
+      0 10px 22px -10px color-mix(in srgb, var(--bb-s) 80%, transparent);
+  }
+  .bb-page .ds-pagehead .ds-btn-primary:hover { filter: brightness(1.06); background: var(--bb-s); }
+  /* the pressable feel from the website: a press sinks a pixel */
+  .bb-page .ds-btn:active { transform: translateY(1px) scale(0.985); }
+
+  /* the page under the band starts where the band ends */
+  .bb-page > .bb-body { margin-top: 28px; display: flex; flex-direction: column; gap: 44px; }
+
+  /* ── the desktop top bar over a band: the band's deep color, light controls ── */
+  .app-ui:has(.bb-band) .app-header {
+    background: var(--bb-deep) !important;
+    border-bottom-color: transparent !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .app-ui:has(.bb-band) .app-header .text-gray-900 { color: #FFFFFF; }
+  .app-ui:has(.bb-band) .app-header [data-tour="search"] {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: transparent;
+    color: rgba(255, 255, 255, 0.7);
+  }
+  .app-ui:has(.bb-band) .app-header [data-tour="search"]:hover { background: rgba(255, 255, 255, 0.16); border-color: transparent; }
+  .app-ui:has(.bb-band) .app-header [data-tour="search"] kbd {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: transparent;
+    color: rgba(255, 255, 255, 0.8);
+  }
+  .app-ui:has(.bb-band) .app-header [data-tour="chat"] { border-color: rgba(255, 255, 255, 0.28); color: rgba(255, 255, 255, 0.85); }
+  .app-ui:has(.bb-band) .app-header [data-tour="chat"]:hover { background: rgba(255, 255, 255, 0.1); color: #FFFFFF; }
+  .app-ui:has(.bb-band) .app-header .bell-swing,
+  .app-ui:has(.bb-band) .app-header .gear-turn { color: rgba(255, 255, 255, 0.75); }
+  .app-ui:has(.bb-band) .app-header .bell-swing:hover,
+  .app-ui:has(.bb-band) .app-header .gear-turn:hover { background: rgba(255, 255, 255, 0.1); color: #FFFFFF; }
+  .app-ui:has(.bb-band) .app-header [data-tour="create"] {
+    background: var(--bb-s);
+    color: var(--bb-on-s);
+  }
+}
+
+/* ═══ The open page: sections under bold titles, no boxes ═══════════════ */
+.bb-sec { min-width: 0; }
+.bb-sec-body { padding-top: 6px; }
+.bb-sec-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--ds-line-strong);
+}
+.bb-h2 {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 19px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--ds-ink);
+}
+.bb-h2-text { position: relative; padding-bottom: 12px; }
+/* the website's two-color title bar, in the company's colors */
+.bb-h2-text::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 40px;
+  height: 3px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, var(--ds-primary) 0 66%, var(--ds-secondary) 66%);
+}
+.bb-h2-n { font-size: 14px; font-weight: 500; letter-spacing: 0; color: var(--ds-muted); }
+.bb-sec-aside { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; }
+.bb-split { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 56px; align-items: start; }
+
+/* hairline rows */
+.bb-rows { display: flex; flex-direction: column; }
+.bb-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 60px;
+  padding: 8px 10px;
+  margin: 0 -10px;
+  border-bottom: 1px solid var(--ds-line);
+  border-radius: 0;
+  transition: background-color 120ms;
+}
+.bb-row:last-child { border-bottom: 0; }
+a.bb-row:hover, .bb-row.is-link:hover { background: var(--ds-surface-2); }
+.bb-row-main { flex: 1; min-width: 0; }
+.bb-row-title { display: block; font-size: 14.5px; font-weight: 500; color: var(--ds-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bb-row-sub { display: block; margin-top: 1px; font-size: 13px; color: var(--ds-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bb-num { width: 24px; flex: none; text-align: right; font-size: 15px; font-weight: 700; color: var(--ds-ink); }
+.bb-num.is-bad { color: var(--ds-bad); }
+.bb-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ds-primary);
+  transition: background-color 120ms;
+}
+.bb-row:hover .bb-go, .bb-go:hover { background: var(--ds-primary-soft); }
+
+/* tables: hairlines only, no fills */
+.bb-table { width: 100%; border-collapse: collapse; }
+.bb-table th {
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ds-muted);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--ds-line);
+  white-space: nowrap;
+}
+.bb-table td { padding: 0 12px; height: 56px; border-bottom: 1px solid var(--ds-line); white-space: nowrap; }
+.bb-table tr > :first-child { padding-left: 0; }
+.bb-table tr > :last-child { padding-right: 0; }
+.bb-table tbody tr:last-child td { border-bottom: 0; }
+.bb-table tbody tr { transition: background-color 120ms; }
+.bb-table tbody tr:hover td { background: var(--ds-surface-2); }
+.bb-table .r { text-align: right; }
+.bb-table .wrap { white-space: normal; }
+.bb-strong { font-weight: 600; color: var(--ds-ink); }
+
+/* big figures */
+.bb-big { font-size: 30px; line-height: 1.1; font-weight: 700; letter-spacing: -0.03em; color: var(--ds-ink); }
+.bb-label { font-size: 13px; font-weight: 500; color: var(--ds-muted); }
+
+/* the small solid status label used on open pages */
+.bb-page .ds-chip { height: 21px; padding: 0 8px; border-radius: 5px; font-size: 11.5px; font-weight: 600; }
+
+/* moments: things land, numbers roll (JS in components/ds/Moments.tsx) */
+@keyframes bb-row-in {
+  from { opacity: 0; transform: translateY(-6px); background: color-mix(in srgb, var(--ds-secondary) 14%, transparent); }
+  60% { background: color-mix(in srgb, var(--ds-secondary) 14%, transparent); }
+  to { opacity: 1; transform: none; background: transparent; }
+}
+.bb-in { animation: bb-row-in 700ms var(--ds-ease) both; animation-delay: calc(var(--ds-i, 0) * 40ms); }
+@keyframes bb-bar { from { transform: scaleY(0); } to { transform: none; } }
+.bb-bars { display: flex; align-items: flex-end; gap: 4px; height: 52px; }
+.bb-bars i { flex: 1; min-height: 2px; border-radius: 2px 2px 0 0; background: var(--ds-line-strong); transform-origin: bottom; animation: bb-bar 600ms var(--ds-ease) both; animation-delay: calc(var(--ds-i, 0) * 30ms); }
+.bb-bars i.is-today { background: var(--ds-secondary); }
+.bb-bars i.is-empty { background: var(--ds-line); }
+@media (prefers-reduced-motion: reduce) {
+  .bb-in, .bb-bars i { animation: none; }
+  .bb-page .ds-btn:active { transform: none; }
+}
