@@ -880,6 +880,10 @@ model ChatChannel {
   isEveryone    Boolean   @default(false)
   name          String? // groups only; DMs display the other member's name
   createdById   String?
+  // Group cover photo (ticket #8g5ymm): R2 key under companies/<id>/chat-covers/.
+  // Never swept: chat attachments expire, this does not (it's not a
+  // PortalMessageMedia row). Old object deleted on replace / remove / delete.
+  photoKey      String?
   // Thread-list ordering without joining messages
   lastMessageAt DateTime?
   createdAt     DateTime  @default(now())

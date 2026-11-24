@@ -31,7 +31,7 @@ import MessageMedia, { type ThreadMedia } from "@/components/MessageMedia";
 import FileDropOverlay from "@/components/FileDropOverlay";
 import PendingAttachments, { mergePendingFiles } from "@/components/PendingAttachments";
 import { COMPOSER_ACCEPT } from "@/lib/media-types";
-import { resizeForMms } from "@/lib/resize-image";
+import { resizeForMms, resizePhotoFile } from "@/lib/resize-image";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { usePasteFiles } from "@/lib/use-paste-files";
 
@@ -66,6 +66,8 @@ type Channel = {
   name: string;
   memberIds: string[];
   memberCount: number;
+  /** Group cover photo (null = the default icon). */
+  photoUrl?: string | null;
   unread: number;
   lastMessage: { body: string; userName: string; at: string; deleted: boolean } | null;
 };
@@ -134,6 +136,24 @@ function Linkified({ text }: { text: string }) {
   );
 }
 
+/** A group's cover photo; falls back to the default group icon if it fails to load. */
+function CoverImage({ src, size, fallback }: { src: string; size: number; fallback: React.ReactNode }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  if (failed === src) return <>{fallback}</>;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt=""
+      width={size}
+      height={size}
+      onError={() => setFailed(src)}
+      className="shrink-0 rounded-full bg-[color:var(--ds-secondary-soft)] object-cover"
+      style={{ width: size, height: size }}
+    />
+  );
+}
+
 function ChannelIcon({ channel, size = 40, meId }: { channel: Channel; size?: number; meId?: string }) {
   if (channel.kind === "everyone") {
     return (
@@ -146,7 +166,7 @@ function ChannelIcon({ channel, size = 40, meId }: { channel: Channel; size?: nu
     );
   }
   if (channel.kind === "group") {
-    return (
+    const icon = (
       <span
         className="flex shrink-0 items-center justify-center rounded-full bg-[color:var(--ds-secondary-soft)] text-[color:var(--ds-secondary-strong)]"
         style={{ width: size, height: size }}
@@ -154,6 +174,7 @@ function ChannelIcon({ channel, size = 40, meId }: { channel: Channel; size?: nu
         <UsersIcon size={size * 0.45} />
       </span>
     );
+    return channel.photoUrl ? <CoverImage src={channel.photoUrl} size={size} fallback={icon} /> : icon;
   }
   return (
     <Avatar
@@ -170,7 +191,10 @@ export default function ChatClient({
   everyoneId,
   initialChannels,
   initialMessages,
+  coverPhotos = false,
 }: {
+  /** Blob storage is set up, so group chats can take a cover photo. */
+  coverPhotos?: boolean;
   meId: string;
   team: Member[];
   everyoneId: string;
@@ -203,6 +227,8 @@ export default function ChatClient({
   // Picked, dropped or pasted files waiting in the composer for Send
   const [pending, setPending] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const coverRef = useRef<HTMLInputElement>(null);
+  const [coverBusy, setCoverBusy] = useState(false);
   // iOS keyboard: the layout viewport doesn't shrink, only the visual one —
   // size the conversation overlay to the visual viewport so the composer AND
   // the latest messages stay above the keyboard.
@@ -704,6 +730,48 @@ export default function ChatClient({
     await refresh(active.id);
   }
 
+  function pickCover() {
+    setMenuOpen(false);
+    coverRef.current?.click();
+  }
+
+  async function onPickCover(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !active || active.kind !== "group") return;
+    const channelId = active.id;
+    setCoverBusy(true);
+    setError("");
+    try {
+      // Shown at 34-40 px; 512 keeps it crisp on a retina phone and small in R2.
+      const { blob, filename } = await resizePhotoFile(file, 512);
+      const form = new FormData();
+      form.append("file", blob, filename);
+      const res = await fetch(`/api/app/chat/channels/${channelId}/photo`, { method: "POST", body: form });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(data?.error ?? "The photo didn't upload. Try again.");
+        return;
+      }
+      setChannels((prev) => prev.map((c) => (c.id === channelId ? { ...c, photoUrl: data?.photoUrl ?? null } : c)));
+      hapticImpact();
+    } catch {
+      setError("That photo couldn't be read. Try another one.");
+    } finally {
+      setCoverBusy(false);
+    }
+  }
+
+  async function removeCover() {
+    setMenuOpen(false);
+    if (!active || active.kind !== "group" || !active.photoUrl) return;
+    const channelId = active.id;
+    if (!(await confirmSheet({ message: "Remove the group photo?", confirmLabel: "Remove photo", destructive: true }))) return;
+    const res = await fetch(`/api/app/chat/channels/${channelId}/photo`, { method: "DELETE" }).catch(() => null);
+    if (res?.ok) setChannels((prev) => prev.map((c) => (c.id === channelId ? { ...c, photoUrl: null } : c)));
+    else setError("Couldn't remove the photo. Try again.");
+  }
+
   async function leaveGroup() {
     setMenuOpen(false);
     if (!active || active.kind !== "group") return;
@@ -802,7 +870,17 @@ export default function ChatClient({
         >
           <ArrowLeft size={20} />
         </button>
-        {active && <ChannelIcon channel={active} size={34} meId={meId} />}
+        {active && (
+          <span className="relative shrink-0">
+            <ChannelIcon channel={active} size={34} meId={meId} />
+            {coverBusy && (
+              <span className="absolute inset-0 flex items-center justify-center rounded-full bg-[color:var(--ds-surface)]/70">
+                <Loader2 size={14} className="animate-spin text-[color:var(--ds-primary)]" />
+              </span>
+            )}
+          </span>
+        )}
+        <input ref={coverRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" className="hidden" onChange={onPickCover} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-semibold text-gray-900">{active?.name}</p>
           <p className="truncate text-[11px] text-gray-400">
@@ -844,6 +922,16 @@ export default function ChatClient({
                 <button type="button" onClick={renameGroup} className="flex w-full items-center gap-2 px-3.5 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
                   <Pencil size={14} /> Rename group
                 </button>
+                {coverPhotos && active.memberCount > 2 && (
+                  <button type="button" onClick={pickCover} disabled={coverBusy} className="flex w-full items-center gap-2 px-3.5 py-2.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                    <ImagePlus size={14} /> {active.photoUrl ? "Change group photo" : "Add group photo"}
+                  </button>
+                )}
+                {active.photoUrl && (
+                  <button type="button" onClick={removeCover} className="flex w-full items-center gap-2 px-3.5 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                    <Trash2 size={14} /> Remove group photo
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {

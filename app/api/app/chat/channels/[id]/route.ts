@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { resolveChannel } from "@/lib/chat";
+import { deleteObject, isBlobStorageConfigured } from "@/lib/blob-storage";
+import { reportError } from "@/lib/report-error";
 
 /**
  * PATCH — rename a group or add members ({ name?, addMemberIds? }); any
  * member may do either (WhatsApp-style).
- * DELETE — leave a group; the last member out deletes it (and its messages).
+ * DELETE — leave a group; the last member out deletes it (and its messages,
+ * and its cover photo — the photo itself is /channels/[id]/photo).
  * The Everyone channel and DMs can't be renamed, expanded, or left.
  */
 
@@ -73,6 +76,12 @@ export async function DELETE(
   const remaining = await prisma.chatChannelMember.count({ where: { channelId: channel.id } });
   if (remaining === 0) {
     await prisma.chatChannel.delete({ where: { id: channel.id } }); // messages cascade
+    // The group cover lives in R2, outside the cascade.
+    if (channel.photoKey && isBlobStorageConfigured()) {
+      await deleteObject(channel.photoKey).catch((err) =>
+        reportError("[chat] cover delete after group removed failed", { key: channel.photoKey, error: err })
+      );
+    }
   }
   return NextResponse.json({ success: true });
 }
