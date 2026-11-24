@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { dealLine } from "@/lib/empty-lines";
 import { headerNote } from "@/lib/header-notes";
 import { requirePageActor, jobScope, canSeePricing, canSeeMoney, isManager } from "@/lib/permissions";
 import EntityRowActions from "@/components/EntityRowActions";
@@ -233,7 +234,7 @@ export default async function JobsPage({
                 title={validStatus || unscheduled || query ? "No jobs match this filter" : "No jobs yet"}
                 body={
                   validStatus || unscheduled || query
-                    ? "Try a different search or status, or create a new job."
+                    ? dealLine("no-match", { thing: "jobs", one: "job" })
                     : "Track work from first visit to final payment — create your first job to get going."
                 }
                 actionHref="/app/jobs/new"
@@ -380,7 +381,7 @@ export default async function JobsPage({
                 title={validStatus || unscheduled || query ? "No jobs match this filter" : "No jobs yet"}
                 body={
                   validStatus || unscheduled || query
-                    ? "Try a different search or status, or create a new job."
+                    ? dealLine("no-match", { thing: "jobs", one: "job" })
                     : "Track work from first visit to final payment — create your first job to get going."
                 }
                 actionHref="/app/jobs/new"

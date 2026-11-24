@@ -3157,6 +3157,9 @@ model Invoice {
 enum CelebrationKind {
   INVOICE_PAID
   QUOTE_APPROVED
+  // Business milestones on Home (lib/milestones.ts): entityId is the
+  // milestone key ("best-month:2026-11", "jobs:100"…), one row per user.
+  MILESTONE
 }
 
 // Per-user one-shot confetti flags: each staff member sees the moment once

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { dealLine } from "@/lib/empty-lines";
 import { headerNote } from "@/lib/header-notes";
 import Link from "next/link";
 import { Plus, ChevronRight, UserCheck, Inbox, Search, Phone, Mail, MapPin, ExternalLink, CalendarPlus, MessageSquare, Globe } from "lucide-react";
@@ -239,7 +240,7 @@ export default async function RequestsPage({
                 title={validStatus || query ? "No requests match this filter" : "No requests yet"}
                 body={
                   validStatus || query
-                    ? "Try a different status or search, or log a request yourself."
+                    ? dealLine("no-match", { thing: "requests", one: "request" })
                     : "New work starts here — requests arrive from your booking page and contact forms, or log them yourself."
                 }
                 actionHref="/app/requests/new"
@@ -449,7 +450,7 @@ export default async function RequestsPage({
                   )}
                 </article>
               ) : (
-                <div className="rqx-detail rqx-none">Pick a request to read it here.</div>
+                <div className="rqx-detail rqx-none">{dealLine("inbox-pick")}</div>
               )}
             </div>
           )}
@@ -527,7 +528,7 @@ export default async function RequestsPage({
             title={validStatus ? "No requests with this status" : "No requests yet"}
             body={
               validStatus
-                ? "Try a different status, or log a request yourself."
+                ? dealLine("no-match", { thing: "requests", one: "request" })
                 : "New work starts here — requests arrive from your booking page and contact forms, or log them yourself."
             }
             actionHref="/app/requests/new"

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { dealLine } from "@/lib/empty-lines";
 import { headerNote } from "@/lib/header-notes";
 import Link from "next/link";
 import { Plus, ChevronRight, UserCheck, Upload, ListPlus, Users, Download, Phone, Search } from "lucide-react";
@@ -330,7 +331,7 @@ export default async function ContactsPage({
                   contactsTab && !q
                     ? "Business connections — subs, suppliers, referral partners — live here, apart from your clients. Schedule one a job and they move to Clients."
                     : q || validStatus
-                      ? "Try a different search or status filter."
+                      ? dealLine("no-match", { thing: "clients", one: "client" })
                       : "Your client list powers everything — quotes, jobs, and invoices all start here."
                 }
                 actionHref={contactsTab ? "/app/contacts/new?type=contact" : "/app/contacts/new"}
@@ -525,7 +526,7 @@ export default async function ContactsPage({
               contactsTab && !q
                 ? "Business connections — subs, suppliers, referral partners — live here, apart from your clients. Schedule one a job and they move to Clients."
                 : q || validStatus
-                  ? "Try a different search or status filter."
+                  ? dealLine("no-match", { thing: "clients", one: "client" })
                   : "Your client list powers everything — quotes, jobs, and invoices all start here."
             }
             actionHref={contactsTab ? "/app/contacts/new?type=contact" : "/app/contacts/new"}

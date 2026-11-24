@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { dealLine } from "@/lib/empty-lines";
 import { headerNote } from "@/lib/header-notes";
 import { requirePageActor, canSell, viaContactScope, isManager } from "@/lib/permissions";
 import EntityRowActions from "@/components/EntityRowActions";
@@ -285,7 +286,7 @@ export default async function QuotesPage({
                 title={validStatus || scheduledOnly || query ? "No quotes match this filter" : "No quotes yet"}
                 body={
                   validStatus || scheduledOnly || query
-                    ? "Try a different status or search, or create a new quote."
+                    ? dealLine("no-match", { thing: "quotes", one: "quote" })
                     : "Win the work before it starts — send your first quote and clients can approve it online."
                 }
                 actionHref="/app/quotes/new"
@@ -414,7 +415,7 @@ export default async function QuotesPage({
             title={validStatus ? "No quotes with this status" : "No quotes yet"}
             body={
               validStatus
-                ? "Try a different status, or create a new quote."
+                ? dealLine("no-match", { thing: "quotes", one: "quote" })
                 : "Win the work before it starts — send your first quote and clients can approve it online."
             }
             actionHref="/app/quotes/new"

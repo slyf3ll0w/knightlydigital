@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { dealLine } from "@/lib/empty-lines";
 import { headerNote } from "@/lib/header-notes";
 import { requirePageActor, canSeeMoney, viaContactScope, isManager } from "@/lib/permissions";
 import EntityRowActions from "@/components/EntityRowActions";
@@ -297,7 +298,7 @@ export default async function InvoicesPage({
                 title={validStatus || scheduledOnly || query ? "No invoices match this filter" : "No invoices yet"}
                 body={
                   validStatus || scheduledOnly || query
-                    ? "Try a different status or search, or create a new invoice."
+                    ? dealLine("no-match", { thing: "invoices", one: "invoice" })
                     : "Get paid for finished work — send your first invoice with a pay-online link."
                 }
                 actionHref="/app/invoices/new"
@@ -455,7 +456,7 @@ export default async function InvoicesPage({
             title={validStatus ? "No invoices with this status" : "No invoices yet"}
             body={
               validStatus
-                ? "Try a different status, or create a new invoice."
+                ? dealLine("no-match", { thing: "invoices", one: "invoice" })
                 : "Get paid for finished work — send your first invoice with a pay-online link."
             }
             actionHref="/app/invoices/new"

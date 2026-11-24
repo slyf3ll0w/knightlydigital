@@ -19,6 +19,7 @@ import {
   Zap,
 } from "lucide-react";
 import { hapticImpact } from "@/lib/haptics";
+import { dealLine } from "@/lib/empty-lines";
 import { useSheetDrag } from "@/lib/use-sheet-drag";
 import type { FeedKind } from "@/lib/toast";
 
@@ -223,6 +224,8 @@ export default function NotificationsSheet({
   userId?: string | null;
   onClearAll?: () => void;
 }) {
+  // The empty line varies (lib/empty-lines.ts); the sheet only mounts on the client, after a tap
+  const [caughtUpLine] = useState(() => dealLine("no-notifications"));
   const [items, setItems] = useState<Item[] | null>(null);
   // A failed fetch is said so, never shown as "all caught up" — the dot
   // stayed lit with nothing behind it and no way to tell why.
@@ -351,7 +354,7 @@ export default function NotificationsSheet({
               <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-400">
                 <Bell size={20} />
               </span>
-              <p className="text-sm font-medium text-gray-600">You&apos;re all caught up</p>
+              <p className="text-sm font-medium text-gray-600">{caughtUpLine}</p>
               <p className="text-xs text-gray-500">
                 Requests, bookings, payments, messages and tasks show up here.
               </p>
