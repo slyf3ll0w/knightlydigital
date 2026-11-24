@@ -1,1 +1,86 @@
 /* Open-page rollout (2026-11-24): money. Shared pieces live in app/ds-brand.css. */
+
+/* ── Invoices list (desktop, the open page) ─────────────────────────────── */
+.mx-filters { display: flex; align-items: center; gap: 18px; min-height: 52px; border-bottom: 1px solid var(--ds-line-strong); }
+.mx-search {
+  display: flex; align-items: center; gap: 8px; flex: none; width: 260px; height: 36px; padding: 0 12px; border-radius: 9px;
+  color: var(--ds-muted); background: var(--ds-surface); box-shadow: inset 0 0 0 1px var(--ds-line-strong); transition: box-shadow 150ms;
+}
+.mx-search:focus-within { box-shadow: inset 0 0 0 1.5px var(--ds-primary); }
+.mx-search input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: inherit; font-size: 13.5px; color: var(--ds-ink); }
+.mx-search input::placeholder { color: var(--ds-faint); }
+.mx-tabs { display: flex; align-self: stretch; align-items: stretch; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.mx-tabs::-webkit-scrollbar { display: none; }
+.mx-tab {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; white-space: nowrap;
+  font-size: 14px; font-weight: 500; color: var(--ds-muted); transition: color 120ms;
+}
+.mx-tab:hover { color: var(--ds-ink); }
+.mx-tab.is-on { color: var(--ds-ink); font-weight: 600; }
+.mx-tab.is-on::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--ds-primary); }
+.mx-tab-n { font-size: 12.5px; font-weight: 500; color: var(--ds-faint); }
+.mx-tab.is-bad .mx-tab-n { color: var(--ds-bad); font-weight: 600; }
+.mx-filters-end { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+.mx-table-inv { --mx-cols: minmax(0, 1fr) 64px 104px 104px 150px 104px 112px 18px; }
+.mx-head, .mx-row, .mx-foot { display: grid; grid-template-columns: var(--mx-cols); gap: 16px; align-items: center; }
+.mx-head { padding: 10px 0; border-bottom: 1px solid var(--ds-line); font-size: 12.5px; font-weight: 500; color: var(--ds-muted); }
+.mx-head .r, .mx-row .r, .mx-foot .r { text-align: right; justify-self: end; }
+.mx-row {
+  position: relative; min-height: 58px; padding: 6px 0; border-bottom: 1px solid var(--ds-line);
+  font-size: 13.5px; color: var(--ds-ink-2); transition: background-color 120ms;
+}
+.mx-row:hover { background: var(--ds-surface-2); }
+.mx-name { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.mx-mono {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 30px; height: 30px; border-radius: 999px;
+  background: var(--ds-surface-2); box-shadow: inset 0 0 0 1px var(--ds-line-strong);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: var(--ds-ink-2);
+  transition: background-color 150ms, color 150ms;
+}
+.mx-row:hover .mx-mono { background: var(--ds-primary-soft); color: var(--ds-primary); }
+.mx-name-t { display: block; font-size: 14.5px; font-weight: 500; color: var(--ds-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mx-name-s { display: block; font-size: 12.5px; color: var(--ds-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mx-name-s:empty { display: none; }
+.mx-dim { color: var(--ds-muted); }
+.mx-faint { color: var(--ds-faint); }
+.mx-late { color: var(--ds-bad); }
+.mx-strong { font-weight: 600; color: var(--ds-ink); }
+.mx-late.mx-strong { color: var(--ds-bad); }
+.mx-num { font-family: var(--ds-num-font); font-variant-numeric: tabular-nums; }
+.mx-chev { color: var(--ds-faint); }
+.mx-foot {
+  padding: 12px 0 4px; border-top: 3px double var(--ds-line-strong); margin-top: -1px;
+  font-size: 12.5px; color: var(--ds-muted);
+}
+.mx-foot .mx-num { font-size: 13.5px; font-weight: 600; color: var(--ds-ink-2); }
+.mx-foot .ds-ledger-total { font-weight: 700; }
+.mx-empty { padding: 24px 0; }
+
+/* ── Payments (desktop, the open page): the Gross volume card loses its box ── */
+@media (min-width: 1024px) {
+  .bb-open .mx-pay .ds-pay {
+    background: transparent; box-shadow: none; border-radius: 0; overflow: visible;
+    border-top: 1px solid var(--ds-line-strong); border-bottom: 1px solid var(--ds-line-strong);
+  }
+  .bb-open .mx-pay .ds-pay-main { padding: 20px 28px 18px 0; }
+  .bb-open .mx-pay .ds-pay-side { background: transparent; padding: 20px 0 18px 28px; }
+  .bb-open .mx-pay .ds-pay-fig { font-size: 34px; font-weight: 700; }
+  /* every other card on the page (the payments list, payouts, disputes,
+     reports, the Square reconnect note) sits open on the page */
+  .bb-open .mx-pay .ds-card:not(.ds-pay) {
+    background: transparent; box-shadow: none; border-radius: 0; overflow: visible;
+    border-top: 1px solid var(--ds-line-strong);
+  }
+  .bb-open .mx-pay .mx-thead { background: transparent; padding-left: 0; padding-right: 0; }
+  .bb-open .mx-pay .mx-prow { padding-left: 0; padding-right: 0; }
+  .bb-open .mx-pay .mx-prow:hover { background: var(--ds-surface-2); }
+}
+
+/* the kept money picture sits open on the page too: no box, a hairline above */
+@media (min-width: 1024px) {
+  .bb-open .mx-pic .ds-pic {
+    margin-bottom: 0; background: transparent; box-shadow: none; border-radius: 0;
+    padding-left: 0; padding-right: 0; border-top: 1px solid var(--ds-line-strong);
+  }
+}

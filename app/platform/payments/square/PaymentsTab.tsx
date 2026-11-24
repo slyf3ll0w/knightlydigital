@@ -218,7 +218,7 @@ export default async function PaymentsTab({
           />
         ) : (
           <div className="divide-y divide-[color:var(--ds-line)]">
-            <div className={`hidden ${COLS} gap-4 bg-[color:var(--ds-surface-2)] px-4 py-2 text-xs font-medium text-[color:var(--ds-muted)] lg:grid`}>
+            <div className={`mx-thead hidden ${COLS} gap-4 bg-[color:var(--ds-surface-2)] px-4 py-2 text-xs font-medium text-[color:var(--ds-muted)] lg:grid`}>
               <span>Amount</span>
               <span>Description</span>
               <span>Method</span>
@@ -228,7 +228,7 @@ export default async function PaymentsTab({
             {rows.map((t) => (
               <div
                 key={t.key}
-                className={`relative flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 transition-colors hover:bg-[color:var(--ds-surface-2)] lg:grid ${COLS} lg:gap-4 lg:py-2.5`}
+                className={`mx-prow ds-trow relative flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 transition-colors hover:bg-[color:var(--ds-surface-2)] lg:grid ${COLS} lg:gap-4 lg:py-2.5`}
               >
                 {/* Amount + status: first on a desk (Stripe's order), at the right on a phone. */}
                 <div className="order-2 ml-auto flex shrink-0 flex-col items-end gap-1 lg:order-none lg:ml-0 lg:flex-row lg:items-center lg:gap-2">

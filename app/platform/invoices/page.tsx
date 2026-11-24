@@ -2,7 +2,9 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSeeMoney, viaContactScope, isManager } from "@/lib/permissions";
 import EntityRowActions from "@/components/EntityRowActions";
 import Link from "next/link";
-import { Plus, ChevronRight, DollarSign, Receipt, Download } from "lucide-react";
+import { Plus, ChevronRight, DollarSign, Receipt, Download, Search } from "lucide-react";
+import { BandBody, Button, DsPage, PageHeader } from "@/components/ds";
+import FilterSelect from "@/components/FilterSelect";
 import PageTitle from "@/components/PageTitle";
 import FilterBar, { listHref } from "@/components/FilterBar";
 import { pickSort, INVOICE_SORTS, invoiceOrderBy } from "@/lib/list-sort";
@@ -100,7 +102,7 @@ export default async function InvoicesPage({
   // The Collected card's spark: the first instant of each of the last 6 months
   const nowParts = zonedParts(tz, new Date());
   const monthStarts = Array.from({ length: 6 }, (_, k) => zonedMidnight(tz, nowParts.y, nowParts.m - (5 - k), 1));
-  const [invoices, listCount, pastDue, awaiting, draft, openForBalance, paidMonth, paid6m] = await Promise.all([
+  const [invoices, listCount, pastDue, awaiting, draft, openForBalance, paidMonth, paid6m, statusCounts, scheduledCount] = await Promise.all([
     prisma.invoice.findMany({
       where: listWhere,
       include: { contact: true, payments: true },
@@ -146,6 +148,9 @@ export default async function InvoicesPage({
       where: { companyId, ...scope, paidAt: { gte: monthStarts[0] } },
       select: { amount: true, paidAt: true },
     }),
+    // Desktop tabs: how many sit in each status (the list's own scope, no search)
+    prisma.invoice.groupBy({ by: ["status"], where: { companyId, ...scope }, _count: true }),
+    prisma.invoice.count({ where: { companyId, ...scope, status: "DRAFT", scheduledSendAt: { not: null } } }),
   ]);
   const collectedMonths = monthStarts.map((start, k) => {
     const end = monthStarts[k + 1]?.getTime() ?? Infinity;
@@ -166,8 +171,215 @@ export default async function InvoicesPage({
     0
   );
 
+  // ── Desktop: the open page (2026-11-24) — the page's own header with a
+  // context line, the money picture kept, underline tabs with counts, then
+  // the ledger as hairline rows. Phones keep the tree below as it was.
+  const byStatus = new Map(statusCounts.map((c) => [c.status as string, c._count]));
+  const tabCount: Record<string, number> = {
+    "": statusCounts.filter((c) => c.status !== "ARCHIVED").reduce((n, c) => n + c._count, 0),
+    DRAFT: byStatus.get("DRAFT") ?? 0,
+    SCHEDULED: scheduledCount,
+    AWAITING_PAYMENT: byStatus.get("AWAITING_PAYMENT") ?? 0,
+    PAST_DUE: byStatus.get("PAST_DUE") ?? 0,
+    PAID: byStatus.get("PAID") ?? 0,
+    ARCHIVED: byStatus.get("ARCHIVED") ?? 0,
+  };
+  const owedTotal = owedBy("PAST_DUE") + owedBy("AWAITING_PAYMENT");
+  const unpaidCount = pastDue._count + awaiting._count;
+  const eyebrow = [
+    unpaidCount > 0 ? `${unpaidCount} unpaid` : "Nothing unpaid",
+    owedTotal > 0 ? `${money(owedTotal)} owed` : null,
+    owedBy("PAST_DUE") > 0 ? `${money(owedBy("PAST_DUE"))} past due` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const currentTab = scheduledOnly ? "SCHEDULED" : (validStatus ?? "");
+  const initials = (first?: string | null, last?: string | null) =>
+    `${(first ?? "").charAt(0)}${(last ?? "").charAt(0)}`.toUpperCase() || "—";
+  const desktop = (
+    <DsPage
+      open
+      header={
+        <PageHeader
+          eyebrow={eyebrow}
+          title="Invoices"
+          actions={
+            <>
+              <PdfLink
+                href="/api/app/export/invoices"
+                title="Download all invoices as CSV"
+                className="ds-btn ds-btn-outline"
+                mime="text/csv"
+                newTab={false}
+                fallbackName="export.csv"
+              >
+                <Download size={17} />
+                Export
+              </PdfLink>
+              <Button href="/app/payments/new" variant="outline" icon={DollarSign}>
+                Collect payment
+              </Button>
+              <Button href="/app/invoices/new" icon={Plus}>
+                New invoice
+              </Button>
+            </>
+          }
+        />
+      }
+    >
+      <BandBody>
+        <div className="mx-pic">
+          <MoneyBand
+            pastDue={{ amount: owedBy("PAST_DUE"), count: pastDue._count, href: "/app/invoices?status=PAST_DUE" }}
+            awaiting={{ amount: owedBy("AWAITING_PAYMENT"), count: awaiting._count, href: "/app/invoices?status=AWAITING_PAYMENT" }}
+            draft={{ amount: Number(draft._sum.total) || 0, count: draft._count, href: "/app/invoices?status=DRAFT" }}
+            paidThisMonth={{ amount: Number(paidMonth._sum.amount) || 0, href: "/app/payments" }}
+            collectedMonths={collectedMonths}
+            open={openForBalance
+              .map((i) => ({
+                id: i.id,
+                name: i.contact ? `${i.contact.firstName} ${i.contact.lastName}`.trim() : "No client",
+                amount: Math.max(0, invoiceBalance(i)),
+                daysLate: i.dueDate ? Math.floor((Date.now() - i.dueDate.getTime()) / 86400000) : null,
+              }))
+              .filter((o) => o.amount > 0)}
+          />
+        </div>
+
+        <section className="mx-list">
+          <div className="mx-filters">
+            <form action="/app/invoices" className="mx-search" role="search">
+              <Search size={15} aria-hidden />
+              <input type="search" name="q" defaultValue={query} placeholder="Search client, subject or number" aria-label="Search invoices" />
+              {currentTab && <input type="hidden" name="status" value={currentTab} />}
+              {sortRaw && <input type="hidden" name="sort" value={sortRaw} />}
+            </form>
+            <nav className="mx-tabs" aria-label="Status">
+              {statusFilters.map((o) => {
+                const on = currentTab === o.value;
+                return (
+                  <Link
+                    key={o.value}
+                    prefetch={false}
+                    href={listHref("/app/invoices", { q: query, sort: sortRaw }, { status: o.value || undefined })}
+                    aria-current={on ? "page" : undefined}
+                    className={`mx-tab ${on ? "is-on" : ""} ${o.value === "PAST_DUE" && tabCount.PAST_DUE > 0 ? "is-bad" : ""}`}
+                  >
+                    {o.mobile}
+                    <span className="mx-tab-n">{(tabCount[o.value] ?? 0).toLocaleString("en-US")}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+            <span className="mx-filters-end">
+              <FilterSelect
+                icon="sort"
+                value={sort}
+                options={INVOICE_SORTS.map((o) => ({
+                  value: o.value,
+                  label: o.label,
+                  href: listHref("/app/invoices", { status: currentTab || undefined, q: query }, { sort: o.value }),
+                }))}
+                align="right"
+              />
+            </span>
+          </div>
+
+          {invoices.length === 0 ? (
+            <div className="mx-empty">
+              <EmptyState
+                art="invoices"
+                hue="var(--ds-primary)"
+                title={validStatus || scheduledOnly || query ? "No invoices match this filter" : "No invoices yet"}
+                body={
+                  validStatus || scheduledOnly || query
+                    ? "Try a different status or search, or create a new invoice."
+                    : "Get paid for finished work — send your first invoice with a pay-online link."
+                }
+                actionHref="/app/invoices/new"
+                actionLabel="Create an invoice"
+              />
+            </div>
+          ) : (
+            <div className="mx-table mx-table-inv">
+              <div className="mx-head" role="presentation">
+                <span>Client</span>
+                <span>#</span>
+                <span>Issued</span>
+                <span>Due</span>
+                <span>Status</span>
+                <span className="r">Total</span>
+                <span className="r">Balance</span>
+                <span />
+              </div>
+              {invoices.map((inv, i) => {
+                const balance = Math.max(0, invoiceBalance(inv));
+                const name = inv.contact ? `${inv.contact.firstName} ${inv.contact.lastName}`.trim() : "";
+                const late = inv.status === "PAST_DUE" && balance > 0;
+                return (
+                  <EntityRowActions
+                    key={inv.id}
+                    meta={{ kind: "invoice", id: inv.id, number: inv.invoiceNumber, status: inv.status, hasPayments: inv.payments.length > 0, hasEmail: Boolean(inv.contact?.email), canDelete: isManager(actor.role) }}
+                  >
+                    <Link
+                      prefetch={false}
+                      href={`/app/invoices/${inv.id}`}
+                      className="mx-row ds-trow"
+                      style={{ "--ds-i": Math.min(i, 12) } as React.CSSProperties}
+                    >
+                      <span className="mx-name">
+                        <span className="mx-mono" aria-hidden>{inv.contact ? initials(inv.contact.firstName, inv.contact.lastName) : "—"}</span>
+                        <span className="min-w-0">
+                          <span className="mx-name-t ds-trow-name">{name || "No client"}</span>
+                          <span className="mx-name-s">{inv.subject ?? ""}</span>
+                        </span>
+                      </span>
+                      <span className="mx-dim">#{inv.invoiceNumber}</span>
+                      <span className={inv.issuedAt ? "mx-dim" : "mx-faint"}>{inv.issuedAt ? shortDate(inv.issuedAt, tz) : "Not sent"}</span>
+                      <span className={late ? "mx-late" : inv.dueDate ? "mx-dim" : "mx-faint"}>{inv.dueDate ? shortDate(inv.dueDate, tz) : "—"}</span>
+                      <span>
+                        <StatusChip kind="invoice" status={inv.status === "DRAFT" && inv.scheduledSendAt ? "SCHEDULED" : inv.status} />
+                      </span>
+                      <span className="mx-num mx-dim r">{money(inv.total)}</span>
+                      <span className={`mx-num r ${balance > 0 ? (late ? "mx-late mx-strong" : "mx-strong") : "mx-faint"}`}>{money(balance)}</span>
+                      <ChevronRight size={15} className="mx-chev" aria-hidden />
+                    </Link>
+                  </EntityRowActions>
+                );
+              })}
+              {/* Ledger foot — totals for the rows shown, double-ruled like a register */}
+              <div className="mx-foot">
+                <span>
+                  {invoices.length === listCount
+                    ? `${invoices.length} ${invoices.length === 1 ? "invoice" : "invoices"}`
+                    : `Showing ${invoices.length.toLocaleString("en-US")} of ${listCount.toLocaleString("en-US")}`}
+                </span>
+                <span />
+                <span />
+                <span />
+                <span />
+                <span className="mx-num r">{money(pageTotal)}</span>
+                <span className="mx-num r ds-ledger-total">{money(pageBalance)}</span>
+                <span />
+              </div>
+            </div>
+          )}
+          <Pager
+            basePath="/app/invoices"
+            params={{ status: validStatus, q: query, sort: sortRaw }}
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={listCount}
+          />
+        </section>
+      </BandBody>
+    </DsPage>
+  );
+
   return (
-    <div className="p-4 lg:p-8 max-w-6xl mx-auto">
+    <>
+    <div className="hidden lg:block">{desktop}</div>
+    <div className="p-4 lg:p-8 max-w-6xl mx-auto lg:hidden">
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
         <PageTitle heavy section="invoices" icon={Receipt}>
           Invoices
@@ -356,5 +568,6 @@ export default async function InvoicesPage({
         total={listCount}
       />
     </div>
+    </>
   );
 }

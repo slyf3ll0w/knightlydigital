@@ -12,7 +12,7 @@ import EmptyState from "@/components/EmptyState";
 import PageTitle from "@/components/PageTitle";
 import KpiStrip from "@/components/KpiStrip";
 import Pager from "@/components/Pager";
-import { Chip, InfoTip } from "@/components/ds";
+import { BandBody, Button, Chip, DsPage, InfoTip, PageHeader } from "@/components/ds";
 import {
   getProcessor,
   processingFees,
@@ -103,9 +103,47 @@ export default async function PaymentsDashboardPage({
   // below this block is the Finix-era page, untouched.
   if (squareOnline) {
     const status = await squareStatusForCompany(companyId);
+    // Desktop (2026-11-24): the open page — the page's own header, the Gross
+    // volume card and every tab sitting straight on the page (app/ds-open-money.css).
+    // Phones keep the PageTitle header below; the body is one tree for both.
+    const payInfo =
+      "Every dollar through your Square account: payments (yours and Square's own sales), payouts to your bank, disputes, and reports by day, tech and job type. Numbers come live from Square each time the page opens.";
     return (
-      <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-        <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
+      <DsPage
+        open
+        header={
+          <>
+            <div className="hidden lg:block">
+              <PageHeader
+                eyebrow="Live from your Square account"
+                title={
+                  <span className="inline-flex items-center gap-3">
+                    Payments
+                    {squareEnvironment() === "sandbox" && <Chip tone="warn">Test mode</Chip>}
+                  </span>
+                }
+                info={payInfo}
+                actions={
+                  <>
+                    <PdfLink
+                      href="/api/app/export/payments"
+                      title="Download all payments as CSV"
+                      className="ds-btn ds-btn-outline"
+                      mime="text/csv"
+                      newTab={false}
+                      fallbackName="export.csv"
+                    >
+                      <Download size={17} />
+                      Export
+                    </PdfLink>
+                    <Button href="/app/payments/new" icon={Plus}>
+                      Collect payment
+                    </Button>
+                  </>
+                }
+              />
+            </div>
+        <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6 lg:hidden">
           <PageTitle heavy
             section="payments"
             icon={DollarSign}
@@ -126,16 +164,23 @@ export default async function PaymentsDashboardPage({
             </Link>
           </div>
         </div>
-        <SquarePayments
-          actor={actor}
-          tz={tz}
-          sandbox={squareEnvironment() === "sandbox"}
-          missingScopes={status.connected ? status.missingScopes : []}
-          unreadable={status.connected && status.unreadable}
-          isOwner={actor.role === "OWNER"}
-          params={params}
-        />
-      </div>
+          </>
+        }
+      >
+        <BandBody className="mx-pay">
+          <div>
+            <SquarePayments
+              actor={actor}
+              tz={tz}
+              sandbox={squareEnvironment() === "sandbox"}
+              missingScopes={status.connected ? status.missingScopes : []}
+              unreadable={status.connected && status.unreadable}
+              isOwner={actor.role === "OWNER"}
+              params={params}
+            />
+          </div>
+        </BandBody>
+      </DsPage>
     );
   }
 
