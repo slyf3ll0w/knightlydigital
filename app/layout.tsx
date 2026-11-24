@@ -10,6 +10,11 @@ import "./ds-flush.css";
 import "./ds-leads.css";
 import "./ds-brand.css";
 import "./ds-invoice.css";
+import "./ds-open-quotes.css";
+import "./ds-open-jobs.css";
+import "./ds-open-money.css";
+import "./ds-open-requests.css";
+import "./ds-open-client.css";
 import "./moment.css";
 
 export const viewport: Viewport = {

@@ -326,3 +326,92 @@ html[data-mode="dark"] .rail-live .rail-indicator { background: color-mix(in srg
 }
 @keyframes atlas-breathe { 0%, 100% { opacity: 0; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .atlas-talk-mic::after { animation: none; opacity: 0; } .atlas-talk:active { transform: none; } }
+
+/* ═══ Page entrances ════════════════════════════════════════════════════
+   DsPage deals one of five per page open (data-enter on .bb-wrap). The
+   page's blocks — the header, then each section / column / child of the
+   body — arrive in that style, staggered. Same easing, all under half a
+   second. `backwards` fill: an element holds its start state only during
+   its delay, then lets go (no lingering transform — glass above stays sharp). */
+.bb-wrap[data-enter] :is(.bb-band, .bb-page, .bb-body, .bb-split, .bb-page > [class~="lg:block"], .bb-page > [class~="hidden"]) > * {
+  animation-duration: 460ms;
+  animation-timing-function: var(--ds-ease, cubic-bezier(0.2, 0.8, 0.2, 1));
+  animation-fill-mode: backwards;
+  animation-delay: calc(var(--enter-i, 0) * 60ms);
+}
+.bb-wrap[data-enter] .ds-rise { animation: none; }
+:is(.bb-band, .bb-page, .bb-body, .bb-split, .bb-page > [class~="lg:block"], .bb-page > [class~="hidden"]) > :nth-child(2) { --enter-i: 1; }
+:is(.bb-band, .bb-page, .bb-body, .bb-split, .bb-page > [class~="lg:block"], .bb-page > [class~="hidden"]) > :nth-child(3) { --enter-i: 2; }
+:is(.bb-band, .bb-page, .bb-body, .bb-split, .bb-page > [class~="lg:block"], .bb-page > [class~="hidden"]) > :nth-child(4) { --enter-i: 3; }
+:is(.bb-band, .bb-page, .bb-body, .bb-split, .bb-page > [class~="lg:block"], .bb-page > [class~="hidden"]) > :nth-child(5) { --enter-i: 4; }
+:is(.bb-band, .bb-page, .bb-body, .bb-split, .bb-page > [class~="lg:block"], .bb-page > [class~="hidden"]) > :nth-child(6) { --enter-i: 5; }
+:is(.bb-band, .bb-page, .bb-body, .bb-split, .bb-page > [class~="lg:block"], .bb-page > [class~="hidden"]) > :nth-child(n + 7) { --enter-i: 6; }
+/* the body's blocks come after the page header */
+.bb-wrap[data-enter] :is(.bb-body, .bb-split, .bb-page > [class~="lg:block"], .bb-page > [class~="hidden"]) > * { animation-delay: calc(120ms + var(--enter-i, 0) * 60ms); }
+
+.bb-wrap[data-enter="rise"] :is(.bb-band, .bb-page, .bb-body, .bb-split, .bb-page > [class~="lg:block"], .bb-page > [class~="hidden"]) > * { animation-name: bb-e-rise; }
+.bb-wrap[data-enter="slide"] :is(.bb-band, .bb-page, .bb-body, .bb-split, .bb-page > [class~="lg:block"], .bb-page > [class~="hidden"]) > * { animation-name: bb-e-slide; }
+.bb-wrap[data-enter="focus"] :is(.bb-band, .bb-page, .bb-body, .bb-split, .bb-page > [class~="lg:block"], .bb-page > [class~="hidden"]) > * { animation-name: bb-e-focus; }
+.bb-wrap[data-enter="settle"] :is(.bb-band, .bb-page, .bb-body, .bb-split, .bb-page > [class~="lg:block"], .bb-page > [class~="hidden"]) > * { animation-name: bb-e-settle; }
+.bb-wrap[data-enter="cascade"] :is(.bb-band, .bb-page, .bb-body, .bb-split, .bb-page > [class~="lg:block"], .bb-page > [class~="hidden"]) > * { animation-name: bb-e-fade; animation-duration: 360ms; }
+/* settle: the header lands first and alone, then everything else together */
+.bb-wrap[data-enter="settle"] :is(.bb-body, .bb-split, .bb-page > [class~="lg:block"], .bb-page > [class~="hidden"]) > * { animation-delay: 200ms; }
+/* cascade: the rows of every list and table run down one after another */
+.bb-wrap[data-enter="cascade"] :is(.bb-table tbody tr, .bb-rows > .bb-row) {
+  animation: bb-e-row 380ms var(--ds-ease, ease) backwards;
+  animation-delay: calc(180ms + var(--enter-r, 0) * 28ms);
+}
+:is(.bb-table tbody, .bb-rows) > :nth-child(2) { --enter-r: 1; }
+:is(.bb-table tbody, .bb-rows) > :nth-child(3) { --enter-r: 2; }
+:is(.bb-table tbody, .bb-rows) > :nth-child(4) { --enter-r: 3; }
+:is(.bb-table tbody, .bb-rows) > :nth-child(5) { --enter-r: 4; }
+:is(.bb-table tbody, .bb-rows) > :nth-child(6) { --enter-r: 5; }
+:is(.bb-table tbody, .bb-rows) > :nth-child(7) { --enter-r: 6; }
+:is(.bb-table tbody, .bb-rows) > :nth-child(8) { --enter-r: 7; }
+:is(.bb-table tbody, .bb-rows) > :nth-child(9) { --enter-r: 8; }
+:is(.bb-table tbody, .bb-rows) > :nth-child(10) { --enter-r: 9; }
+:is(.bb-table tbody, .bb-rows) > :nth-child(n + 11) { --enter-r: 10; }
+
+@keyframes bb-e-rise { from { opacity: 0; transform: translateY(14px); } }
+@keyframes bb-e-slide { from { opacity: 0; transform: translateX(-18px); } }
+@keyframes bb-e-focus { from { opacity: 0; filter: blur(6px); transform: translateY(4px); } }
+@keyframes bb-e-settle { from { opacity: 0; transform: scale(0.985); } }
+@keyframes bb-e-fade { from { opacity: 0; } }
+@keyframes bb-e-row { from { opacity: 0; transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) {
+  .bb-wrap[data-enter] *, .bb-wrap[data-enter] :is(.bb-table tbody tr, .bb-rows > .bb-row) { animation: none !important; }
+}
+
+/* ═══ The row underline (kept from the heavy pilot's .ds-trow) on the open
+   pages' rows and tables: on hover a line in the row's status color draws
+   across the bottom, cell by cell, and the name steps right. */
+.bb-row { position: relative; --row-tone: var(--ds-primary); }
+.bb-table tbody tr { --row-tone: var(--ds-primary); }
+:is(.bb-row, .bb-table tbody tr):has(.ds-chip-good) { --row-tone: var(--ds-good); }
+:is(.bb-row, .bb-table tbody tr):has(.ds-chip-warn) { --row-tone: var(--ds-warn); }
+:is(.bb-row, .bb-table tbody tr):has(.ds-chip-bad) { --row-tone: var(--ds-bad); }
+:is(.bb-row, .bb-table tbody tr):has(.ds-chip-neutral) { --row-tone: var(--ds-muted); }
+:is(.bb-row, .bb-table tbody tr):has(.ds-chip-secondary) { --row-tone: var(--ds-secondary); }
+.bb-row::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px;
+  background: var(--row-tone); transform: scaleX(0); transform-origin: left; pointer-events: none;
+  transition: transform 340ms var(--ds-ease, ease);
+}
+a.bb-row:hover::after, a.bb-row:focus-visible::after, .bb-row.is-link:hover::after { transform: scaleX(1); }
+.bb-table tbody td {
+  background-image: linear-gradient(var(--row-tone), var(--row-tone));
+  background-repeat: no-repeat; background-position: left bottom; background-size: 0 2px;
+  transition: background-size 260ms var(--ds-ease, ease), background-color 120ms;
+}
+.bb-table tbody tr:hover td { background-size: 100% 2px; }
+.bb-table tbody tr:hover td:nth-child(2) { transition-delay: 40ms; }
+.bb-table tbody tr:hover td:nth-child(3) { transition-delay: 80ms; }
+.bb-table tbody tr:hover td:nth-child(4) { transition-delay: 120ms; }
+.bb-table tbody tr:hover td:nth-child(5) { transition-delay: 160ms; }
+.bb-table tbody tr:hover td:nth-child(n + 6) { transition-delay: 200ms; }
+.bb-row-title { transition: transform 260ms var(--ds-ease, ease); }
+.bb-table .bb-name { display: inline-block; transition: transform 260ms var(--ds-ease, ease); }
+:is(a.bb-row, .bb-row.is-link):hover .bb-row-title, .bb-table tbody tr:hover .bb-name { transform: translateX(5px); }
+@media (prefers-reduced-motion: reduce) {
+  .bb-row::after, .bb-table tbody td, .bb-row-title, .bb-table .bb-name { transition: none; }
+}

@@ -16,6 +16,8 @@ export { InfoTip, Arrow };
 
 type Tone = "primary" | "secondary" | "good" | "warn" | "bad" | "neutral";
 
+const ENTRANCES = ["rise", "slide", "cascade", "settle", "focus"] as const;
+
 /**
  * The page container: turns the design system on for everything inside.
  * `band` (desktop): the branded header (app/ds-brand.css) — the company's
@@ -41,9 +43,14 @@ export function DsPage({
   /** With `band`: the page's header, rendered INSIDE the band (so it truly sits on it). */
   header?: React.ReactNode;
 }) {
+  // Page entrances (David 2026-11-24): one of five is dealt on every page
+  // open so loading feels a little different each time; pure CSS (app/ds-brand.css),
+  // picked here so the very first paint already carries it — no flash. The
+  // browser keeps the server's pick (suppressHydrationWarning).
+  const enter = ENTRANCES[Math.floor(Math.random() * ENTRANCES.length)];
   if (open && !band) {
     return (
-      <div className="ds bb-wrap bb-open">
+      <div className="ds bb-wrap bb-open" data-enter={enter} suppressHydrationWarning>
         <div className={`ds bb-page mx-auto w-full max-w-6xl px-4 pb-10 pt-4 lg:px-8 lg:pt-8 ${className}`}>
           {header}
           {children}
@@ -60,7 +67,7 @@ export function DsPage({
     );
   }
   return (
-    <div className="ds bb-wrap">
+    <div className="ds bb-wrap" data-enter={enter} suppressHydrationWarning>
       <div className="bb-band">
         <div className="ds bb-page bb-head mx-auto w-full max-w-6xl px-4 pt-4 lg:px-8 lg:pt-8">{header}</div>
       </div>
