@@ -292,17 +292,18 @@ html[data-mode="dark"] .rail-live .rail-indicator { background: color-mix(in srg
   .rail-live-chev, .rail-live-row > svg { transition: none; }
 }
 
-/* the uploaded logo in the sidebar's top-left (no name beside it) */
-.rail-live-co-logo { padding: 0; }
-.rail-live-co-logo:hover { background: transparent; }
-.rail-live-co-logo:hover .rail-live-logo { box-shadow: 0 0 0 1px var(--rail-line), 0 4px 12px -6px rgba(10, 19, 40, 0.25); }
+/* the uploaded logo in the sidebar's top-left (no name beside it): no box,
+   left-aligned at its own shape, a soft row highlight on hover. A plate only
+   when the company picked a color, or in Dusk (dark logos on a dark rail). */
+.rail-live-co-logo { padding: 6px 8px; border-radius: 10px; }
+.rail-live-co-logo:hover { background: var(--rail-hover); }
 .rail-live-logo {
-  display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;
-  padding: 6px 10px; border-radius: 10px;
-  box-shadow: 0 0 0 1px var(--rail-line), 0 1px 2px rgba(10, 19, 40, 0.06);
-  transition: box-shadow 150ms;
+  display: flex; align-items: center; justify-content: flex-start; width: 100%; box-sizing: border-box;
+  padding: 0; border-radius: 8px; background: transparent;
 }
-.rail-live-logo img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.rail-live-logo.has-plate { justify-content: center; padding: 6px 10px; }
+html[data-mode="dark"] .rail-live-logo.is-bare { background: rgba(255, 255, 255, 0.92); padding: 5px 9px; width: auto; max-width: 100%; }
+.rail-live-logo img { max-width: 100%; max-height: 100%; object-fit: contain; object-position: left center; display: block; }
 
 
 /* ═══ Page entrances ════════════════════════════════════════════════════

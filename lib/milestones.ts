@@ -29,27 +29,10 @@ export type Milestone = {
 };
 
 const DAY = 86_400_000;
-const FRESH = 14 * DAY;
-const MONTH_THRESHOLDS = [10_000, 25_000, 50_000, 100_000, 250_000];
-const JOB_THRESHOLDS = [100, 250, 500, 1000, 2500, 5000];
-const CLIENT_THRESHOLDS = [50, 100, 250, 500, 1000, 2500];
 const KEY_RE = /^[a-z-]+:[A-Za-z0-9_-]{1,64}$/;
 
 export const isMilestoneKey = (k: unknown): k is string => typeof k === "string" && KEY_RE.test(k);
 
-const ordinal = (n: number) => {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return `${n.toLocaleString("en-US")}${s[(v - 20) % 10] || s[v] || s[0]}`;
-};
-const monthLabel = (ym: string) => {
-  const [y, m] = ym.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
-};
-const monthName = (ym: string) => {
-  const [y, m] = ym.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-US", { month: "long", timeZone: "UTC" });
-};
 
 /** The biggest unseen milestone for this person, or null. */
 export async function nextMilestone(actor: Actor): Promise<Milestone | null> {
@@ -78,77 +61,10 @@ async function detect(actor: Actor): Promise<Milestone[]> {
   const local = zonedParts(tz, now);
   const thisMonth = `${local.y}-${String(local.m).padStart(2, "0")}`;
 
-  // ── money: the month so far against every month before it ──
-  if (canSeeMoney(actor)) {
-    const months = await prisma.$queryRaw<{ m: string; total: number }[]>`
-      SELECT to_char(date_trunc('month', ("paidAt" AT TIME ZONE 'UTC') AT TIME ZONE ${tz}), 'YYYY-MM') AS m,
-             SUM("amount")::float AS total
-      FROM "Payment"
-      WHERE "companyId" = ${companyId} AND "amount" > 0
-      GROUP BY 1`;
-    const current = months.find((r) => r.m === thisMonth)?.total ?? 0;
-    const before = months.filter((r) => r.m < thisMonth);
-    const record = before.reduce((best, r) => (r.total > best.total ? r : best), { m: "", total: 0 });
-    // a first $10k / $25k / … month: this month crossed it, no month before did
-    const crossed = MONTH_THRESHOLDS.filter((t) => current >= t && record.total < t).pop();
-    if (crossed) {
-      out.push({
-        key: `month-${crossed}:${thisMonth}`,
-        kind: "money",
-        label: `Your first ${money(crossed).replace(".00", "")} month`,
-        line: `${money(current)} collected in ${monthName(thisMonth)} so far, more than any month before it.`,
-      });
-    } else if (before.length >= 3 && record.total > 0 && current > record.total) {
-      out.push({
-        key: `best-month:${thisMonth}`,
-        kind: "record",
-        label: "Best month yet",
-        line: `${money(current)} collected in ${monthName(thisMonth)}, ${money(current - record.total)} more than your old record (${monthLabel(record.m)}).`,
-      });
-    }
-  }
-
-  // ── jobs: the 100th / 250th / … job finished, while it's fresh ──
-  const doneJobs = await prisma.job.count({ where: { companyId, completedAt: { not: null } } });
-  const jobMark = JOB_THRESHOLDS.filter((t) => doneJobs >= t).pop();
-  if (jobMark) {
-    const nth = await prisma.job.findFirst({
-      where: { companyId, completedAt: { not: null } },
-      orderBy: { completedAt: "asc" },
-      skip: jobMark - 1,
-      select: { completedAt: true },
-    });
-    if (nth?.completedAt && now.getTime() - nth.completedAt.getTime() < FRESH) {
-      out.push({
-        key: `jobs:${jobMark}`,
-        kind: "jobs",
-        label: `Your ${ordinal(jobMark)} job`,
-        line: `${ordinal(jobMark)} job finished in WorkBench. That's ${doneJobs.toLocaleString("en-US")} done in all.`,
-      });
-    }
-  }
-
-  // ── clients: the 50th / 100th / … client, while it's fresh ──
-  if (canSell(actor.role)) {
-    const clients = await prisma.contact.count({ where: { companyId, status: "ACTIVE" } });
-    const clientMark = CLIENT_THRESHOLDS.filter((t) => clients >= t).pop();
-    if (clientMark) {
-      const nth = await prisma.contact.findFirst({
-        where: { companyId, status: "ACTIVE" },
-        orderBy: { createdAt: "asc" },
-        skip: clientMark - 1,
-        select: { createdAt: true },
-      });
-      if (nth && now.getTime() - nth.createdAt.getTime() < FRESH) {
-        out.push({
-          key: `clients:${clientMark}`,
-          kind: "clients",
-          label: `${clientMark.toLocaleString("en-US")} clients`,
-          line: `You now work for ${clients.toLocaleString("en-US")} clients. The ${ordinal(clientMark)} joined this month.`,
-        });
-      }
-    }
-  }
+  // Money totals and job/client counts were removed (David 2026-11-24): a
+  // company's history before WorkBench isn't here, so "your first $10k month"
+  // or "your 100th job" can be false. Only moments that truly happened in
+  // WorkBench remain.
 
   // ── quick wins: a quote approved within the hour (once a month) ──
   if (canSell(actor.role)) {

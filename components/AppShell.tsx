@@ -2530,11 +2530,15 @@ export default function AppShell({
           className="rail-live-co rail-live-co-logo"
           aria-label={companyName ? `${companyName} home` : "Home"}
         >
+          {/* No box by default: the logo sits on the rail like a workspace mark
+              (David 2026-11-24 found the plate cheesy). A plate only when the
+              company picked one in Settings, or in Dusk so a dark logo stays
+              visible (app/ds-brand.css). */}
           <span
-            className="theme-fixed rail-live-logo"
+            className={`theme-fixed rail-live-logo ${sidebarLogoColor ? "has-plate" : "is-bare"}`}
             style={{
-              backgroundColor: sidebarLogoColor || "#FFFFFF",
-              height: `var(--rail-logo-h, ${Math.min(128, Math.max(36, sidebarLogoSize ?? 56))}px)`,
+              ...(sidebarLogoColor ? { backgroundColor: sidebarLogoColor } : {}),
+              height: `var(--rail-logo-h, ${Math.min(128, Math.max(28, sidebarLogoSize ?? 40))}px)`,
             }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
