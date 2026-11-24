@@ -1,7 +1,7 @@
 import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/db";
-import { getActor, canSell, contactScope } from "@/lib/permissions";
+import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
 import {
   notifyClientOfReply,
   portalThreadContactInclude,
@@ -10,7 +10,7 @@ import { autoAdvance } from "@/lib/pipeline";
 import { fireAutomations } from "@/lib/automations-server";
 import { activeTypers } from "@/lib/chat";
 import { visitorOnline } from "@/lib/site-chat";
-import { MEDIA_SELECT, threadMedia, type MediaRow } from "@/lib/message-media";
+import { MEDIA_SELECT, threadMedia, collectContactMediaPurge, type MediaRow } from "@/lib/message-media";
 import { phoneDigits } from "@/lib/phone";
 
 /**
@@ -143,4 +143,38 @@ export async function POST(
   });
 
   return NextResponse.json({ message: serialize(message) }, { status: 201 });
+}
+
+/**
+ * Delete the conversation: every PortalMessage on this contact (their media
+ * rows cascade; the R2 objects behind them are dropped once the delete has
+ * committed). Managers only. The contact itself always stays — even an
+ * unsaved-number placeholder, because the row carries the number's SMS
+ * consent and STOP opt-out, and losing that would let the next text go to
+ * someone who opted out. A placeholder with no messages is already off every
+ * list (Clients, Leads, pickers, the inbox), so nothing is left on screen.
+ * A text already delivered to their phone can't be unsent.
+ */
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ contactId: string }> }
+) {
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isManager(actor.role)) return NextResponse.json({ error: "Only an owner or admin can delete a conversation." }, { status: 403 });
+
+  const { contactId } = await params;
+  const contact = await prisma.contact.findFirst({
+    where: { id: contactId, companyId: actor.companyId },
+    select: { id: true },
+  });
+  if (!contact) return NextResponse.json({ error: "Client not found." }, { status: 404 });
+
+  const purgeMedia = await collectContactMediaPurge(contact.id);
+  const { count } = await prisma.portalMessage.deleteMany({
+    where: { contactId: contact.id, companyId: actor.companyId },
+  });
+  after(() => purgeMedia());
+
+  return NextResponse.json({ ok: true, deleted: count });
 }
