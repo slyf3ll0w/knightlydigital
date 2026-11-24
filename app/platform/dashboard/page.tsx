@@ -942,23 +942,27 @@ export default async function DashboardPage() {
   };
 
   return (
-    <DsPage band>
-      <PageHeader
-        heavy
-        eyebrow={dateLine}
-        title={greetingTitle}
-        info={pageInfo}
-        actions={
-          <span className="hidden gap-2 lg:flex">
-            <Button href="/app/schedule" variant="outline" icon={CalendarDays}>
-              Schedule
-            </Button>
-            <Button href="/app/jobs/new" icon={Plus}>
-              New job
-            </Button>
-          </span>
-        }
-      />
+    <DsPage
+      band
+      header={
+          <PageHeader
+            heavy
+            eyebrow={dateLine}
+            title={greetingTitle}
+            info={pageInfo}
+            actions={
+              <span className="hidden gap-2 lg:flex">
+                <Button href="/app/schedule" variant="outline" icon={CalendarDays}>
+                  Schedule
+                </Button>
+                <Button href="/app/jobs/new" icon={Plus}>
+                  New job
+                </Button>
+              </span>
+            }
+          />
+      }
+    >
 
       {/* ─────────────── Phone ─────────────── */}
       <div className="mt-6 flex flex-col gap-7 lg:hidden">

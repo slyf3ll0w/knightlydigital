@@ -225,40 +225,44 @@ export default async function ContactsPage({
     .filter(Boolean)
     .join(" · ");
   const desktop = (
-    <DsPage band>
-      <PageHeader
-        eyebrow={eyebrow}
-        title={contactsTab ? "Contacts" : "Clients"}
-        actions={
-          <>
-            {isManager(actor.role) && (
+    <DsPage
+      band
+      header={
+          <PageHeader
+            eyebrow={eyebrow}
+            title={contactsTab ? "Contacts" : "Clients"}
+            actions={
               <>
-                <Button href="/app/settings/client-fields" variant="outline" icon={ListPlus}>
-                  Custom fields
+                {isManager(actor.role) && (
+                  <>
+                    <Button href="/app/settings/client-fields" variant="outline" icon={ListPlus}>
+                      Custom fields
+                    </Button>
+                    <Button href="/app/settings/import" variant="outline" icon={Upload}>
+                      Import
+                    </Button>
+                    <PdfLink
+                      href="/api/app/export/clients"
+                      ariaLabel="Export CSV"
+                      title="Download all clients as CSV"
+                      className="ds-btn ds-btn-outline"
+                      mime="text/csv"
+                      newTab={false}
+                      fallbackName="export.csv"
+                    >
+                      <Download size={17} />
+                      Export
+                    </PdfLink>
+                  </>
+                )}
+                <Button href={contactsTab ? "/app/contacts/new?type=contact" : "/app/contacts/new"} icon={Plus}>
+                  {contactsTab ? "New contact" : "New client"}
                 </Button>
-                <Button href="/app/settings/import" variant="outline" icon={Upload}>
-                  Import
-                </Button>
-                <PdfLink
-                  href="/api/app/export/clients"
-                  ariaLabel="Export CSV"
-                  title="Download all clients as CSV"
-                  className="ds-btn ds-btn-outline"
-                  mime="text/csv"
-                  newTab={false}
-                  fallbackName="export.csv"
-                >
-                  <Download size={17} />
-                  Export
-                </PdfLink>
               </>
-            )}
-            <Button href={contactsTab ? "/app/contacts/new?type=contact" : "/app/contacts/new"} icon={Plus}>
-              {contactsTab ? "New contact" : "New client"}
-            </Button>
-          </>
-        }
-      />
+            }
+          />
+      }
+    >
       <BandBody>
         <section className="clx">
           <div className="clx-filters">

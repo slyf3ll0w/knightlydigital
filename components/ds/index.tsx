@@ -26,21 +26,23 @@ export function DsPage({
   children,
   className = "",
   band = false,
+  header,
 }: {
   children: React.ReactNode;
   className?: string;
   band?: boolean;
+  /** With `band`: the page's header, rendered INSIDE the band (so it truly sits on it). */
+  header?: React.ReactNode;
 }) {
-  const page = (
-    <div className={`ds ${band ? "bb-page" : ""} mx-auto w-full max-w-6xl px-4 pb-10 pt-4 lg:px-8 lg:pt-8 ${className}`}>
-      {children}
-    </div>
-  );
-  if (!band) return page;
+  if (!band) {
+    return <div className={`ds mx-auto w-full max-w-6xl px-4 pb-10 pt-4 lg:px-8 lg:pt-8 ${className}`}>{children}</div>;
+  }
   return (
     <div className="ds bb-wrap">
-      <div className="bb-band" aria-hidden />
-      {page}
+      <div className="bb-band">
+        <div className="ds bb-page bb-head mx-auto w-full max-w-6xl px-4 pt-4 lg:px-8 lg:pt-8">{header}</div>
+      </div>
+      <div className={`ds bb-page mx-auto w-full max-w-6xl px-4 pb-10 pt-0 lg:px-8 lg:pt-10 ${className}`}>{children}</div>
     </div>
   );
 }

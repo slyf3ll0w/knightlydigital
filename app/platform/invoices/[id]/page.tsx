@@ -245,98 +245,104 @@ export default async function InvoiceDetailPage({
   );
 
   return (
-    <DsPage band>
+    <DsPage
+      band
+      header={
+        <>
+          {/* Phone: back + status row (unchanged) */}
+          <div className="flex items-center gap-3 mb-4 lg:hidden">
+            <BackLink href="/app/invoices" />
+            <StatusChip kind="invoice" status={chipStatus} />
+          </div>
+    
+          {/* One header for both widths, so InvoiceActions (and its dialogs) mounts
+              once. Phone: the title + client link as before. Desktop: it sits in
+              the branded band — crumbs, the client as the title, the status chip. */}
+          <div className="ds-pagehead inv-head flex flex-wrap items-start justify-between gap-4 mb-6 lg:mb-0">
+            <div className="min-w-0">
+              {/* the collapsed-header title, once for both widths */}
+              <TitleSentinel title={titleText} />
+              <div className="lg:hidden">
+                <PageTitle>
+                  <>{titleText}</>
+                </PageTitle>
+                {invoice.contact && (
+                  <Link
+                    prefetch={false} href={`/app/contacts/${invoice.contact.id}`}
+                    className="ds-link text-sm hover:underline"
+                  >
+                    {invoice.contact.firstName} {invoice.contact.lastName}
+                  </Link>
+                )}
+              </div>
+              <div className="hidden lg:block">
+                <p className="ds-eyebrow ds-eyebrow-plain bb-crumbs flex items-center gap-2">
+                  <Link prefetch={false} href="/app/invoices">Invoices</Link>
+                  <span aria-hidden>/</span>
+                  <span>#{invoice.invoiceNumber}</span>
+                  {invoice.subject && (
+                    <>
+                      <span aria-hidden>·</span>
+                      <span className="truncate">{invoice.subject}</span>
+                    </>
+                  )}
+                </p>
+                <h1 className="ds-title mt-1 flex items-center gap-3">
+                  <span className="ds-wipe min-w-0">
+                    <span className="ds-wipe-text">
+                      {invoice.contact ? (
+                        <Link prefetch={false} href={`/app/contacts/${invoice.contact.id}`} className="inv-head-client">
+                          {clientName || `Invoice #${invoice.invoiceNumber}`}
+                        </Link>
+                      ) : (
+                        titleText
+                      )}
+                    </span>
+                    <span className="ds-wipe-bar" aria-hidden />
+                  </span>
+                  <StatusChip kind="invoice" status={chipStatus} />
+                </h1>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+            <RunAutomationMenu entity="invoice" entityId={invoice.id} manager={isManager(actor.role)} />
+            <InvoiceActions
+              invoiceId={invoice.id}
+              invoiceNumber={invoice.invoiceNumber}
+              status={invoice.status}
+              publicUrl={publicUrl}
+              tapToPay={tapToPay}
+              canDelete={isManager(actor.role)}
+              paymentCount={invoice.payments.length}
+              paymentTotal={totalPaid}
+              contactEmail={invoice.contact?.email ?? ""}
+              contactPhone={invoice.contact?.phone ? fmtPhone(invoice.contact.phone) : ""}
+              canTextClient={canTextClient}
+              chargeStoredLabel={chargeStoredLabel}
+              savedCards={savedCards}
+              contactId={invoice.contact?.id ?? ""}
+              pay={payCfg}
+              balance={balance}
+              scheduled={Boolean(invoice.scheduledSendAt)}
+              tz={tz}
+              reportJob={reportJob}
+              reopenStatus={
+                totalPaid > 0 && totalPaid >= Number(invoice.total) - 0.005
+                  ? "PAID"
+                  : invoice.issuedAt
+                    ? "AWAITING_PAYMENT"
+                    : "DRAFT"
+              }
+            />
+            </div>
+          </div>
+        </>
+      }
+    >
       <Celebration
         endpoint={`/api/app/invoices/${invoice.id}/celebrated`}
         celebrate={celebratePaid}
       />
-      {/* Phone: back + status row (unchanged) */}
-      <div className="flex items-center gap-3 mb-4 lg:hidden">
-        <BackLink href="/app/invoices" />
-        <StatusChip kind="invoice" status={chipStatus} />
-      </div>
-
-      {/* One header for both widths, so InvoiceActions (and its dialogs) mounts
-          once. Phone: the title + client link as before. Desktop: it sits in
-          the branded band — crumbs, the client as the title, the status chip. */}
-      <div className="ds-pagehead inv-head flex flex-wrap items-start justify-between gap-4 mb-6 lg:mb-0">
-        <div className="min-w-0">
-          {/* the collapsed-header title, once for both widths */}
-          <TitleSentinel title={titleText} />
-          <div className="lg:hidden">
-            <PageTitle>
-              <>{titleText}</>
-            </PageTitle>
-            {invoice.contact && (
-              <Link
-                prefetch={false} href={`/app/contacts/${invoice.contact.id}`}
-                className="ds-link text-sm hover:underline"
-              >
-                {invoice.contact.firstName} {invoice.contact.lastName}
-              </Link>
-            )}
-          </div>
-          <div className="hidden lg:block">
-            <p className="ds-eyebrow ds-eyebrow-plain bb-crumbs flex items-center gap-2">
-              <Link prefetch={false} href="/app/invoices">Invoices</Link>
-              <span aria-hidden>/</span>
-              <span>#{invoice.invoiceNumber}</span>
-              {invoice.subject && (
-                <>
-                  <span aria-hidden>·</span>
-                  <span className="truncate">{invoice.subject}</span>
-                </>
-              )}
-            </p>
-            <h1 className="ds-title mt-1 flex items-center gap-3">
-              <span className="ds-wipe min-w-0">
-                <span className="ds-wipe-text">
-                  {invoice.contact ? (
-                    <Link prefetch={false} href={`/app/contacts/${invoice.contact.id}`} className="inv-head-client">
-                      {clientName || `Invoice #${invoice.invoiceNumber}`}
-                    </Link>
-                  ) : (
-                    titleText
-                  )}
-                </span>
-                <span className="ds-wipe-bar" aria-hidden />
-              </span>
-              <StatusChip kind="invoice" status={chipStatus} />
-            </h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-        <RunAutomationMenu entity="invoice" entityId={invoice.id} manager={isManager(actor.role)} />
-        <InvoiceActions
-          invoiceId={invoice.id}
-          invoiceNumber={invoice.invoiceNumber}
-          status={invoice.status}
-          publicUrl={publicUrl}
-          tapToPay={tapToPay}
-          canDelete={isManager(actor.role)}
-          paymentCount={invoice.payments.length}
-          paymentTotal={totalPaid}
-          contactEmail={invoice.contact?.email ?? ""}
-          contactPhone={invoice.contact?.phone ? fmtPhone(invoice.contact.phone) : ""}
-          canTextClient={canTextClient}
-          chargeStoredLabel={chargeStoredLabel}
-          savedCards={savedCards}
-          contactId={invoice.contact?.id ?? ""}
-          pay={payCfg}
-          balance={balance}
-          scheduled={Boolean(invoice.scheduledSendAt)}
-          tz={tz}
-          reportJob={reportJob}
-          reopenStatus={
-            totalPaid > 0 && totalPaid >= Number(invoice.total) - 0.005
-              ? "PAID"
-              : invoice.issuedAt
-                ? "AWAITING_PAYMENT"
-                : "DRAFT"
-          }
-        />
-        </div>
-      </div>
 
       {/* ─────────────── Phone (unchanged) ─────────────── */}
       <div className="lg:hidden">
