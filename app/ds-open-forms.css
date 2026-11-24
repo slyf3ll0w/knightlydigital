@@ -1,1 +1,46 @@
 /* Open-page rollout, wave 2 (2026-11-24): forms. Shared pieces live in app/ds-brand.css. */
+
+/* The forms keep their own components; at a desk the wrapper (app/platform/OpenForm.tsx)
+   lays them open: each .ds-card group becomes a section on a hairline (no box), a card's
+   own header row reads as a bold title with the two-color bar, totals sit on a plain
+   ledger. Floating surfaces (glass, dialogs) inside a form keep their card. Phones untouched. */
+@media (min-width: 1024px) {
+  .fx-open .ds-title { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; }
+
+  .fx-open .ds-card:not(:is(.ds-glass, .ds-glass-strong, [role="dialog"]) .ds-card) {
+    background: transparent;
+    box-shadow: none;
+    border: 0;
+    border-radius: 0;
+    border-top: 1px solid var(--ds-line-strong);
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 22px;
+    overflow: visible;
+  }
+  /* a card's header row: no inner rule or inset, a bold title with the bar */
+  .fx-open .ds-card:not(:is(.ds-glass, .ds-glass-strong, [role="dialog"]) .ds-card) > .px-5 { padding-left: 0; padding-right: 0; }
+  .fx-open .ds-card:not(:is(.ds-glass, .ds-glass-strong, [role="dialog"]) .ds-card) > .border-b:first-child { border-bottom-color: var(--ds-line); padding-top: 0; }
+  .fx-open .ds-card:not(:is(.ds-glass, .ds-glass-strong, [role="dialog"]) .ds-card) h2 {
+    position: relative;
+    padding-bottom: 10px;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--ds-ink);
+  }
+  .fx-open .ds-card:not(:is(.ds-glass, .ds-glass-strong, [role="dialog"]) .ds-card) h2::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 40px;
+    height: 3px;
+    border-radius: 1px;
+    background: linear-gradient(90deg, var(--ds-primary) 0 66%, var(--ds-secondary) 66%);
+  }
+  /* field labels: a touch stronger, like the clipboard on the website */
+  .fx-open .ds-card label.text-sm.font-medium { color: var(--ds-ink-2); font-weight: 600; }
+  /* totals footers: the ledger, no gray panel */
+  .fx-open .ds-card .bg-gray-50.border-t { background: transparent; border-top-color: var(--ds-line-strong); padding-left: 0; padding-right: 0; border-radius: 0; }
+}

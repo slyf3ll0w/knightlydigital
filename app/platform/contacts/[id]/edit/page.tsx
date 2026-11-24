@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, contactScope } from "@/lib/permissions";
 import ContactForm from "../../ContactForm";
+import OpenForm from "@/app/platform/OpenForm";
 
 export default async function EditContactPage({
   params,
@@ -17,29 +18,31 @@ export default async function EditContactPage({
   if (!contact) notFound();
 
   return (
-    <ContactForm
-      mode="edit"
-      contactId={contact.id}
-      initial={{
-        firstName: contact.firstName,
-        lastName: contact.lastName,
-        companyName: contact.companyName ?? "",
-        email: contact.email ?? "",
-        phone: contact.phone ?? "",
-        address: contact.address ?? "",
-        city: contact.city ?? "",
-        state: contact.state ?? "",
-        zip: contact.zip ?? "",
-        notes: contact.notes ?? "",
-        leadSource: contact.leadSource ?? "",
-        paymentTermsDays: contact.paymentTermsDays,
-        smsConsent: !contact.smsDisabled,
-        smsConsentNote: contact.smsConsentNote ?? "",
-        remindersOn: !contact.remindersOff,
-        status: contact.status,
-        kind: contact.kind,
-        customFields: (contact.customFields as Record<string, string>) ?? {},
-      }}
-    />
+    <OpenForm>
+      <ContactForm
+        mode="edit"
+        contactId={contact.id}
+        initial={{
+          firstName: contact.firstName,
+          lastName: contact.lastName,
+          companyName: contact.companyName ?? "",
+          email: contact.email ?? "",
+          phone: contact.phone ?? "",
+          address: contact.address ?? "",
+          city: contact.city ?? "",
+          state: contact.state ?? "",
+          zip: contact.zip ?? "",
+          notes: contact.notes ?? "",
+          leadSource: contact.leadSource ?? "",
+          paymentTermsDays: contact.paymentTermsDays,
+          smsConsent: !contact.smsDisabled,
+          smsConsentNote: contact.smsConsentNote ?? "",
+          remindersOn: !contact.remindersOff,
+          status: contact.status,
+          kind: contact.kind,
+          customFields: (contact.customFields as Record<string, string>) ?? {},
+        }}
+      />
+    </OpenForm>
   );
 }

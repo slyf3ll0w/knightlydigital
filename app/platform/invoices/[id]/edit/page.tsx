@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import InvoiceEditor from "../../new/InvoiceEditor";
+import OpenForm from "@/app/platform/OpenForm";
 
 export default async function EditInvoicePage({
   params,
@@ -28,41 +29,43 @@ export default async function EditInvoicePage({
   if (invoice.status === "PAID") redirect(`/app/invoices/${invoice.id}`);
 
   return (
-    <InvoiceEditor
-      contacts={[]}
-      workItems={JSON.parse(JSON.stringify(workItems))}
-      prefillJob={null}
-      editInvoice={{
-        id: invoice.id,
-        subject: invoice.subject ?? "",
-        notes: invoice.notes ?? "",
-        clientMessage: invoice.clientMessage ?? "",
-        // Same rounding as the quote editor: 0.07 * 100 is 7.000000000000001
-        // in floating point, and that's what the field used to show
-        taxRatePercent: invoice.taxRate ? String(Math.round(Number(invoice.taxRate) * 100000) / 1000) : "",
-        discountType:
-          invoice.discountType === "PERCENT" || invoice.discountType === "FIXED"
-            ? invoice.discountType
-            : "NONE",
-        discountValue: invoice.discountValue ? String(Number(invoice.discountValue)) : "",
-        dueDate: invoice.dueDate ? invoice.dueDate.toISOString().slice(0, 10) : "",
-        depositApplied: Number(invoice.depositApplied ?? 0),
-        contactName: invoice.contact
-          ? `${invoice.contact.firstName} ${invoice.contact.lastName}`.trim()
-          : "",
-        lineItems: invoice.lineItems.map((li) => ({
-          name: li.name,
-          description: li.description,
-          quantity: Number(li.quantity),
-          unitPrice: Number(li.unitPrice),
-          // Hidden margin figure — the editor PATCHes every line back, so a
-          // cost left out here was a cost erased on save
-          unitCost: li.unitCost != null ? Number(li.unitCost) : null,
-          workItemId: li.workItemId,
-          recurringInterval: li.recurringInterval,
-          serviceDate: li.serviceDate ? li.serviceDate.toISOString() : null,
-        })),
-      }}
-    />
+    <OpenForm>
+      <InvoiceEditor
+        contacts={[]}
+        workItems={JSON.parse(JSON.stringify(workItems))}
+        prefillJob={null}
+        editInvoice={{
+          id: invoice.id,
+          subject: invoice.subject ?? "",
+          notes: invoice.notes ?? "",
+          clientMessage: invoice.clientMessage ?? "",
+          // Same rounding as the quote editor: 0.07 * 100 is 7.000000000000001
+          // in floating point, and that's what the field used to show
+          taxRatePercent: invoice.taxRate ? String(Math.round(Number(invoice.taxRate) * 100000) / 1000) : "",
+          discountType:
+            invoice.discountType === "PERCENT" || invoice.discountType === "FIXED"
+              ? invoice.discountType
+              : "NONE",
+          discountValue: invoice.discountValue ? String(Number(invoice.discountValue)) : "",
+          dueDate: invoice.dueDate ? invoice.dueDate.toISOString().slice(0, 10) : "",
+          depositApplied: Number(invoice.depositApplied ?? 0),
+          contactName: invoice.contact
+            ? `${invoice.contact.firstName} ${invoice.contact.lastName}`.trim()
+            : "",
+          lineItems: invoice.lineItems.map((li) => ({
+            name: li.name,
+            description: li.description,
+            quantity: Number(li.quantity),
+            unitPrice: Number(li.unitPrice),
+            // Hidden margin figure — the editor PATCHes every line back, so a
+            // cost left out here was a cost erased on save
+            unitCost: li.unitCost != null ? Number(li.unitCost) : null,
+            workItemId: li.workItemId,
+            recurringInterval: li.recurringInterval,
+            serviceDate: li.serviceDate ? li.serviceDate.toISOString() : null,
+          })),
+        }}
+      />
+    </OpenForm>
   );
 }

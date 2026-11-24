@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import { invoiceBalance } from "@/lib/payments";
 import CollectPaymentForm from "./CollectPaymentForm";
+import OpenForm from "@/app/platform/OpenForm";
 
 /**
  * ?amount=&paidAt=YYYY-MM-DD&method=&reference=&note= prefill the form —
@@ -66,5 +67,9 @@ export default async function NewPaymentPage({
     };
   });
 
-  return <CollectPaymentForm invoices={outstanding} preselectedInvoiceId={invoiceId ?? ""} prefill={prefill} />;
+  return (
+    <OpenForm>
+      <CollectPaymentForm invoices={outstanding} preselectedInvoiceId={invoiceId ?? ""} prefill={prefill} />
+    </OpenForm>
+  );
 }

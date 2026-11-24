@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager } from "@/lib/permissions";
 import ContactForm from "../ContactForm";
+import OpenForm from "@/app/platform/OpenForm";
 
 export default async function NewContactPage({
   searchParams,
@@ -23,11 +24,13 @@ export default async function NewContactPage({
   // connection (Clients → Contacts); default is a plain client. The form has
   // the toggle either way.
   return (
-    <ContactForm
-      mode="create"
-      initial={{ status: type === "lead" ? "LEAD" : "ACTIVE", kind: type === "contact" ? "CONTACT" : "CLIENT" }}
-      canAssign={canAssign}
-      users={users}
-    />
+    <OpenForm>
+      <ContactForm
+        mode="create"
+        initial={{ status: type === "lead" ? "LEAD" : "ACTIVE", kind: type === "contact" ? "CONTACT" : "CLIENT" }}
+        canAssign={canAssign}
+        users={users}
+      />
+    </OpenForm>
   );
 }

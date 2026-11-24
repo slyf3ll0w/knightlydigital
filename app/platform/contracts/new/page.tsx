@@ -4,6 +4,7 @@ import { requirePageActor, canSell, isManager, contactScope } from "@/lib/permis
 import { featureAllowedFor } from "@/lib/plan-gate";
 import PlanRequired from "@/components/PlanRequired";
 import NewContractForm from "./NewContractForm";
+import OpenForm from "@/app/platform/OpenForm";
 
 export const metadata: Metadata = { title: "New Agreement" };
 
@@ -36,13 +37,15 @@ export default async function NewContractPage({
   ]);
 
   return (
-    <NewContractForm
-      contacts={contacts}
-      templates={templates}
-      prefilledContactId={contactId ?? ""}
-      // Opened from a client page → back to that client; otherwise the list
-      backHref={contactId ? `/app/contacts/${contactId}` : "/app/contracts"}
-      canManageTemplates={isManager(actor.role)}
-    />
+    <OpenForm>
+      <NewContractForm
+        contacts={contacts}
+        templates={templates}
+        prefilledContactId={contactId ?? ""}
+        // Opened from a client page → back to that client; otherwise the list
+        backHref={contactId ? `/app/contacts/${contactId}` : "/app/contracts"}
+        canManageTemplates={isManager(actor.role)}
+      />
+    </OpenForm>
   );
 }

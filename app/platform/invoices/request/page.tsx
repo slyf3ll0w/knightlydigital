@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSeeMoney, contactScope } from "@/lib/permissions";
 import { tapToPayOffer } from "@/lib/tap-to-pay";
 import RequestPaymentForm from "./RequestPaymentForm";
+import OpenForm from "@/app/platform/OpenForm";
 
 /**
  * Request payment — the quick charge. One amount, what it is for, an
@@ -27,10 +28,12 @@ export default async function RequestPaymentPage({
   ]);
 
   return (
-    <RequestPaymentForm
-      contacts={contacts}
-      initialContactId={contactId && contacts.some((c) => c.id === contactId) ? contactId : ""}
-      tapToPay={tapToPay}
-    />
+    <OpenForm>
+      <RequestPaymentForm
+        contacts={contacts}
+        initialContactId={contactId && contacts.some((c) => c.id === contactId) ? contactId : ""}
+        tapToPay={tapToPay}
+      />
+    </OpenForm>
   );
 }

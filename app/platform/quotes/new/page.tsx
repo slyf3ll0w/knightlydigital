@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, contactScope } from "@/lib/permissions";
 import QuoteEditor from "../[id]/QuoteEditor";
 import { ESTIMATOR_SELECT, runnerEstimators } from "@/lib/estimator-server";
+import OpenForm from "@/app/platform/OpenForm";
 
 export default async function NewQuotePage({
   searchParams,
@@ -41,14 +42,16 @@ export default async function NewQuotePage({
     : "";
 
   return (
-    <QuoteEditor
-      contacts={contacts}
-      workItems={JSON.parse(JSON.stringify(workItems))}
-      prefilledContactId={request?.contactId ?? contactId ?? ""}
-      requestId={request?.id ?? ""}
-      requestTitle={request?.title ?? ""}
-      defaultTaxRatePercent={defaultTaxRatePercent}
-      estimators={runnerEstimators(estimatorRows)}
-    />
+    <OpenForm>
+      <QuoteEditor
+        contacts={contacts}
+        workItems={JSON.parse(JSON.stringify(workItems))}
+        prefilledContactId={request?.contactId ?? contactId ?? ""}
+        requestId={request?.id ?? ""}
+        requestTitle={request?.title ?? ""}
+        defaultTaxRatePercent={defaultTaxRatePercent}
+        estimators={runnerEstimators(estimatorRows)}
+      />
+    </OpenForm>
   );
 }

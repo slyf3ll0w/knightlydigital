@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requirePageActor, canSell } from "@/lib/permissions";
 import NewRequestClient from "./NewRequestClient";
+import OpenForm from "@/app/platform/OpenForm";
 
 export const metadata: Metadata = { title: "New Request" };
 
@@ -11,5 +12,9 @@ export const metadata: Metadata = { title: "New Request" };
 // back with crashed it.
 export default async function NewRequestPage() {
   await requirePageActor((a) => canSell(a.role));
-  return <NewRequestClient />;
+  return (
+    <OpenForm>
+      <NewRequestClient />
+    </OpenForm>
+  );
 }

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, contactScope, viaContactScope } from "@/lib/permissions";
 import QuoteEditor from "../QuoteEditor";
 import { ESTIMATOR_SELECT, runnerEstimators } from "@/lib/estimator-server";
+import OpenForm from "@/app/platform/OpenForm";
 
 export default async function EditQuotePage({
   params,
@@ -40,39 +41,41 @@ export default async function EditQuotePage({
   }
 
   return (
-    <QuoteEditor
-      contacts={contacts}
-      workItems={JSON.parse(JSON.stringify(workItems))}
-      estimators={runnerEstimators(estimatorRows)}
-      existingQuote={{
-        id: quote.id,
-        contactId: quote.contactId,
-        propertyId: quote.propertyId ?? "",
-        title: quote.title ?? "",
-        taxRate: quote.taxRate ? Number(quote.taxRate) : null,
-        discountType: quote.discountType as "NONE" | "PERCENT" | "FIXED",
-        discountValue: quote.discountValue ? Number(quote.discountValue) : null,
-        depositType: quote.depositType as "NONE" | "PERCENT" | "FIXED",
-        depositValue: quote.depositValue ? Number(quote.depositValue) : null,
-        clientMessage: quote.clientMessage ?? "",
-        disclaimer: quote.disclaimer ?? "",
-        notes: quote.notes ?? "",
-        // The date input's value: the company's calendar day, not the UTC one
-        validUntil: quote.validUntil
-          ? quote.validUntil.toLocaleDateString("en-CA", { timeZone: tz })
-          : null,
-        lineItems: quote.lineItems.map((li) => ({
-          name: li.name,
-          description: li.description,
-          quantity: Number(li.quantity),
-          unitPrice: Number(li.unitPrice),
-          unitCost: li.unitCost != null ? Number(li.unitCost) : null,
-          isOptional: li.isOptional,
-          requiresAgreement: li.requiresAgreement,
-          workItemId: li.workItemId,
-          recurringInterval: li.recurringInterval,
-        })),
-      }}
-    />
+    <OpenForm>
+      <QuoteEditor
+        contacts={contacts}
+        workItems={JSON.parse(JSON.stringify(workItems))}
+        estimators={runnerEstimators(estimatorRows)}
+        existingQuote={{
+          id: quote.id,
+          contactId: quote.contactId,
+          propertyId: quote.propertyId ?? "",
+          title: quote.title ?? "",
+          taxRate: quote.taxRate ? Number(quote.taxRate) : null,
+          discountType: quote.discountType as "NONE" | "PERCENT" | "FIXED",
+          discountValue: quote.discountValue ? Number(quote.discountValue) : null,
+          depositType: quote.depositType as "NONE" | "PERCENT" | "FIXED",
+          depositValue: quote.depositValue ? Number(quote.depositValue) : null,
+          clientMessage: quote.clientMessage ?? "",
+          disclaimer: quote.disclaimer ?? "",
+          notes: quote.notes ?? "",
+          // The date input's value: the company's calendar day, not the UTC one
+          validUntil: quote.validUntil
+            ? quote.validUntil.toLocaleDateString("en-CA", { timeZone: tz })
+            : null,
+          lineItems: quote.lineItems.map((li) => ({
+            name: li.name,
+            description: li.description,
+            quantity: Number(li.quantity),
+            unitPrice: Number(li.unitPrice),
+            unitCost: li.unitCost != null ? Number(li.unitCost) : null,
+            isOptional: li.isOptional,
+            requiresAgreement: li.requiresAgreement,
+            workItemId: li.workItemId,
+            recurringInterval: li.recurringInterval,
+          })),
+        }}
+      />
+    </OpenForm>
   );
 }

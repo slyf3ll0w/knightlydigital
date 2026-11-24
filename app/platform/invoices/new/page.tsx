@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSeeMoney, contactScope, jobScope, appointmentScope } from "@/lib/permissions";
 import InvoiceEditor from "./InvoiceEditor";
+import OpenForm from "@/app/platform/OpenForm";
 
 export default async function NewInvoicePage({
   searchParams,
@@ -64,17 +65,19 @@ export default async function NewInvoicePage({
     : "";
 
   return (
-    <InvoiceEditor
-      contacts={contacts}
-      workItems={JSON.parse(JSON.stringify(workItems))}
-      prefillJob={job ? JSON.parse(JSON.stringify(job)) : null}
-      prefillAppointment={
-        appointment
-          ? { id: appointment.id, title: appointment.title, contactId: appointment.contactId, scheduledAt: appointment.scheduledAt.toISOString() }
-          : null
-      }
-      prefilledContactId={contactId ?? appointment?.contactId ?? ""}
-      defaultTaxRatePercent={defaultTaxRatePercent}
-    />
+    <OpenForm>
+      <InvoiceEditor
+        contacts={contacts}
+        workItems={JSON.parse(JSON.stringify(workItems))}
+        prefillJob={job ? JSON.parse(JSON.stringify(job)) : null}
+        prefillAppointment={
+          appointment
+            ? { id: appointment.id, title: appointment.title, contactId: appointment.contactId, scheduledAt: appointment.scheduledAt.toISOString() }
+            : null
+        }
+        prefilledContactId={contactId ?? appointment?.contactId ?? ""}
+        defaultTaxRatePercent={defaultTaxRatePercent}
+      />
+    </OpenForm>
   );
 }

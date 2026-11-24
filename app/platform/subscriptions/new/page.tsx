@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager, contactScope } from "@/lib/permissions";
 import NewSeriesForm from "./NewSeriesForm";
+import OpenForm from "@/app/platform/OpenForm";
 
 export const metadata: Metadata = { title: "New recurring plan" };
 
@@ -41,11 +42,13 @@ export default async function NewSubscriptionPage({
   ]);
 
   return (
-    <NewSeriesForm
-      contacts={contacts}
-      team={team}
-      services={services.map((s) => ({ ...s, unitPrice: Number(s.unitPrice) }))}
-      prefilledContactId={contactId ?? ""}
-    />
+    <OpenForm>
+      <NewSeriesForm
+        contacts={contacts}
+        team={team}
+        services={services.map((s) => ({ ...s, unitPrice: Number(s.unitPrice) }))}
+        prefilledContactId={contactId ?? ""}
+      />
+    </OpenForm>
   );
 }

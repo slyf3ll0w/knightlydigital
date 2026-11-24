@@ -3,6 +3,7 @@ import { requirePageActor, isManager } from "@/lib/permissions";
 import { featureAllowedFor } from "@/lib/plan-gate";
 import PlanRequired from "@/components/PlanRequired";
 import Builder from "../Builder";
+import OpenForm from "@/app/platform/OpenForm";
 
 export const metadata: Metadata = { title: "New automation" };
 
@@ -12,5 +13,9 @@ export default async function NewAutomationPage({ searchParams }: { searchParams
   if (!(await featureAllowedFor(actor.companyId, "automations")))
     return <PlanRequired feature="automations" back={{ href: "/app/dashboard", label: "Back to Home" }} />;
   const sp = await searchParams;
-  return <Builder initial={null} initialRuns={[]} atlasFirst={sp.atlas === "1"} initialAsk={typeof sp.ask === "string" ? sp.ask.slice(0, 500) : ""} />;
+  return (
+    <OpenForm flat={false}>
+      <Builder initial={null} initialRuns={[]} atlasFirst={sp.atlas === "1"} initialAsk={typeof sp.ask === "string" ? sp.ask.slice(0, 500) : ""} />
+    </OpenForm>
+  );
 }

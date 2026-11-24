@@ -4,6 +4,7 @@ import { requirePageActor, canSell, contactScope, isManager } from "@/lib/permis
 import { resolveSlotInterval } from "@/lib/scheduling";
 import { earliestOpenMinutes, sanitizeBusinessHours } from "@/lib/business-hours";
 import AppointmentForm from "./AppointmentForm";
+import OpenForm from "@/app/platform/OpenForm";
 
 export const metadata: Metadata = { title: "New Appointment" };
 
@@ -55,19 +56,21 @@ export default async function NewAppointmentPage({
   ]);
 
   return (
-    <AppointmentForm
-      actorId={actor.id}
-      contacts={contacts}
-      users={users}
-      prefilledContactId={request?.contactId ?? contactId ?? ""}
-      requestId={request?.id ?? ""}
-      requestTitle={request?.title ?? ""}
-      prefilledTitle={typeof title === "string" ? title.trim().slice(0, 120) : ""}
-      prefilledDate={date ?? ""}
-      intervalMinutes={resolveSlotInterval({
-        companyIntervalMinutes: company?.schedulingIntervalMinutes,
-      })}
-      dayStartMinutes={earliestOpenMinutes(sanitizeBusinessHours(company?.businessHours))}
-    />
+    <OpenForm>
+      <AppointmentForm
+        actorId={actor.id}
+        contacts={contacts}
+        users={users}
+        prefilledContactId={request?.contactId ?? contactId ?? ""}
+        requestId={request?.id ?? ""}
+        requestTitle={request?.title ?? ""}
+        prefilledTitle={typeof title === "string" ? title.trim().slice(0, 120) : ""}
+        prefilledDate={date ?? ""}
+        intervalMinutes={resolveSlotInterval({
+          companyIntervalMinutes: company?.schedulingIntervalMinutes,
+        })}
+        dayStartMinutes={earliestOpenMinutes(sanitizeBusinessHours(company?.businessHours))}
+      />
+    </OpenForm>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import NewJobClient from "./NewJobClient";
+import OpenForm from "@/app/platform/OpenForm";
 
 export const metadata: Metadata = { title: "New Job" };
 
@@ -12,5 +13,9 @@ export const metadata: Metadata = { title: "New Job" };
 // whoever is creating the job.
 export default async function NewJobPage() {
   const actor = await requirePageActor((a) => isManager(a.role) || a.role === "USER");
-  return <NewJobClient actorId={actor.id} />;
+  return (
+    <OpenForm>
+      <NewJobClient actorId={actor.id} />
+    </OpenForm>
+  );
 }
