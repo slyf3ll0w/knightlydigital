@@ -2,13 +2,14 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSeeMoney, viaContactScope, isManager } from "@/lib/permissions";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Check, Mail, Pencil, Phone } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import ScheduledSendLine from "@/components/ScheduledSendLine";
 import { channelsFromJson, scheduledLine, SEND_DEFAULTS } from "@/lib/send-document";
-import { Chip } from "@/components/ds";
+import { BandBody, Chip, DsPage, OpenSection } from "@/components/ds";
+import TitleSentinel from "@/components/TitleSentinel";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import ViewedFact from "@/components/ViewedFact";
@@ -134,28 +135,175 @@ export default async function InvoiceDetailPage({
     hasOnlinePayment &&
     (await shouldCelebrate(actor.id, "INVOICE_PAID", invoice.id, invoice.paidAt));
 
+  const activity = await activityFor(companyId, "invoice", invoice.id);
+  const chipStatus = invoice.status === "DRAFT" && invoice.scheduledSendAt ? "SCHEDULED" : invoice.status;
+  const titleText = invoice.subject || `Invoice #${invoice.invoiceNumber}`;
+  const clientName = invoice.contact
+    ? `${invoice.contact.firstName} ${invoice.contact.lastName}`.trim()
+    : "";
+
+  // ── Desktop (branded header, open page) ──────────────────────────────────
+  // The Made → Sent → Viewed → Paid track, from the invoice's own timestamps.
+  // Only steps the data supports: a draft shows Made → Sent → Paid; Viewed
+  // joins once it has gone out. The first step not done is "now".
+  // An archived invoice that never went out (no issue date) was never sent.
+  const sent = invoice.status !== "DRAFT" && !(invoice.status === "ARCHIVED" && !invoice.issuedAt);
+  const isPaid = invoice.status === "PAID";
+  const pastDue = invoice.status === "PAST_DUE";
+  const steps: { key: string; label: string; done: boolean; sub: string; bad?: boolean }[] = [
+    { key: "made", label: "Made", done: true, sub: shortDate(invoice.createdAt, tz) },
+    {
+      key: "sent",
+      label: invoice.status === "DRAFT" && invoice.scheduledSendAt ? "Sends" : "Sent",
+      done: sent,
+      sub: sent
+        ? shortDate(invoice.issuedAt ?? invoice.createdAt, tz)
+        : invoice.scheduledSendAt
+          ? (scheduledLine(tz, invoice.scheduledSendAt) ?? "Scheduled")
+          : "Not sent yet",
+    },
+    ...(sent
+      ? [
+          {
+            key: "viewed",
+            label: "Viewed",
+            done: Boolean(invoice.firstViewedAt) || isPaid,
+            sub: invoice.firstViewedAt
+              ? `${shortDate(invoice.firstViewedAt, tz)}${invoice.viewCount > 1 ? ` · ${invoice.viewCount}×` : ""}`
+              : isPaid
+                ? "—"
+                : "Not opened yet",
+          },
+        ]
+      : []),
+    {
+      key: "paid",
+      label: "Paid",
+      done: isPaid,
+      sub: isPaid
+        ? shortDate(invoice.paidAt ?? invoice.updatedAt, tz)
+        : pastDue
+          ? `Past due since ${shortDate(invoice.dueDate, tz)}`
+          : totalPaid > 0
+            ? `${money(totalPaid)} of ${money(invoice.total)} in`
+            : `${money(balance)} to go`,
+      bad: pastDue,
+    },
+  ];
+  const nowIdx = steps.findIndex((s) => !s.done);
+
+  const paymentRows = invoice.payments.map((p) => {
+    // Money sitting on a processor charge is refunded, not deleted —
+    // the API refuses that delete, so refund takes its place here.
+    // Once it's been refunded to zero the row is just bookkeeping
+    // again and a manager can clear it.
+    const online = isOnlinePayment(p.processorRef);
+    const holdsMoney = online && Number(p.amount) > 0.005;
+    return (
+      <PaymentRow
+        key={p.id}
+        payment={{
+          id: p.id,
+          amount: Number(p.amount),
+          method: p.method,
+          // The edit form's <input type="date"> value — the company's
+          // calendar day, not the UTC one
+          paidAtDate: p.paidAt.toLocaleDateString("en-CA", { timeZone: tz }),
+          paidAtLabel: shortDate(p.paidAt, tz),
+          referenceNumber: p.referenceNumber ?? "",
+          details: p.details ?? "",
+          returnedAmount: p.returnedAt ? Number(p.returnedAmount ?? 0) : null,
+        }}
+        canDelete={isManager(actor.role) && !holdsMoney}
+        canRefund={isManager(actor.role) && online && !p.returnedAt}
+        isOnline={online}
+      />
+    );
+  });
+
+  const scheduledLineEl = invoice.status === "DRAFT" && invoice.scheduledSendAt && (
+    <ScheduledSendLine
+      kind="invoice"
+      id={invoice.id}
+      label={scheduledLine(tz, invoice.scheduledSendAt) ?? ""}
+      channels={channelsFromJson(invoice.scheduledSendChannels, SEND_DEFAULTS.invoice)}
+      email={invoice.contact?.email ?? null}
+      phone={invoice.contact?.phone ? fmtPhone(invoice.contact.phone) : null}
+    />
+  );
+
+  const closeJobNudgeEl = showCloseJobNudge && (
+    <Link
+      prefetch={false} href={`/app/jobs/${invoice.job!.id}`}
+      className="mb-6 flex items-center justify-between rounded-[var(--ds-r)] bg-[color:var(--ds-primary-soft)] px-4 py-3 transition-[filter] hover:brightness-95"
+    >
+      <p className="text-sm font-medium text-[color:var(--ds-ink)]">
+        You may want to close this job: Job #{invoice.job!.jobNumber} — {invoice.job!.title}
+      </p>
+      <ArrowRight size={14} className="text-[color:var(--ds-primary)]" />
+    </Link>
+  );
+
   return (
-    <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+    <DsPage band>
       <Celebration
         endpoint={`/api/app/invoices/${invoice.id}/celebrated`}
         celebrate={celebratePaid}
       />
-      <div className="flex items-center gap-3 mb-4">
+      {/* Phone: back + status row (unchanged) */}
+      <div className="flex items-center gap-3 mb-4 lg:hidden">
         <BackLink href="/app/invoices" />
-        <StatusChip kind="invoice" status={invoice.status === "DRAFT" && invoice.scheduledSendAt ? "SCHEDULED" : invoice.status} />
+        <StatusChip kind="invoice" status={chipStatus} />
       </div>
 
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-        <div>
-          <PageTitle>{invoice.subject || `Invoice #${invoice.invoiceNumber}`}</PageTitle>
-          {invoice.contact && (
-            <Link
-              prefetch={false} href={`/app/contacts/${invoice.contact.id}`}
-              className="ds-link text-sm hover:underline"
-            >
-              {invoice.contact.firstName} {invoice.contact.lastName}
-            </Link>
-          )}
+      {/* One header for both widths, so InvoiceActions (and its dialogs) mounts
+          once. Phone: the title + client link as before. Desktop: it sits in
+          the branded band — crumbs, the client as the title, the status chip. */}
+      <div className="ds-pagehead inv-head flex flex-wrap items-start justify-between gap-4 mb-6 lg:mb-0">
+        <div className="min-w-0">
+          {/* the collapsed-header title, once for both widths */}
+          <TitleSentinel title={titleText} />
+          <div className="lg:hidden">
+            <PageTitle>
+              <>{titleText}</>
+            </PageTitle>
+            {invoice.contact && (
+              <Link
+                prefetch={false} href={`/app/contacts/${invoice.contact.id}`}
+                className="ds-link text-sm hover:underline"
+              >
+                {invoice.contact.firstName} {invoice.contact.lastName}
+              </Link>
+            )}
+          </div>
+          <div className="hidden lg:block">
+            <p className="ds-eyebrow ds-eyebrow-plain bb-crumbs flex items-center gap-2">
+              <Link prefetch={false} href="/app/invoices">Invoices</Link>
+              <span aria-hidden>/</span>
+              <span>#{invoice.invoiceNumber}</span>
+              {invoice.subject && (
+                <>
+                  <span aria-hidden>·</span>
+                  <span className="truncate">{invoice.subject}</span>
+                </>
+              )}
+            </p>
+            <h1 className="ds-title mt-1 flex items-center gap-3">
+              <span className="ds-wipe min-w-0">
+                <span className="ds-wipe-text">
+                  {invoice.contact ? (
+                    <Link prefetch={false} href={`/app/contacts/${invoice.contact.id}`} className="inv-head-client">
+                      {clientName || `Invoice #${invoice.invoiceNumber}`}
+                    </Link>
+                  ) : (
+                    titleText
+                  )}
+                </span>
+                <span className="ds-wipe-bar" aria-hidden />
+              </span>
+              <StatusChip kind="invoice" status={chipStatus} />
+            </h1>
+          </div>
         </div>
         <div className="flex items-center gap-2">
         <RunAutomationMenu entity="invoice" entityId={invoice.id} manager={isManager(actor.role)} />
@@ -190,29 +338,12 @@ export default async function InvoiceDetailPage({
         </div>
       </div>
 
-      {invoice.status === "DRAFT" && invoice.scheduledSendAt && (
-        <ScheduledSendLine
-          kind="invoice"
-          id={invoice.id}
-          label={scheduledLine(tz, invoice.scheduledSendAt) ?? ""}
-          channels={channelsFromJson(invoice.scheduledSendChannels, SEND_DEFAULTS.invoice)}
-          email={invoice.contact?.email ?? null}
-          phone={invoice.contact?.phone ? fmtPhone(invoice.contact.phone) : null}
-        />
-      )}
+      {/* ─────────────── Phone (unchanged) ─────────────── */}
+      <div className="lg:hidden">
+      {scheduledLineEl}
 
       {/* Close-job nudge */}
-      {showCloseJobNudge && (
-        <Link
-          prefetch={false} href={`/app/jobs/${invoice.job!.id}`}
-          className="mb-6 flex items-center justify-between rounded-[var(--ds-r)] bg-[color:var(--ds-primary-soft)] px-4 py-3 transition-[filter] hover:brightness-95"
-        >
-          <p className="text-sm font-medium text-[color:var(--ds-ink)]">
-            You may want to close this job: Job #{invoice.job!.jobNumber} — {invoice.job!.title}
-          </p>
-          <ArrowRight size={14} className="text-[color:var(--ds-primary)]" />
-        </Link>
-      )}
+      {closeJobNudgeEl}
 
       {/* Header facts — 2-col grid on phones, flowing definition list at a desk */}
       <div className="grid grid-cols-2 gap-3 lg:flex lg:flex-wrap lg:gap-x-8 lg:gap-y-2 px-5 py-4 ds-card mb-6 text-sm">
@@ -421,42 +552,265 @@ export default async function InvoiceDetailPage({
         {invoice.payments.length === 0 ? (
           <EmptyState compact title="No payments recorded yet." />
         ) : (
-          <div className="divide-y divide-gray-50">
-            {invoice.payments.map((p) => {
-              // Money sitting on a processor charge is refunded, not deleted —
-              // the API refuses that delete, so refund takes its place here.
-              // Once it's been refunded to zero the row is just bookkeeping
-              // again and a manager can clear it.
-              const online = isOnlinePayment(p.processorRef);
-              const holdsMoney = online && Number(p.amount) > 0.005;
-              return (
-                <PaymentRow
-                  key={p.id}
-                  payment={{
-                    id: p.id,
-                    amount: Number(p.amount),
-                    method: p.method,
-                    // The edit form's <input type="date"> value — the company's
-                    // calendar day, not the UTC one
-                    paidAtDate: p.paidAt.toLocaleDateString("en-CA", { timeZone: tz }),
-                    paidAtLabel: shortDate(p.paidAt, tz),
-                    referenceNumber: p.referenceNumber ?? "",
-                    details: p.details ?? "",
-                    returnedAmount: p.returnedAt ? Number(p.returnedAmount ?? 0) : null,
-                  }}
-                  canDelete={isManager(actor.role) && !holdsMoney}
-                  canRefund={isManager(actor.role) && online && !p.returnedAt}
-                  isOnline={online}
-                />
-              );
-            })}
-          </div>
+          <div className="divide-y divide-gray-50">{paymentRows}</div>
         )}
       </div>
 
       <div className="mt-6">
-        <ActivityTrail rows={await activityFor(companyId, "invoice", invoice.id)} />
+        <ActivityTrail rows={activity} />
       </div>
-    </div>
+      </div>
+
+      {/* ─────────────── Desktop: open page under the band ─────────────── */}
+      <BandBody className="hidden lg:flex">
+        {(scheduledLineEl || closeJobNudgeEl) && (
+          <div className="-mb-6">
+            {scheduledLineEl}
+            {closeJobNudgeEl}
+          </div>
+        )}
+
+        {/* Summary: what's owed, the facts, the track */}
+        <section className={`inv-sum ${isPaid ? "is-paid" : ""}`}>
+          <div className="inv-facts">
+            <div className="inv-due">
+              <span className="bb-label">{isPaid ? "Paid in full" : balance > 0 ? "Amount due" : "Balance"}</span>
+              <span className={`bb-big inv-due-n ${pastDue ? "is-bad" : ""}`}>
+                {money(isPaid ? invoice.total : balance)}
+              </span>
+              {!isPaid && totalPaid > 0 && (
+                <span className="bb-row-sub">of {money(invoice.total)} · {money(totalPaid)} paid</span>
+              )}
+            </div>
+            <div className="inv-fact">
+              <span className="bb-label">Invoice</span>
+              <span className="bb-strong">#{invoice.invoiceNumber}</span>
+            </div>
+            <div className="inv-fact">
+              <span className="bb-label">Issued</span>
+              <span className="bb-strong">{shortDate(invoice.issuedAt ?? invoice.createdAt, tz)}</span>
+            </div>
+            <div className="inv-fact">
+              <span className="bb-label">Due</span>
+              <span className={`bb-strong ${pastDue ? "inv-bad" : ""}`}>{shortDate(invoice.dueDate, tz)}</span>
+            </div>
+            {invoice.job && (
+              <div className="inv-fact">
+                <span className="bb-label">Invoice for</span>
+                <Link prefetch={false} href={`/app/jobs/${invoice.job.id}`} className="ds-link font-semibold">
+                  Job #{invoice.job.jobNumber}
+                </Link>
+              </div>
+            )}
+            {sourceQuote && (
+              <div className="inv-fact">
+                <span className="bb-label">From quote</span>
+                <Link prefetch={false} href={`/app/quotes/${sourceQuote.id}`} className="ds-link font-semibold">
+                  Quote #{sourceQuote.quoteNumber}
+                </Link>
+              </div>
+            )}
+            <div className="inv-fact inv-fact-viewed">
+              <ViewedFact
+                firstViewedAt={invoice.firstViewedAt}
+                lastViewedAt={invoice.lastViewedAt}
+                viewCount={invoice.viewCount}
+                sent={invoice.status !== "DRAFT"}
+                tz={tz}
+              />
+            </div>
+            {invoice.paidAt && (
+              <div className="inv-fact">
+                <span className="bb-label">Paid</span>
+                <span className="bb-strong">{shortDate(invoice.paidAt, tz)}</span>
+              </div>
+            )}
+            {isPaid && (
+              <div className="inv-stamp-slot" aria-hidden>
+                <span className="inv-stamp">Paid</span>
+              </div>
+            )}
+          </div>
+
+          <ol className="inv-track" aria-label="Where this invoice stands">
+            {steps.map((s, i) => (
+              <li
+                key={s.key}
+                className={`inv-step ${s.done ? "is-done" : ""} ${i === nowIdx ? "is-now" : ""} ${s.bad && i === nowIdx ? "is-bad" : ""}`}
+                aria-current={i === nowIdx ? "step" : undefined}
+              >
+                <span className="inv-pin">{s.done && <Check size={10} strokeWidth={3.5} />}</span>
+                <span className="inv-step-label">{s.label}</span>
+                <span className="bb-row-sub">{s.sub}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <div className="bb-split">
+          {/* Items + totals */}
+          <div className="flex min-w-0 flex-col gap-10">
+            <OpenSection
+              title="Items"
+              count={invoice.lineItems.length}
+              aside={
+                invoice.status !== "PAID" ? (
+                  <Link prefetch={false} href={`/app/invoices/${invoice.id}/edit`} className="ds-btn ds-btn-outline ds-btn-sm">
+                    <Pencil size={14} />
+                    Edit
+                  </Link>
+                ) : undefined
+              }
+            >
+              <table className="bb-table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th className="r">Qty</th>
+                    <th className="r">Unit price</th>
+                    <th className="r">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoice.lineItems.map((item) => (
+                    <tr key={item.id}>
+                      <td className="wrap inv-item">
+                        <span className="bb-row-title inv-item-name">
+                          {item.name || item.description}
+                          {item.recurringInterval && (
+                            <>
+                              {" "}
+                              <Chip tone="primary">Recurring</Chip>
+                            </>
+                          )}
+                        </span>
+                        {item.name && item.description && <span className="bb-row-sub inv-wrap">{item.description}</span>}
+                        {item.serviceDate && (
+                          <span className="bb-row-sub">Service date: {shortDate(item.serviceDate, tz)}</span>
+                        )}
+                      </td>
+                      <td className="r ds-num">{Number(item.quantity)}</td>
+                      <td className="r ds-num">{money(item.unitPrice)}</td>
+                      <td className="r ds-num bb-strong">{money(item.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Totals ledger */}
+              <dl className="inv-ledger">
+                <div>
+                  <dt>Subtotal</dt>
+                  <dd className="ds-num">{money(invoice.subtotal)}</dd>
+                </div>
+                {invoice.discount && Number(invoice.discount) > 0 && (
+                  <div className="is-good">
+                    <dt>
+                      Discount
+                      {invoice.discountType === "PERCENT" && invoice.discountValue
+                        ? ` (${Number(invoice.discountValue)}%)`
+                        : ""}
+                    </dt>
+                    <dd className="ds-num">−{money(invoice.discount)}</dd>
+                  </div>
+                )}
+                {invoice.tax && (
+                  <div>
+                    <dt>Tax ({parseFloat((Number(invoice.taxRate) * 100).toFixed(3))}%)</dt>
+                    <dd className="ds-num">{money(invoice.tax)}</dd>
+                  </div>
+                )}
+                {invoice.depositApplied && Number(invoice.depositApplied) > 0 && (
+                  <div className="is-good">
+                    <dt>Deposit applied</dt>
+                    <dd className="ds-num">−{money(invoice.depositApplied)}</dd>
+                  </div>
+                )}
+                <div className="is-total">
+                  <dt>Total</dt>
+                  <dd className="ds-num">{money(invoice.total)}</dd>
+                </div>
+                {feesPaid > 0 && (
+                  <div>
+                    <dt>Service fee</dt>
+                    <dd className="ds-num">{money(feesPaid)}</dd>
+                  </div>
+                )}
+                {totalPaid > 0 && (
+                  <div className="is-good">
+                    <dt>Payments</dt>
+                    <dd className="ds-num">−{money(totalPaid)}</dd>
+                  </div>
+                )}
+                <div className={`is-balance ${balance > 0 ? "" : "is-good"}`}>
+                  <dt>Invoice balance</dt>
+                  <dd className="ds-num">{money(balance)}</dd>
+                </div>
+              </dl>
+            </OpenSection>
+
+            {invoice.notes && (
+              <OpenSection title="Notes">
+                <p className="inv-notes">{invoice.notes}</p>
+              </OpenSection>
+            )}
+          </div>
+
+          {/* Inspector */}
+          <div className="flex min-w-0 flex-col gap-10">
+            {invoice.contact && (
+              <OpenSection
+                title="Client"
+                aside={
+                  <Link prefetch={false} href={`/app/contacts/${invoice.contact.id}`} className="bb-go">
+                    Open
+                  </Link>
+                }
+              >
+                <div className="inv-client">
+                  <Link prefetch={false} href={`/app/contacts/${invoice.contact.id}`} className="bb-row-title inv-client-name">
+                    {clientName || "Client"}
+                  </Link>
+                  {invoice.contact.phone && (
+                    <a href={`tel:${invoice.contact.phone}`} className="inv-client-line">
+                      <Phone size={14} />
+                      {fmtPhone(invoice.contact.phone)}
+                    </a>
+                  )}
+                  {invoice.contact.email && (
+                    <a href={`mailto:${invoice.contact.email}`} className="inv-client-line">
+                      <Mail size={14} />
+                      <span className="truncate">{invoice.contact.email}</span>
+                    </a>
+                  )}
+                </div>
+              </OpenSection>
+            )}
+
+            <OpenSection
+              title="Payments"
+              count={invoice.payments.length || undefined}
+              aside={
+                balance > 0 ? (
+                  <Link prefetch={false} href={`/app/payments/new?invoiceId=${invoice.id}`} className="bb-go">
+                    + Collect payment
+                  </Link>
+                ) : undefined
+              }
+            >
+              {invoice.payments.length === 0 ? (
+                <p className="bb-row-sub inv-empty">No payments recorded yet.</p>
+              ) : (
+                <div className="inv-pays">{paymentRows}</div>
+              )}
+            </OpenSection>
+          </div>
+        </div>
+
+        <div className="inv-activity">
+          <ActivityTrail rows={activity} />
+        </div>
+      </BandBody>
+    </DsPage>
   );
 }
