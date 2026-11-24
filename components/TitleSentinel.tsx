@@ -16,6 +16,16 @@ export default function TitleSentinel({ title }: { title: string }) {
     const el = ref.current;
     if (!el) return;
     const scroller = el.closest("main");
+    // A phone-only title (inside lg:hidden) isn't rendered at a desk: watch
+    // the page's visible header title instead, or it reads as "scrolled
+    // away" and the top bar shows the name under the big title (2026-11-24).
+    const target: Element | null =
+      el.getClientRects().length > 0
+        ? el
+        : (Array.from(scroller?.querySelectorAll(".ds-pagehead h1, .ds-pagehead .ds-title") ?? []).find(
+            (h) => h.getClientRects().length > 0
+          ) ?? null);
+    if (!target) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
         window.dispatchEvent(
@@ -26,7 +36,7 @@ export default function TitleSentinel({ title }: { title: string }) {
       },
       { root: scroller ?? null, rootMargin: "-8px 0px 0px 0px" }
     );
-    observer.observe(el);
+    observer.observe(target);
     return () => {
       observer.disconnect();
       window.dispatchEvent(
