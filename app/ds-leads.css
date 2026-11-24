@@ -286,3 +286,21 @@ html[data-mode="dark"] .ld-card { box-shadow: 0 0 0 1px var(--ds-line), 0 1px 2p
   .ld-board.is-live .ld-card, .ld-board.is-live .ld-col, .ld-slot { animation: none; }
   .ld-card:hover, .ld-col.has-stage .ld-card:hover { transform: none; }
 }
+
+/* ── No flicker while dragging (2026-11-24) ──────────────────────────────
+   The empty state and the drop slot take the SAME box, so swapping one for
+   the other never moves anything under the pointer; the slot only plays its
+   opening drawer in a column that already has cards (where it pushes them
+   down on purpose), and it never catches the pointer itself. While a drag is
+   on, nothing that moves on hover can shift a hit area. */
+.ld-slot { pointer-events: none; }
+.ld-col-body > .ld-slot:only-child,
+.ld-col-body > .ld-slot:last-child { animation: none; }
+.ld-col-body > .ld-slot:only-child { height: auto; min-height: 64px; }
+.ld-empty { min-height: 64px; box-sizing: border-box; }
+.ld-board.is-dragging .ld-empty,
+.ld-board.is-dragging .ld-slot,
+.ld-board.is-dragging .ld-card > * { pointer-events: none; }
+.ld-board.is-dragging .ld-card:hover,
+.ld-board.is-dragging .ld-col.has-stage .ld-card:hover { transform: none; }
+.ld-board.is-dragging .ld-col { animation: none; }

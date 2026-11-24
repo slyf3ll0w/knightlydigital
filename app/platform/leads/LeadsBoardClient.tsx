@@ -258,6 +258,31 @@ export default function LeadsBoardClient({
   }, []);
   const [hoverStage, setHoverStage] = useState<string | null>(null);
   const [hoverZone, setHoverZone] = useState<"won" | "lost" | null>(null);
+  // Drag-over is tracked per target with a short grace on leave: HTML5 fires
+  // dragleave on the column whenever the pointer crosses into one of its own
+  // children (the drop slot, a card, the empty button), and clearing on that
+  // swapped "Drop to move" back to "No leads here" in a loop (David 2026-11-24:
+  // "it starts spazzing out"). A leave into a descendant is ignored; any other
+  // leave waits a beat and is cancelled by the next dragover.
+  const leaveTimer = useRef<number | null>(null);
+  const cancelLeave = () => {
+    if (leaveTimer.current !== null) {
+      window.clearTimeout(leaveTimer.current);
+      leaveTimer.current = null;
+    }
+  };
+  const leaveSoon = (clear: () => void) => {
+    cancelLeave();
+    leaveTimer.current = window.setTimeout(() => {
+      leaveTimer.current = null;
+      clear();
+    }, 80);
+  };
+  useEffect(() => cancelLeave, []);
+  const leftForChild = (e: React.DragEvent) => {
+    const to = e.relatedTarget as Node | null;
+    return !!to && e.currentTarget.contains(to);
+  };
   const [sheetCard, setSheetCard] = useState<BoardCard | null>(null);
   const [lostCard, setLostCard] = useState<BoardCard | null>(null);
   const [lostReason, setLostReason] = useState("");
@@ -392,6 +417,7 @@ export default function LeadsBoardClient({
         setDragId(card.id);
       },
       onDragEnd: () => {
+        cancelLeave();
         setDragId(null);
         setHoverStage(null);
         setHoverZone(null);
@@ -404,13 +430,16 @@ export default function LeadsBoardClient({
       onDragOver: (e: React.DragEvent) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
-        if (hoverStage !== stageId) setHoverStage(stageId);
+        cancelLeave();
+        setHoverStage((cur) => (cur === stageId ? cur : stageId));
       },
-      onDragLeave: () => {
-        if (hoverStage === stageId) setHoverStage(null);
+      onDragLeave: (e: React.DragEvent) => {
+        if (leftForChild(e)) return;
+        leaveSoon(() => setHoverStage((cur) => (cur === stageId ? null : cur)));
       },
       onDrop: (e: React.DragEvent) => {
         e.preventDefault();
+        cancelLeave();
         setHoverStage(null);
         const id = dragId ?? e.dataTransfer.getData("text/plain");
         const card = board.find((c) => c.id === id);
@@ -425,13 +454,16 @@ export default function LeadsBoardClient({
       onDragOver: (e: React.DragEvent) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
-        if (hoverZone !== zone) setHoverZone(zone);
+        cancelLeave();
+        setHoverZone((cur) => (cur === zone ? cur : zone));
       },
-      onDragLeave: () => {
-        if (hoverZone === zone) setHoverZone(null);
+      onDragLeave: (e: React.DragEvent) => {
+        if (leftForChild(e)) return;
+        leaveSoon(() => setHoverZone((cur) => (cur === zone ? null : cur)));
       },
       onDrop: (e: React.DragEvent) => {
         e.preventDefault();
+        cancelLeave();
         setHoverZone(null);
         const id = dragId ?? e.dataTransfer.getData("text/plain");
         const card = board.find((c) => c.id === id);
@@ -670,7 +702,7 @@ export default function LeadsBoardClient({
         // Horizontal scroller — the scrollbar stays VISIBLE (app-ui slim
         // style): with it hidden, desktop mouse users had no way to reach
         // off-screen stages. Touch swipes; desktop gets the bar + shift-wheel.
-        <BoardScroller className={`ld-board ${live ? "is-live" : ""} flex-1 flex gap-3 overflow-x-auto pb-24 lg:pb-4 items-stretch snap-x snap-mandatory lg:snap-none -mx-4 px-4 lg:mx-0 lg:px-0`}>
+        <BoardScroller className={`ld-board ${live ? "is-live" : ""} ${dragId ? "is-dragging" : ""} flex-1 flex gap-3 overflow-x-auto pb-24 lg:pb-4 items-stretch snap-x snap-mandatory lg:snap-none -mx-4 px-4 lg:mx-0 lg:px-0`}>
           {stages.map((stage, col) => {
             const columnCards = sortCards(byStage.get(stage.id) ?? []);
             const columnValue = columnCards.reduce((s, c) => s + c.value, 0);
