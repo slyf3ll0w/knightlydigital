@@ -33,6 +33,7 @@ import GetStartedCard from "./GetStartedCard";
 import GetStartedRow from "../settings/GetStartedRow";
 import PayoutNudge from "./PayoutNudge";
 import TalkToAtlas from "@/components/TalkToAtlas";
+import AtlasFrontDoor from "@/components/AtlasFrontDoor";
 import { loadGetStarted } from "@/lib/get-started";
 import { featureAllowedFor } from "@/lib/plan-gate";
 import DashboardTasks from "./DashboardTasks";
@@ -1019,6 +1020,9 @@ export default async function DashboardPage() {
           you beside the month's money, then today as a plain table. The Up next
           hero and the day/money pictures stay on phones. */}
       <BandBody className="hidden lg:flex">
+        {/* Talk to Atlas: the front door, first under the band (the example
+            request is dealt here so the first paint already has it) */}
+        <AtlasFrontDoor example={Math.floor(Math.random() * 1000)} />
         {(payoutNudge || (showSetupCard && getStarted)) && (
           <div className="flex flex-col gap-4">
             {payoutNudge && <PayoutNudge />}
@@ -1230,8 +1234,6 @@ export default async function DashboardPage() {
             </div>
           </OpenSection>
         )}
-
-        <TalkToAtlas />
 
         {footer}
       </BandBody>
