@@ -1,6 +1,7 @@
 "use client";
 
 import TapToPaySetupCard from "@/components/TapToPaySetupCard";
+import AppearanceCard from "@/components/AppearanceCard";
 import ConnectSquareButton from "@/components/ConnectSquareButton";
 
 import AddressAutocomplete from "@/components/AddressAutocomplete";
@@ -1916,8 +1917,9 @@ export default function SettingsClient({
         {/* Custom sending domain — invisible until EMAIL_DOMAINS_ENABLED */}
         {show("business") && <EmailDomainCard isOwner={isOwner} />}
 
-        {/* Per-device light/dark lives on My Profile (components/AppearanceCard.tsx)
-            — it's a personal choice, not a company one. */}
+        {/* Light / dark for this device (David 2026-11-24: in Settings too, beside
+            Branding; still a per-device choice, also on My Profile for techs). */}
+        {show("brand") && <AppearanceCard />}
 
         {/* Branding */}
         {show("brand") && (
