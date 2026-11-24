@@ -4,7 +4,9 @@ import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useEffect, useState } from "react";
 import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
-import { CalendarClock, KeyRound, Loader2, Plus, UserPlus, X } from "lucide-react";
+import { CalendarClock, KeyRound, Loader2, Mail, MessageCircle, Phone, Plus, UserPlus, X } from "lucide-react";
+import Modal from "@/components/Modal";
+import { telHref } from "@/lib/messaging";
 import SectionHeader from "@/components/SectionHeader";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
@@ -120,6 +122,105 @@ export default function TeamClient({
 
   const canManage = (m: Member) => m.id !== actorId && manageable.includes(m.role);
   const activeMembers = users.filter((u) => u.isActive);
+  // Profile sheet (ticket #sdx60h): tap a row to see the person's contact
+  // details; the row's own controls live in it too.
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const profile = users.find((u) => u.id === profileId) ?? null;
+  // A tap on the row opens the profile unless it landed on one of the row's
+  // own controls (inputs, the role select, buttons, the (i) bubbles).
+  const openProfileFromRow = (e: React.MouseEvent, id: string) => {
+    const t = e.target as HTMLElement;
+    if (t.closest("button, a, input, select, textarea, label, [role='switch']")) return;
+    setProfileId(id);
+  };
+  const memberSince = (iso: string) =>
+    new Date(iso).toLocaleDateString(undefined, { month: "short", year: "numeric" });
+
+  // The controls a row carries, shared by the row and the profile sheet.
+  const rateControl = (m: Member) => (
+    <label className="flex items-center gap-1 text-xs text-gray-600">
+      <span className="text-gray-400">$</span>
+      <input
+        type="number"
+        min="0"
+        step="0.50"
+        aria-label="Labor cost per hour"
+        value={rates[m.id] ?? ""}
+        placeholder="0"
+        disabled={busy}
+        onChange={(e) => setRates({ ...rates, [m.id]: e.target.value })}
+        onBlur={() => {
+          const original = m.hourlyCost != null ? String(m.hourlyCost) : "";
+          if ((rates[m.id] ?? "") !== original) {
+            patchMember(m.id, { hourlyCost: rates[m.id] || null });
+          }
+        }}
+        className="w-16 px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+      />
+      <span className="text-gray-400">/hr</span>
+      <InfoTip label="Labor cost">
+        Internal labor cost per hour — logged time drives labor costing on job profit. Never shown to techs.
+      </InfoTip>
+    </label>
+  );
+
+  const bookableControl = (m: Member) => (
+    <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={m.bookable}
+        disabled={busy}
+        onChange={(e) => patchMember(m.id, { bookable: e.target.checked })}
+        className="accent-[color:var(--ds-primary)]"
+      />
+      Bookable online
+      <InfoTip label="Bookable online">
+        This person&apos;s open time shows in the online booking slot picker.
+      </InfoTip>
+    </label>
+  );
+
+  const roleControl = (m: Member) =>
+    canManage(m) ? (
+      <select
+        value={m.role}
+        disabled={busy}
+        aria-label="Role"
+        onChange={(e) => patchMember(m.id, { role: e.target.value })}
+        className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+      >
+        {manageable.map((r) => (
+          <option key={r} value={r}>
+            {roleLabel[r]}
+          </option>
+        ))}
+      </select>
+    ) : (
+      <Chip>{roleLabel[m.role] ?? m.role}</Chip>
+    );
+
+  function openHours(m: Member) {
+    setHoursFor(m.id);
+    setResetFor(null);
+    setHoursCustom(m.workingHours != null);
+    setHoursDraft(m.workingHours ?? companyHours);
+    setExtraDraft({ meetingLink: m.meetingLink ?? "", startAddress: m.startAddress ?? "", dayEndsAt: m.dayEndsAt ?? "SHOP" });
+  }
+
+  // Hours / password editors open on the member's row: close the sheet and
+  // bring that row into view.
+  function editOnRow(m: Member, which: "hours" | "reset") {
+    setProfileId(null);
+    if (which === "hours") openHours(m);
+    else {
+      setResetFor(m.id);
+      setResetPassword("");
+      setHoursFor(null);
+    }
+    window.setTimeout(() => {
+      document.getElementById(`member-${m.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 260);
+  }
 
   async function addMember() {
     setBusy(true);
@@ -301,11 +402,19 @@ export default function TeamClient({
       {/* Member list */}
       <div className="ds-card ds-divide mb-6">
         {users.map((m) => (
-          <div key={m.id} className={`px-4 py-3 ${m.isActive ? "" : "opacity-60"}`}>
-            <div className="flex flex-wrap items-center gap-3">
+          <div key={m.id} id={`member-${m.id}`} className={`px-4 py-3 ${m.isActive ? "" : "opacity-60"}`}>
+            <div
+              className="flex cursor-pointer flex-wrap items-center gap-3"
+              onClick={(e) => openProfileFromRow(e, m.id)}
+            >
               {/* Identity takes the full first line on phones so the controls
                   wrap into their own tidy row underneath; desktop unchanged. */}
-              <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto sm:flex-1">
+              <button
+                type="button"
+                onClick={() => setProfileId(m.id)}
+                aria-label={`Open ${m.name}'s profile`}
+                className="flex w-full min-w-0 items-center gap-3 rounded-lg text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ds-primary)] sm:w-auto sm:flex-1"
+              >
                 <Avatar name={m.name} userId={m.id} size={32} />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-gray-900 truncate">
@@ -326,50 +435,11 @@ export default function TeamClient({
                     </p>
                   )}
                 </div>
-              </div>
+              </button>
 
-              {m.isActive && (canManage(m) || m.id === actorId) && (
-                <label className="flex items-center gap-1 text-xs text-gray-600">
-                  <span className="text-gray-400">$</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.50"
-                    aria-label="Labor cost per hour"
-                    value={rates[m.id] ?? ""}
-                    placeholder="0"
-                    disabled={busy}
-                    onChange={(e) => setRates({ ...rates, [m.id]: e.target.value })}
-                    onBlur={() => {
-                      const original = m.hourlyCost != null ? String(m.hourlyCost) : "";
-                      if ((rates[m.id] ?? "") !== original) {
-                        patchMember(m.id, { hourlyCost: rates[m.id] || null });
-                      }
-                    }}
-                    className="w-16 px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-                  />
-                  <span className="text-gray-400">/hr</span>
-                  <InfoTip label="Labor cost">
-                    Internal labor cost per hour — logged time drives labor costing on job profit. Never shown to techs.
-                  </InfoTip>
-                </label>
-              )}
+              {m.isActive && (canManage(m) || m.id === actorId) && rateControl(m)}
 
-              {m.isActive && (canManage(m) || m.id === actorId) && (
-                <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={m.bookable}
-                    disabled={busy}
-                    onChange={(e) => patchMember(m.id, { bookable: e.target.checked })}
-                    className="accent-[color:var(--ds-primary)]"
-                  />
-                  Bookable online
-                  <InfoTip label="Bookable online">
-                    This person&apos;s open time shows in the online booking slot picker.
-                  </InfoTip>
-                </label>
-              )}
+              {m.isActive && (canManage(m) || m.id === actorId) && bookableControl(m)}
 
               {m.isActive && (canManage(m) || m.id === actorId) && (
                 <span className="flex items-center gap-0.5">
@@ -380,11 +450,7 @@ export default function TeamClient({
                       setHoursFor(null);
                       return;
                     }
-                    setHoursFor(m.id);
-                    setResetFor(null);
-                    setHoursCustom(m.workingHours != null);
-                    setHoursDraft(m.workingHours ?? companyHours);
-                    setExtraDraft({ meetingLink: m.meetingLink ?? "", startAddress: m.startAddress ?? "", dayEndsAt: m.dayEndsAt ?? "SHOP" });
+                    openHours(m);
                   }}
                   className={`p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-100 ${
                     m.workingHours ? "text-[color:var(--ds-primary)]" : "text-gray-400 hover:text-gray-700"
@@ -400,22 +466,7 @@ export default function TeamClient({
                 </span>
               )}
 
-              {canManage(m) ? (
-                <select
-                  value={m.role}
-                  disabled={busy}
-                  onChange={(e) => patchMember(m.id, { role: e.target.value })}
-                  className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-                >
-                  {manageable.map((r) => (
-                    <option key={r} value={r}>
-                      {roleLabel[r]}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <Chip>{roleLabel[m.role] ?? m.role}</Chip>
-              )}
+              {roleControl(m)}
 
               {canManage(m) && (
                 <>
@@ -566,6 +617,158 @@ export default function TeamClient({
           </div>
         ))}
       </div>
+
+      {/* Member profile: side card on desktop, bottom sheet on phones */}
+      <Modal open={!!profile} onClose={() => setProfileId(null)} size="md">
+        {profile && (
+          <div className="space-y-5">
+            <div className="flex items-start gap-3">
+              <Avatar name={profile.name} userId={profile.id} size={56} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-lg font-semibold text-gray-900">
+                  {profile.name}
+                  {profile.id === actorId && <span className="text-sm font-normal text-gray-500"> (you)</span>}
+                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <Chip>{roleLabel[profile.role] ?? profile.role}</Chip>
+                  {!profile.isActive && <Chip tone="bad">Deactivated</Chip>}
+                </div>
+                {profile.isActive && (
+                  <p
+                    className={`mt-1.5 flex items-center gap-1.5 text-xs ${profile.seen.state === "online" ? "font-medium text-[color:var(--ds-good)]" : "text-gray-500"}`}
+                  >
+                    <PresenceDot state={profile.seen.state} />
+                    {profile.seen.label}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setProfileId(null)}
+                aria-label="Close"
+                className="hidden rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 lg:block"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Reach them: iOS contact-card style actions */}
+            {(() => {
+              const canChat = profile.isActive && profile.id !== actorId;
+              const actions = [
+                profile.phone && { key: "call", href: telHref(profile.phone), label: "Call", Icon: Phone },
+                canChat && { key: "chat", href: `/app/chat?dm=${encodeURIComponent(profile.id)}`, label: "Message", Icon: MessageCircle },
+                profile.email && { key: "email", href: `mailto:${profile.email}`, label: "Email", Icon: Mail },
+              ].filter(Boolean) as { key: string; href: string; label: string; Icon: typeof Phone }[];
+              if (actions.length === 0) return null;
+              return (
+                <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${actions.length}, minmax(0, 1fr))` }}>
+                  {actions.map(({ key, href, label, Icon }) => (
+                    <a
+                      key={key}
+                      href={href}
+                      className="flex flex-col items-center gap-1 rounded-xl bg-[color:var(--ds-primary-soft)] px-2 py-3 text-xs font-medium text-[color:var(--ds-primary)] active:opacity-70"
+                    >
+                      <Icon size={18} />
+                      {label}
+                    </a>
+                  ))}
+                </div>
+              );
+            })()}
+
+            <dl className="ds-divide rounded-xl border border-gray-100 text-sm">
+              <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+                <dt className="text-gray-500">Email</dt>
+                <dd className="min-w-0 truncate">
+                  <a href={`mailto:${profile.email}`} className="text-[color:var(--ds-primary)]">
+                    {profile.email}
+                  </a>
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+                <dt className="text-gray-500">Phone</dt>
+                <dd className="min-w-0 truncate">
+                  {profile.phone ? (
+                    <a href={telHref(profile.phone)} className="text-[color:var(--ds-primary)]">
+                      {profile.phone}
+                    </a>
+                  ) : (
+                    <span className="text-gray-400">Not added</span>
+                  )}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+                <dt className="text-gray-500">On the team since</dt>
+                <dd className="text-gray-900">{memberSince(profile.createdAt)}</dd>
+              </div>
+            </dl>
+
+            {profile.isActive && (canManage(profile) || profile.id === actorId) && (
+              <div className="ds-divide rounded-xl border border-gray-100 text-sm">
+                <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+                  <span className="text-gray-500">Labor cost</span>
+                  {rateControl(profile)}
+                </div>
+                <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+                  <span className="text-gray-500">Online booking</span>
+                  {bookableControl(profile)}
+                </div>
+                <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+                  <span className="text-gray-500">Working hours</span>
+                  <button
+                    type="button"
+                    onClick={() => editOnRow(profile, "hours")}
+                    className="flex items-center gap-1.5 text-xs font-medium text-[color:var(--ds-primary)]"
+                  >
+                    <CalendarClock size={14} />
+                    {profile.workingHours ? "Custom hours" : "Business hours"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {canManage(profile) && (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-500">Role</span>
+                  {roleControl(profile)}
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => editOnRow(profile, "reset")}
+                    className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                  >
+                    <KeyRound size={13} />
+                    Reset password
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (await patchMember(profile.id, { isActive: !profile.isActive })) setProfileId(null);
+                    }}
+                    disabled={busy}
+                    className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                      profile.isActive
+                        ? "text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)]"
+                        : "text-[color:var(--ds-primary)] hover:bg-[color:var(--ds-primary-soft)]"
+                    }`}
+                  >
+                    {profile.isActive ? "Deactivate" : "Reactivate"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <p role="alert" className="form-error">
+                {error}
+              </p>
+            )}
+          </div>
+        )}
+      </Modal>
 
       {/* Policies */}
       <div className="ds-card p-5 space-y-5">
