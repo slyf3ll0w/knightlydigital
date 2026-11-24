@@ -15,6 +15,11 @@ import "./ds-open-jobs.css";
 import "./ds-open-money.css";
 import "./ds-open-requests.css";
 import "./ds-open-client.css";
+import "./ds-open-records.css";
+import "./ds-open-tools.css";
+import "./ds-open-reports.css";
+import "./ds-open-forms.css";
+import "./ds-open-settings.css";
 import "./moment.css";
 
 export const viewport: Viewport = {
