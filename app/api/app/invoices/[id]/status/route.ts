@@ -8,6 +8,29 @@ import { dueDateFromTerms } from "@/lib/due-dates";
 import { fireAutomations } from "@/lib/automations-server";
 import { queueQuickBooksInvoiceSync } from "@/lib/quickbooks";
 
+/**
+ * GET: the invoice's live state — status and money paid so far — for an open
+ * invoice page to notice a payment that landed elsewhere (the client paying
+ * from the link, a webhook confirming a pending charge, tap to pay finishing)
+ * and refresh itself (components/InvoiceLiveStatus.tsx). Same scope as PATCH.
+ */
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const actor = await getActor();
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canSeeMoney(actor)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { id } = await params;
+  const invoice = await prisma.invoice.findFirst({
+    where: { id, companyId: actor.companyId, ...viaContactScope(actor) },
+    select: { status: true, payments: { select: { amount: true } } },
+  });
+  if (!invoice) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
+  const paid = Math.round(invoice.payments.reduce((s, p) => s + Number(p.amount), 0) * 100) / 100;
+  return NextResponse.json({ status: invoice.status, paid }, { headers: { "Cache-Control": "no-store" } });
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

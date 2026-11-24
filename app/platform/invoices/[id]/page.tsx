@@ -27,6 +27,7 @@ import { activityFor } from "@/lib/activity";
 import ActivityTrail from "@/components/ActivityTrail";
 import PaymentRow from "./PaymentRow";
 import Celebration from "@/components/Celebration";
+import InvoiceLiveStatus from "@/components/InvoiceLiveStatus";
 import { shouldCelebrate } from "@/lib/celebrations";
 import { isOnlinePayment } from "@/lib/payment-ref";
 
@@ -339,6 +340,12 @@ export default async function InvoiceDetailPage({
         </>
       }
     >
+      {/* Refreshes the page when a payment lands, wherever it came from */}
+      <InvoiceLiveStatus
+        invoiceId={invoice.id}
+        status={invoice.status}
+        paid={Math.round(invoice.payments.reduce((t, p) => t + Number(p.amount), 0) * 100) / 100}
+      />
       <Celebration
         endpoint={`/api/app/invoices/${invoice.id}/celebrated`}
         celebrate={celebratePaid}

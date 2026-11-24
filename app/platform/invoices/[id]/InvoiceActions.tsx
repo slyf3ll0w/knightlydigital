@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { announceInvoicePayment } from "@/components/InvoiceLiveStatus";
 import { useRouter } from "next/navigation";
 import {
   Send,
@@ -345,6 +346,10 @@ export default function InvoiceActions({
     }
     hapticImpact();
     setCharge({ state: "approved", label, amount: data?.amount ?? balance });
+    // The payment is already written: refresh the page now (behind the
+    // overlay) and keep watching in case the processor confirms it a moment
+    // later (components/InvoiceLiveStatus.tsx).
+    announceInvoicePayment(invoiceId);
     setTimeout(() => {
       setCharge(null);
       router.refresh();
@@ -521,7 +526,10 @@ export default function InvoiceActions({
           amount={balance}
           label={`Invoice #${invoiceNumber}`}
           offer={tapToPay}
-          onPaid={() => router.refresh()}
+          onPaid={() => {
+            announceInvoicePayment(invoiceId);
+            router.refresh();
+          }}
         />
       )}
       {(status === "AWAITING_PAYMENT" || status === "PAST_DUE") &&
