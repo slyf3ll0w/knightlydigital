@@ -25,6 +25,7 @@ import {
   Plus,
   DollarSign,
   Search,
+  Sparkles,
   Globe,
   MonitorSmartphone,
   UserPlus,
@@ -1870,11 +1871,6 @@ export default function AppShell({
   };
   const mainRef = useRef<HTMLElement>(null);
 
-  // Dock (2026-11-23): which area's pages the second column lists. null =
-  // the area holding the current page; clicking an area icon picks another
-  // (it doesn't navigate) until the route changes, then it snaps back.
-  const [dockPick, setDockPick] = useState<string | null>(null);
-  useEffect(() => setDockPick(null), [pathname]);
 
   // The sliding accent bar: ONE indicator that travels to the active row
   // instead of each row painting its own. Repositioned after every render —
@@ -1951,6 +1947,34 @@ export default function AppShell({
     if (assistantOpen) setTeaserVisible(false);
   }, [assistantOpen]);
   const [counts, setCounts] = useState({ requests: 0, pastDue: 0, chat: 0, leads: 0, messages: 0, tasks: 0 });
+  // The Live sidebar (2026-11-24): what's waiting beside each page — jobs on
+  // today, quotes waiting on clients, jobs to invoice, money owed. Same poll
+  // as the badges (/api/app/nav-counts); owed is null for roles without money.
+  const [railLive, setRailLive] = useState<{ jobsToday: number; quotesWaiting: number; toInvoice: number; owed: number | null }>({
+    jobsToday: 0,
+    quotesWaiting: 0,
+    toInvoice: 0,
+    owed: null,
+  });
+  const [railOpen, setRailOpen] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("wb-rail-open") ?? "{}") as Record<string, boolean>;
+      if (saved && typeof saved === "object") setRailOpen(saved);
+    } catch {
+      /* first visit */
+    }
+  }, []);
+  const toggleRailGroup = (key: string, open: boolean) =>
+    setRailOpen((prev) => {
+      const next = { ...prev, [key]: open };
+      try {
+        localStorage.setItem("wb-rail-open", JSON.stringify(next));
+      } catch {
+        /* private mode */
+      }
+      return next;
+    });
   // Sticky notes: Home's board refetches when the team's newest note moves
   const notesVersionRef = useRef<string | null | undefined>(undefined);
   // Live notification cards (components/LiveToasts.tsx): when a count grows
@@ -2194,6 +2218,12 @@ export default function AppShell({
             prevCountsRef.current = next;
             lastPollAtRef.current = startedAt;
             setCounts(next);
+            setRailLive({
+              jobsToday: d.jobsToday ?? 0,
+              quotesWaiting: d.quotesWaiting ?? 0,
+              toInvoice: d.toInvoice ?? 0,
+              owed: typeof d.owed === "number" ? d.owed : null,
+            });
             // Native shell: mirror the actionable unreads onto the app icon
             syncAppBadge(next.requests + next.chat + next.messages);
             if (prev && since > 0) announce(next, prev, since);
@@ -2443,10 +2473,11 @@ export default function AppShell({
         />
         <span className="truncate">{label}</span>
         {NAV_FEATURES[href] && lockedFeatures.includes(NAV_FEATURES[href]) && <ProChip tone="rail" />}
+        {railMeta(href) && <span className="rail-meta ml-auto">{railMeta(href)}</span>}
         {badge > 0 ? (
           <span
             key={badge}
-            className={`rail-count ml-auto ${
+            className={`rail-count ${railMeta(href) ? "ml-2" : "ml-auto"} ${
               href === "/app/invoices"
                 ? "text-[color:var(--rail-news)]" /* was red; David 2026-09-26: no red dots in the rail */
                 : "text-[color:var(--rail-news)]"
@@ -2460,65 +2491,96 @@ export default function AppShell({
     );
   };
 
-  // ── The dock ──────────────────────────────────────────────────────────
-  const dockAreas = railAreas
-    .map((a) => ({ ...a, items: forStudio(forRole(a.items, userRole, salesMoney), websiteStudio) }))
-    .filter((a) => a.items.length > 0);
-  const hereArea = dockAreas.find((a) => a.items.some((i) => isActive(i.href)))?.key ?? null;
-  const shownArea = dockAreas.find((a) => a.key === (dockPick ?? hereArea)) ?? dockAreas[0];
-  const areaCount = (a: (typeof dockAreas)[number]) => a.items.reduce((n, i) => n + badgeCount(i.href), 0);
+  // ── The Live sidebar (2026-11-24, David picked "Live") ───────────────
+  // One plain list: the daily drivers, then Work / Money / Business as groups
+  // that fold (open state remembered; the group holding this page is always
+  // open). Beside each page, what's waiting there — "5 today", "$2,619 owed",
+  // "3 waiting" — so someone who opens the app twice a week sees where to go.
+  const shortMoney = (n: number) =>
+    n >= 10000
+      ? `$${(n / 1000).toFixed(n >= 100000 ? 0 : 1)}k`
+      : n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  const railMeta = (href: string): string | null => {
+    if (href === "/app/schedule") return railLive.jobsToday > 0 ? `${railLive.jobsToday} today` : null;
+    if (href === "/app/quotes") return railLive.quotesWaiting > 0 ? `${railLive.quotesWaiting} waiting` : null;
+    if (href === "/app/jobs") return railLive.toInvoice > 0 ? `${railLive.toInvoice} to bill` : null;
+    if (href === "/app/invoices") return railLive.owed && railLive.owed > 0 ? `${shortMoney(railLive.owed)} owed` : null;
+    return null;
+  };
+  const liveDrivers = forStudio(forRole(railDrivers, userRole, salesMoney), websiteStudio);
+  const liveGroups = railGroups
+    .map((g) => ({ ...g, items: forStudio(forRole(g.items, userRole, salesMoney), websiteStudio) }))
+    .filter((g) => g.items.length > 0);
+  const groupCount = (items: NavItem[]) => items.reduce((n, i) => n + badgeCount(i.href), 0);
 
-  const dockBtn = (key: string, label: string, Icon: typeof Home, on: boolean, count: number, here: boolean) => (
-    <button
-      key={key}
-      type="button"
-      onClick={() => setDockPick(key)}
-      aria-pressed={on}
-      aria-label={count > 0 ? `${label}, ${count} new` : label}
-      data-tip={label}
-      className={`rail-dock-btn ${on ? "is-on" : ""} ${here ? "is-here" : ""}`}
-    >
-      <Icon size={20} strokeWidth={on ? 2.6 : 2.3} />
-      {count > 0 && <span className="rail-dock-count">{count > 99 ? "99+" : count}</span>}
-    </button>
-  );
-
-  const dockMark = companyLogoUrl ? (
-    <span
-      className="theme-fixed rail-dock-mark overflow-hidden"
-      style={{ backgroundColor: sidebarLogoColor || "#FFFFFF" }}
-      title={companyName ?? undefined}
-    >
+  const companyMark = companyLogoUrl ? (
+    <span className="theme-fixed rail-live-mark overflow-hidden" style={{ backgroundColor: sidebarLogoColor || "#FFFFFF" }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={companyLogoUrl} alt={companyName ?? ""} className="h-full w-full object-contain p-1" />
+      <img src={companyLogoUrl} alt="" className="h-full w-full object-contain p-1" />
     </span>
   ) : (
-    <span className="rail-dock-mark font-display text-[17px] font-bold" style={{ backgroundColor: railAccent, color: textOn(railAccent) }} title={companyName ?? undefined}>
+    <span className="rail-live-mark font-display" style={{ backgroundColor: railAccent, color: textOn(railAccent) }}>
       {companyName?.charAt(0).toUpperCase() ?? "W"}
     </span>
   );
 
   const sidebarInner = (
     <>
-      {/* Left: one bold icon per area; Help, Settings and you at the foot */}
-      <div className="rail-dock">
-        <Link prefetch={false} href="/app/dashboard" aria-label={companyName ? `${companyName} home` : "Home"} className="rail-dock-home">
-          {dockMark}
+      <Link prefetch={false} href="/app/dashboard" className="rail-live-co" aria-label={companyName ? `${companyName} home` : "Home"}>
+        {companyMark}
+        <span className="min-w-0 flex-1">
+          <span className="rail-live-name">{companyName ?? "WorkBench"}</span>
+        </span>
+      </Link>
+      <button type="button" onClick={() => setPaletteOpen(true)} className="rail-live-search">
+        <Search size={15} strokeWidth={2.2} />
+        <span className="flex-1 text-left">Search</span>
+        <kbd>{kbdHint}</kbd>
+      </button>
+      <nav ref={railNavRef} aria-label="Pages" className="rail-live-nav">
+        <span ref={railIndRef} aria-hidden className="rail-indicator" />
+        {liveDrivers.map(({ href, label, icon: Icon }) => navLink(href, label, Icon))}
+        {liveGroups.map((g) => {
+          const holdsHere = g.items.some((i) => isActive(i.href));
+          const open = holdsHere || (railOpen[g.key] ?? true);
+          const waiting = open ? 0 : groupCount(g.items);
+          return (
+            <div key={g.key} className="rail-live-group">
+              <button
+                type="button"
+                className="rail-live-ghead"
+                aria-expanded={open}
+                disabled={holdsHere}
+                onClick={() => toggleRailGroup(g.key, !open)}
+              >
+                <span>{g.label}</span>
+                {waiting > 0 && <span className="rail-live-gcount">{waiting > 99 ? "99+" : waiting}</span>}
+                <ChevronDown size={14} strokeWidth={2.4} className={`rail-live-chev ${open ? "is-open" : ""}`} />
+              </button>
+              {open && g.items.map(({ href, label, icon: Icon }, i) => navLink(href, label, Icon, i))}
+            </div>
+          );
+        })}
+      </nav>
+      <div className="rail-live-foot">
+        {assistantAvailable && (
+          <button type="button" onClick={() => setAssistantOpen(true)} className="rail-live-row">
+            <Sparkles size={17} strokeWidth={2.3} />
+            <span className="flex-1 text-left">{assistantName || "Atlas"}</span>
+          </button>
+        )}
+        <Link prefetch={false} href="/app/help" className={`rail-live-row ${isActive("/app/help") ? "is-here" : ""}`}>
+          <LifeBuoy size={17} strokeWidth={2.3} />
+          <span className="flex-1">Help</span>
         </Link>
-        <div className="rail-dock-areas" role="group" aria-label="Areas">
-          {dockAreas.map((a) => dockBtn(a.key, a.label, a.icon, a.key === shownArea?.key, a.key === shownArea?.key ? 0 : areaCount(a), a.key === hereArea))}
-        </div>
-        <div className="rail-dock-foot">
-          <Link prefetch={false} href="/app/help" aria-label="Help" data-tip="Help" className={`rail-dock-btn ${isActive("/app/help") ? "is-here" : ""}`}>
-            <LifeBuoy size={20} strokeWidth={2.3} />
+        {manager && (
+          <Link prefetch={false} href="/app/settings" className="rail-live-row">
+            <Settings size={17} strokeWidth={2.3} data-anim="turn" />
+            <span className="flex-1">Settings</span>
           </Link>
-          {manager && (
-            <Link prefetch={false} href="/app/settings" aria-label="Settings" data-tip="Settings" className="rail-dock-btn">
-              <Settings size={20} strokeWidth={2.3} data-anim="turn" />
-            </Link>
-          )}
+        )}
+        <div className="rail-live-me">
           <UserMenu
-            compact
             userName={userName}
             userEmail={userEmail}
             userId={userId}
@@ -2526,19 +2588,6 @@ export default function AppShell({
             suggestChanges={suggestChanges}
           />
         </div>
-      </div>
-
-      {/* Right: the picked area's pages. Only that area is mounted, so the
-          other areas' rows are out of the tab order. */}
-      <div className="rail-list">
-        <div className="rail-list-head">
-          <p className="rail-list-title">{shownArea?.label}</p>
-          <p className="rail-list-sub">{companyName ?? "WorkBench"}</p>
-        </div>
-        <nav ref={railNavRef} key={shownArea?.key} aria-label={shownArea ? `${shownArea.label} pages` : "Pages"} className="relative flex-1 overflow-y-auto py-2">
-          <span ref={railIndRef} aria-hidden className="rail-indicator" />
-          {shownArea?.items.map(({ href, label, icon: Icon }, i) => navLink(href, label, Icon, i))}
-        </nav>
       </div>
     </>
   );
@@ -2628,7 +2677,7 @@ export default function AppShell({
       </Suspense>
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
       <aside
-        className="rail-gray rail-docked hidden lg:flex shrink-0 border-r border-[color:var(--rail-line)]"
+        className="rail-gray rail-live hidden lg:flex shrink-0 border-r border-[color:var(--rail-line)]"
         style={
           {
             "--rail-accent-l": railAccent,

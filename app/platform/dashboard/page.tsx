@@ -44,7 +44,7 @@ import UpNextActions from "./UpNextActions";
 import AtlasHomeButton from "@/components/AtlasHomeButton";
 import SwipeRowContact from "@/components/SwipeRowContact";
 import { PushNudge } from "@/components/PushNotifications";
-import { Button, Card, Chip, DsPage, ListRow, PageHeader, SectionTitle } from "@/components/ds";
+import { BandBody, Button, Card, Chip, DsPage, ListRow, OpenSection, PageHeader, SectionTitle } from "@/components/ds";
 import {
   requirePageActor,
   isManager,
@@ -907,14 +907,42 @@ export default async function DashboardPage() {
 
   const greetingTitle = (
     <>
-      {greeting}, <span style={{ color: "var(--ds-primary)" }}>{firstName}</span>
+      {greeting}, <span className="bb-acc" style={{ color: "var(--ds-primary)" }}>{firstName}</span>
     </>
   );
   const pageInfo =
     "Your day at a glance: what's next, money in and owed, what's waiting on you, and who's on the clock. Everything follows your company's time zone.";
 
+  // ── Desktop figures for the branded header page ──
+  const needsTotal = needs.reduce((s, n) => s + n.count, 0);
+  const monthCollected = dailyRevenue.reduce((s, v) => s + v, 0);
+  const monthMax = Math.max(1, ...monthDays.map((d) => d.amount));
+  // Pace: this month so far against the same days of last month
+  const lastSameDays = lastMonthDaily.slice(0, local.d).reduce((s, v) => s + v, 0);
+  const paceDelta = lastSameDays > 0 ? Math.round(((monthCollected - lastSameDays) / lastSameDays) * 100) : null;
+  const todayCountLine = [
+    todayJobs > 0 ? `${todayJobs} ${plural(todayJobs, "job", "jobs")}` : null,
+    todayAppts > 0 ? `${todayAppts} ${plural(todayAppts, "appointment", "appointments")}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  // A stop's state for the Today table: done, on the clock now, or still to come
+  const clockedJobIds = new Set(
+    [...onClock.map((e) => e.job?.id), myOpenEntry?.jobId].filter((x): x is string => !!x)
+  );
+  const todayStatus = (item: (typeof todayItems)[number]): { label: string; tone: "good" | "secondary" | "neutral" } => {
+    if (item.id.startsWith("j-")) {
+      const job = todayVisits.find((j) => `j-${j.id}` === item.id);
+      if (job?.completedAt || job?.status === "REQUIRES_INVOICING" || job?.status === "ARCHIVED") return { label: "Done", tone: "good" };
+      if (job && clockedJobIds.has(job.id)) return { label: "On site", tone: "secondary" };
+      if (item.sort !== 0 && item.sort < nowT) return { label: "Started", tone: "neutral" };
+      return { label: "Scheduled", tone: "neutral" };
+    }
+    return { label: item.sort !== 0 && item.sort < nowT ? "Past" : appointmentTypeLabel[item.apptType as keyof typeof appointmentTypeLabel] ?? "Appointment", tone: "neutral" };
+  };
+
   return (
-    <DsPage>
+    <DsPage band>
       <PageHeader
         heavy
         eyebrow={dateLine}
@@ -960,36 +988,227 @@ export default async function DashboardPage() {
         {footer}
       </div>
 
-      {/* ─────────────── Desktop ─────────────── */}
-      <div className="hidden lg:block">
-        {payoutNudge && <PayoutNudge className="mt-6" />}
-        {showSetupCard && getStarted && (
-          <div className="mt-6">
-            <GetStartedCard data={getStarted} />
+      {/* ─────────────── Desktop (the branded header, 2026-11-24) ───────────────
+          The band carries the greeting; under it the page is open: what needs
+          you beside the month's money, then today as a plain table. The Up next
+          hero and the day/money pictures stay on phones. */}
+      <BandBody className="hidden lg:flex">
+        {(payoutNudge || (showSetupCard && getStarted)) && (
+          <div className="flex flex-col gap-4">
+            {payoutNudge && <PayoutNudge />}
+            {showSetupCard && getStarted && <GetStartedCard data={getStarted} />}
           </div>
         )}
-        <PushNudge className="mt-6" />
-        <TalkToAtlas className="mt-6" />
+        <PushNudge />
 
-        {seePerformance && <div className="mt-7">{moneyEl(false)}</div>}
+        <div className={seePerformance ? "bb-split" : ""}>
+          <OpenSection
+            title="Needs you"
+            count={needsTotal > 0 ? needsTotal : undefined}
+            info={needsInfo}
+            data-tour="workflow"
+            className="ds-rise"
+            style={rise(1)}
+          >
+            {needs.length === 0 ? (
+              <p className="flex items-center gap-2.5 py-5 text-[14.5px] font-medium">
+                <CheckCircle2 size={18} className="shrink-0" style={{ color: "var(--ds-good)" }} />
+                You&apos;re all caught up.
+              </p>
+            ) : (
+              <div className="bb-rows">
+                {needs.map((n, i) => (
+                  <Link prefetch={false} key={n.href} href={n.href} className="bb-row bb-in" style={rise(i)}>
+                    <span className={`bb-num ${n.urgent ? "is-bad" : ""}`}>{n.count}</span>
+                    <span className="bb-row-main">
+                      <span className="bb-row-title">{n.title}</span>
+                    </span>
+                    {n.urgent && <Chip tone="bad">Overdue</Chip>}
+                    <span className="bb-go">
+                      {n.action.length > 32 ? "Open" : n.action}
+                      <ChevronRight size={15} strokeWidth={2.4} />
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </OpenSection>
 
-        <div className="mt-6 grid grid-cols-[1.45fr_1fr] items-start gap-6">
-          <div className="flex min-w-0 flex-col gap-6">
-            {heroEl}
-            {todayPanel(false)}
-          </div>
-
-          <div className="flex min-w-0 flex-col gap-6">
-            <section className="ds-rise" style={rise(5)} data-tour="workflow">
-              <SectionTitle info={needsInfo}>Needs you</SectionTitle>
-              {needs.length === 0 ? allClear : <Card className="ds-divide overflow-hidden">{needsRows(needs)}</Card>}
-            </section>
-            {onClockEl}
-          </div>
+          {seePerformance && (
+            <OpenSection
+              title="Money"
+              info="Collected: card, bank and recorded payments this month, against the same days last month. Still owed: every sent invoice not yet paid in full."
+              className="ds-rise"
+              style={rise(2)}
+            >
+              <div className="py-3">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="bb-label">Collected in {now.toLocaleDateString("en-US", { month: "long", timeZone: tz })}</span>
+                  {paceDelta !== null && (
+                    <span className="text-[12.5px] font-semibold" style={{ color: paceDelta >= 0 ? "var(--ds-good)" : "var(--ds-muted)" }}>
+                      {paceDelta >= 0 ? "+" : ""}
+                      {paceDelta}% vs. last month
+                    </span>
+                  )}
+                </div>
+                <p className="bb-big mt-1.5">{money(monthCollected)}</p>
+                <div className="bb-bars mt-4" aria-hidden>
+                  {monthDays.map((d, i) => (
+                    <i
+                      key={d.label}
+                      className={i === local.d - 1 ? "is-today" : i >= local.d || d.amount <= 0 ? "is-empty" : ""}
+                      style={{ height: `${d.amount > 0 ? Math.max(6, (d.amount / monthMax) * 100) : 4}%`, ...rise(i) }}
+                      title={`${d.label}: ${money(d.amount)}`}
+                    />
+                  ))}
+                </div>
+              </div>
+              <Link prefetch={false} href="/app/invoices" className="bb-row" style={{ minHeight: 64 }}>
+                <span className="bb-row-main">
+                  <span className="bb-label block">Still owed</span>
+                  <span className="mt-0.5 block text-[22px] font-bold tracking-[-0.03em] text-[color:var(--ds-ink)]">
+                    {money(receivableTotal)}
+                  </span>
+                </span>
+                <span className="text-right">
+                  {pastDueOwed > 0 ? (
+                    <span className="block text-[12.5px] font-semibold" style={{ color: "var(--ds-bad)" }}>
+                      {pastDueOwed} past due
+                    </span>
+                  ) : null}
+                  <span className="ds-small block">
+                    {Math.max(receivableClients, owingAll.length)} {plural(Math.max(receivableClients, owingAll.length), "client", "clients")}
+                  </span>
+                </span>
+              </Link>
+            </OpenSection>
+          )}
         </div>
 
+        <OpenSection
+          title="Today"
+          count={todayItems.length > 0 ? todayCountLine : undefined}
+          data-tour="today"
+          className="ds-rise"
+          style={rise(3)}
+          aside={
+            <Link prefetch={false} href="/app/schedule" className="bb-go">
+              Open schedule
+              <ChevronRight size={15} strokeWidth={2.4} />
+            </Link>
+          }
+        >
+          {todayItems.length === 0 ? (
+            <div className="flex flex-wrap items-center justify-between gap-4 py-5">
+              <p className="ds-small">
+                {nextOnBooks?.scheduledAt ? (
+                  <>
+                    Nothing on the books today. Next up:{" "}
+                    <Link prefetch={false} href={`/app/jobs/${nextOnBooks.id}`} className="ds-link">
+                      {nextOnBooks.scheduledAt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: tz })}
+                      {nextOnBooks.scheduledAnytime ? "" : ` · ${fmtTime(nextOnBooks.scheduledAt)}`} · {nextOnBooks.title}
+                    </Link>
+                  </>
+                ) : (
+                  "Nothing on the books today, and nothing scheduled ahead yet."
+                )}
+              </p>
+              <Button href="/app/jobs/new" icon={Plus} size="sm">
+                Schedule a job
+              </Button>
+            </div>
+          ) : (
+            <table className="bb-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 84 }}>Time</th>
+                  <th>Client</th>
+                  <th>Work</th>
+                  <th>Who</th>
+                  {seePrices && <th className="r">Amount</th>}
+                  <th className="r" style={{ width: 120 }}>
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {todayItems.map((item, i) => {
+                  const st = todayStatus(item);
+                  return (
+                    <tr key={item.id} className="bb-in" style={rise(i)}>
+                      <td className="bb-strong">
+                        <Link prefetch={false} href={item.href} className="block">
+                          {item.time}
+                        </Link>
+                      </td>
+                      <td className="bb-strong">
+                        <Link prefetch={false} href={item.href} className="block truncate">
+                          {item.contactName || "Client"}
+                        </Link>
+                      </td>
+                      <td className="max-w-[280px] truncate text-[color:var(--ds-ink-2)]">{item.title}</td>
+                      <td className="max-w-[180px] truncate text-[color:var(--ds-muted)]">
+                        {item.apptType ? item.detail : item.detail || "Unassigned"}
+                      </td>
+                      {seePrices && (
+                        <td className="r ds-num">{item.value > 0 ? money(item.value) : <span className="text-[color:var(--ds-faint)]">—</span>}</td>
+                      )}
+                      <td className="r">
+                        <Chip tone={st.tone}>{st.label}</Chip>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+          {todayTasks.length > 0 && (
+            <div className="mt-4">
+              <DashboardTasks tasks={todayTasks} phone={false} />
+            </div>
+          )}
+        </OpenSection>
+
+        {isManager(actor.role) && onClock.length > 0 && (
+          <OpenSection
+            title="On the clock"
+            count={onClock.length}
+            info="Everyone clocked in right now, with how long they've been on and where they clocked in."
+            aside={
+              <>
+                <Link prefetch={false} href="/app/team-map" className="bb-go">
+                  Team map
+                </Link>
+                <Link prefetch={false} href="/app/timesheets" className="bb-go">
+                  Timesheets
+                </Link>
+              </>
+            }
+          >
+            <div className="bb-rows">
+              {onClock.map((e) => (
+                <Link prefetch={false} key={e.id} href={e.job ? `/app/jobs/${e.job.id}` : "/app/timesheets"} className="bb-row">
+                  <Monogram name={e.user.name ?? "Teammate"} size={30} />
+                  <span className="bb-row-main">
+                    <span className="bb-row-title">{e.user.name}</span>
+                    <span className="bb-row-sub">{e.job ? e.job.title : "General time"}</span>
+                  </span>
+                  <span className="text-right">
+                    <span className="ds-num block text-[13.5px] font-semibold">{formatDuration(now.getTime() - e.startedAt.getTime())}</span>
+                    <span className="ds-small block">
+                      since {e.startedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz })}
+                    </span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </OpenSection>
+        )}
+
+        <TalkToAtlas />
+
         {footer}
-      </div>
+      </BandBody>
     </DsPage>
   );
 }

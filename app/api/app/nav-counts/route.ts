@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getActor, canSell, canSeeMoney, contactScope, viaContactScope } from "@/lib/permissions";
+import { getActor, canSell, canSeeMoney, contactScope, viaContactScope, jobScope } from "@/lib/permissions";
+import { invoiceBalance } from "@/lib/payments";
+import { startOfDayIn, zonedMidnight, zonedParts } from "@/lib/timezone";
 import { totalUnread } from "@/lib/chat";
 import { pastDueFilter } from "@/lib/due-dates";
 import { notesVersion } from "@/lib/sticky-notes";
@@ -78,5 +80,50 @@ export async function GET() {
     notesVersion(actor),
   ]);
 
-  return NextResponse.json({ requests, pastDue, chat, leads, messages, tasks, notesVersion: notes });
+  // The Live sidebar (2026-11-24): what's waiting beside a page — jobs on
+  // today (company calendar, same rule as Home's Today), quotes out with
+  // clients, jobs done and waiting on an invoice, and the money owed.
+  // Role-scoped like the list pages; money is null for roles without it.
+  const tz =
+    (await prisma.company.findUnique({ where: { id: actor.companyId }, select: { timezone: true } }))?.timezone ??
+    "America/Chicago";
+  const now = new Date();
+  const local = zonedParts(tz, now);
+  const dayStart = startOfDayIn(tz, now);
+  const dayEnd = zonedMidnight(tz, local.y, local.m, local.d + 1);
+  const money = canSeeMoney(actor);
+  const [jobsToday, quotesWaiting, toInvoice, owedInvoices] = await Promise.all([
+    prisma.job.count({
+      where: { companyId: actor.companyId, ...jobScope(actor), scheduledAt: { gte: dayStart, lt: dayEnd } },
+    }),
+    canSell(actor.role)
+      ? prisma.quote.count({ where: { companyId: actor.companyId, ...scope, status: "AWAITING_RESPONSE" } })
+      : Promise.resolve(0),
+    money
+      ? prisma.job.count({ where: { companyId: actor.companyId, ...jobScope(actor), status: "REQUIRES_INVOICING" } })
+      : Promise.resolve(0),
+    money
+      ? prisma.invoice.findMany({
+          where: { companyId: actor.companyId, ...scope, status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] } },
+          select: { total: true, payments: { select: { amount: true, surchargeAmount: true } } },
+        })
+      : Promise.resolve([]),
+  ]);
+  const owed = money
+    ? Math.round(owedInvoices.reduce((s, inv) => s + Math.max(0, invoiceBalance(inv)), 0) * 100) / 100
+    : null;
+
+  return NextResponse.json({
+    requests,
+    pastDue,
+    chat,
+    leads,
+    messages,
+    tasks,
+    notesVersion: notes,
+    jobsToday,
+    quotesWaiting,
+    toInvoice,
+    owed,
+  });
 }

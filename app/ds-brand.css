@@ -232,3 +232,63 @@ a.bb-row:hover, .bb-row.is-link:hover { background: var(--ds-surface-2); }
   .bb-in, .bb-bars i { animation: none; }
   .bb-page .ds-btn:active { transform: none; }
 }
+
+/* ═══ The Live sidebar (desktop rail, AppShell) ═════════════════════════
+   One plain list, what's waiting written beside each page, groups that
+   fold. The rail keeps its panel color (.rail-gray); the page you're on is
+   a wash of the company primary with the row in that color. */
+.rail-live { flex-direction: column; width: 256px; padding: 14px 10px 10px; gap: 10px; }
+.rail-live-co { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 10px; outline: none; transition: background-color 120ms; }
+.rail-live-co:hover { background: var(--rail-hover); }
+.rail-live-co:focus-visible { box-shadow: 0 0 0 2px var(--rail-accent); }
+.rail-live-mark {
+  width: 34px; height: 34px; flex: none; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700;
+  box-shadow: 0 0 0 1px var(--rail-line), 0 1px 2px rgba(10, 19, 40, 0.08);
+}
+.rail-live-name { display: block; font-size: 14px; font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; color: var(--rail-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rail-live-search {
+  display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 8px 0 10px; border: 0; border-radius: 8px;
+  background: var(--rail-hover); color: var(--rail-muted); font-size: 13.5px; cursor: pointer; transition: background-color 120ms;
+}
+.rail-live-search:hover { background: color-mix(in srgb, var(--rail-ink) 9%, transparent); color: var(--rail-ink); }
+.rail-live-search kbd {
+  font-size: 10.5px; font-weight: 600; padding: 1px 6px; border-radius: 4px;
+  background: var(--ds-surface, #fff); box-shadow: 0 0 0 1px var(--rail-line); color: var(--rail-muted);
+}
+.rail-live-nav { position: relative; flex: 1; min-height: 0; overflow-y: auto; margin: 0 -10px; padding: 2px 0 8px; }
+.rail-live-group { margin-top: 12px; }
+.rail-live-ghead {
+  display: flex; align-items: center; gap: 6px; width: calc(100% - 16px); height: 28px; margin: 0 8px 2px; padding: 0 10px;
+  border: 0; border-radius: 7px; background: transparent; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--rail-faint); transition: background-color 120ms, color 120ms;
+}
+.rail-live-ghead:hover:not(:disabled) { background: var(--rail-hover); color: var(--rail-ink); }
+.rail-live-ghead:disabled { cursor: default; }
+.rail-live-chev { margin-left: auto; transform: rotate(-90deg); transition: transform 200ms var(--ds-ease, ease); }
+.rail-live-chev.is-open { transform: none; }
+.rail-live-ghead:disabled .rail-live-chev { opacity: 0.4; }
+.rail-live-gcount,
+.rail-live .rail-count {
+  min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums;
+  background: var(--ds-secondary); color: var(--ds-on-secondary) !important;
+}
+.rail-meta { font-size: 12px; font-weight: 500; color: var(--rail-faint); white-space: nowrap; }
+.rail-live .rail-indicator { background: var(--rail-active); box-shadow: none; border-radius: 8px; }
+.rail-live a[data-rail-active="true"] { color: var(--rail-accent) !important; }
+.rail-live a[data-rail-active="true"] .rail-meta { color: var(--rail-accent); }
+.rail-live-foot { display: flex; flex-direction: column; gap: 1px; padding-top: 8px; border-top: 1px solid var(--rail-line); }
+.rail-live-row {
+  display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--rail-muted); font-size: 14px; font-weight: 500; cursor: pointer;
+  transition: background-color 120ms, color 120ms;
+}
+.rail-live-row:hover, .rail-live-row.is-here { background: var(--rail-hover); color: var(--rail-ink); }
+.rail-live-row:hover > svg[data-anim="turn"] { transform: rotate(60deg); transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+.rail-live-me { margin: 4px -10px -10px; border-top: 1px solid var(--rail-line); }
+@media (prefers-reduced-motion: reduce) {
+  .rail-live-chev, .rail-live-row > svg { transition: none; }
+}
