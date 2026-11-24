@@ -2153,10 +2153,19 @@ export default function SettingsClient({
         {/* Sidebar — desktop-only chrome, so the card hides on phones */}
         {show("brand") && (
         <div className="hidden lg:block ds-card p-5 space-y-4">
-          <SectionHeader title="Sidebar" hint="How the desktop navigation rail looks for your whole team." />
+          <SectionHeader
+            title="Sidebar logo"
+            hint="Your logo takes the top-left of the desktop sidebar, on its own panel, for your whole team."
+          />
           {/* Rail color follows the app theme (light/dark) since the calm-
               stage pass — the old black/white/gray picker is retired.
               Company.sidebarTheme survives in the schema, unused. */}
+          {!form.logoUrl && (
+            <p className="ds-small">
+              Upload your logo under Branding above and it replaces your name in the sidebar&apos;s top-left. Its
+              panel color and size are set here.
+            </p>
+          )}
           {form.logoUrl && (
             <ColorField
               label="Logo backdrop"

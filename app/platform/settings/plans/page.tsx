@@ -5,6 +5,7 @@ import { requirePageActor, isManager } from "@/lib/permissions";
 import { planGatingLive } from "@/lib/plans";
 import { planBillingState } from "@/lib/plan-billing";
 import PlansClient from "./PlansClient";
+import { DsPage } from "@/components/ds";
 
 export const metadata: Metadata = { title: "Plans" };
 export const dynamic = "force-dynamic";
@@ -20,7 +21,8 @@ export default async function PlansPage() {
   const actor = await requirePageActor((a) => isManager(a.role));
   const state = await planBillingState(actor.companyId, planGatingLive());
   return (
-    <div className="ds mx-auto max-w-4xl p-4 lg:p-8">
+    <DsPage open className="st-page">
+    <div className="mx-auto max-w-4xl p-4 lg:p-8">
       <div className="mb-5 flex items-start gap-3">
         <BackLink href="/app/settings" className="mt-1.5" />
         <PageTitle info="Core is free. Add Voice for a business phone line, Pro for unlimited people and the ops tools, or Max for both. Billed monthly or annually through Square; cancel any time and the plan runs to the end of what you paid for.">
@@ -29,5 +31,6 @@ export default async function PlansPage() {
       </div>
       <PlansClient initial={state} isOwner={actor.role === "OWNER"} />
     </div>
+    </DsPage>
   );
 }

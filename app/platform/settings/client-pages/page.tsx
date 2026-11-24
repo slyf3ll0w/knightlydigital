@@ -32,7 +32,7 @@ export default async function ClientPagesPage() {
 
   if (!featureAllowed(company, "page_designer")) {
     return (
-      <DsPage>
+      <DsPage open>
         <PageHeader eyebrow="Settings" title="Client pages" info="The look of your portal sign-in, client portal, booking page and forms. Without Pro they use your logo and colors from Branding." />
         <div className="mt-6">
           <PlanRequired compact feature="page_designer" back={{ href: "/app/settings?s=brand", label: "Brand & client pages" }} />

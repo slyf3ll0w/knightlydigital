@@ -1,1 +1,110 @@
-/* Open-page rollout, wave 2 (2026-11-24): settings. Shared pieces live in app/ds-brand.css. */
+/* Open-page rollout, wave 2 (2026-11-24): settings. Shared pieces live in app/ds-brand.css.
+
+   Desktop only. Two surfaces get the same Stripe-style treatment:
+   - the full settings pages (each wrapped in <DsPage open className="st-page">;
+     the page keeps its own padding/width, the wrapper only adds the white
+     open page and the entrance), and
+   - the Settings pop-up's open group (.ds-settings, components/SettingsPopup),
+     which keeps its solid surface.
+   Cards lose their box (a hairline on top instead), card titles become bold
+   section titles with the two-color bar, and a field (label + control) sits
+   as one row: label on the left, control and its help on the right,
+   hairline between rows. Pure CSS over the existing markup — every control,
+   save and preview is the same element as before. Phones are untouched. */
+
+@media (min-width: 1024px) {
+  /* the open container steps back: the page keeps its own padding and width */
+  .bb-page.st-page { padding: 0; max-width: none; }
+  .st-page h1.ds-title { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; }
+
+  /* cards → open groups */
+  :is(.st-page, .ds-settings) .ds-card {
+    background: transparent;
+    box-shadow: none;
+    border: 0;
+    border-radius: 0;
+    border-top: 1px solid var(--ds-line-strong);
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    overflow: visible;
+  }
+  :is(.st-page, .ds-settings) .ds-card + .ds-card { margin-top: 28px; }
+  :is(.st-page, .ds-settings) .ds-card.ds-divide > .ds-row,
+  :is(.st-page, .ds-settings) .ds-card.ds-divide > * > .ds-row { padding-left: 0; padding-right: 0; }
+
+  /* a card's title (SectionHeader) → bold section title with the two-color bar */
+  :is(.st-page, .ds-settings) .ds-card > div:first-child:has(> :is(h2, h3), > .min-w-0 > :is(h2, h3)) {
+    position: relative;
+    padding-bottom: 14px;
+  }
+  :is(.st-page, .ds-settings) .ds-card > div:first-child:has(> :is(h2, h3), > .min-w-0 > :is(h2, h3))::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 40px;
+    height: 3px;
+    border-radius: 1px;
+    background: linear-gradient(90deg, var(--ds-primary) 0 66%, var(--ds-secondary) 66%);
+  }
+  :is(.st-page, .ds-settings) .ds-card > div:first-child > :is(h2, h3),
+  :is(.st-page, .ds-settings) .ds-card > div:first-child > .min-w-0 > :is(h2, h3) {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--ds-ink);
+  }
+
+  /* one setting = one row: label left, control + help right, hairline between */
+  :is(.st-page, .ds-settings) .ds-card div:not(.grid):not(.grid > div):is(
+      :has(> div.mb-1.flex:first-child > label.text-sm),
+      :has(> label.text-sm.block:first-child),
+      :has(> div:first-child > span:first-child > label.text-sm)
+    ) {
+    display: grid;
+    grid-template-columns: minmax(170px, 32%) minmax(0, 1fr);
+    column-gap: 32px;
+    align-items: start;
+    padding: 16px 0;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    border-top: 1px solid var(--ds-line);
+  }
+  :is(.st-page, .ds-settings) .ds-card div:not(.grid):not(.grid > div):is(
+      :has(> div.mb-1.flex:first-child > label.text-sm),
+      :has(> label.text-sm.block:first-child),
+      :has(> div:first-child > span:first-child > label.text-sm)
+    ) > :first-child {
+    grid-column: 1;
+    grid-row: 1 / span 12;
+    margin: 0;
+    padding-top: 9px;
+  }
+  :is(.st-page, .ds-settings) .ds-card div:not(.grid):not(.grid > div):is(
+      :has(> div.mb-1.flex:first-child > label.text-sm),
+      :has(> label.text-sm.block:first-child),
+      :has(> div:first-child > span:first-child > label.text-sm)
+    ) > :not(:first-child) {
+    grid-column: 2;
+    margin-top: 0;
+  }
+  :is(.st-page, .ds-settings) .ds-card div:not(.grid):not(.grid > div):is(
+      :has(> div.mb-1.flex:first-child > label.text-sm),
+      :has(> label.text-sm.block:first-child),
+      :has(> div:first-child > span:first-child > label.text-sm)
+    ) > :not(:first-child) + :not(:first-child) {
+    margin-top: 8px;
+  }
+  /* the row label reads as a label, not a form caption */
+  :is(.st-page, .ds-settings) .ds-card label.text-sm { font-size: 14px; font-weight: 600; color: var(--ds-ink); }
+  /* the first row under a title needs no rule of its own (the bar sits there) */
+  :is(.st-page, .ds-settings) .ds-card > div:first-child:has(> :is(h2, h3), > .min-w-0 > :is(h2, h3))
+    + div:is(
+      :has(> div.mb-1.flex:first-child > label.text-sm),
+      :has(> label.text-sm.block:first-child),
+      :has(> div:first-child > span:first-child > label.text-sm)
+    ) { border-top: 0; }
+
+  /* the pop-up: the open group's title at the open-page weight */
+  .ds-settings .ds-settings-h { font-size: 26px; font-weight: 700; }
+}

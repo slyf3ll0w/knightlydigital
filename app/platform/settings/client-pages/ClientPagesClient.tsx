@@ -673,7 +673,7 @@ export default function ClientPagesClient({
     ) : null;
 
   return (
-    <DsPage className="lg:max-w-[1480px]">
+    <DsPage open className="lg:max-w-[1480px]">
       <div data-client-pages>
         <PageHeader
           eyebrow="Settings"

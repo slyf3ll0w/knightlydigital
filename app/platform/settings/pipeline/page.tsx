@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import { ensureStages } from "@/lib/pipeline";
 import PipelineSettingsClient from "./PipelineSettingsClient";
+import { DsPage } from "@/components/ds";
 
 export const dynamic = "force-dynamic";
 
@@ -21,22 +22,24 @@ export default async function PipelineSettingsPage() {
   const converted = stages.find((s) => s.isConverted);
 
   return (
-    <PipelineSettingsClient
-      initialStages={stages
-        .filter((s) => !s.isConverted)
-        .map((s) => ({
-          id: s.id,
-          name: s.name,
-          color: s.color,
-          autoAdvanceOn: s.autoAdvanceOn,
-        }))}
-      convertedStage={
-        converted ? { id: converted.id, name: converted.name, color: converted.color } : null
-      }
-      hideConverted={company?.hideConvertedLeads ?? false}
-      webhookUrl={
-        company?.leadWebhookToken ? `${base}/api/public/leads/${company.leadWebhookToken}` : null
-      }
-    />
+    <DsPage open className="st-page">
+      <PipelineSettingsClient
+        initialStages={stages
+          .filter((s) => !s.isConverted)
+          .map((s) => ({
+            id: s.id,
+            name: s.name,
+            color: s.color,
+            autoAdvanceOn: s.autoAdvanceOn,
+          }))}
+        convertedStage={
+          converted ? { id: converted.id, name: converted.name, color: converted.color } : null
+        }
+        hideConverted={company?.hideConvertedLeads ?? false}
+        webhookUrl={
+          company?.leadWebhookToken ? `${base}/api/public/leads/${company.leadWebhookToken}` : null
+        }
+      />
+    </DsPage>
   );
 }

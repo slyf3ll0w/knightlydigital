@@ -194,7 +194,7 @@ export default function ConnectedAppsClient() {
   const others = (data?.grants ?? []).filter((g) => !APPS.some((a) => a.match.test(g.app)));
 
   return (
-    <DsPage className="max-w-5xl">
+    <DsPage open className="max-w-5xl">
       <div className="flex items-end gap-3">
         <BackLink href="/app/settings" className="mb-1.5" />
         <PageHeader

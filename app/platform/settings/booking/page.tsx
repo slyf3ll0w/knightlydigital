@@ -11,6 +11,7 @@ import { businessDetailsForced } from "@/lib/business-profile";
 import { brandAccent } from "@/lib/branding";
 import { listSeries } from "@/lib/time-block-series";
 import BookingHome from "./BookingHome";
+import { DsPage } from "@/components/ds";
 
 export default async function OnlineBookingPage() {
   const actor = await requirePageActor((a) => isManager(a.role));
@@ -56,47 +57,49 @@ export default async function OnlineBookingPage() {
   const baseUrl = host ? `${proto}://${host}` : (process.env.NEXTAUTH_URL ?? "");
 
   return (
-    <BookingHome
-      companySlug={company.slug}
-      baseUrl={baseUrl}
-      previewMode={await inPreview(companyId)}
-      look={sanitizeBookingPage(company.bookingPage)}
-      detailsForced={businessDetailsForced(company.messagingRegistration?.status, company.website, company.messagingRegistration?.website)}
-      brandAccent={brandAccent(company)}
-      rules={{
-        hours: sanitizeBusinessHours(company.businessHours),
-        serviceZips: company.serviceZips,
-        arrivalWindowMinutes: company.arrivalWindowMinutes,
-        clientRemindersOff: company.clientRemindersOff,
-        bookingDriveLimitMinutes: company.bookingDriveLimitMinutes ?? 0,
-        breakMinutes: company.breakMinutes,
-        breakAfterMin: company.breakAfterMin,
-        breakBeforeMin: company.breakBeforeMin,
-        timezone: company.timezone,
-        bookableCount,
-      }}
-      hubFormId={company.hubBookingTypeId}
-      repeating={{ series, users, meId: actor.id }}
-      items={types.map((t) => {
-        const intake = sanitizeIntake(t.intake, t.kind, t.mode);
-        return {
-          id: t.id,
-          name: t.name,
-          slug: t.slug,
-          kind: t.kind,
-          mode: t.mode,
-          isActive: t.isActive,
-          showOnPage: t.showOnPage,
-          durationMinutes: t.durationMinutes,
-          stepMinutes: t.stepMinutes,
-          // Services always confirm instantly (lib/booking-types.ts) — older rows may still say APPROVAL
-          confirmation: t.kind === "SERVICE" ? "INSTANT" : t.confirmation,
-          paymentMode: t.paymentMode,
-          serviceCount: t.services.filter((s) => s.workItem.isActive).length,
-          questionCount: intake.customFields.length,
-          takers: eligibleMembers(t).map((m) => m.user.name),
-        };
-      })}
-    />
+    <DsPage open className="st-page">
+      <BookingHome
+        companySlug={company.slug}
+        baseUrl={baseUrl}
+        previewMode={await inPreview(companyId)}
+        look={sanitizeBookingPage(company.bookingPage)}
+        detailsForced={businessDetailsForced(company.messagingRegistration?.status, company.website, company.messagingRegistration?.website)}
+        brandAccent={brandAccent(company)}
+        rules={{
+          hours: sanitizeBusinessHours(company.businessHours),
+          serviceZips: company.serviceZips,
+          arrivalWindowMinutes: company.arrivalWindowMinutes,
+          clientRemindersOff: company.clientRemindersOff,
+          bookingDriveLimitMinutes: company.bookingDriveLimitMinutes ?? 0,
+          breakMinutes: company.breakMinutes,
+          breakAfterMin: company.breakAfterMin,
+          breakBeforeMin: company.breakBeforeMin,
+          timezone: company.timezone,
+          bookableCount,
+        }}
+        hubFormId={company.hubBookingTypeId}
+        repeating={{ series, users, meId: actor.id }}
+        items={types.map((t) => {
+          const intake = sanitizeIntake(t.intake, t.kind, t.mode);
+          return {
+            id: t.id,
+            name: t.name,
+            slug: t.slug,
+            kind: t.kind,
+            mode: t.mode,
+            isActive: t.isActive,
+            showOnPage: t.showOnPage,
+            durationMinutes: t.durationMinutes,
+            stepMinutes: t.stepMinutes,
+            // Services always confirm instantly (lib/booking-types.ts) — older rows may still say APPROVAL
+            confirmation: t.kind === "SERVICE" ? "INSTANT" : t.confirmation,
+            paymentMode: t.paymentMode,
+            serviceCount: t.services.filter((s) => s.workItem.isActive).length,
+            questionCount: intake.customFields.length,
+            takers: eligibleMembers(t).map((m) => m.user.name),
+          };
+        })}
+      />
+    </DsPage>
   );
 }

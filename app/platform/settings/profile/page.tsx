@@ -7,6 +7,7 @@ import { voiceConfigured } from "@/lib/telnyx";
 import { socialSignInFor } from "@/lib/sign-in-options";
 import { hasPushDevice } from "@/lib/notify";
 import ProfileClient from "./ProfileClient";
+import { DsPage } from "@/components/ds";
 
 export const metadata: Metadata = { title: "My Profile" };
 
@@ -68,30 +69,32 @@ export default async function ProfilePage() {
     .join("\n");
 
   return (
-    <ProfileClient
-      userId={actor.id}
-      hasAvatar={!!user?.avatarMime}
-      name={user?.name ?? ""}
-      email={user?.email ?? ""}
-      phone={user?.phone ?? ""}
-      roleLabel={roleLabel[user?.role ?? ""] ?? user?.role ?? ""}
-      emailSignature={user?.emailSignature ?? ""}
-      defaultSignature={defaultSignature}
-      pendingEmail={pending?.newEmail ?? null}
-      // Legacy rows without an Account still sign in by their own hash —
-      // treat them as "has a password" so the change-password card shows.
-      hasPassword={user?.account ? Boolean(user.account.passwordHash) : true}
-      identities={(user?.account?.identities ?? []).map((i) => ({
-        provider: i.provider,
-        email: i.email,
-        createdAt: i.createdAt.toISOString(),
-        lastUsedAt: i.lastUsedAt?.toISOString() ?? null,
-      }))}
-      social={socialSignInFor(ua)}
-      softphoneEnabled={softphoneRelevant ? (user?.softphoneEnabled ?? true) : null}
-      emailAlerts={user?.emailAlerts ?? null}
-      pushOn={pushOn}
-      isOwner={actor.role === "OWNER"}
-    />
+    <DsPage open className="st-page">
+      <ProfileClient
+        userId={actor.id}
+        hasAvatar={!!user?.avatarMime}
+        name={user?.name ?? ""}
+        email={user?.email ?? ""}
+        phone={user?.phone ?? ""}
+        roleLabel={roleLabel[user?.role ?? ""] ?? user?.role ?? ""}
+        emailSignature={user?.emailSignature ?? ""}
+        defaultSignature={defaultSignature}
+        pendingEmail={pending?.newEmail ?? null}
+        // Legacy rows without an Account still sign in by their own hash —
+        // treat them as "has a password" so the change-password card shows.
+        hasPassword={user?.account ? Boolean(user.account.passwordHash) : true}
+        identities={(user?.account?.identities ?? []).map((i) => ({
+          provider: i.provider,
+          email: i.email,
+          createdAt: i.createdAt.toISOString(),
+          lastUsedAt: i.lastUsedAt?.toISOString() ?? null,
+        }))}
+        social={socialSignInFor(ua)}
+        softphoneEnabled={softphoneRelevant ? (user?.softphoneEnabled ?? true) : null}
+        emailAlerts={user?.emailAlerts ?? null}
+        pushOn={pushOn}
+        isOwner={actor.role === "OWNER"}
+      />
+    </DsPage>
   );
 }

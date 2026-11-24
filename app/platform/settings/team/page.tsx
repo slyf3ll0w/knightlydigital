@@ -4,6 +4,7 @@ import { requirePageActor, isManager } from "@/lib/permissions";
 import { sanitizeBusinessHours, sanitizeWorkingHoursOrNull } from "@/lib/business-hours";
 import { loadElsewhere, presenceOf, relativeSeen } from "@/lib/presence";
 import TeamClient from "./TeamClient";
+import { DsPage } from "@/components/ds";
 
 export const metadata: Metadata = { title: "Team" };
 
@@ -61,22 +62,24 @@ export default async function TeamPage() {
   const seen = new Map(users.map((u) => [u.id, seenOf(u)]));
 
   return (
-    <TeamClient
-      actorId={actor.id}
-      actorRole={actor.role}
-      users={users.map(({ accountId: _accountId, lastSeenAt: _lastSeenAt, ...u }) => ({
-        ...u,
-        seen: seen.get(u.id)!,
-        workingHours: sanitizeWorkingHoursOrNull(u.workingHours),
-        meetingLink: u.meetingLink,
-        startAddress: u.startAddress,
-        dayEndsAt: u.dayEndsAt,
-        hourlyCost: u.hourlyCost != null ? Number(u.hourlyCost) : null,
-        createdAt: u.createdAt.toISOString(),
-      }))}
-      companyHours={sanitizeBusinessHours(company?.businessHours)}
-      defaultLeadUserId={company?.defaultLeadUserId ?? ""}
-      salesSeePayments={company?.salesSeePayments ?? true}
-    />
+    <DsPage open className="st-page">
+      <TeamClient
+        actorId={actor.id}
+        actorRole={actor.role}
+        users={users.map(({ accountId: _accountId, lastSeenAt: _lastSeenAt, ...u }) => ({
+          ...u,
+          seen: seen.get(u.id)!,
+          workingHours: sanitizeWorkingHoursOrNull(u.workingHours),
+          meetingLink: u.meetingLink,
+          startAddress: u.startAddress,
+          dayEndsAt: u.dayEndsAt,
+          hourlyCost: u.hourlyCost != null ? Number(u.hourlyCost) : null,
+          createdAt: u.createdAt.toISOString(),
+        }))}
+        companyHours={sanitizeBusinessHours(company?.businessHours)}
+        defaultLeadUserId={company?.defaultLeadUserId ?? ""}
+        salesSeePayments={company?.salesSeePayments ?? true}
+      />
+    </DsPage>
   );
 }

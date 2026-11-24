@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import ClientFieldsClient from "./ClientFieldsClient";
+import { DsPage } from "@/components/ds";
 
 export const metadata: Metadata = { title: "Client Fields" };
 
@@ -14,16 +15,18 @@ export default async function ClientFieldsPage() {
   });
 
   return (
-    <ClientFieldsClient
-      defs={defs.map((d) => ({
-        id: d.id,
-        label: d.label,
-        type: d.type,
-        options: Array.isArray(d.options) ? (d.options as string[]) : [],
-        required: d.required,
-        sortOrder: d.sortOrder,
-        isActive: d.isActive,
-      }))}
-    />
+    <DsPage open className="st-page">
+      <ClientFieldsClient
+        defs={defs.map((d) => ({
+          id: d.id,
+          label: d.label,
+          type: d.type,
+          options: Array.isArray(d.options) ? (d.options as string[]) : [],
+          required: d.required,
+          sortOrder: d.sortOrder,
+          isActive: d.isActive,
+        }))}
+      />
+    </DsPage>
   );
 }

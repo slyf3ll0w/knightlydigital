@@ -4,6 +4,7 @@ import { isQuickBooksConfigured } from "@/lib/quickbooks";
 import { featureAllowedFor } from "@/lib/plan-gate";
 import PlanRequired from "@/components/PlanRequired";
 import QuickBooksSettingsClient from "./QuickBooksSettingsClient";
+import { DsPage } from "@/components/ds";
 
 export const dynamic = "force-dynamic";
 
@@ -21,5 +22,9 @@ export default async function QuickBooksSettingsPage() {
     (await prisma.quickBooksConnection.count({ where: { companyId: actor.companyId } })) > 0;
   if (!connected && !(await featureAllowedFor(actor.companyId, "quickbooks")))
     return <PlanRequired feature="quickbooks" back={{ href: "/app/settings", label: "Back to Settings" }} />;
-  return <QuickBooksSettingsClient configured={isQuickBooksConfigured()} />;
+  return (
+    <DsPage open className="st-page">
+      <QuickBooksSettingsClient configured={isQuickBooksConfigured()} />
+    </DsPage>
+  );
 }

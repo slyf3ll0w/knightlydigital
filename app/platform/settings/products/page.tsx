@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import ProductsClient from "./ProductsClient";
+import { DsPage } from "@/components/ds";
 
 export const metadata: Metadata = { title: "Services" };
 
@@ -25,10 +26,12 @@ export default async function ProductsPage() {
   ]);
 
   return (
-    <ProductsClient
-      initialItems={JSON.parse(JSON.stringify(items))}
-      templates={templates}
-      companySlug={company?.slug ?? ""}
-    />
+    <DsPage open className="st-page">
+      <ProductsClient
+        initialItems={JSON.parse(JSON.stringify(items))}
+        templates={templates}
+        companySlug={company?.slug ?? ""}
+      />
+    </DsPage>
   );
 }

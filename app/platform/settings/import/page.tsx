@@ -6,6 +6,7 @@ import { Lock } from "lucide-react";
 import { getActiveFieldDefs } from "@/lib/contact-fields";
 import { inPreview } from "@/lib/preview";
 import ImportClient from "./ImportClient";
+import { DsPage } from "@/components/ds";
 
 export const metadata: Metadata = { title: "Import Clients" };
 
@@ -16,27 +17,29 @@ export default async function ImportPage() {
   // the API is blocked too; this page just says so nicely.
   if (await inPreview(actor.companyId)) {
     return (
-      <div className="p-4 lg:p-8 max-w-2xl mx-auto">
-        <div className="ds-card p-8 text-center">
-          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-[color:var(--ds-warn-soft)]">
-            <Lock size={18} className="text-[color:var(--ds-warn)]" />
+      <DsPage open className="st-page">
+        <div className="p-4 lg:p-8 max-w-2xl mx-auto">
+          <div className="ds-card p-8 text-center">
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-[color:var(--ds-warn-soft)]">
+              <Lock size={18} className="text-[color:var(--ds-warn)]" />
+            </div>
+            <h1 className="mt-4 text-xl font-bold text-gray-900">
+              CSV import unlocks at approval
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-gray-600">
+              Bringing in your full client list opens up once your account is approved — usually
+              within a business day of finishing payment verification. Until then you can add up
+              to 10 clients by hand to try things out.
+            </p>
+            <Link
+              href="/app/activate"
+              className="ds-btn ds-btn-primary mt-5"
+            >
+              Finish verification
+            </Link>
           </div>
-          <h1 className="mt-4 text-xl font-bold text-gray-900">
-            CSV import unlocks at approval
-          </h1>
-          <p className="mt-2 text-sm leading-relaxed text-gray-600">
-            Bringing in your full client list opens up once your account is approved — usually
-            within a business day of finishing payment verification. Until then you can add up
-            to 10 clients by hand to try things out.
-          </p>
-          <Link
-            href="/app/activate"
-            className="ds-btn ds-btn-primary mt-5"
-          >
-            Finish verification
-          </Link>
         </div>
-      </div>
+      </DsPage>
     );
   }
 
@@ -50,10 +53,12 @@ export default async function ImportPage() {
   ]);
 
   return (
-    <ImportClient
-      actorId={actor.id}
-      users={users}
-      fieldDefs={fieldDefs.map((d) => ({ id: d.id, label: d.label }))}
-    />
+    <DsPage open className="st-page">
+      <ImportClient
+        actorId={actor.id}
+        users={users}
+        fieldDefs={fieldDefs.map((d) => ({ id: d.id, label: d.label }))}
+      />
+    </DsPage>
   );
 }

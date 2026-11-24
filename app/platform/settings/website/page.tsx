@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import { loadWebsiteSummary } from "@/lib/website";
 import WebsiteSettingsClient from "./WebsiteSettingsClient";
+import { DsPage } from "@/components/ds";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Website" };
@@ -22,5 +23,9 @@ export default async function WebsiteSettingsPage() {
   const company = await prisma.company.findUnique({ where: { id: actor.companyId }, select: { isTest: true } });
   if (!company?.isTest) redirect("/app/settings");
   const summary = await loadWebsiteSummary(actor.companyId);
-  return <WebsiteSettingsClient initial={summary} />;
+  return (
+    <DsPage open className="st-page">
+      <WebsiteSettingsClient initial={summary} />
+    </DsPage>
+  );
 }
