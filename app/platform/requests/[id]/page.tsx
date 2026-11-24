@@ -6,7 +6,7 @@ import { Mail, Phone, MapPin } from "lucide-react";
 import { shortDate, money } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import CallLink from "@/components/CallLink";
-import { Chip } from "@/components/ds";
+import { Chip, DsPage } from "@/components/ds";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import RequestActions from "./RequestActions";
@@ -52,8 +52,8 @@ export default async function RequestDetailPage({
   const tz = company?.timezone ?? "America/Chicago";
 
   return (
-    <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-      <div className="flex items-center gap-3 mb-4">
+    <DsPage open className="rx-request">
+      <div className="flex items-center gap-3 mb-4 lg:hidden">
         <BackLink href="/app/requests" />
         <StatusChip kind="request" status={request.status} />
       </div>
@@ -76,7 +76,16 @@ export default async function RequestDetailPage({
         />
       )}
 
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+      <div className="rx-dochead flex flex-wrap items-start justify-between gap-4 mb-6">
+        <div className="min-w-0">
+        {/* Desktop: crumbs + state above the title (phones keep the back row) */}
+        <p className="rx-crumbs hidden lg:flex">
+          <Link prefetch={false} href="/app/requests">Requests</Link>
+          <span aria-hidden>/</span>
+          <span>#{request.requestNumber}</span>
+          <StatusChip kind="request" status={request.status} />
+          <Link prefetch={false} href={`/app/requests?r=${request.id}`} className="rx-crumb-link">Open in the inbox</Link>
+        </p>
         <PageTitle
           sub={
             <>
@@ -100,6 +109,7 @@ export default async function RequestDetailPage({
         >
           {request.title}
         </PageTitle>
+        </div>
         <RequestActions
           requestId={request.id}
           status={request.status}
@@ -114,8 +124,8 @@ export default async function RequestDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
         <div className="space-y-5">
           {/* Service details */}
-          <div className="ds-card p-5">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">
+          <div className="ds-card rx-open-card p-5">
+            <h2 className="rx-cardh text-sm font-semibold text-gray-700 mb-3">
               Service details
             </h2>
             <p className="text-sm text-gray-700 whitespace-pre-wrap">
@@ -124,9 +134,9 @@ export default async function RequestDetailPage({
           </div>
 
           {/* Appointments (estimates / sales meetings) */}
-          <div className="ds-card p-5">
+          <div className="ds-card rx-open-card p-5">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-gray-700">
+              <h2 className="rx-cardh text-sm font-semibold text-gray-700">
                 Appointments
               </h2>
               <Link
@@ -178,8 +188,8 @@ export default async function RequestDetailPage({
 
           {/* Linked work */}
           {(request.quotes.length > 0 || request.jobs.length > 0) && (
-            <div className="ds-card p-5">
-              <h2 className="text-sm font-semibold text-gray-700 mb-3">
+            <div className="ds-card rx-open-card p-5">
+              <h2 className="rx-cardh text-sm font-semibold text-gray-700 mb-3">
                 Used for
               </h2>
               <div className="space-y-2">
@@ -210,7 +220,7 @@ export default async function RequestDetailPage({
 
         {/* Client card */}
         <div className="space-y-4">
-          <div className="ds-card p-5">
+          <div className="ds-card rx-open-card p-5">
             <Link
               prefetch={false} href={`/app/contacts/${c.id}`}
               className="text-base font-semibold text-[color:var(--ds-primary)] hover:underline"
@@ -245,6 +255,6 @@ export default async function RequestDetailPage({
           </div>
         </div>
       </div>
-    </div>
+    </DsPage>
   );
 }

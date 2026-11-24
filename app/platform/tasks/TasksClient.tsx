@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Bell, Check, ChevronRight, Flag, Pencil, Plus, RotateCcw, Trash2, Users } from "lucide-react";
 import { Button, Card, DsPage, Hint, PageHeader } from "@/components/ds";
-import { FilterChip, FilterRow, Segment, SegmentedRow } from "@/components/FilterChips";
+import { Segment, SegmentedRow } from "@/components/FilterChips";
 import SwipeRow from "@/components/SwipeRow";
 import RowActions from "@/components/QuickMenu";
 import TaskCheck from "@/components/tasks/TaskCheck";
@@ -380,9 +381,20 @@ export default function TasksClient({
     </RowActions>
   );
 
+  // Desktop context line (the open page): what's open and what's late
+  const lateCount = tasks.filter((t) => t.bucket === "overdue" && !t.doneAt).length;
+  const openNow = view === "team" ? counts.team : counts.mine;
+  const contextLine = [
+    `${openNow} open`,
+    lateCount > 0 ? `${lateCount} overdue` : null,
+    view === "team" ? "everyone" : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
-    <DsPage>
+    <DsPage open className="rx-tasks">
       <PageHeader
+        eyebrow={<span className="hidden lg:inline">{contextLine}</span>}
         title="Tasks"
         info={pageInfo}
         actions={
@@ -421,26 +433,42 @@ export default function TasksClient({
           </SegmentedRow>
         )}
       </div>
-      <div className="mt-6 hidden lg:block">
-        <FilterRow>
-          {tabs.map((t) => (
-            <FilterChip key={t.key} hue="var(--ds-primary)" active={tabActive(t.key)} href={hrefFor(t.key)}>
-              {t.key === "team" && <Users size={14} aria-hidden />}
-              {t.label}
-              {t.count ? <span className="numeral-ledger text-xs opacity-70">{t.count}</span> : null}
-            </FilterChip>
-          ))}
-        </FilterRow>
-        {doneView && canAssign && (
-          <FilterRow>
-            {doneScopes.map((s) => (
-              <FilterChip key={s.key} hue="var(--ds-primary)" active={view === s.key} href={hrefFor(s.key)}>
-                {s.key === "team_done" && <Users size={14} aria-hidden />}
-                {s.label}
-              </FilterChip>
+      {/* Desktop: the open page's underline tabs with counts */}
+      <div className="rx-tabsrow hidden lg:block">
+        <div className="clx-filters">
+          <nav className="clx-tabs" aria-label="Show">
+            {tabs.map((t) => (
+              <Link
+                key={t.key}
+                prefetch={false}
+                href={hrefFor(t.key)}
+                aria-current={tabActive(t.key) ? "page" : undefined}
+                className={`clx-tab ${tabActive(t.key) ? "is-on" : ""}`}
+              >
+                {t.key === "team" && <Users size={14} aria-hidden />}
+                {t.label}
+                {t.count ? <span className="clx-tab-n">{t.count.toLocaleString("en-US")}</span> : null}
+              </Link>
             ))}
-          </FilterRow>
-        )}
+          </nav>
+          {doneView && canAssign && (
+            <span className="clx-filters-end">
+              <nav className="rx-scope" aria-label="Whose">
+                {doneScopes.map((sc) => (
+                  <Link
+                    key={sc.key}
+                    prefetch={false}
+                    href={hrefFor(sc.key)}
+                    aria-current={view === sc.key ? "page" : undefined}
+                    className={`rx-scope-btn ${view === sc.key ? "is-on" : ""}`}
+                  >
+                    {sc.label}
+                  </Link>
+                ))}
+              </nav>
+            </span>
+          )}
+        </div>
       </div>
 
       {!doneView && tasks.length > 0 && (
@@ -492,7 +520,7 @@ export default function TasksClient({
                 <span className="hidden h-px flex-1 bg-[color:var(--ds-line)] lg:block" aria-hidden />
                 <span className="numeral-ledger ml-auto font-normal text-[color:var(--ds-faint)] lg:ml-0">{g.rows.length}</span>
               </h2>
-              <Card className="ds-divide overflow-hidden">
+              <Card className="ds-divide rx-open-card overflow-hidden">
                 <div className="hidden lg:block lg:divide-y lg:divide-[color:var(--ds-line)]">{g.rows.map(desktopRow)}</div>
                 <div className="divide-y divide-[color:var(--ds-line)] lg:hidden">{g.rows.map(phoneRow)}</div>
               </Card>

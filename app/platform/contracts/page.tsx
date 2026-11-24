@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { ArrowLeft, ChevronRight, FileSignature, Files, Plus } from "lucide-react";
+import { ArrowLeft, ChevronRight, FileSignature, Files, Plus, Search } from "lucide-react";
+import { Button, DsPage, PageHeader } from "@/components/ds";
+import FilterSelect from "@/components/FilterSelect";
 import PageTitle from "@/components/PageTitle";
 import { shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
@@ -63,8 +65,8 @@ export default async function ContractsPage({
       select: { id: true, name: true, body: true, isActive: true },
     });
     return (
-      <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-        <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
+      <DsPage open className="rx-templates">
+        <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-8">
           <PageTitle
             heavy
             section="contracts"
@@ -91,7 +93,7 @@ export default async function ContractsPage({
           </div>
         </div>
         <TemplatesPanel templates={templates} />
-      </div>
+      </DsPage>
     );
   }
 
@@ -145,10 +147,50 @@ export default async function ContractsPage({
   ]);
 
   const filtered = Boolean(validStatus || query);
+  // Desktop tab counts (same scope, no search)
+  const byStatus = await prisma.contract.groupBy({ by: ["status"], where: { companyId, ...scope }, _count: { _all: true } });
+  const nStatus = (v: string) =>
+    v ? (byStatus.find((b) => b.status === v)?._count._all ?? 0) : byStatus.reduce((t, b) => t + b._count._all, 0);
+  const contextLine = [
+    outCount > 0 ? `${outCount} waiting on a signature` : "Nothing waiting on a signature",
+    oldestOut ? `oldest out ${waitedFor(oldestOut.sentAt ?? oldestOut.createdAt)}` : null,
+    signed30 > 0 ? `${signed30} signed in 30 days` : null,
+    draftCount > 0 ? `${draftCount} ${draftCount === 1 ? "draft" : "drafts"}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
+    <DsPage
+      open
+      className="rx-agree"
+      header={
+        <div className="hidden lg:block">
+          <PageHeader
+            eyebrow={contextLine}
+            title="Agreements"
+            info={
+              manager
+                ? "Every agreement you've sent, and the templates they start from."
+                : "Every agreement you've sent to a client for an e-signature."
+            }
+            actions={
+              <>
+                {manager && (
+                  <Button href="/app/contracts?view=templates" variant="outline" icon={Files}>
+                    Templates{templateCount > 0 ? ` · ${templateCount}` : ""}
+                  </Button>
+                )}
+                <Button href="/app/contracts/new" icon={Plus}>
+                  New agreement
+                </Button>
+              </>
+            }
+          />
+        </div>
+      }
+    >
+      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:hidden">
         <PageTitle
           heavy
           section="contracts"
@@ -210,6 +252,45 @@ export default async function ContractsPage({
         params={{ status: validStatus, sort: sortRaw }}
       />
 
+      {/* Desktop: search + underline tabs with counts + sort on one hairline row */}
+      <div className="rx-tabsrow hidden lg:block">
+        <div className="clx-filters">
+          <form action="/app/contracts" className="clx-search" role="search">
+            <Search size={15} aria-hidden />
+            <input type="search" name="q" defaultValue={query} placeholder="Search agreements, clients, #" aria-label="Search agreements" />
+            {validStatus && <input type="hidden" name="status" value={validStatus} />}
+            {sortRaw && <input type="hidden" name="sort" value={sortRaw} />}
+          </form>
+          <nav className="clx-tabs" aria-label="Show">
+            {statusFilters.map((o) => (
+              <Link
+                key={o.value || "all"}
+                prefetch={false}
+                href={listHref("/app/contracts", { q: query, sort: sortRaw }, { status: o.value || undefined })}
+                aria-current={(validStatus ?? "") === o.value ? "page" : undefined}
+                className={`clx-tab ${(validStatus ?? "") === o.value ? "is-on" : ""}`}
+              >
+                {o.mobile}
+                <span className="clx-tab-n">{nStatus(o.value).toLocaleString("en-US")}</span>
+              </Link>
+            ))}
+          </nav>
+          <span className="clx-filters-end">
+            <FilterSelect
+              icon="sort"
+              value={sort}
+              options={CONTRACT_SORTS.map((o) => ({
+                value: o.value,
+                label: o.label,
+                href: listHref("/app/contracts", { status: validStatus, q: query }, { sort: o.value }),
+              }))}
+              align="right"
+            />
+          </span>
+        </div>
+      </div>
+
+      <div className="lg:hidden">
       <FilterBar
         options={statusFilters}
         value={validStatus ?? ""}
@@ -220,8 +301,9 @@ export default async function ContractsPage({
           href: (v) => listHref("/app/contracts", { status: validStatus, q: query }, { sort: v }),
         }}
       />
+      </div>
 
-      <div className="ds-card overflow-hidden">
+      <div className="ds-card rx-open-card overflow-hidden">
         {contracts.length === 0 ? (
           <EmptyState
             art="quotes"
@@ -237,7 +319,7 @@ export default async function ContractsPage({
         ) : (
           <>
             <div className="divide-y divide-[color:var(--ds-line)]">
-              <div className="hidden lg:grid grid-cols-[1fr_70px_140px_150px_40px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
+              <div className="rx-thead hidden lg:grid grid-cols-[1fr_70px_140px_150px_40px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
                 <span>Client</span>
                 <span>#</span>
                 <span>Sent</span>
@@ -293,7 +375,7 @@ export default async function ContractsPage({
               })}
             </div>
             {/* Ledger foot */}
-            <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5">
+            <div className="rx-foot flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5">
               <span className="text-xs font-medium text-gray-500">
                 {contracts.length} {contracts.length === 1 ? "agreement" : "agreements"}
               </span>
@@ -308,6 +390,6 @@ export default async function ContractsPage({
         pageSize={PAGE_SIZE}
         total={listCount}
       />
-    </div>
+    </DsPage>
   );
 }

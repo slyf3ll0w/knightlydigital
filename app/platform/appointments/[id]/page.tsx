@@ -11,7 +11,7 @@ import { earliestOpenMinutes, sanitizeBusinessHours } from "@/lib/business-hours
 import { canText } from "@/lib/sms-consent";
 import { HOUR_STAGE_MS, MIN_BOOKING_AGE_MS, bookingAnchor, inSmsQuietHours, reminderOutlook, smsQuietHoursEnd } from "@/lib/reminder-stage";
 import StatusChip from "@/components/StatusChip";
-import { Chip } from "@/components/ds";
+import { Chip, DsPage } from "@/components/ds";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import JobActionRow from "@/components/JobActionRow";
@@ -162,8 +162,8 @@ export default async function AppointmentDetailPage({
   return (
     // pb-20: phone bottom padding so the docked action pill never covers the
     // last card (same treatment as the job page)
-    <div className="p-4 pb-20 lg:p-8 max-w-3xl mx-auto">
-      <div className="flex items-center gap-3 mb-4">
+    <DsPage open className="rx-appt max-lg:pb-20 lg:max-w-5xl">
+      <div className="flex items-center gap-3 mb-4 lg:hidden">
         <BackLink href="/app/appointments" />
         <StatusChip kind="appointment" status={appt.status} />
         {appt.tentative && appt.status === "SCHEDULED" && (
@@ -181,8 +181,20 @@ export default async function AppointmentDetailPage({
         </div>
       )}
 
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+      <div className="rx-dochead flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="min-w-0">
+          {/* Desktop: crumbs + state above the title (phones keep the back row) */}
+          <p className="rx-crumbs hidden lg:flex">
+            <Link prefetch={false} href="/app/appointments">Appointments</Link>
+            {appt.appointmentNumber ? (
+              <>
+                <span aria-hidden>/</span>
+                <span>#{appt.appointmentNumber}</span>
+              </>
+            ) : null}
+            <StatusChip kind="appointment" status={appt.status} />
+            {appt.tentative && appt.status === "SCHEDULED" && <Chip tone="warn">Tentative — awaiting approval</Chip>}
+          </p>
           <PageTitle>{appt.title}</PageTitle>
           <p className="flex items-center gap-1.5 text-sm text-gray-500 mt-1">
             <TypeIcon size={14} className="text-[color:var(--ds-secondary)]" />
@@ -235,7 +247,12 @@ export default async function AppointmentDetailPage({
         address={appt.type === "IN_PERSON" ? (appt.address ?? appt.contact.address) : null}
       />
 
-      <div className="ds-card p-5 mb-5 space-y-3">
+      <div className="ds-card rx-open-card p-5 mb-5 space-y-3">
+        <div className="hidden lg:block">
+          <h2 className="bb-h2 rx-h2">
+            <span className="bb-h2-text">Details</span>
+          </h2>
+        </div>
         <div className="flex items-start gap-3">
           <CalendarDays size={15} className="text-gray-400 mt-0.5 shrink-0" />
           <p className="text-sm text-gray-800">{when}</p>
@@ -336,11 +353,11 @@ export default async function AppointmentDetailPage({
       </div>
 
       {appt.notes && (
-        <div className="ds-card p-5">
+        <div className="ds-card rx-open-card p-5">
           <SectionHeader title="Notes" className="mb-2" />
           <p className="text-sm text-gray-700 whitespace-pre-wrap">{appt.notes}</p>
         </div>
       )}
-    </div>
+    </DsPage>
   );
 }

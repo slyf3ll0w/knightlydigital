@@ -516,7 +516,7 @@ export default function LeadsBoardClient({
   }
 
   return (
-    <div className="ld p-4 lg:p-8 h-full flex flex-col">
+    <div className="ld rx-leads p-4 lg:p-8 h-full flex flex-col">
       {/* Header: the board in one exact sentence */}
       <div className="flex flex-wrap items-end justify-between gap-y-3 mb-4 max-w-none">
         <div className="min-w-0">

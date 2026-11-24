@@ -9,7 +9,7 @@ import { money } from "@/lib/statuses";
 import EmptyState from "@/components/EmptyState";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import PageTitle from "@/components/PageTitle";
-import { Chip, InfoTip } from "@/components/ds";
+import { Button, Chip, DsPage, InfoTip, PageHeader } from "@/components/ds";
 import Modal from "@/components/Modal";
 import CountUp from "@/components/CountUp";
 import { Picture } from "@/components/ListBands";
@@ -346,9 +346,45 @@ export default function SubscriptionsClient({
         ? { amount: money(Number(x.unitPrice) * Number(x.quantity)), per: "per visit" }
         : { amount: null, per: "Recurring job — no billing" };
 
+  // Desktop: the open page (2026-11-24) — its own header with a context
+  // line; phones keep the PageTitle row below exactly as before.
+  const contextLine = [
+    `${live.length} active${live.length === 1 ? " plan" : " plans"}`,
+    mrr > 0 ? `${money(mrr)} a month` : null,
+    paused > 0 ? `${paused} paused` : null,
+    readyJobs.length > 0 && !readyBilled ? `${money(readyTotal)} ready to bill` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
-    <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-      <div className="flex items-start justify-between gap-3 mb-5 lg:mb-6">
+    <DsPage
+      open
+      className="rx-rec"
+      header={
+        <div className="hidden lg:block">
+          <PageHeader
+            eyebrow={subs.length > 0 ? contextLine : undefined}
+            title="Recurring"
+            info="Auto-charged plans, plus work billed per completed visit."
+            actions={
+              canManage ? (
+                <>
+                  {active.length > 0 && (
+                    <Button variant="outline" icon={RotateCw} onClick={runAll} loading={runningAll}>
+                      Run due now
+                    </Button>
+                  )}
+                  <Button href="/app/subscriptions/new" icon={Repeat}>
+                    New plan
+                  </Button>
+                </>
+              ) : undefined
+            }
+          />
+        </div>
+      }
+    >
+      <div className="flex items-start justify-between gap-3 mb-5 lg:hidden">
         <PageTitle heavy info="Auto-charged plans, plus work billed per completed visit.">Recurring</PageTitle>
         {canManage && (
           <div className="flex items-center gap-2">
@@ -392,7 +428,7 @@ export default function SubscriptionsClient({
           Billing it here is the whole per-job model: click daily for
           per-visit invoices, click on the 1st for one monthly invoice. */}
       {readyGroups.length > 0 && !readyBilled && (
-        <div className="ds-card ds-card-raised mb-6 overflow-hidden">
+        <div className="ds-card ds-card-raised rx-open-card mb-6 overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 lg:px-5 py-4 border-b border-[color:var(--ds-line)]">
             <div>
               <p className="flex items-center gap-1.5 text-[16px] font-bold text-[color:var(--ds-ink)]">
@@ -601,7 +637,7 @@ export default function SubscriptionsClient({
           {cancelled.length > 0 && (
             <div>
               <h2 className="ds-heavy-h2 mb-3 !text-[15px] !text-[color:var(--ds-muted)]">Cancelled</h2>
-              <div className="ds-card overflow-hidden">
+              <div className="ds-card rx-open-card overflow-hidden">
                 <div className="divide-y divide-gray-100">
                   {cancelled.map((s) => (
                     <div key={s.id} className="flex items-center gap-3 px-5 py-3 text-sm text-gray-500">
@@ -886,7 +922,7 @@ export default function SubscriptionsClient({
             </div>
           ))(editing)}
       </Modal>
-    </div>
+    </DsPage>
   );
 }
 

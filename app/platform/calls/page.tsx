@@ -9,7 +9,8 @@ import CallsLive from "@/components/CallsLive";
 import CallRowSettling from "@/components/CallRowSettling";
 import { callLogStamp } from "@/lib/call-pulse";
 import { LinePanel, LineSub, KeypadFab, type LineStats } from "@/components/LineCard";
-import { FilterRow, FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
+import { SegmentedRow, Segment } from "@/components/FilterChips";
+import { Button, DsPage, PageHeader } from "@/components/ds";
 import { markCallsSeen, resolveCallContacts, type ResolvedCallContact } from "@/lib/voice";
 import { loadCallEvents, type CallEvent } from "@/lib/call-events";
 import { hasPlan } from "@/lib/plans";
@@ -202,24 +203,33 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
             ))}
           </SegmentedRow>
         </div>
-        <div className="hidden lg:block">
-          <FilterRow>
-            {FILTERS.map(([k, label]) => (
-              <FilterChip key={k} hue="var(--ds-primary)" active={filter === k} href={href(k)}>
-                {label}
-                {badge(k) > 0 && <span className="numeral-ledger text-xs opacity-70">{badge(k)}</span>}
-              </FilterChip>
-            ))}
-          </FilterRow>
+        {/* Desktop: underline tabs on a hairline; the unseen counts ride them */}
+        <div className="rx-tabsrow hidden lg:block">
+          <div className="clx-filters">
+            <nav className="clx-tabs" aria-label="Show">
+              {FILTERS.map(([k, label]) => (
+                <Link
+                  key={k}
+                  prefetch={false}
+                  href={href(k)}
+                  aria-current={filter === k ? "page" : undefined}
+                  className={`clx-tab ${filter === k ? "is-on" : ""}`}
+                >
+                  {label}
+                  {badge(k) > 0 && <span className={`clx-tab-n ${k === "missed" ? "rx-bad" : ""}`}>{badge(k)} new</span>}
+                </Link>
+              ))}
+            </nav>
+          </div>
         </div>
 
         {visible.length === 0 ? (
-          <div className="ds-card mt-4 px-4 py-10 text-center text-sm text-[color:var(--ds-muted)] lg:mt-0">
+          <div className="ds-card rx-open-card mt-4 px-4 py-10 text-center text-sm text-[color:var(--ds-muted)] lg:mt-0">
             {filter === "missed" ? "No missed calls." : filter === "voicemail" ? "No voicemails." : "No outgoing calls yet."}
           </div>
         ) : (
           // One list, newest first, like a phone's Recents: each row dates itself (CallRow recentsStamp), no day groups or counts (ticket #seej3a).
-          <div className="ds-card mt-4 divide-y divide-[color:var(--ds-line)] overflow-hidden lg:mt-0">
+          <div className="ds-card rx-open-card mt-4 divide-y divide-[color:var(--ds-line)] overflow-hidden lg:mt-0">
             {visible.map((c) => {
               const row = <CallRow key={c.id} call={{ ...c, events: events.get(c.id) }} tz={tz} canCall={routed} canText={smsReady} />;
               if (c.status !== "RINGING" && c.status !== "IN_PROGRESS") return row;
@@ -246,10 +256,51 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
       </>
     );
 
+  // Desktop context line (the open page's header)
+  const talkMin = Math.round(stats.talkWeekSec / 60);
+  const contextLine = filteredContact ? (
+    <>
+      Calls with{" "}
+      <Link href={`/app/contacts/${filteredContact.id}`} className="rx-ctx-link">
+        {filteredContact.firstName} {filteredContact.lastName}
+      </Link>{" "}
+      ·{" "}
+      <Link href="/app/calls" className="rx-ctx-link">
+        all calls
+      </Link>
+    </>
+  ) : (
+    [
+      `${stats.today} today`,
+      stats.missedUnseen > 0 ? `${stats.missedUnseen} missed` : null,
+      stats.voicemailsUnseen > 0 ? `${stats.voicemailsUnseen} ${stats.voicemailsUnseen === 1 ? "voicemail" : "voicemails"}` : null,
+      talkMin > 0 ? `${talkMin} min talked this week` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ")
+  );
   return (
-    <div className="mx-auto max-w-6xl p-4 lg:p-8">
+    <DsPage
+      open
+      className="rx-calls"
+      header={
+        <div className="hidden lg:block">
+          <PageHeader
+            eyebrow={contextLine}
+            title="Calls"
+            actions={
+              phone?.manager ? (
+                <Button href="/app/settings?s=phone" variant="outline" icon={Settings2}>
+                  Line settings
+                </Button>
+              ) : undefined
+            }
+          />
+        </div>
+      }
+    >
       {hasLine && <CallsLive builtWith={builtWith} />}
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-3 lg:hidden">
         <PageTitle
           section="chat"
           icon={PhoneCall}
@@ -296,6 +347,6 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
       </div>
 
       {phone && <KeypadFab />}
-    </div>
+    </DsPage>
   );
 }

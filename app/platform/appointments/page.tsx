@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { Fragment } from "react";
 import Link from "next/link";
-import { Plus, ChevronRight, CalendarClock, UserCheck } from "lucide-react";
+import { Plus, ChevronRight, CalendarClock, UserCheck, Search } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import { FilterChip } from "@/components/FilterChips";
 import FilterBar, { listHref } from "@/components/FilterBar";
@@ -10,7 +10,7 @@ import { fmtTime } from "@/lib/format";
 import { startOfDayIn, zonedMidnight, zonedParts } from "@/lib/timezone";
 import AppointmentsStrip, { type StripDay } from "./AppointmentsStrip";
 import StatusChip from "@/components/StatusChip";
-import { Chip } from "@/components/ds";
+import { Button, Chip, DsPage, PageHeader } from "@/components/ds";
 import EmptyState from "@/components/EmptyState";
 import MobileSearch from "@/components/MobileSearch";
 import Monogram from "@/components/Monogram";
@@ -106,6 +106,18 @@ export default async function AppointmentsPage({
   // the ones whose day went by without being closed out.
   const t0 = zonedParts(tz, new Date());
   const stripEnd = zonedMidnight(tz, t0.y, t0.m, t0.d + 14);
+  // Desktop tab counts (same scope, no search)
+  const statusWhereFor = (v: string): Prisma.AppointmentWhereInput =>
+    v === "past"
+      ? { OR: [{ status: { in: ["COMPLETED", "NO_SHOW"] } }, { status: "SCHEDULED", scheduledAt: { lt: startOfToday } }] }
+      : v === "cancelled"
+        ? { status: "CANCELLED" }
+        : v === "all"
+          ? {}
+          : { status: "SCHEDULED", scheduledAt: { gte: startOfToday } };
+  const tabCountsP = Promise.all(
+    statusFilters.map((o) => prisma.appointment.count({ where: { companyId, AND: [scope, statusWhereFor(o.value)] } }))
+  );
   const [appointments, listCount, stripAppts, toCloseCount] = await Promise.all([
     prisma.appointment.findMany({
       where: listWhere,
@@ -203,9 +215,35 @@ export default async function AppointmentsPage({
   // Rows sit under a day heading, so the row itself only needs the time.
   const when = (a: (typeof appointments)[number]) => (a.scheduledAnytime ? "Anytime" : fmtTime(a.scheduledAt, tz));
 
+  const tabCounts = await tabCountsP;
+  const contextLine = [
+    `${tabCounts[0].toLocaleString("en-US")} coming up`,
+    toApproveCount > 0 ? `${toApproveCount} to approve` : null,
+    toCloseCount > 0 ? `${toCloseCount} to close out` : null,
+    nextAppt ? `next ${dayHeading(nextAppt.scheduledAt).toLowerCase()}${nextAppt.scheduledAnytime ? "" : ` at ${fmtTime(nextAppt.scheduledAt, tz)}`}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
+    <DsPage
+      open
+      className="rx-appts"
+      header={
+        <div className="hidden lg:block">
+          <PageHeader
+            eyebrow={contextLine}
+            title="Appointments"
+            actions={
+              <Button href="/app/appointments/new" icon={Plus}>
+                New appointment
+              </Button>
+            }
+          />
+        </div>
+      }
+    >
+      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:hidden">
         <PageTitle section="schedule" icon={CalendarClock}>
           Appointments
         </PageTitle>
@@ -237,6 +275,46 @@ export default async function AppointmentsPage({
         params={{ status: filter || undefined, assignee: mineOnly ? "me" : undefined }}
       />
 
+      {/* Desktop: search + underline tabs with counts + Mine on one hairline row */}
+      <div className="rx-tabsrow hidden lg:block">
+        <div className="clx-filters">
+          <form action="/app/appointments" className="clx-search" role="search">
+            <Search size={15} aria-hidden />
+            <input type="search" name="q" defaultValue={query} placeholder="Search appointments, clients" aria-label="Search appointments" />
+            {filter && <input type="hidden" name="status" value={filter} />}
+            {mineOnly && <input type="hidden" name="assignee" value="me" />}
+          </form>
+          <nav className="clx-tabs" aria-label="Show">
+            {statusFilters.map((o, i) => (
+              <Link
+                key={o.value || "upcoming"}
+                prefetch={false}
+                href={listHref("/app/appointments", cur, { status: o.value || undefined })}
+                aria-current={filter === o.value ? "page" : undefined}
+                className={`clx-tab ${filter === o.value ? "is-on" : ""}`}
+              >
+                {o.label}
+                <span className="clx-tab-n">{tabCounts[i].toLocaleString("en-US")}</span>
+              </Link>
+            ))}
+          </nav>
+          {showAll && (
+            <span className="clx-filters-end">
+              <Link
+                prefetch={false}
+                href={listHref("/app/appointments", cur, { assignee: mineOnly ? undefined : "me" })}
+                aria-pressed={mineOnly}
+                className={`clx-mine ${mineOnly ? "is-on" : ""}`}
+              >
+                <UserCheck size={14} aria-hidden />
+                Mine
+              </Link>
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="lg:hidden">
       <FilterBar
         options={statusFilters}
         value={filter}
@@ -254,8 +332,9 @@ export default async function AppointmentsPage({
           ) : undefined
         }
       />
+      </div>
 
-      <div className="ds-card overflow-hidden">
+      <div className="ds-card rx-open-card overflow-hidden">
         {appointments.length === 0 ? (
           <EmptyState
             art="schedule"
@@ -267,7 +346,7 @@ export default async function AppointmentsPage({
           />
         ) : (
           <div className="divide-y divide-[color:var(--ds-line)]">
-            <div className="hidden lg:grid grid-cols-[1fr_1fr_170px_140px_120px_40px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
+            <div className="rx-thead hidden lg:grid grid-cols-[1fr_1fr_170px_140px_120px_40px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
               <span>Client</span>
               <span>Appointment</span>
               <span>When</span>
@@ -359,6 +438,6 @@ export default async function AppointmentsPage({
         pageSize={PAGE_SIZE}
         total={listCount}
       />
-    </div>
+    </DsPage>
   );
 }

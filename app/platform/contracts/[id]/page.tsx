@@ -13,6 +13,7 @@ import { canText, companyCanSendSms } from "@/lib/sms";
 import { fmtPhone } from "@/lib/format";
 import { featureAllowedFor } from "@/lib/plan-gate";
 import PlanRequired from "@/components/PlanRequired";
+import { DsPage } from "@/components/ds";
 
 export const metadata: Metadata = { title: "Agreement" };
 
@@ -47,14 +48,25 @@ export default async function ContractDetailPage({
   const canTextClient = Boolean(contract.contact.phone) && canText(contract.contact) && (await companyCanSendSms(actor.companyId));
 
   return (
-    <div className="p-4 lg:p-8 max-w-3xl mx-auto">
-      <div className="flex items-center gap-3 mb-4">
+    <DsPage open className="rx-agreement lg:max-w-5xl">
+      <div className="flex items-center gap-3 mb-4 lg:hidden">
         <BackLink href="/app/contracts" />
         <StatusChip kind="contract" status={contract.status} />
       </div>
 
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+      <div className="rx-dochead flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="min-w-0">
+          {/* Desktop: crumbs + state above the title (phones keep the back row) */}
+          <p className="rx-crumbs hidden lg:flex">
+            <Link prefetch={false} href="/app/contracts">Agreements</Link>
+            {contract.contractNumber ? (
+              <>
+                <span aria-hidden>/</span>
+                <span>#{contract.contractNumber}</span>
+              </>
+            ) : null}
+            <StatusChip kind="contract" status={contract.status} />
+          </p>
           <PageTitle>{contract.title}</PageTitle>
           <Link
             prefetch={false} href={`/app/contacts/${contract.contactId}`}
@@ -77,7 +89,7 @@ export default async function ContractDetailPage({
       </div>
 
       {(contract.sentAt || contract.firstViewedAt || contract.quote) && (
-        <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 ds-card mb-6 text-sm">
+        <div className="rx-facts flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 ds-card mb-6 text-sm">
           {contract.sentAt && (
             <div>
               <span className="text-xs font-medium text-gray-500 block">Sent</span>
@@ -122,9 +134,10 @@ export default async function ContractDetailPage({
         </div>
       )}
 
-      <div className="ds-card px-6 py-5">
+      {/* The agreement itself stays a sheet of paper — the one card on the page */}
+      <div className="ds-card rx-sheet px-6 py-5">
         <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{contract.body}</p>
       </div>
-    </div>
+    </DsPage>
   );
 }
