@@ -104,9 +104,13 @@ export default function PlacesClient({ initial, canArchive }: { initial: PlaceDT
   );
 
   return (
-    <DsPage>
+    <DsPage open>
       <PageHeader
-        eyebrow="Routes"
+        eyebrow={
+          active.length > 0
+            ? `Routes · ${active.length} ${active.length === 1 ? "place" : "places"}${archived.length ? ` · ${archived.length} archived` : ""}`
+            : "Routes"
+        }
         title="Places"
         info="The spots your crew drives to that aren't clients: supply houses, the dump, the yard. Save them once and they're two taps away when you add a stop to someone's route."
         actions={
@@ -131,7 +135,7 @@ export default function PlacesClient({ initial, canArchive }: { initial: PlaceDT
       )}
 
       {active.length === 0 ? (
-        <div className="ds-card mt-4">
+        <div className="ds-card tl-open-card mt-4">
           <Hint
             title="No places yet"
             info="Add the supply house you hit most — it shows up first when someone adds a stop to a route."
@@ -143,7 +147,7 @@ export default function PlacesClient({ initial, canArchive }: { initial: PlaceDT
           </div>
         </div>
       ) : (
-        <div className="ds-card mt-4 divide-y divide-[color:var(--ds-line)] overflow-hidden">{active.map(row)}</div>
+        <div className="ds-card tl-open-card tl-open-rows mt-4 divide-y divide-[color:var(--ds-line)] overflow-hidden">{active.map(row)}</div>
       )}
 
       {archived.length > 0 && (
@@ -151,7 +155,7 @@ export default function PlacesClient({ initial, canArchive }: { initial: PlaceDT
           <button type="button" onClick={() => setShowArchived((v) => !v)} className="text-[13px] font-medium text-[color:var(--ds-muted)] hover:underline">
             {showArchived ? "Hide" : "Show"} {archived.length} archived
           </button>
-          {showArchived && <div className="ds-card mt-2 divide-y divide-[color:var(--ds-line)] overflow-hidden opacity-70">{archived.map(row)}</div>}
+          {showArchived && <div className="ds-card tl-open-card tl-open-rows mt-2 divide-y divide-[color:var(--ds-line)] overflow-hidden opacity-70">{archived.map(row)}</div>}
         </div>
       )}
 

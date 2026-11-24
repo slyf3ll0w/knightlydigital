@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, ChevronRight, Pause, Play, Plus, Sparkles, Trash2, X, Zap } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
-import { Chip } from "@/components/ds";
+import { Chip, DsPage, PageHeader } from "@/components/ds";
 import BottomSheet from "@/components/BottomSheet";
 import SwipeRow from "@/components/SwipeRow";
 import { SegmentedRow, Segment } from "@/components/FilterChips";
@@ -333,9 +333,41 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
     </div>
   );
 
+  const pausedCount = rows.filter((r) => !r.isActive).length;
+  const liveTab = rows.filter((r) => r.isActive).length;
+  const autoInfo = "“When this happens, do that” rules that run on their own. Each fires at most once per record, never moves money, and pauses with one tap.";
+  const deskActions = (
+    <>
+      {atlas.available && (
+        <Link href="/app/automations/new?atlas=1" prefetch={false} className="ds-btn ds-btn-outline">
+          <Sparkles size={15} /> Ask {atlas.name}
+        </Link>
+      )}
+      <Link href="/app/automations/new" prefetch={false} className="ds-btn ds-btn-primary">
+        <Plus size={15} /> New automation
+      </Link>
+    </>
+  );
   return (
-    <div className="mx-auto max-w-4xl p-4 lg:p-8">
-      <div className="flex items-start justify-between gap-3">
+    <DsPage
+      open
+      className="lg:max-w-5xl"
+      header={
+        <div className="hidden lg:block">
+          <PageHeader
+            eyebrow={
+              rows.length > 0
+                ? `${liveCount} ${liveCount === 1 ? "rule" : "rules"} on${pausedCount ? ` · ${pausedCount} paused` : ""} · each runs once per record`
+                : "When this happens, do that"
+            }
+            title="Automations"
+            info={autoInfo}
+            actions={deskActions}
+          />
+        </div>
+      }
+    >
+      <div className="flex items-start justify-between gap-3 lg:hidden">
         <PageTitle section="business" icon={Zap} info="“When this happens, do that” rules that run on their own. Each fires at most once per record, never moves money, and pauses with one tap.">
           Automations
         </PageTitle>
@@ -357,7 +389,7 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
       </div>
 
       {rows.length > 0 && (
-        <p className="auto-lede">
+        <p className="auto-lede lg:hidden">
           <b>{liveCount}</b> {liveCount === 1 ? "rule is" : "rules are"} on
           {rows.length > liveCount && (
             <>
@@ -385,6 +417,21 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
             ))}
           </SegmentedRow>
         </div>
+      )}
+
+      {rows.length > 0 && (
+        <nav className="tl-tabs hidden lg:flex" aria-label="Show">
+          {([
+            ["all", "All", rows.length],
+            ["live", "On", liveTab],
+            ["paused", "Paused", pausedCount],
+          ] as [Filter, string, number][]).map(([k, label, n]) => (
+            <button key={k} type="button" onClick={() => setFilter(k)} className={`tl-tab ${filter === k ? "is-on" : ""}`} aria-pressed={filter === k}>
+              {label}
+              <span className="tl-tab-n">{n}</span>
+            </button>
+          ))}
+        </nav>
       )}
 
       <div className="mb-6 mt-3 lg:mt-6">
@@ -518,7 +565,7 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
           )}
         </div>
       </BottomSheet>
-    </div>
+    </DsPage>
   );
 }
 

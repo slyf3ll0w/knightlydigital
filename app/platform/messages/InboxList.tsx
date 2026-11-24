@@ -92,14 +92,14 @@ export default function InboxList({ initial, tz }: { initial: InboxRow[]; tz: st
   }
 
   return (
-    <div className="ds-card ds-card-raised mt-6 overflow-hidden">
+    <div className="ds-card ds-card-raised tl-inbox mt-6 overflow-hidden">
       {rows.map((r, i) => (
         <Link
           key={r.contactId}
           prefetch={false}
           href={`/app/messages/thread/${r.contactId}`}
           onClick={() => hapticImpact("LIGHT")}
-          className={`flex items-center gap-3.5 px-3.5 py-3 transition-colors hover:bg-gray-50 active:bg-gray-100 ${
+          className={`tl-inbox-row ${r.unread ? "is-unread" : ""} flex items-center gap-3.5 px-3.5 py-3 transition-colors hover:bg-gray-50 active:bg-gray-100 ${
             i < rows.length - 1 ? "border-b border-gray-50" : ""
           }`}
         >

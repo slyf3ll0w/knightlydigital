@@ -12,7 +12,7 @@ import MobileSearch from "@/components/MobileSearch";
 import EntityRowActions from "@/components/EntityRowActions";
 import EstimatorRunner, { type RunnerEstimator } from "@/components/EstimatorRunner";
 import { useAssistant } from "@/components/AssistantContext";
-import { Chip } from "@/components/ds";
+import { Chip, DsPage, PageHeader } from "@/components/ds";
 import { ESTIMATE_SORTS } from "@/lib/list-sort";
 import type { EstimatorPublicConfig } from "@/lib/estimator-public";
 import BuildPanel, { type BuiltTool } from "./BuildPanel";
@@ -187,12 +187,23 @@ export default function EstimatesClient({
   const filtered = Boolean(filter) || Boolean(query);
   const current = { q: query || undefined, status: filter || undefined, sort: sort !== ESTIMATE_SORTS[0].value ? sort : undefined };
 
-  return (
-    <div className="mx-auto max-w-6xl p-4 lg:p-8">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-y-3 lg:mb-6">
-        <PageTitle heavy section="quotes" icon={Calculator} info={manager ? "Tell Atlas how you price a job. It builds a tool your team runs onsite and your website runs for you." : "Answer a tool's questions, show the number, turn it into a quote."}>
-          Estimator tools
-        </PageTitle>
+  const info = manager ? "Tell Atlas how you price a job. It builds a tool your team runs onsite and your website runs for you." : "Answer a tool's questions, show the number, turn it into a quote.";
+  const runsTotal = tools.reduce((n, t) => n + t.runs, 0);
+  const formsTotal = tools.reduce((n, t) => n + t.submissions, 0);
+  const liveOnSite = tools.filter((t) => t.isPublic && t.publicSlug).length;
+  // The desktop header's context line, from the tools themselves
+  const contextLine =
+    view === "library"
+      ? "Ready-made tools for your trade"
+      : [
+          `${totalCount} ${totalCount === 1 ? "tool" : "tools"}`,
+          active.length !== totalCount ? `${active.length} on` : null,
+          liveOnSite > 0 ? `${liveOnSite} on your website` : null,
+          runsTotal + formsTotal > 0 ? `${(runsTotal + formsTotal).toLocaleString("en-US")} prices given` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+  const headerActions = (
         <div className="flex items-center gap-2">
         {view === "tools" ? (
           <Link href="/app/estimates?view=library" prefetch={false} className="ds-btn ds-btn-outline h-10 shrink-0">
@@ -216,11 +227,30 @@ export default function EstimatesClient({
           </button>
         ) : null}
         </div>
-      </div>
+  );
 
+  return (
+    <DsPage
+      open
+      header={
+        <>
+          {/* Phone: the title row as before */}
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-y-3 lg:hidden">
+            <PageTitle heavy section="quotes" icon={Calculator} info={info}>
+              Estimator tools
+            </PageTitle>
+            {headerActions}
+          </div>
+          {/* Desk: the open page header with a context line */}
+          <div className="hidden lg:block">
+            <PageHeader eyebrow={contextLine} title={view === "library" ? "Tool library" : "Estimator tools"} info={info} actions={headerActions} />
+          </div>
+        </>
+      }
+    >
       {view === "library" ? (
         <>
-          <div className="mb-4">
+          <div className="mb-4 lg:hidden">
             <h2 className="ds-heavy-h2">Tool library</h2>
             <p className="mt-1 text-[13.5px] text-[color:var(--ds-muted)]">Ready-made tools for your trade. Copy one and make it yours.</p>
           </div>
@@ -263,7 +293,7 @@ export default function EstimatesClient({
           )}
 
           {tools.length === 0 && !filtered && manager && building ? null : tools.length === 0 ? (
-            <div className="ds-card">
+            <div className="ds-card tl-open-card">
               <EmptyState
                 art="quotes"
                 hue="var(--ds-primary)"
@@ -276,7 +306,7 @@ export default function EstimatesClient({
             </div>
           ) : (
             <>
-              <div className="ds-card ds-etools ds-rise overflow-hidden">
+              <div className="ds-card ds-etools tl-open-card ds-rise overflow-hidden">
                 <div className="ds-etool ds-etool-head" aria-hidden>
                   <span>Tool</span>
                   <span>Questions, then the price</span>
@@ -312,6 +342,6 @@ export default function EstimatesClient({
       )}
 
       <EstimatorRunner estimators={running ?? []} open={running !== null} onClose={() => setRunning(null)} showSamples={manager} />
-    </div>
+    </DsPage>
   );
 }

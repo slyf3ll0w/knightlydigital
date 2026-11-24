@@ -1,1 +1,115 @@
-/* Open-page rollout, wave 2 (2026-11-24): tools. Shared pieces live in app/ds-brand.css. */
+/* Open-page rollout, wave 2 (2026-11-24): tools & messaging — Estimator tools,
+   Messages (inbox + a sent email), Places, Automations. Shared pieces live in
+   app/ds-brand.css. Desk (lg+) only; phones keep their cards. */
+
+@media (min-width: 1024px) {
+  /* a card that opens onto the page: no box, a rule above and below */
+  .bb-open .tl-open-card {
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    border-top: 1px solid var(--ds-line-strong);
+    border-bottom: 1px solid var(--ds-line);
+  }
+  .bb-open .tl-open-rows > * { border-color: var(--ds-line); }
+
+  /* Estimator tools: the tool ledger keeps its columns, just unboxed */
+  .bb-open .ds-etools.tl-open-card { border-bottom: 0; }
+  .bb-open .ds-etools .ds-etool-head { background: transparent; }
+
+  /* Messages inbox: hairline rows, the unread ones in ink, and the pilot's
+     row underline drawing across on hover */
+  .bb-open .tl-inbox {
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    border-top: 1px solid var(--ds-line-strong);
+    margin-top: 8px;
+    overflow: visible;
+  }
+  .bb-open .tl-inbox-row {
+    position: relative;
+    padding-left: 0;
+    padding-right: 0;
+    border-bottom: 1px solid var(--ds-line) !important;
+    --row-tone: var(--ds-line-strong);
+  }
+  .bb-open .tl-inbox-row.is-unread { --row-tone: var(--ds-primary); }
+  .bb-open .tl-inbox-row:hover { background: linear-gradient(90deg, transparent, var(--ds-surface-2) 12%, var(--ds-surface-2) 88%, transparent); }
+  .bb-open .tl-inbox-row::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--row-tone);
+    transform: scaleX(0);
+    transform-origin: left;
+    pointer-events: none;
+    transition: transform 340ms var(--ds-ease, ease);
+  }
+  .bb-open .tl-inbox-row:hover::after { transform: scaleX(1); }
+  .bb-open .tl-inbox-row .min-w-0 { transition: transform 260ms var(--ds-ease, ease); }
+  .bb-open .tl-inbox-row:hover .min-w-0 { transform: translateX(5px); }
+
+  /* A sent email: its facts on hairlines, the body as a plain page of text */
+  .tl-facts {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 16px 0;
+    border-top: 1px solid var(--ds-line-strong);
+    border-bottom: 1px solid var(--ds-line);
+    font-size: 14px;
+  }
+  .tl-facts > * { padding: 2px 28px 2px 0; margin-right: 28px; border-right: 1px solid var(--ds-line); }
+  .tl-facts > *:last-child { border-right: 0; margin-right: 0; }
+  .tl-facts .text-xs { font-size: 12.5px; color: var(--ds-muted); margin-bottom: 2px; }
+  .tl-facts .text-gray-800 { color: var(--ds-ink); font-weight: 600; }
+  .tl-msg-body { padding: 18px 0 4px; max-width: 68ch; }
+  .tl-msg-body p:first-child { font-size: 15px; line-height: 1.7; color: var(--ds-ink); }
+
+  /* Automations: underline tabs with counts over the rule cards */
+  .tl-tabs {
+    align-items: stretch;
+    gap: 2px;
+    min-height: 46px;
+    margin-top: 4px;
+    border-bottom: 1px solid var(--ds-line-strong);
+  }
+  .tl-tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ds-muted);
+    transition: color 120ms;
+  }
+  .tl-tab:hover { color: var(--ds-ink); }
+  .tl-tab.is-on { color: var(--ds-ink); font-weight: 600; }
+  .tl-tab.is-on::after {
+    content: "";
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--ds-primary);
+  }
+  .tl-tab-n { font-size: 12.5px; font-weight: 500; color: var(--ds-faint); }
+  .bb-open .auto-activity { border-top: 1px solid var(--ds-line-strong); padding-top: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-open .tl-inbox-row::after,
+  .bb-open .tl-inbox-row .min-w-0 { transition: none; }
+}
