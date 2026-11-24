@@ -209,7 +209,7 @@
 .clx-head { padding: 10px 0; border-bottom: 1px solid var(--ds-line); font-size: 12.5px; font-weight: 500; color: var(--ds-muted); }
 .clx-head .r { text-align: right; }
 .clx-row {
-  position: relative; min-height: 58px; padding: 6px 10px; margin: 0 -10px; border-bottom: 1px solid var(--ds-line);
+  position: relative; min-height: 58px; padding: 6px 0; border-bottom: 1px solid var(--ds-line);
   font-size: 13.5px; color: var(--ds-ink-2); transition: background-color 120ms;
   animation: ds-rise 420ms var(--ds-ease) both; animation-delay: calc(var(--ds-i, 0) * 18ms);
 }

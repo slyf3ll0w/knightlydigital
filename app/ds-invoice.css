@@ -4,22 +4,22 @@
 @media (min-width: 1024px) {
   /* ── the header's real actions (InvoiceActions / RunAutomationMenu use the
      older .btn-primary / .btn-tool-line classes) on the band ── */
-  .bb-page .inv-head .btn-primary {
+  .bb-page .ds-pagehead .btn-primary {
     background: var(--bb-s);
     color: var(--bb-on-s);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 1px 2px rgba(0, 0, 0, 0.3),
       0 10px 22px -10px color-mix(in srgb, var(--bb-s) 80%, transparent);
   }
-  .bb-page .inv-head .btn-primary:hover:not(:disabled) { background: var(--bb-s); filter: brightness(1.06); transform: none; }
-  .bb-page .inv-head .btn-primary:active:not(:disabled) { background: var(--bb-s); transform: translateY(1px) scale(0.985); }
-  .bb-page .inv-head .btn-tool-line {
+  .bb-page .ds-pagehead .btn-primary:hover:not(:disabled) { background: var(--bb-s); filter: brightness(1.06); transform: none; }
+  .bb-page .ds-pagehead .btn-primary:active:not(:disabled) { background: var(--bb-s); transform: translateY(1px) scale(0.985); }
+  .bb-page .ds-pagehead .btn-tool-line {
     background: rgba(255, 255, 255, 0.1);
     color: #FFFFFF;
     border-color: rgba(255, 255, 255, 0.3);
     box-shadow: none;
   }
-  .bb-page .inv-head .btn-tool-line:hover { background: rgba(255, 255, 255, 0.17); }
-  .bb-page .inv-head .animate-spin { color: rgba(255, 255, 255, 0.7); }
+  .bb-page .ds-pagehead .btn-tool-line:hover { background: rgba(255, 255, 255, 0.17); }
+  .bb-page .ds-pagehead .animate-spin { color: rgba(255, 255, 255, 0.7); }
   /* the "…" menu and the automation list drop out of the band: normal ink again */
   .bb-page .ds-pagehead [role="menu"] a:not(.ds-btn),
   .bb-page .ds-pagehead [role="menu"] button { color: var(--ds-ink-2); }
