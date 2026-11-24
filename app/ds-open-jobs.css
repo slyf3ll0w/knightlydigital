@@ -1,1 +1,73 @@
 /* Open-page rollout (2026-11-24): jobs. Shared pieces live in app/ds-brand.css. */
+
+/* ── Jobs list (desktop): open page. The pilot's week strip stays — open on
+   the page instead of in a card — then the Clients-style filter row
+   (.clx-* in app/ds-clients.css) and hairline rows with the status-colored
+   underline (.ds-trow, app/ds.css). ── */
+@media (min-width: 1024px) {
+  .jbx-week .ds-pic { padding: 0 0 4px; margin: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  .jbx-week .ds-pic-title { font-size: 19px; font-weight: 600; }
+}
+.jbx-table > div { position: relative; }
+.jbx-head, .jbx-row { display: grid; grid-template-columns: var(--jbx-cols); gap: 16px; align-items: center; }
+.jbx-head { padding: 10px 0; border-bottom: 1px solid var(--ds-line); font-size: 12.5px; font-weight: 500; color: var(--ds-muted); }
+.jbx-head .r { text-align: right; }
+.jbx-row {
+  min-height: 58px; padding: 6px 0; border-bottom: 1px solid var(--ds-line);
+  font-size: 13.5px; color: var(--ds-ink-2); transition: background-color 120ms;
+}
+.jbx-row:hover { background: var(--ds-surface-2); }
+.jbx-row:hover .clx-mono { background: var(--ds-primary-soft); color: var(--ds-primary); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ds-primary) 30%, transparent); }
+.jbx-money { text-align: right; font-family: var(--ds-num-font); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ds-ink); }
+.jbx-foot { display: flex; align-items: center; justify-content: space-between; padding: 14px 0 4px; font-size: 12.5px; color: var(--ds-muted); }
+.jbx-foot-total { font-family: var(--ds-num-font); font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 700; color: var(--ds-ink); }
+
+/* ── One job (desktop): the open page. The page's own header (crumbs,
+   title + status chip, the real actions), the facts as a strip on
+   hairlines, then every card opened up into a section: a bold title with
+   the two-color bar on a rule, content straight on the page. One tree for
+   both widths — everything below is lg only; phones keep their cards. ── */
+@media (min-width: 1024px) {
+  .jbd-crumbs { align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; color: var(--ds-muted); }
+  .jbd-crumbs a { color: var(--ds-muted); transition: color 120ms; }
+  .jbd-crumbs a:hover { color: var(--ds-primary); }
+  .jbd-head { align-items: center; margin-bottom: 28px; }
+
+  /* the facts strip */
+  .jbd .jbd-facts {
+    flex-wrap: nowrap; gap: 0; padding: 0 0 22px; margin-bottom: 36px;
+    background: transparent; box-shadow: none; border-radius: 0; border-bottom: 1px solid var(--ds-line-strong);
+  }
+  .jbd .jbd-facts > div { padding: 0 22px; border-left: 1px solid var(--ds-line); min-width: 0; }
+  .jbd .jbd-facts > div:first-child { padding-left: 0; border-left: 0; flex: 1 1 280px; }
+  .jbd .jbd-facts > div > span:first-child { margin-bottom: 3px; color: var(--ds-muted); }
+  .jbd .jbd-facts > div > span:not(:first-child),
+  .jbd .jbd-facts > div > a { font-size: 15px; font-weight: 600; color: var(--ds-ink); }
+  .jbd .jbd-facts .jbd-fact-big { font-size: 15px; font-weight: 600; color: var(--ds-ink); }
+  .jbd .jbd-crew { display: flex; }
+  .jbd .jbd-crew > * { margin-left: -6px; box-shadow: 0 0 0 2px var(--ds-surface); border-radius: 999px; }
+  .jbd .jbd-crew > *:first-child { margin-left: 0; }
+
+  /* cards → open sections */
+  .jbd :is(.jbd-main, .jbd-side) > * + * { margin-top: 40px; }
+  .jbd :is(.jbd-main, .jbd-side) :is(.ds-card, .card-ledger) {
+    background: transparent; box-shadow: none; border: 0; border-radius: 0; padding-left: 0; padding-right: 0; padding-top: 0;
+    overflow: visible;
+  }
+  .jbd :is(.jbd-main, .jbd-side) :is(.ds-card, .card-ledger) > :first-child {
+    position: relative; padding: 0 0 12px; margin-bottom: 14px; border-bottom: 1px solid var(--ds-line-strong);
+  }
+  .jbd :is(.jbd-main, .jbd-side) :is(.ds-card, .card-ledger) > :first-child::after {
+    content: ""; position: absolute; left: 0; bottom: -2px; width: 40px; height: 3px; border-radius: 1px;
+    background: linear-gradient(90deg, var(--ds-primary) 0 66%, var(--ds-secondary) 66%);
+  }
+  .jbd :is(.jbd-main, .jbd-side) :is(.ds-card, .card-ledger) > :first-child h2 {
+    font-size: 19px; font-weight: 700; letter-spacing: -0.025em; color: var(--ds-ink);
+  }
+  /* a fold's body sits right under its rule */
+  .jbd .card-ledger > :first-child + div { border-top: 0; }
+  .jbd .jbd-side :is(.ds-card, .card-ledger) > :first-child h2 { font-size: 17px; }
+
+  /* the line items' total ledger */
+  .jbd .card-ledger .bb-table + * { border-top-color: var(--ds-line); }
+}

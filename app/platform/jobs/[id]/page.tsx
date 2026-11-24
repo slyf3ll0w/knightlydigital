@@ -41,6 +41,8 @@ import { looksLikeAppointment } from "@/lib/appointment-hint";
 import Fold from "@/components/Fold";
 import { completeAddress, composeAddress } from "@/lib/geocoding";
 import { featureAllowedFor } from "@/lib/plan-gate";
+import { DsPage } from "@/components/ds";
+import Monogram from "@/components/Monogram";
 
 export default async function JobDetailPage({
   params,
@@ -228,69 +230,92 @@ export default async function JobDetailPage({
   return (
     // pb-20: phone bottom padding so the docked action pill never covers the
     // last card
-    <div className="p-4 pb-20 lg:p-8 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
-        <BackLink href="/app/jobs" />
-        <StatusChip kind="job" status={job.status} />
-      </div>
-
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-        <div className="min-w-0">
-          <PageTitle>{job.title}</PageTitle>
-          {canOpenContact ? (
-            <Link
-              prefetch={false} href={`/app/contacts/${job.contact.id}`}
-              className="ds-link text-sm"
-            >
-              {job.contact.firstName} {job.contact.lastName}
-            </Link>
-          ) : (
-            <p className="text-sm text-gray-600">
-              {job.contact.firstName} {job.contact.lastName}
-            </p>
-          )}
-        </div>
-        {actor.role !== "SALES" && (
-          <div className="flex items-center gap-2">
-            {job.status === "ACTIVE" && !job.completionSignedAt && (
-              <CollectSignature jobId={job.id} />
-            )}
-            {job.status === "ACTIVE" && job.contact.phone && (
-              <OnMyWay
-                jobId={job.id}
-                phone={job.contact.phone}
-                message={onMyWayMessage}
-                sentAt={job.onMyWaySentAt?.toISOString() ?? null}
-                auto={autoOmw}
-              />
-            )}
-            {job.status !== "ACTIVE" && job.contact.phone && (
-              <AskForReview
-                jobId={job.id}
-                phone={job.contact.phone}
-                message={`Hi ${job.contact.firstName}, thanks for choosing ${company?.name ?? "us"}! If you were happy with our work, we'd really appreciate a quick review: ${company?.reviewLink ?? ""}`}
-                hasReviewLink={!!company?.reviewLink}
-              />
-            )}
-            <RunAutomationMenu entity="job" entityId={job.id} manager={isManager(actor.role)} />
-            <JobActions
-              jobId={job.id}
-              status={job.status}
-              hasInvoice={!!job.invoice}
-              hasQuote={!!job.quote}
-              canDelete={isManager(actor.role)}
-              canEdit={canEdit}
-              scheduledAt={job.scheduledAt?.toISOString() ?? null}
-              planBilled={!!job.subscription?.interval && !job.subscription.billPerVisit}
-              canConvertToAppointment={canConvertToAppointment}
-              canCloseUnbilled={showBilling}
-              canInvoice={showBilling}
-              reportOffer={reportReach ? { firstName: job.contact.firstName, shown: reportCounts.pairs + reportCounts.singles } : null}
-            />
+    // Desktop (2026-11-24): the open page — crumbs + title + status chip +
+    // actions as the page's own header, a facts strip on hairlines, then the
+    // cards opened up into sections (app/ds-open-jobs.css, scoped .jbd at lg).
+    // One tree for both widths, so the clock, checklist, scheduler and the
+    // On-My-Way auto-send mount once. pb-20: the phone's docked action pill.
+    <DsPage
+      open
+      className="jbd pb-20 lg:pb-10"
+      header={
+        <>
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-4 lg:hidden">
+            <BackLink href="/app/jobs" />
+            <StatusChip kind="job" status={job.status} />
           </div>
-        )}
-      </div>
+
+          {/* Desktop crumbs (the phone has its back row above) */}
+          <nav className="jbd-crumbs hidden lg:flex" aria-label="Breadcrumb">
+            <Link prefetch={false} href="/app/jobs">Jobs</Link>
+            <span aria-hidden>/</span>
+            <span>#{job.jobNumber}</span>
+          </nav>
+          <div className="ds-pagehead jbd-head flex flex-wrap items-start justify-between gap-4 mb-6">
+            <div className="min-w-0">
+              <div className="flex min-w-0 items-center gap-3">
+                <PageTitle>{job.title}</PageTitle>
+                <span className="hidden shrink-0 lg:inline-flex">
+                  <StatusChip kind="job" status={job.status} />
+                </span>
+              </div>
+              {canOpenContact ? (
+                <Link
+                  prefetch={false} href={`/app/contacts/${job.contact.id}`}
+                  className="ds-link text-sm"
+                >
+                  {job.contact.firstName} {job.contact.lastName}
+                </Link>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  {job.contact.firstName} {job.contact.lastName}
+                </p>
+              )}
+            </div>
+            {actor.role !== "SALES" && (
+              <div className="flex items-center gap-2">
+                {job.status === "ACTIVE" && !job.completionSignedAt && (
+                  <CollectSignature jobId={job.id} />
+                )}
+                {job.status === "ACTIVE" && job.contact.phone && (
+                  <OnMyWay
+                    jobId={job.id}
+                    phone={job.contact.phone}
+                    message={onMyWayMessage}
+                    sentAt={job.onMyWaySentAt?.toISOString() ?? null}
+                    auto={autoOmw}
+                  />
+                )}
+                {job.status !== "ACTIVE" && job.contact.phone && (
+                  <AskForReview
+                    jobId={job.id}
+                    phone={job.contact.phone}
+                    message={`Hi ${job.contact.firstName}, thanks for choosing ${company?.name ?? "us"}! If you were happy with our work, we'd really appreciate a quick review: ${company?.reviewLink ?? ""}`}
+                    hasReviewLink={!!company?.reviewLink}
+                  />
+                )}
+                <RunAutomationMenu entity="job" entityId={job.id} manager={isManager(actor.role)} />
+                <JobActions
+                  jobId={job.id}
+                  status={job.status}
+                  hasInvoice={!!job.invoice}
+                  hasQuote={!!job.quote}
+                  canDelete={isManager(actor.role)}
+                  canEdit={canEdit}
+                  scheduledAt={job.scheduledAt?.toISOString() ?? null}
+                  planBilled={!!job.subscription?.interval && !job.subscription.billPerVisit}
+                  canConvertToAppointment={canConvertToAppointment}
+                  canCloseUnbilled={showBilling}
+                  canInvoice={showBilling}
+                  reportOffer={reportReach ? { firstName: job.contact.firstName, shown: reportCounts.pairs + reportCounts.singles } : null}
+                />
+              </div>
+            )}
+          </div>
+        </>
+      }
+    >
 
       {readsLikeAppointment && <ConvertToAppointmentNotice jobId={job.id} />}
 
@@ -303,7 +328,43 @@ export default async function JobDetailPage({
       />
 
       {/* Header facts with backlinks */}
-      <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 ds-card mb-6 text-sm">
+      <div className="jbd-facts flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 ds-card mb-6 text-sm">
+        {/* Desktop-only: who and where, the crew, the price */}
+        <div className="jbd-where hidden lg:block min-w-0">
+          <span className="text-xs font-medium text-gray-500 block">
+            {job.contact.firstName} {job.contact.lastName}
+          </span>
+          <span className="jbd-fact-big block truncate">{job.address || job.contact.address || "No address"}</span>
+          {(job.property?.label || job.description) && (
+            <span className="block max-w-[340px] truncate text-xs text-gray-500">
+              {job.property?.label || job.description}
+            </span>
+          )}
+        </div>
+        {job.assignments.length > 0 && (
+          <div className="hidden lg:block">
+            <span className="text-xs font-medium text-gray-500 block">Crew</span>
+            <span className="jbd-crew" title={job.assignments.map((a) => a.user.name).join(", ")}>
+              {job.assignments.slice(0, 5).map((a) => (
+                <Monogram key={a.userId} name={a.user.name ?? "Teammate"} size={26} />
+              ))}
+            </span>
+          </div>
+        )}
+        {showMoney && lineTotal > 0 && (
+          <div className="hidden lg:block">
+            <span className="text-xs font-medium text-gray-500 block">Price</span>
+            <span className="jbd-fact-big">{money(lineTotal)}</span>
+          </div>
+        )}
+        {(loggedMs > 0 || othersOnClock.length > 0) && (
+          <div className="hidden lg:block">
+            <span className="text-xs font-medium text-gray-500 block">{othersOnClock.length > 0 ? "On the clock" : "Time logged"}</span>
+            <span className="jbd-fact-big">
+              {othersOnClock.length > 0 ? othersOnClock.join(", ") : formatDuration(loggedMs)}
+            </span>
+          </div>
+        )}
         <div>
           <span className="text-xs font-medium text-gray-500 block">Job #</span>
           <span className="text-gray-800">{job.jobNumber}</span>
@@ -380,9 +441,9 @@ export default async function JobDetailPage({
         )}
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-5">
+      <div className="grid lg:grid-cols-3 gap-5 lg:gap-14">
         {/* Main column */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="jbd-main lg:col-span-2 space-y-4">
           {/* Schedule + details */}
           <div className="ds-card p-5">
             <SectionHeader title="Details" className="mb-4" />
@@ -490,8 +551,8 @@ export default async function JobDetailPage({
               </div>
 
               {/* Line items — desktop table */}
-              <div className="hidden lg:block px-5 py-3">
-                <table className="w-full text-sm">
+              <div className="hidden lg:block px-5 py-3 lg:px-0">
+                <table className="bb-table w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100">
                       <th className="text-left py-2 text-xs text-gray-500 font-semibold">
@@ -516,7 +577,7 @@ export default async function JobDetailPage({
                     {job.lineItems.map((li) => (
                       <tr key={li.id}>
                         <td className="py-2.5">
-                          <p className="text-gray-900 font-medium">{li.name}</p>
+                          <p className="bb-name text-gray-900 font-medium">{li.name}</p>
                           {li.description && (
                             <p className="text-gray-500 text-xs mt-0.5">{li.description}</p>
                           )}
@@ -536,7 +597,7 @@ export default async function JobDetailPage({
                 </table>
               </div>
               {showMoney && (
-                <div className="px-4 lg:px-5 py-3 border-t border-gray-100 bg-gray-50">
+                <div className="px-4 lg:px-0 py-3 border-t border-gray-100 bg-gray-50 lg:bg-transparent">
                   <div className="ml-auto w-full lg:w-56 space-y-1 text-sm">
                     {lineCost > 0 && (
                       <div className="flex justify-between">
@@ -559,7 +620,7 @@ export default async function JobDetailPage({
             title="Notes & Activity"
             meta={job.notes.length > 0 ? `${job.notes.length}` : "Add"}
           >
-            <div className="p-4 space-y-3">
+            <div className="p-4 lg:px-0 space-y-3">
               {job.notes.map((note) => (
                 <JobNoteItem
                   key={note.id}
@@ -634,7 +695,7 @@ export default async function JobDetailPage({
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-4">
+        <div className="jbd-side space-y-4">
           {/* Time clock — the tech's primary action; stays visible after
               completion while an entry is still open so they can clock out */}
           {canClock && (job.status === "ACTIVE" || myOpenEntry?.jobId === job.id) && (
@@ -786,6 +847,6 @@ export default async function JobDetailPage({
           </div>
         </div>
       </div>
-    </div>
+    </DsPage>
   );
 }
