@@ -308,6 +308,11 @@ export default async function ContactDetailPage({
                   : "Texts: on"}
           </span>
         )}
+        {contact.remindersOff && (
+          <span className="ds-chip ds-chip-neutral" title="Visit and appointment reminders are off for this client: edit the client to turn them on">
+            Reminders: off
+          </span>
+        )}
       </div>
 
       {/* Heavy look (2026-11-21): who the client is and how to reach them,

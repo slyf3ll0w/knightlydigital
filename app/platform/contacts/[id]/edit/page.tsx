@@ -35,6 +35,7 @@ export default async function EditContactPage({
         paymentTermsDays: contact.paymentTermsDays,
         smsConsent: !contact.smsDisabled,
         smsConsentNote: contact.smsConsentNote ?? "",
+        remindersOn: !contact.remindersOff,
         status: contact.status,
         kind: contact.kind,
         customFields: (contact.customFields as Record<string, string>) ?? {},

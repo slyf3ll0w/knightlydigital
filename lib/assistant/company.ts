@@ -172,7 +172,7 @@ export const companyTools: Tool[] = [
     decl: {
       name: "update_company_settings",
       description:
-        "Stage changes to company settings: business name, phone, email (hideEmail = keep it off client pages), address/city/state/zip, website, review link, brand colors (brandColor = primary for headers, brandColorSecondary = accent for buttons; #rrggbb), timezone (IANA, e.g. America/Chicago), arrival window minutes, the assistant's display name (assistantName), card surcharge (surchargeEnabled + surchargePercent, e.g. 3 for 3%), the company-default deposit on new quotes (defaultDepositType PERCENT/FIXED/FULL/NONE + defaultDepositValue), the online-booking service area (addServiceZips / removeServiceZips — 5-digit ZIPs), and the LOOK of the public booking page (bookingTheme light/dark/transparent, bookingFont = a Google Font name, bookingFontSize sm/md/lg, bookingAccent #rrggbb or 'brand', bookingTitle, bookingDescription, bookingShowBusinessDetails). On accounts with the Pro page designer, the booking page's accent, font, heading and line are set with draft_client_theme instead, and these four fields are refused. Only include what should change. Confirmation card required.",
+        "Stage changes to company settings: business name, phone, email (hideEmail = keep it off client pages), address/city/state/zip, website, review link, brand colors (brandColor = primary for headers, brandColorSecondary = accent for buttons; #rrggbb), timezone (IANA, e.g. America/Chicago), arrival window minutes, client reminders for visits and appointments on/off for the whole account (clientReminders; per client use update_client remindersOff), the assistant's display name (assistantName), card surcharge (surchargeEnabled + surchargePercent, e.g. 3 for 3%), the company-default deposit on new quotes (defaultDepositType PERCENT/FIXED/FULL/NONE + defaultDepositValue), the online-booking service area (addServiceZips / removeServiceZips — 5-digit ZIPs), and the LOOK of the public booking page (bookingTheme light/dark/transparent, bookingFont = a Google Font name, bookingFontSize sm/md/lg, bookingAccent #rrggbb or 'brand', bookingTitle, bookingDescription, bookingShowBusinessDetails). On accounts with the Pro page designer, the booking page's accent, font, heading and line are set with draft_client_theme instead, and these four fields are refused. Only include what should change. Confirmation card required.",
       parameters: {
         type: "object",
         properties: {
@@ -192,6 +192,7 @@ export const companyTools: Tool[] = [
           },
           timezone: { type: "string" },
           arrivalWindowMinutes: { type: "number" },
+          clientReminders: { type: "boolean", description: "false = stop the automatic day-before / hour-before reminders (text and email) to every client; true = turn them back on" },
           assistantName: { type: "string" },
           hideEmail: { type: "boolean", description: "true = keep the business email off everything clients see (booking page, client login, quotes, invoices, PDFs, website); replies still reach them" },
           surchargeEnabled: { type: "boolean" },
@@ -249,6 +250,10 @@ export const companyTools: Tool[] = [
         }
         payload.brandColorSecondary = brandColorSecondary;
         lines.push(`Secondary brand color: ${brandColorSecondary}`);
+      }
+      if (typeof args.clientReminders === "boolean") {
+        payload.clientRemindersOff = !args.clientReminders;
+        lines.push(args.clientReminders ? "Client visit reminders: on" : "Client visit reminders: off for every client");
       }
       if (typeof args.hideEmail === "boolean") {
         payload.hideEmail = args.hideEmail;

@@ -168,6 +168,7 @@ export async function PATCH(
       ...(body.zip !== undefined && { zip: opt(body.zip) }),
       ...(body.notes !== undefined && { notes: opt(body.notes) }),
       ...(body.leadSource !== undefined && { leadSource: canonicalLeadSource(body.leadSource) }),
+      ...(typeof body.remindersOff === "boolean" && { remindersOff: body.remindersOff }),
       ...(status !== undefined && { status }),
       ...(paymentTermsDays !== undefined && { paymentTermsDays }),
       ...(kind !== undefined && { kind }),

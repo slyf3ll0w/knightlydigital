@@ -369,7 +369,7 @@ export const startSection: HelpSection = {
         {
           type: "list",
           items: [
-            "The free tool sends up to **five documents a day**, to up to **two addresses** each. The email itself is a fixed letter — your name, the total, the View button — so the only thing you write is the document.",
+            "The free tool sends up to **five documents a day**, to up to **two addresses** each. The email itself is a fixed letter — your name, the total, the View button — so the only thing you write is the document. On a very busy day emailing from the free tool can pause for everyone until the next day; the PDF download always works, and a free WorkBench account has no limit.",
             "Every client copy carries a small **Report it** link. A client who says they never asked for the document stops that email address from sending through the free tool, so send only to people who expect it.",
             "A WorkBench account has no sending limit, and its emails carry a **Pay** button and automatic reminders — that is what `Get paid online` (on a quote, `Get it signed online`) sets up, with the document and the client already in the account.",
           ],

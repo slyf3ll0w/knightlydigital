@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import SectionHeader from "@/components/SectionHeader";
+import { InfoTip } from "@/components/ds";
 import UseMyLocation from "@/components/UseMyLocation";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import MoreDetails from "@/components/MoreDetails";
@@ -48,6 +49,7 @@ export type ContactFormInitial = {
   paymentTermsDays: number;
   smsConsent: boolean;
   smsConsentNote: string;
+  remindersOn?: boolean;
   status: string;
   /** CLIENT (leads and clients) or CONTACT (a business connection — never a lead). */
   kind: string;
@@ -96,6 +98,7 @@ export default function ContactForm({
     paymentTermsDays: String(initial?.paymentTermsDays ?? 30),
     smsConsent: initial?.smsConsent ?? true,
     smsConsentNote: initial?.smsConsentNote ?? "",
+    remindersOn: initial?.remindersOn ?? true,
     status: initial?.status ?? "LEAD",
     kind: initial?.kind ?? "CLIENT",
     assignedToId: "",
@@ -168,6 +171,7 @@ export default function ContactForm({
       paymentTermsDays: terms,
       smsConsent: form.smsConsent,
       smsConsentNote: form.smsConsentNote,
+      remindersOff: !form.remindersOn,
       kind: form.kind,
       customFields,
     };
@@ -238,6 +242,23 @@ export default function ContactForm({
               className={`${inputCls} mt-2`}
             />
           )}
+        </div>
+        <div className="col-span-2">
+          <label className="flex items-start gap-2.5 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={form.remindersOn !== false}
+              onChange={(e) => setForm((s) => ({ ...s, remindersOn: e.target.checked }))}
+              className="mt-0.5 h-4 w-4 rounded"
+              data-testid="client-reminders"
+            />
+            <span className="font-medium">
+              Visit reminders
+              <InfoTip>
+                The day-before and hour-before reminders for their visits and appointments, by text and email. Off, this client gets none; everything else (quotes, invoices, messages) still goes out.
+              </InfoTip>
+            </span>
+          </label>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Lead source</label>
