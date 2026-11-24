@@ -1,4 +1,5 @@
 import LoadingMoment from "@/components/LoadingMoment";
+import { OpenDetailSkeleton, OpenListSkeleton, OpenPageSkeleton } from "@/components/OpenSkeleton";
 
 /**
  * Route-level loading skeletons so navigation shows the page's real shape
@@ -13,7 +14,7 @@ import LoadingMoment from "@/components/LoadingMoment";
  * pulsing skeleton, as a sibling so the pulse never dims the pill.
  */
 
-export function DetailPageSkeleton({ sidebar = true }: { sidebar?: boolean }) {
+function PhoneDetailSkeleton({ sidebar = true }: { sidebar?: boolean }) {
   const line = (w: string, h = "h-3.5") => <div className={`${h} ${w} bg-[color:var(--ds-line)] rounded-lg`} />;
   return (
     <>
@@ -89,7 +90,7 @@ export function DetailPageSkeleton({ sidebar = true }: { sidebar?: boolean }) {
   );
 }
 
-export function PagePlaceholder() {
+function PhonePagePlaceholder() {
   return (
     <>
     <LoadingMoment />
@@ -112,7 +113,7 @@ export function PagePlaceholder() {
   );
 }
 
-export function ListPageSkeleton({
+function PhoneListSkeleton({
   kpis = 3,
   filters = 4,
   rows = 8,
@@ -165,6 +166,49 @@ export function ListPageSkeleton({
         </div>
       </div>
     </div>
+    </>
+  );
+}
+
+// ── The exports: the phone shape below lg, the new open look at a desk ──
+export function DetailPageSkeleton({ sidebar = true }: { sidebar?: boolean }) {
+  return (
+    <>
+      <div className="lg:hidden">
+        <PhoneDetailSkeleton sidebar={sidebar} />
+      </div>
+      <div className="hidden lg:block">
+        <LoadingMoment />
+        <OpenDetailSkeleton sidebar={sidebar} />
+      </div>
+    </>
+  );
+}
+
+export function PagePlaceholder() {
+  return (
+    <>
+      <div className="lg:hidden">
+        <PhonePagePlaceholder />
+      </div>
+      <div className="hidden lg:block">
+        <LoadingMoment />
+        <OpenPageSkeleton />
+      </div>
+    </>
+  );
+}
+
+export function ListPageSkeleton({ kpis = 3, filters = 4, rows = 8 }: { kpis?: number; filters?: number; rows?: number }) {
+  return (
+    <>
+      <div className="lg:hidden">
+        <PhoneListSkeleton kpis={kpis} filters={filters} rows={rows} />
+      </div>
+      <div className="hidden lg:block">
+        <LoadingMoment />
+        <OpenListSkeleton picture={kpis > 0} tabs={filters} rows={rows} />
+      </div>
     </>
   );
 }

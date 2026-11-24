@@ -6,6 +6,7 @@ export default function ScheduleLoading() {
   return (
     <>
       <LoadingMoment />
+      <div className="ds bb-wrap bb-open">
       <div className="mx-auto max-w-6xl animate-pulse p-4 lg:p-8">
         <div className="mb-5 flex items-center justify-between">
           <div className="h-8 w-36 rounded-lg bg-[color:var(--ds-line-strong)]" />
@@ -27,6 +28,7 @@ export default function ScheduleLoading() {
             ))}
           </div>
         </div>
+      </div>
       </div>
     </>
   );

@@ -1,4 +1,5 @@
 import LoadingMoment from "@/components/LoadingMoment";
+import { OpenHomeSkeleton } from "@/components/OpenSkeleton";
 
 // Home's own shape (KPI ledger, chart, side cards) in kit tokens so it is
 // dark-safe, with the loading moment floating over it.
@@ -6,7 +7,11 @@ export default function DashboardLoading() {
   return (
     <>
       <LoadingMoment />
-      <div className="p-4 lg:p-8 max-w-6xl mx-auto animate-pulse">
+      {/* desk: the branded band (the new Home) */}
+      <div className="hidden lg:block">
+        <OpenHomeSkeleton />
+      </div>
+      <div className="p-4 max-w-6xl mx-auto animate-pulse lg:hidden">
         <div className="mb-6">
           <div className="h-3.5 w-44 bg-[color:var(--ds-line)] rounded-lg mb-2" />
           <div className="h-7 w-64 bg-[color:var(--ds-line-strong)] rounded-lg" />
