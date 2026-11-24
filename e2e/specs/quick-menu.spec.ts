@@ -39,7 +39,8 @@ test.describe("quick-action menus", () => {
     const job = await api.post("/api/app/jobs", { contactId, title: `${runTag} right-click job` });
     const { context, page } = await signedIn(browser, false);
     await page.goto(`${state.baseUrl}/app/jobs`);
-    const row = page.locator(`a[href="/app/jobs/${job.id}"]`).first();
+    // The list renders a phone tree and a desktop tree; take the row this width shows
+    const row = page.locator(`a[href="/app/jobs/${job.id}"]:visible`).first();
     await expect(row).toBeVisible();
     await row.click({ button: "right" });
 
@@ -61,7 +62,8 @@ test.describe("quick-action menus", () => {
     const job = await api.post("/api/app/jobs", { contactId, title: `${runTag} held job` });
     const { context, page } = await signedIn(browser, true);
     await page.goto(`${state.baseUrl}/app/jobs`);
-    const row = page.locator(`a[href="/app/jobs/${job.id}"]`).first();
+    // The list renders a phone tree and a desktop tree; take the row this width shows
+    const row = page.locator(`a[href="/app/jobs/${job.id}"]:visible`).first();
     await expect(row).toBeVisible();
     // The list can re-render once more right after first paint (live
     // refresh), detaching the node mid-scroll — resolve the row fresh each
