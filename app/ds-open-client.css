@@ -1,1 +1,58 @@
 /* Open-page rollout (2026-11-24): client. Shared pieces live in app/ds-brand.css. */
+
+/* ═══ Client profile (app/platform/contacts/[id]) ═══════════════════════
+   Desk only: the page's own header (crumbs, monogram + name, chips, a
+   context line, the actions), a summary strip (balance owed big, then the
+   facts on hairlines), the Work table, and every card opened up onto the
+   page — a bold title on a hairline with the two-color bar, no box. */
+@media (min-width: 1024px) {
+  .cp-head .bb-crumbs { display: flex; align-items: center; gap: 6px; color: var(--ds-muted); }
+  .cp-head .ds-title { min-width: 0; }
+  .cp-context { margin-top: 10px; font-size: 14px; color: var(--ds-muted); }
+
+  .cp-sum {
+    align-items: flex-end;
+    gap: 0;
+    margin-bottom: 36px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--ds-line-strong);
+  }
+  .cp-sum-lead { display: flex; flex-direction: column; gap: 4px; padding-right: 32px; flex: none; }
+  .cp-sum-lead .bb-big { font-size: 34px; }
+  .cp-owed { color: var(--ds-bad); }
+  .cp-sum-kv {
+    display: flex; flex-direction: column; gap: 4px; flex: 0 1 auto;
+    padding: 0 26px; border-left: 1px solid var(--ds-line);
+  }
+  .cp-sum-v { font-size: 15px; font-weight: 600; color: var(--ds-ink); }
+
+  .cp-page .cp-body { gap: 52px; align-items: start; }
+  .cp-page .cp-body > div { display: flex; flex-direction: column; gap: 36px; }
+  .cp-page .cp-body > div > * { margin-block: 0 !important; }
+
+  /* every card in the two columns, opened onto the page */
+  .cp-page .cp-body > div > .ds-card {
+    position: relative;
+    background: transparent;
+    box-shadow: none;
+    border: 0;
+    border-radius: 0;
+    padding: 16px 0 0;
+    border-top: 1px solid var(--ds-line-strong);
+    overflow: visible;
+  }
+  .cp-page .cp-body > div > .ds-card::before {
+    content: ""; position: absolute; left: 0; top: -2px; width: 40px; height: 3px; border-radius: 1px;
+    background: linear-gradient(90deg, var(--ds-primary) 0 66%, var(--ds-secondary) 66%);
+  }
+  .cp-page .cp-body > div > .ds-card h2 { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; color: var(--ds-ink); }
+  .cp-page .cp-body > div > .ds-card > .border-b { padding-left: 0; padding-right: 0; }
+  .cp-page .cp-body > div > .ds-card > .p-4 { padding-left: 0; padding-right: 0; }
+}
+
+/* ═══ Schedule (ScheduleClient root): the open white page; the calendar
+   itself untouched, its frame a hairline instead of a lifted card. ═══ */
+@media (min-width: 1024px) {
+  .sch-open .ds-title { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; }
+  .sch-open .ds-card { box-shadow: 0 0 0 1px var(--ds-line-strong); }
+}

@@ -1610,8 +1610,19 @@ export default function ScheduleClient({
   const dayLabelFor = (d: Date) => d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 
   // ── Page ──────────────────────────────────────────────────────────────────
+  const [entrance] = useState(() => {
+    const seed = `${view}|${date}|${team}`;
+    let h = 0;
+    for (let n = 0; n < seed.length; n++) h = (h * 31 + seed.charCodeAt(n)) >>> 0;
+    return (["rise", "slide", "cascade", "settle", "focus"] as const)[h % 5];
+  });
+
   return (
-    <div className="mx-auto max-w-6xl p-4 lg:p-8">
+    // Open page (2026-11-24): white page at a desk + the page entrance. The
+    // entrance is picked from the first view/date/team, so the server and the
+    // browser agree and it never changes while you move around the calendar.
+    <div className="ds bb-wrap bb-open sch-open" data-enter={entrance}>
+    <div className="ds bb-page mx-auto max-w-6xl p-4 lg:p-8">
       <div className="mb-4 flex items-center justify-between gap-3">
         <PageTitle section="schedule" icon={CalendarDays}>
           Schedule
@@ -2188,6 +2199,7 @@ export default function ScheduleClient({
       />
 
       <UndoToast toast={toast} onClose={() => setToast(null)} />
+    </div>
     </div>
   );
 }

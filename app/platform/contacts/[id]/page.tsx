@@ -35,6 +35,8 @@ import { invoiceBalance } from "@/lib/payments";
 import { clientPayConfig } from "@/lib/pay-client-config";
 import RunAutomationMenu from "@/components/RunAutomationMenu";
 import PdfLink from "@/components/PdfLink";
+import TitleSentinel from "@/components/TitleSentinel";
+import { DsPage, OpenSection } from "@/components/ds";
 
 export default async function ContactDetailPage({
   params,
@@ -263,13 +265,12 @@ export default async function ContactDetailPage({
   const backTo =
     contact.kind === "CONTACT" ? "/app/contacts?status=CONTACTS" : contact.status === "LEAD" ? "/app/leads" : "/app/contacts";
 
-  return (
-    <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        {/* A lead's list is the Leads board, not Clients (David 2026-10-06) */}
-        <BackLink href={backTo} />
-        {contact.status === "LEAD" && <BackParent to="/app/leads" />}
+  const fullName = `${contact.firstName} ${contact.lastName}`.trim();
+  const backLabel = contact.kind === "CONTACT" ? "Contacts" : contact.status === "LEAD" ? "Leads" : "Clients";
+
+  // Status chips: phone row and the desktop title share them
+  const chips = (
+    <>
         <ContactStatus status={contact.status} kind={contact.kind} />
         {isRepeat && contact.pipelineStageId && (
           <span className="ds-chip ds-chip-primary" title="Has worked with you before">
@@ -313,17 +314,133 @@ export default async function ContactDetailPage({
             Reminders: off
           </span>
         )}
+    </>
+  );
+
+  // The page's actions — one row on phones (below the head card), the right
+  // side of the header at a desk. Two instances, one per width (menus only
+  // listen while open, so the hidden copy is inert).
+  const actions = (desk: boolean) => (
+    <>
+          {/* Message = the WorkBench conversation: texts from the business line
+              once texting is on (client portal + email otherwise), replies in
+              the inbox. The Text button beside it is the phone's own Messages
+              app from the tech's number. Phones get the 52px circles instead. */}
+          {desk && (
+          <Link
+            prefetch={false}
+            href={`/app/messages/thread/${contact.id}`}
+            className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-[10px] transition-colors"
+            title={
+              textsReady && !contact.smsOptOut && !contact.smsDisabled
+                ? `Text ${contact.firstName} from ${fmtPhone(lineNumber!)} — replies land in Messages`
+                : `Message ${contact.firstName} — reaches their client portal and email; texts once texting is on`
+            }
+          >
+            <MessageCircle size={14} />
+            Message
+          </Link>
+          )}
+          {desk && contact.phone && (
+            <div className="flex items-center gap-2">
+              <CallTextButtons phone={contact.phone} contactId={contact.id} name={fullName} />
+            </div>
+          )}
+          {contact.email && (
+            <EmailClientButton
+              contactId={contact.id}
+              contactName={fullName}
+              contactEmail={contact.email}
+              signature={emailSignature}
+              hasLogo={!!contact.company.logoUrl}
+            />
+          )}
+          <Link
+            prefetch={false} href={`/app/contacts/${contact.id}/edit`}
+            className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-[10px] transition-colors"
+          >
+            <Pencil size={14} />
+            Edit
+          </Link>
+          <RunAutomationMenu entity="contact" entityId={contact.id} manager={isManager(actor.role)} />
+          <ContactActionsMenu
+            contactId={contact.id}
+            contactName={fullName}
+            status={contact.status}
+            canDelete={isManager(actor.role)}
+            counts={{
+              requests: contact.requests.length,
+              appointments: contact.appointments.length,
+              quotes: contact.quotes.length,
+              jobs: contact.jobs.length,
+              invoices: contact.invoices.length,
+              payments: contact.payments.length,
+            }}
+          />
+          <ContactCreateMenu contactId={contact.id} canSeeMoney={canSeeMoney(actor)} />
+    </>
+  );
+
+  // Open page (2026-11-24): at a desk the page's own header — crumbs, the
+  // monogram + name (title wipe kept), the chips, a context line, actions.
+  // Phones keep the head card and action row exactly as before.
+  const header = (
+    <>
+      {/* the collapsed-header title, once for both widths */}
+      <TitleSentinel title={fullName} />
+      <div className="ds-pagehead cp-head hidden lg:flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="ds-eyebrow ds-eyebrow-plain bb-crumbs">
+            <Link prefetch={false} href={backTo} className="hover:text-[color:var(--ds-primary)]">
+              {backLabel}
+            </Link>
+            <span aria-hidden> / </span>
+            <span>{fullName}</span>
+          </p>
+          <div className="mt-2 flex min-w-0 items-center gap-3.5">
+            <span className="ds-client-mono">
+              <Monogram name={fullName} size={46} />
+            </span>
+            <h1 className="ds-title flex min-w-0 items-center gap-2">
+              <span className="ds-wipe min-w-0">
+                <span className="ds-wipe-text truncate">{fullName}</span>
+                <span className="ds-wipe-bar" aria-hidden />
+              </span>
+            </h1>
+            <span className="flex flex-wrap items-center gap-1.5">{chips}</span>
+          </div>
+          <p className="cp-context">
+            {[
+              contact.companyName,
+              `${contact.status === "LEAD" ? "Lead" : contact.kind === "CONTACT" ? "Contact" : "Client"} since ${shortDate(contact.createdAt, tz)}`,
+              contact.assignedTo?.name ? `Assigned to ${contact.assignedTo.name}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2">{actions(true)}</div>
+      </div>
+
+      {/* ─── Phone (unchanged) ─── */}
+      <div className="flex flex-wrap items-center gap-3 mb-4 lg:hidden">
+        {/* A lead's list is the Leads board, not Clients (David 2026-10-06) */}
+        <BackLink href={backTo} />
+        {contact.status === "LEAD" && <BackParent to="/app/leads" />}
+        {chips}
       </div>
 
       {/* Heavy look (2026-11-21): who the client is and how to reach them,
           on the page; what they're worth / owe as two number cards. */}
-      <section className="ds-client-head ds-rise mb-5" style={{ "--ds-i": 1 } as React.CSSProperties}>
+      <section className="ds-client-head ds-rise mb-5 lg:hidden" style={{ "--ds-i": 1 } as React.CSSProperties}>
         <div className="flex min-w-0 items-start gap-4">
           <span className="ds-client-mono">
             <Monogram name={`${contact.firstName} ${contact.lastName}`.trim()} size={60} />
           </span>
           <div className="min-w-0">
-          <PageTitle heavy>{`${contact.firstName} ${contact.lastName}`.trim()}</PageTitle>
+          <PageTitle heavy>
+            <>{fullName}</>
+          </PageTitle>
           {contact.companyName && (
             <p className="mt-0.5 text-[15px] font-semibold opacity-85">{contact.companyName}</p>
           )}
@@ -373,64 +490,106 @@ export default async function ContactDetailPage({
         )}
       </section>
 
-      <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
-          {/* Phones get the 52px action circles below instead */}
-          {/* Message = the WorkBench conversation: texts from the business line
-              once texting is on (client portal + email otherwise), replies in
-              the inbox. The Text button beside it is the phone's own Messages
-              app from the tech's number. */}
-          <Link
-            prefetch={false}
-            href={`/app/messages/thread/${contact.id}`}
-            className="hidden lg:flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-[10px] transition-colors"
-            title={
-              textsReady && !contact.smsOptOut && !contact.smsDisabled
-                ? `Text ${contact.firstName} from ${fmtPhone(lineNumber!)} — replies land in Messages`
-                : `Message ${contact.firstName} — reaches their client portal and email; texts once texting is on`
-            }
-          >
-            <MessageCircle size={14} />
-            Message
-          </Link>
-          {contact.phone && (
-            <div className="hidden lg:flex items-center gap-2">
-              <CallTextButtons phone={contact.phone} contactId={contact.id} name={`${contact.firstName} ${contact.lastName}`.trim()} />
-            </div>
-          )}
-          {contact.email && (
-            <EmailClientButton
-              contactId={contact.id}
-              contactName={`${contact.firstName} ${contact.lastName}`.trim()}
-              contactEmail={contact.email}
-              signature={emailSignature}
-              hasLogo={!!contact.company.logoUrl}
-            />
-          )}
-          <Link
-            prefetch={false} href={`/app/contacts/${contact.id}/edit`}
-            className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-[10px] transition-colors"
-          >
-            <Pencil size={14} />
-            Edit
-          </Link>
-          <RunAutomationMenu entity="contact" entityId={contact.id} manager={isManager(actor.role)} />
-          <ContactActionsMenu
-            contactId={contact.id}
-            contactName={`${contact.firstName} ${contact.lastName}`.trim()}
-            status={contact.status}
-            canDelete={isManager(actor.role)}
-            counts={{
-              requests: contact.requests.length,
-              appointments: contact.appointments.length,
-              quotes: contact.quotes.length,
-              jobs: contact.jobs.length,
-              invoices: contact.invoices.length,
-              payments: contact.payments.length,
-            }}
-          />
-          <ContactCreateMenu contactId={contact.id} canSeeMoney={canSeeMoney(actor)} />
-      </div>
+      <div className="mb-6 flex flex-wrap items-center justify-end gap-2 lg:hidden">{actions(false)}</div>
+    </>
+  );
 
+  const workTable = (
+    <OpenSection
+      title="Work"
+      count={workRows.length > 0 ? workRows.length : undefined}
+      className="hidden lg:block"
+    >
+      {workRows.length === 0 ? (
+        <p className="ds-small py-6">No work yet — use Create to add a request, quote, or job.</p>
+      ) : (
+        <table className="bb-table">
+          <thead>
+            <tr>
+              <th style={{ width: 104 }}>Type</th>
+              <th>Item</th>
+              <th style={{ width: 118 }}>Date</th>
+              <th style={{ width: 150 }}>Status</th>
+              <th className="r" style={{ width: 110 }}>
+                Amount
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {workRows.map((row) => (
+              <tr key={row.key}>
+                <td className="text-[13px] font-medium text-[color:var(--ds-muted)]">{row.type}</td>
+                <td className="max-w-0">
+                  <Link prefetch={false} href={row.href} className="block truncate">
+                    <span className="bb-name bb-strong">{row.label}</span>
+                  </Link>
+                </td>
+                <td className="text-[color:var(--ds-ink-2)]">{shortDate(row.date, tz)}</td>
+                <td>
+                  <span className="inline-flex items-center gap-2">
+                    <StatusChip kind={row.kind} status={row.status} />
+                    {row.viewed && (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-[color:var(--ds-faint)]" title="Client opened this document">
+                        <Eye size={11} />
+                        {shortDate(row.viewed, tz)}
+                      </span>
+                    )}
+                  </span>
+                </td>
+                <td className="r ds-num bb-strong">{row.amount !== null ? money(row.amount) : <span className="text-[color:var(--ds-faint)]">—</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </OpenSection>
+  );
+
+  // Desk summary strip: what they owe, what they've paid, and the facts
+  const summary = (
+    <div className="cp-sum hidden lg:flex">
+      {seeMoney && (
+        <div className="cp-sum-lead">
+          <span className="bb-label">Balance owed</span>
+          <span className={`bb-big ${currentBalance > 0 ? "cp-owed" : ""}`}>{money(currentBalance)}</span>
+          <span className="ds-small">{currentBalance > 0 ? "Open invoices" : "All paid up"}</span>
+        </div>
+      )}
+      {seeMoney && (
+        <div className="cp-sum-kv">
+          <span className="bb-label">Lifetime value</span>
+          <span className="cp-sum-v">{money(lifetimeValue)}</span>
+        </div>
+      )}
+      {contact.phone && (
+        <div className="cp-sum-kv">
+          <span className="bb-label">Phone</span>
+          <CallLink phone={contact.phone} contactId={contact.id} name={fullName} className="cp-sum-v hover:text-[color:var(--ds-primary)]">
+            {fmtPhone(contact.phone)}
+          </CallLink>
+        </div>
+      )}
+      {contact.email && (
+        <div className="cp-sum-kv min-w-0">
+          <span className="bb-label">Email</span>
+          <a href={`mailto:${contact.email}`} className="cp-sum-v truncate hover:text-[color:var(--ds-primary)]">
+            {contact.email}
+          </a>
+        </div>
+      )}
+      {contact.address && (
+        <div className="cp-sum-kv min-w-0">
+          <span className="bb-label">Address</span>
+          <span className="cp-sum-v truncate">
+            {[contact.address, contact.city, contact.state, contact.zip].filter(Boolean).join(", ")}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <DsPage open header={header} className="cp-page">
       {/* Phone quick actions — the contact-card circle treatment (lg:hidden
           inside the component) */}
       <JobActionRow
@@ -445,10 +604,13 @@ export default async function ContactDetailPage({
         }
       />
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      {summary}
+
+      <div className="cp-body grid lg:grid-cols-3 gap-6">
         {/* Main: work overview */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="ds-card ds-card-raised overflow-hidden">
+          {workTable}
+          <div className="ds-card ds-card-raised overflow-hidden lg:hidden">
             <div className="flex items-baseline justify-between px-4 pt-4 pb-3 lg:px-5">
               <h2 className="ds-heavy-h2">Work</h2>
               {workRows.length > 0 && <span className="text-[13px] font-semibold text-[color:var(--ds-muted)]">{workRows.length} {workRows.length === 1 ? "item" : "items"}</span>}
@@ -721,6 +883,6 @@ export default async function ContactDetailPage({
           />
         </div>
       </div>
-    </div>
+    </DsPage>
   );
 }
