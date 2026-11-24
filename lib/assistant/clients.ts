@@ -325,7 +325,7 @@ export const clientTools: Tool[] = [
     decl: {
       name: "update_client",
       description:
-        "Stage updating a client's details (name, company, email, phone, address, notes) and/or their CUSTOM CLIENT FIELDS (the company's own fields — gate code, pet name, route, tier, anything added in Settings or with manage_client_fields). fields = { \"<field label>\": \"<value>\" }, label as shown by manage_client_fields 'list' (case-insensitive); an empty string clears a value. Only include what should change. Bulk-friendly: to fill a field for many clients, call this once per client in the same round (the cards combine into one Confirm). Confirmation card required.",
+        "Stage updating a client's details (name, company, email, phone, address, notes, the built-in LEAD SOURCE, visit reminders on/off) and/or their CUSTOM CLIENT FIELDS (the company's own fields — gate code, pet name, route, tier, anything added in Settings or with manage_client_fields). fields = { \"<field label>\": \"<value>\" }, label as shown by manage_client_fields 'list' (case-insensitive); an empty string clears a value. Only include what should change. Bulk-friendly: to fill a field for many clients, call this once per client in the same round (the cards combine into one Confirm). Confirmation card required.",
       parameters: {
         type: "object",
         properties: {
@@ -334,6 +334,8 @@ export const clientTools: Tool[] = [
           companyName: { type: "string" },
           email: { type: "string" }, phone: { type: "string" },
           address: { type: "string" }, notes: { type: "string" },
+          leadSource: { type: "string", description: "the client's own Lead source (the built-in one the Lead sources report counts, not a custom field), e.g. \"Google search\", \"Referral\"; matched to the account's existing source names" },
+          remindersOff: { type: "boolean", description: "true = no automatic day-before / hour-before visit and appointment reminders for this client (text and email); false = turn them back on" },
           fields: {
             type: "object",
             description: "Custom client field values keyed by field LABEL, e.g. { \"Gate code\": \"4471\", \"Tier\": \"Gold\" }. SELECT fields must use one of their options.",
@@ -359,6 +361,15 @@ export const clientTools: Tool[] = [
           payload[key] = v;
           lines.push(`${label}: ${v}`);
         }
+      }
+      const leadSource = str(args.leadSource, 60);
+      if (leadSource) {
+        payload.leadSource = leadSource;
+        lines.push(`Lead source: ${leadSource}`);
+      }
+      if (typeof args.remindersOff === "boolean") {
+        payload.remindersOff = args.remindersOff;
+        lines.push(args.remindersOff ? "Visit reminders: off" : "Visit reminders: on");
       }
       // Custom fields: labels → def ids; the PATCH route merges the values
       // over what's stored and validates SELECT/NUMBER again server-side.

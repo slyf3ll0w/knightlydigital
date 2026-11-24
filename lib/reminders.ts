@@ -508,8 +508,8 @@ export async function runAppointmentReminders(
       scheduledAnytime: false,
       remindClient: true,
       scheduledAt: { gt: now, lte: new Date(now.getTime() + 26 * HOUR) },
-      contact: { is: { OR: [{ email: { not: null } }, { phone: { not: null } }] } },
-      company: { is: { suspendedAt: null } },
+      contact: { is: { remindersOff: false, OR: [{ email: { not: null } }, { phone: { not: null } }] } },
+      company: { is: { suspendedAt: null, clientRemindersOff: false } },
       OR: [{ reminderDaySentAt: null }, { reminderHourSentAt: null }],
     },
     include: {
@@ -621,8 +621,8 @@ export async function runVisitReminders(
       scheduledAnytime: false,
       remindClient: true,
       scheduledAt: { gt: now, lte: new Date(now.getTime() + 26 * HOUR) },
-      contact: { is: { OR: [{ email: { not: null } }, { phone: { not: null } }] } },
-      company: { is: { suspendedAt: null } },
+      contact: { is: { remindersOff: false, OR: [{ email: { not: null } }, { phone: { not: null } }] } },
+      company: { is: { suspendedAt: null, clientRemindersOff: false } },
       OR: [{ reminderDaySentAt: null }, { reminderHourSentAt: null }],
     },
     include: {

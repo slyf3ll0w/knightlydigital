@@ -164,6 +164,9 @@ model Company {
   businessHours             Json?
   serviceZips               String[]          @default([])
   arrivalWindowMinutes      Int               @default(120)
+  // Off = no automatic day-before / hour-before reminders to clients for
+  // visits or appointments (Settings → Booking & forms → Scheduling rules).
+  clientRemindersOff        Boolean           @default(false)
   // Drive-time limit for self-scheduling (minutes; null/0 = off). When on,
   // online booking only offers days where the visit clusters with the tech's
   // existing route — an anchor visit (or the shop) within this many estimated
@@ -1282,6 +1285,9 @@ model Contact {
   // for this client, or the client left the SMS box unchecked when a booking
   // form created them. lib/sms-consent.ts canText() is the one gate.
   smsDisabled          Boolean        @default(false)
+  // Staff switched automatic visit/appointment reminders off for this client
+  // (texts and emails both; lib/reminders.ts sweeps skip them). Ticket #i28p6e.
+  remindersOff         Boolean        @default(false)
   // Audit trail of an explicit opt-in, when there was one: the client ticked
   // the SMS box on a booking form, or staff switched texts back on. Not
   // required to text — see smsDisabled.
