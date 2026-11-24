@@ -1,1 +1,112 @@
-/* Open-page rollout (2026-11-24): requests. Shared pieces live in app/ds-brand.css. */
+/* Open-page rollout (2026-11-24): requests. Shared pieces live in app/ds-brand.css.
+
+   Requests as an inbox (desktop, David: "Requests can go with your inbox
+   idea"): the filter row from Clients (.clx-*), then two panes — the list on
+   the left (a secondary dot for new, the picked one washed in the primary,
+   the row's status color drawing under it on hover), the picked request open
+   on the right: what was asked, who, the message as a quote, the facts and
+   its real actions. Phones keep the old list (lg:hidden). */
+
+.rqx-split {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  min-height: 520px;
+}
+.rqx-list { display: flex; flex-direction: column; border-right: 1px solid var(--ds-line); min-width: 0; }
+.rqx-row {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 18px 14px 28px;
+  border-bottom: 1px solid var(--ds-line);
+  color: var(--ds-ink-2);
+  transition: background-color 120ms;
+  --row-tone: var(--ds-primary);
+}
+.rqx-row:has(.ds-chip-good) { --row-tone: var(--ds-good); }
+.rqx-row:has(.ds-chip-warn) { --row-tone: var(--ds-warn); }
+.rqx-row:has(.ds-chip-bad) { --row-tone: var(--ds-bad); }
+.rqx-row:has(.ds-chip-neutral) { --row-tone: var(--ds-muted); }
+.rqx-row:hover { background: var(--ds-surface-2); }
+.rqx-row.is-on { background: var(--ds-primary-soft); }
+/* the pilot's underline: the row's status color draws across on hover */
+.rqx-row::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--row-tone);
+  transform: scaleX(0);
+  transform-origin: left;
+  pointer-events: none;
+  transition: transform 340ms var(--ds-ease, ease);
+}
+.rqx-row:hover::after, .rqx-row:focus-visible::after { transform: scaleX(1); }
+.rqx-row:focus-visible { outline: 2px solid var(--ds-primary); outline-offset: -2px; }
+.rqx-dot {
+  position: absolute;
+  left: 12px;
+  top: 21px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ds-secondary);
+}
+.rqx-row-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; min-width: 0; }
+.rqx-name {
+  font-size: 14.5px; font-weight: 600; color: var(--ds-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: transform 260ms var(--ds-ease, ease);
+}
+.rqx-row:hover .rqx-name { transform: translateX(4px); }
+.rqx-row.is-on .rqx-name { color: var(--ds-primary); }
+.rqx-when { flex: none; font-size: 12.5px; color: var(--ds-muted); }
+.rqx-title { font-size: 13.5px; color: var(--ds-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rqx-sub { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--ds-muted); min-width: 0; }
+
+.rqx-detail { min-width: 0; padding: 24px 0 24px 32px; display: flex; flex-direction: column; gap: 20px; }
+.rqx-detail.rqx-none { align-items: center; justify-content: center; color: var(--ds-muted); font-size: 14px; }
+.rqx-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.rqx-kicker { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0; font-size: 12.5px; color: var(--ds-muted); }
+.rqx-full { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: var(--ds-primary); }
+.rqx-full:hover { text-decoration: underline; text-underline-offset: 3px; }
+.rqx-h { margin: 6px 0 0; font-size: 22px; line-height: 1.2; font-weight: 700; letter-spacing: -0.025em; color: var(--ds-ink); }
+.rqx-client { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 0; font-size: 13.5px; color: var(--ds-muted); }
+.rqx-client-name { font-weight: 600; color: var(--ds-ink); }
+.rqx-client-name:hover { color: var(--ds-primary); }
+.rqx-link { display: inline-flex; align-items: center; gap: 5px; color: var(--ds-ink-2); }
+.rqx-link:hover { color: var(--ds-primary); }
+.rqx-addr { display: flex; align-items: center; gap: 6px; margin: 4px 0 0; font-size: 13px; color: var(--ds-muted); }
+
+.rqx-msg {
+  margin: 0;
+  padding: 14px 18px;
+  border-radius: 10px;
+  background: var(--ds-surface-2);
+  box-shadow: inset 0 0 0 1px var(--ds-line);
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ds-ink);
+  white-space: pre-wrap;
+}
+.rqx-none { color: var(--ds-muted); }
+
+.rqx-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.rqx-facts > div { padding-left: 14px; border-left: 1px solid var(--ds-line); }
+.rqx-facts > div:first-child { padding-left: 0; border-left: 0; }
+.rqx-facts dt { font-size: 12.5px; color: var(--ds-muted); }
+.rqx-facts dd { margin: 2px 0 0; font-size: 14px; font-weight: 500; color: var(--ds-ink); }
+.rqx-facts dd.rqx-prefer { color: var(--ds-secondary-strong); }
+html[data-mode="dark"] .rqx-facts dd.rqx-prefer { color: var(--ds-secondary); }
+.rqx-facts dd.rqx-none { color: var(--ds-faint); font-weight: 400; }
+
+.rqx-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 4px; }
+.rqx-linked { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--ds-line); padding-top: 16px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rqx-row, .rqx-row::after, .rqx-name { transition: none; }
+}
