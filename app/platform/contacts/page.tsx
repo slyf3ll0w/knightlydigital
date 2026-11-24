@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { Plus, ChevronRight, UserCheck, Upload, ListPlus, Users, Download, Phone } from "lucide-react";
+import { Plus, ChevronRight, UserCheck, Upload, ListPlus, Users, Download, Phone, Search } from "lucide-react";
+import { BandBody, Button, Chip, DsPage, PageHeader } from "@/components/ds";
+import FilterSelect from "@/components/FilterSelect";
 import PageTitle from "@/components/PageTitle";
 import { FilterChip } from "@/components/FilterChips";
 import FilterBar, { listHref } from "@/components/FilterBar";
@@ -110,7 +112,14 @@ export default async function ContactsPage({
     status: "ACTIVE" as const,
     kind: "CLIENT" as const,
   };
-  const [lastJobs, openInvoices, newClients, owedAll] = await Promise.all([
+  // Tab counts for the desktop filter row (same scope, no search)
+  const tabBase = {
+    companyId,
+    ...contactScope(actor),
+    ...(mineOnly ? { assignedToId: actor.id } : {}),
+    placeholder: false,
+  };
+  const [lastJobs, openInvoices, newClients, owedAll, nextJobs, tabCounts] = await Promise.all([
     ids.length
       ? prisma.job.groupBy({
           by: ["contactId"],
@@ -132,13 +141,29 @@ export default async function ContactsPage({
           take: 2000,
         })
       : Promise.resolve([]),
-    showBook && seeMoney
+    seeMoney
       ? prisma.invoice.findMany({
           where: { companyId, ...viaContactScope(actor), status: { in: ["PAST_DUE", "AWAITING_PAYMENT"] } },
           select: { contactId: true, total: true, payments: { select: { amount: true, surchargeAmount: true } } },
         })
       : Promise.resolve([]),
+    // Next visit on the books per client (desktop column)
+    ids.length
+      ? prisma.job.groupBy({
+          by: ["contactId"],
+          where: { companyId, contactId: { in: ids }, status: "ACTIVE", scheduledAt: { gte: new Date() } },
+          _min: { scheduledAt: true },
+        })
+      : Promise.resolve([] as { contactId: string; _min: { scheduledAt: Date | null } }[]),
+    Promise.all([
+      prisma.contact.count({ where: { ...tabBase, status: "ACTIVE", kind: "CLIENT" } }),
+      prisma.contact.count({ where: { ...tabBase, kind: "CONTACT", status: { not: "ARCHIVED" } } }),
+      prisma.contact.count({ where: { ...tabBase, status: "ARCHIVED" } }),
+      prisma.contact.count({ where: { ...tabBase, lostAt: { not: null }, pipelineStageId: null } }),
+    ]),
   ]);
+  const nextJobBy = new Map(nextJobs.map((j) => [j.contactId, j._min.scheduledAt]));
+  const tabCount: Record<string, number> = { "": tabCounts[0], CONTACTS: tabCounts[1], ARCHIVED: tabCounts[2], LOST: tabCounts[3] };
   const lastJobBy = new Map(lastJobs.map((j) => [j.contactId, j._max.scheduledAt]));
   const owesBy = new Map<string, { amount: number; late: boolean }>();
   for (const i of openInvoices) {
@@ -180,8 +205,224 @@ export default async function ContactsPage({
 
   const cur = { q, status: validStatus, assignee: mineOnly ? "me" : undefined, sort: sortRaw };
 
+  // ── Desktop: the branded header + an open list (app/ds-brand.css, app/ds-clients.css) ──
+  const desktopCols = [
+    "minmax(0,1.6fr)",
+    "136px",
+    "104px",
+    "112px",
+    ...(showAll ? ["118px"] : []),
+    ...(q || validStatus ? ["104px"] : []),
+    ...(seeMoney ? ["170px"] : []),
+    "40px",
+  ].join(" ");
+  const initials = (f: string, l: string) => `${(f || "").charAt(0)}${(l || "").charAt(0)}`.toUpperCase() || "?";
+  const noun = contactsTab ? (tabCount.CONTACTS === 1 ? "contact" : "contacts") : tabCount[""] === 1 ? "client" : "clients";
+  const eyebrow = [
+    `${(contactsTab ? tabCount.CONTACTS : tabCount[""]).toLocaleString("en-US")} ${noun}`,
+    owed && owed.clients > 0 ? `${owed.clients} owe you ${money(owed.amount)}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const desktop = (
+    <DsPage band>
+      <PageHeader
+        eyebrow={eyebrow}
+        title={contactsTab ? "Contacts" : "Clients"}
+        actions={
+          <>
+            {isManager(actor.role) && (
+              <>
+                <Button href="/app/settings/client-fields" variant="outline" icon={ListPlus}>
+                  Custom fields
+                </Button>
+                <Button href="/app/settings/import" variant="outline" icon={Upload}>
+                  Import
+                </Button>
+                <PdfLink
+                  href="/api/app/export/clients"
+                  ariaLabel="Export CSV"
+                  title="Download all clients as CSV"
+                  className="ds-btn ds-btn-outline"
+                  mime="text/csv"
+                  newTab={false}
+                  fallbackName="export.csv"
+                >
+                  <Download size={17} />
+                  Export
+                </PdfLink>
+              </>
+            )}
+            <Button href={contactsTab ? "/app/contacts/new?type=contact" : "/app/contacts/new"} icon={Plus}>
+              {contactsTab ? "New contact" : "New client"}
+            </Button>
+          </>
+        }
+      />
+      <BandBody>
+        <section className="clx">
+          <div className="clx-filters">
+            <form action="/app/contacts" className="clx-search" role="search">
+              <Search size={15} aria-hidden />
+              <input
+                type="search"
+                name="q"
+                defaultValue={q}
+                placeholder="Search name, company, address, custom fields"
+                aria-label="Search clients"
+              />
+              {validStatus && <input type="hidden" name="status" value={validStatus} />}
+              {mineOnly && <input type="hidden" name="assignee" value="me" />}
+              {sortRaw && <input type="hidden" name="sort" value={sortRaw} />}
+            </form>
+            <nav className="clx-tabs" aria-label="Show">
+              {statusFilters.map((o) => {
+                const on = (validStatus ?? "") === o.value;
+                return (
+                  <Link
+                    key={o.value}
+                    prefetch={false}
+                    href={listHref("/app/contacts", cur, { status: o.value || undefined })}
+                    aria-current={on ? "page" : undefined}
+                    className={`clx-tab ${on ? "is-on" : ""}`}
+                  >
+                    {o.label}
+                    <span className="clx-tab-n">{(tabCount[o.value] ?? 0).toLocaleString("en-US")}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+            <span className="clx-filters-end">
+              {showAll && (
+                <Link
+                  prefetch={false}
+                  href={listHref("/app/contacts", cur, { assignee: mineOnly ? undefined : "me" })}
+                  aria-pressed={mineOnly}
+                  className={`clx-mine ${mineOnly ? "is-on" : ""}`}
+                >
+                  <UserCheck size={14} />
+                  Mine
+                </Link>
+              )}
+              <FilterSelect
+                icon="sort"
+                value={sort}
+                options={CLIENT_SORTS.map((o) => ({ value: o.value, label: o.label, href: listHref("/app/contacts", cur, { sort: o.value }) }))}
+                align="right"
+              />
+            </span>
+          </div>
+
+          {contacts.length === 0 ? (
+            <div className="clx-empty">
+              <EmptyState
+                art="contacts"
+                title={contactsTab && !q ? "No contacts yet" : q || validStatus ? "No clients match this filter" : "No clients yet"}
+                body={
+                  contactsTab && !q
+                    ? "Business connections — subs, suppliers, referral partners — live here, apart from your clients. Schedule one a job and they move to Clients."
+                    : q || validStatus
+                      ? "Try a different search or status filter."
+                      : "Your client list powers everything — quotes, jobs, and invoices all start here."
+                }
+                actionHref={contactsTab ? "/app/contacts/new?type=contact" : "/app/contacts/new"}
+                actionLabel={contactsTab ? "Add a contact" : "Add your first client"}
+              />
+            </div>
+          ) : (
+            <div className="clx-table" style={{ "--clx-cols": desktopCols } as React.CSSProperties}>
+              <div className="clx-head" role="presentation">
+                <span>Name</span>
+                <span>Phone</span>
+                <span>Last job</span>
+                <span>Next visit</span>
+                {showAll && <span>Assigned to</span>}
+                {(q || validStatus) && <span>Status</span>}
+                {seeMoney && <span className="r">Balance</span>}
+                <span />
+              </div>
+              {contacts.map((c, i) => {
+                const owes = owesBy.get(c.id);
+                const lastJob = lastJobBy.get(c.id) ?? null;
+                const nextJob = nextJobBy.get(c.id) ?? null;
+                const name = `${c.firstName} ${c.lastName}`.trim();
+                return (
+                  <EntityRowActions
+                    key={c.id}
+                    meta={{ kind: "client", id: c.id, name, phone: c.phone, status: c.status, canDelete: isManager(actor.role) }}
+                  >
+                    <Link
+                      prefetch={false}
+                      href={`/app/contacts/${c.id}`}
+                      className="clx-row"
+                      style={{ "--ds-i": Math.min(i, 12) } as React.CSSProperties}
+                    >
+                      <span className="clx-name">
+                        <span className="clx-mono" aria-hidden>{initials(c.firstName, c.lastName)}</span>
+                        <span className="min-w-0">
+                          <span className="clx-name-t">{name || "Client"}</span>
+                          <span className="clx-name-s">
+                            {[c.companyName, c.email, [c.address, c.city].filter(Boolean).join(", ")].filter(Boolean)[0] ?? ""}
+                          </span>
+                        </span>
+                      </span>
+                      <span className="clx-dim">{c.phone || "—"}</span>
+                      <span className={lastJob ? "" : "clx-faint"} title={`Last updated ${shortDate(c.updatedAt, tz)}`}>
+                        {lastJob ? shortDate(lastJob, tz) : "None yet"}
+                      </span>
+                      <span className={nextJob ? "" : "clx-faint"}>{nextJob ? shortDate(nextJob, tz) : "None"}</span>
+                      {showAll && <span className="clx-dim clx-trunc">{c.assignedTo?.name ?? "—"}</span>}
+                      {(q || validStatus) && <ContactStatus status={c.status} kind={c.kind} />}
+                      {seeMoney && (
+                        <span className="clx-bal">
+                          {owes ? (
+                            <>
+                              {owes.late && <Chip tone="bad">Past due</Chip>}
+                              <span className={owes.late ? "clx-bal-late" : "clx-bal-open"}>{money(owes.amount)}</span>
+                            </>
+                          ) : (
+                            <span className="clx-faint">$0.00</span>
+                          )}
+                        </span>
+                      )}
+                      <span aria-hidden>{!c.phone && <ChevronRight size={15} className="clx-chev" />}</span>
+                    </Link>
+                    {c.phone && (
+                      <CallLink
+                        phone={c.phone}
+                        contactId={c.id}
+                        name={name}
+                        aria-label={`Call ${name}`}
+                        title="Call"
+                        className="clx-call"
+                      >
+                        <Phone size={15} />
+                      </CallLink>
+                    )}
+                  </EntityRowActions>
+                );
+              })}
+              <div className="clx-foot">
+                Showing {contacts.length.toLocaleString("en-US")} of {listCount.toLocaleString("en-US")}
+              </div>
+            </div>
+          )}
+          <Pager
+            basePath="/app/contacts"
+            params={{ q: q?.trim() || undefined, status: validStatus, assignee: mineOnly ? "me" : undefined, sort: sortRaw }}
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={listCount}
+          />
+        </section>
+      </BandBody>
+    </DsPage>
+  );
+
   return (
-    <div className="p-4 lg:p-8 max-w-6xl mx-auto">
+    <>
+    <div className="hidden lg:block">{desktop}</div>
+    <div className="p-4 lg:p-8 max-w-6xl mx-auto lg:hidden">
       {/* Header — secondary actions collapse to icon circles on phones so the
           row never crams; labels return at sm. */}
       <div className="flex items-center justify-between gap-2 mb-6">
@@ -392,5 +633,6 @@ export default async function ContactsPage({
         total={listCount}
       />
     </div>
+    </>
   );
 }

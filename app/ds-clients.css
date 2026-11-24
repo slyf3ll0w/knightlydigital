@@ -169,3 +169,74 @@
   .ds-tboard .ds-tcard-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.7em; flex: none; }
   .ds-tboard .ds-tcard-due, .ds-tboard .ds-tcard-links { min-height: 16px; }
 }
+
+/* ── Clients on the branded header (desktop, 2026-11-24) ─────────────────
+   An open list under the band: a filter row on a hairline (search, the
+   tabs as underlines with counts, Mine, sort), then hairline rows. No card,
+   no fills; red only for a past-due balance. See app/ds-brand.css. */
+.clx-filters { display: flex; align-items: center; gap: 18px; border-bottom: 1px solid var(--ds-line-strong); min-height: 52px; }
+.clx-search {
+  display: flex; align-items: center; gap: 8px; width: 290px; flex: none; height: 36px; padding: 0 12px;
+  border-radius: 9px; color: var(--ds-muted); background: var(--ds-surface);
+  box-shadow: inset 0 0 0 1px var(--ds-line-strong); transition: box-shadow 150ms;
+}
+.clx-search:focus-within { box-shadow: inset 0 0 0 1.5px var(--ds-primary); }
+.clx-search input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: inherit; font-size: 13.5px; color: var(--ds-ink); }
+.clx-search input::placeholder { color: var(--ds-faint); }
+.clx-tabs { display: flex; align-items: stretch; align-self: stretch; gap: 2px; }
+.clx-tab {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 0 11px;
+  font-size: 14px; font-weight: 500; color: var(--ds-muted); transition: color 120ms;
+}
+.clx-tab:hover { color: var(--ds-ink); }
+.clx-tab.is-on { color: var(--ds-ink); font-weight: 600; }
+.clx-tab.is-on::after {
+  content: ""; position: absolute; left: 9px; right: 9px; bottom: -1px; height: 2px; border-radius: 2px;
+  background: var(--ds-primary);
+}
+.clx-tab-n { font-size: 12.5px; font-weight: 500; color: var(--ds-faint); }
+.clx-filters-end { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.clx-mine {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 11px; border-radius: 8px;
+  font-size: 13.5px; font-weight: 500; color: var(--ds-ink-2); box-shadow: inset 0 0 0 1px var(--ds-line-strong);
+  transition: background-color 120ms, color 120ms;
+}
+.clx-mine:hover { background: var(--ds-surface-2); }
+.clx-mine.is-on { background: var(--ds-primary-soft); color: var(--ds-primary); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ds-primary) 35%, transparent); font-weight: 600; }
+
+.clx-table > div { position: relative; }
+.clx-head, .clx-row { display: grid; grid-template-columns: var(--clx-cols); gap: 16px; align-items: center; }
+.clx-head { padding: 10px 0; border-bottom: 1px solid var(--ds-line); font-size: 12.5px; font-weight: 500; color: var(--ds-muted); }
+.clx-head .r { text-align: right; }
+.clx-row {
+  position: relative; min-height: 58px; padding: 6px 10px; margin: 0 -10px; border-bottom: 1px solid var(--ds-line);
+  font-size: 13.5px; color: var(--ds-ink-2); transition: background-color 120ms;
+  animation: ds-rise 420ms var(--ds-ease) both; animation-delay: calc(var(--ds-i, 0) * 18ms);
+}
+.clx-row:hover { background: var(--ds-surface-2); }
+.clx-name { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.clx-mono {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 30px; height: 30px; border-radius: 999px;
+  background: var(--ds-surface-2); box-shadow: inset 0 0 0 1px var(--ds-line-strong);
+  font-size: 11px; font-weight: 600; color: var(--ds-ink-2); letter-spacing: 0.02em;
+}
+.clx-row:hover .clx-mono { background: var(--ds-primary-soft); color: var(--ds-primary); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ds-primary) 30%, transparent); }
+.clx-name-t { display: block; font-size: 14.5px; font-weight: 500; color: var(--ds-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clx-name-s { display: block; font-size: 12.5px; color: var(--ds-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clx-name-s:empty { display: none; }
+.clx-dim { color: var(--ds-muted); font-variant-numeric: tabular-nums; }
+.clx-trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clx-faint { color: var(--ds-faint); }
+.clx-bal { display: flex; align-items: center; justify-content: flex-end; gap: 8px; font-family: var(--ds-num-font); font-variant-numeric: tabular-nums; }
+.clx-bal-open { font-weight: 600; color: var(--ds-ink); }
+.clx-bal-late { font-weight: 600; color: var(--ds-bad); }
+.clx-chev { color: var(--ds-faint); margin-left: auto; }
+.clx-call {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px;
+  color: var(--ds-muted); transition: background-color 120ms, color 120ms;
+}
+.clx-call:hover { background: var(--ds-primary-soft); color: var(--ds-primary); }
+.clx-foot { padding: 14px 0 4px; font-size: 12.5px; color: var(--ds-muted); }
+.clx-empty { padding: 24px 0; }
+@media (prefers-reduced-motion: reduce) { .clx-row { animation: none; } }
