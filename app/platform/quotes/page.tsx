@@ -2,7 +2,9 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, viaContactScope, isManager } from "@/lib/permissions";
 import EntityRowActions from "@/components/EntityRowActions";
 import Link from "next/link";
-import { Plus, ChevronRight, FileText, Download } from "lucide-react";
+import { Plus, ChevronRight, FileText, Download, Search } from "lucide-react";
+import { BandBody, Button, DsPage, PageHeader } from "@/components/ds";
+import FilterSelect from "@/components/FilterSelect";
 import PageTitle from "@/components/PageTitle";
 import FilterBar, { listHref } from "@/components/FilterBar";
 import { pickSort, QUOTE_SORTS, quoteOrderBy } from "@/lib/list-sort";
@@ -87,7 +89,7 @@ export default async function QuotesPage({
   const sixtyDaysAgo = new Date(Date.now() - 60 * 86400000);
   const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000);
 
-  const [quotes, listCount, byStatus, approved60, made90, madeSent90, sent90, sentWon90, waitingRows] = await Promise.all([
+  const [quotes, listCount, byStatus, approved60, made90, madeSent90, sent90, sentWon90, waitingRows, tabStatus, scheduledCount] = await Promise.all([
     prisma.quote.findMany({
       where: listWhere,
       include: { contact: true },
@@ -119,6 +121,9 @@ export default async function QuotesPage({
       take: 300,
       select: { id: true, title: true, total: true, sentAt: true, contact: { select: { firstName: true, lastName: true } } },
     }),
+    // Desktop tab counts: every status in scope (search left out, like Clients)
+    prisma.quote.groupBy({ by: ["status"], where: { companyId, ...scope }, _count: true }),
+    prisma.quote.count({ where: { companyId, ...scope, status: "DRAFT", scheduledSendAt: { not: null } } }),
   ]);
   const nowMs = Date.now();
   const DAYMS = 86400000;
@@ -172,8 +177,183 @@ export default async function QuotesPage({
 
   const pageTotal = quotes.reduce((s, q) => s + Number(q.total), 0);
 
+  // ── Desktop: the open page (2026-11-24) ─────────────────────────────────
+  // Its own header with a context line, the pipeline picture kept from the
+  // heavy pilot, then underline tabs with counts and a hairline list.
+  const statusN = (st: string) => tabStatus.find((t) => t.status === st)?._count ?? 0;
+  const tabCount = (v: string) =>
+    v === ""
+      ? tabStatus.filter((t) => t.status !== "ARCHIVED").reduce((n, t) => n + t._count, 0)
+      : v === "SCHEDULED"
+        ? scheduledCount
+        : statusN(v);
+  const awaiting = pipeline.find((p) => p.key === "AWAITING_RESPONSE");
+  const approvedStage = pipeline.find((p) => p.key === "APPROVED");
+  const eyebrow = [
+    `${tabCount("").toLocaleString("en-US")} ${tabCount("") === 1 ? "quote" : "quotes"} in play`,
+    awaiting && awaiting.count > 0 ? `${awaiting.count} waiting on a reply · ${money(awaiting.amount)}` : null,
+    approvedStage && approvedStage.count > 0 ? `${approvedStage.count} approved` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const curParams = { status: scheduledOnly ? "SCHEDULED" : validStatus, q: query, sort: sortRaw };
+  const tabValue = scheduledOnly ? "SCHEDULED" : (validStatus ?? "");
+
+  const desktop = (
+    <DsPage
+      open
+      header={
+        <PageHeader
+          eyebrow={eyebrow}
+          title="Quotes"
+          actions={
+            <>
+              <PdfLink
+                href="/api/app/export/quotes"
+                title="Download all quotes as CSV"
+                className="ds-btn ds-btn-outline"
+                mime="text/csv"
+                newTab={false}
+                fallbackName="export.csv"
+              >
+                <Download size={17} />
+                Export
+              </PdfLink>
+              <Button href="/app/quotes/new" icon={Plus}>
+                New quote
+              </Button>
+            </>
+          }
+        />
+      }
+    >
+      <BandBody>
+        <PipelineBand
+          stages={pipeline}
+          showMoney
+          rates={{ sent: pct(madeSent90, made90), approved: pct(sentWon90, sent90) }}
+          waiting={{ avgDays: avgWait, count: waitingRows.length, stalest, href: "/app/quotes?status=AWAITING_RESPONSE" }}
+          won={{ total: wonTotal, prevTotal: wonPrevTotal, points: wonPoints, href: "/app/quotes?status=APPROVED" }}
+        />
+
+        <section className="qx">
+          <div className="qx-filters">
+            <nav className="qx-tabs" aria-label="Show">
+              {statusFilters.map((o) => {
+                const on = tabValue === o.value;
+                const n = tabCount(o.value);
+                if (!on && o.value !== "" && n === 0 && (o.value === "SCHEDULED" || o.value === "ARCHIVED")) return null;
+                return (
+                  <Link
+                    key={o.value}
+                    prefetch={false}
+                    href={listHref("/app/quotes", { q: query, sort: sortRaw }, { status: o.value || undefined })}
+                    aria-current={on ? "page" : undefined}
+                    className={`qx-tab ${on ? "is-on" : ""}`}
+                  >
+                    {o.mobile === "All quotes" ? "All" : o.mobile}
+                    <span className="qx-tab-n">{n.toLocaleString("en-US")}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+            <span className="qx-filters-end">
+              <form action="/app/quotes" className="qx-search" role="search">
+                <Search size={15} aria-hidden />
+                <input type="search" name="q" defaultValue={query} placeholder="Search quotes, clients, #" aria-label="Search quotes" />
+                {curParams.status && <input type="hidden" name="status" value={curParams.status} />}
+                {sortRaw && <input type="hidden" name="sort" value={sortRaw} />}
+              </form>
+              <FilterSelect
+                icon="sort"
+                value={sort}
+                options={QUOTE_SORTS.map((o) => ({ value: o.value, label: o.label, href: listHref("/app/quotes", { status: curParams.status, q: query }, { sort: o.value }) }))}
+                align="right"
+              />
+            </span>
+          </div>
+
+          {quotes.length === 0 ? (
+            <div className="qx-empty">
+              <EmptyState
+                art="quotes"
+                hue="var(--ds-primary)"
+                title={validStatus || scheduledOnly || query ? "No quotes match this filter" : "No quotes yet"}
+                body={
+                  validStatus || scheduledOnly || query
+                    ? "Try a different status or search, or create a new quote."
+                    : "Win the work before it starts — send your first quote and clients can approve it online."
+                }
+                actionHref="/app/quotes/new"
+                actionLabel="Create a quote"
+              />
+            </div>
+          ) : (
+            <div className="qx-table">
+              <div className="qx-head" role="presentation">
+                <span>Client</span>
+                <span>Quote</span>
+                <span>Created</span>
+                <span>Sent</span>
+                <span>Status</span>
+                <span className="r">Total</span>
+                <span />
+              </div>
+              <div className="bb-rows">
+                {quotes.map((q) => {
+                  const name = `${q.contact.firstName} ${q.contact.lastName}`.trim() || "No name";
+                  return (
+                    <EntityRowActions
+                      key={q.id}
+                      meta={{ kind: "quote", id: q.id, number: q.quoteNumber, status: q.status, hasEmail: Boolean(q.contact.email), canDelete: isManager(actor.role) }}
+                    >
+                      <Link prefetch={false} href={`/app/quotes/${q.id}`} className="bb-row qx-row">
+                        <span className="min-w-0">
+                          <span className="bb-row-title">{name}</span>
+                          {q.title && <span className="bb-row-sub">{q.title}</span>}
+                        </span>
+                        <span className="qx-dim">#{q.quoteNumber}</span>
+                        <span className="qx-dim">{shortDate(q.createdAt, tz)}</span>
+                        <span className={q.sentAt ? "qx-dim" : "qx-faint"}>
+                          {q.sentAt ? shortDate(q.sentAt, tz) : q.scheduledSendAt ? "Scheduled" : "Not sent"}
+                        </span>
+                        <span>
+                          <StatusChip kind="quote" status={q.status === "DRAFT" && q.scheduledSendAt ? "SCHEDULED" : q.status} />
+                        </span>
+                        <span className="qx-amt">{money(q.total)}</span>
+                        <ChevronRight size={15} className="qx-chev" aria-hidden />
+                      </Link>
+                    </EntityRowActions>
+                  );
+                })}
+              </div>
+              <div className="qx-foot">
+                <span>
+                  Showing {quotes.length.toLocaleString("en-US")} of {listCount.toLocaleString("en-US")}
+                </span>
+                <span className="qx-foot-total">
+                  <span className="bb-label">Quoted on this page</span>
+                  <span className="ds-ledger-total">{money(pageTotal)}</span>
+                </span>
+              </div>
+            </div>
+          )}
+          <Pager
+            basePath="/app/quotes"
+            params={{ status: curParams.status, q: query, sort: sortRaw }}
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={listCount}
+          />
+        </section>
+      </BandBody>
+    </DsPage>
+  );
+
   return (
-    <div className="p-4 lg:p-8 max-w-6xl mx-auto">
+    <>
+    <div className="hidden lg:block">{desktop}</div>
+    <div className="p-4 lg:p-8 max-w-6xl mx-auto lg:hidden">
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
         <PageTitle heavy section="quotes" icon={FileText}>
           Quotes
@@ -325,5 +505,6 @@ export default async function QuotesPage({
         total={listCount}
       />
     </div>
+    </>
   );
 }

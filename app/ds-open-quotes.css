@@ -1,1 +1,71 @@
-/* Open-page rollout (2026-11-24): quotes. Shared pieces live in app/ds-brand.css. */
+/* Open-page rollout (2026-11-24): quotes. Shared pieces live in app/ds-brand.css;
+   the single quote reuses the invoice page's summary / track / ledger pieces
+   (.inv-* in app/ds-invoice.css) so the two documents read the same. */
+
+@media (min-width: 1024px) {
+  /* ── the list: underline tabs with counts, search + sort at the end ── */
+  .qx-filters { display: flex; align-items: center; gap: 18px; min-height: 52px; border-bottom: 1px solid var(--ds-line-strong); }
+  .qx-tabs { display: flex; align-items: stretch; align-self: stretch; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .qx-tabs::-webkit-scrollbar { display: none; }
+  .qx-tab {
+    position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; white-space: nowrap;
+    font-size: 14px; font-weight: 500; color: var(--ds-muted); transition: color 120ms;
+  }
+  .qx-tab:hover { color: var(--ds-ink); }
+  .qx-tab.is-on { color: var(--ds-ink); font-weight: 600; }
+  .qx-tab.is-on::after {
+    content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px;
+    background: var(--ds-primary);
+  }
+  .qx-tab-n { font-size: 12.5px; font-weight: 500; color: var(--ds-faint); }
+  .qx-filters-end { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
+  .qx-search {
+    display: flex; align-items: center; gap: 8px; width: 240px; height: 36px; padding: 0 12px;
+    border-radius: 9px; color: var(--ds-muted); background: var(--ds-surface);
+    box-shadow: inset 0 0 0 1px var(--ds-line-strong); transition: box-shadow 150ms;
+  }
+  .qx-search:focus-within { box-shadow: inset 0 0 0 1.5px var(--ds-primary); }
+  .qx-search input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: inherit; font-size: 13.5px; color: var(--ds-ink); }
+  .qx-search input::placeholder { color: var(--ds-faint); }
+
+  .qx-table { --qx-cols: minmax(0, 1fr) 76px 112px 112px 168px 112px 18px; }
+  .qx-head, .qx-row { display: grid; grid-template-columns: var(--qx-cols); gap: 16px; align-items: center; }
+  .qx-head { padding: 10px 0; border-bottom: 1px solid var(--ds-line); font-size: 12.5px; font-weight: 500; color: var(--ds-muted); }
+  .qx-head .r { text-align: right; }
+  .qx-row { min-height: 60px; font-size: 13.5px; color: var(--ds-ink-2); }
+  .qx-dim { color: var(--ds-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .qx-faint { color: var(--ds-faint); white-space: nowrap; }
+  .qx-amt { text-align: right; font-family: var(--ds-num-font); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ds-ink); }
+  .qx-chev { color: var(--ds-faint); transition: transform 200ms var(--ds-ease), color 150ms; }
+  .qx-row:hover .qx-chev { color: var(--ds-primary); transform: translateX(2px); }
+  .qx-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0 4px; font-size: 12.5px; color: var(--ds-muted); border-top: 1px solid var(--ds-line-strong); }
+  .qx-foot-total { display: flex; align-items: baseline; gap: 10px; font-family: var(--ds-num-font); font-size: 15px; font-weight: 700; }
+  .qx-empty { padding: 24px 0; }
+
+  /* ── the single quote ── */
+  .qt-head .ds-title .qt-head-client { color: inherit; }
+  .qt-head .ds-title .qt-head-client:hover { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; }
+  .qt-good { color: var(--ds-good); font-weight: 600; }
+  .qt-warn { color: var(--ds-warn); font-weight: 600; }
+  a.qt-good:hover, a.qt-warn:hover { text-decoration: underline; }
+  .qt-fact-link { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* the decision step waiting on your edit: amber, not red */
+  .inv-step.is-now.qt-step-warn .inv-pin {
+    background: var(--ds-warn);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--ds-warn) 20%, transparent);
+  }
+  .inv-step.is-now.qt-step-warn .bb-row-sub { color: var(--ds-warn); }
+  /* the client's ask, set apart by an amber dot on its title */
+  .qt-ask .bb-h2-text::before {
+    content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%;
+    background: var(--ds-warn); vertical-align: 2px;
+  }
+  .qt-ask-msg {
+    margin: 8px 0 8px; padding: 14px 16px; border-radius: 10px;
+    background: var(--ds-warn-soft); color: var(--ds-ink); font-size: 15px; line-height: 1.55;
+  }
+  /* items the client took off stay visible, faded */
+  .bb-table tbody tr.qt-out td { opacity: 0.45; }
+  .qt-deposit dt, .qt-deposit dd { color: var(--ds-primary); font-weight: 600; }
+  .qt-activity { padding-top: 4px; }
+}
