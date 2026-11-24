@@ -248,6 +248,14 @@ export default function LeadsBoardClient({
     return out;
   }
   const [dragId, setDragId] = useState<string | null>(null);
+  // Smoother board (2026-11-24): moves after the first paint animate — a card
+  // settles into its new column, a column opens or folds — but the board
+  // doesn't play all of that on load.
+  const [live, setLive] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setLive(true), 700);
+    return () => window.clearTimeout(t);
+  }, []);
   const [hoverStage, setHoverStage] = useState<string | null>(null);
   const [hoverZone, setHoverZone] = useState<"won" | "lost" | null>(null);
   const [sheetCard, setSheetCard] = useState<BoardCard | null>(null);
@@ -662,7 +670,7 @@ export default function LeadsBoardClient({
         // Horizontal scroller — the scrollbar stays VISIBLE (app-ui slim
         // style): with it hidden, desktop mouse users had no way to reach
         // off-screen stages. Touch swipes; desktop gets the bar + shift-wheel.
-        <BoardScroller className="ld-board flex-1 flex gap-3 overflow-x-auto pb-24 lg:pb-4 items-stretch snap-x snap-mandatory lg:snap-none -mx-4 px-4 lg:mx-0 lg:px-0">
+        <BoardScroller className={`ld-board ${live ? "is-live" : ""} flex-1 flex gap-3 overflow-x-auto pb-24 lg:pb-4 items-stretch snap-x snap-mandatory lg:snap-none -mx-4 px-4 lg:mx-0 lg:px-0`}>
           {stages.map((stage, col) => {
             const columnCards = sortCards(byStage.get(stage.id) ?? []);
             const columnValue = columnCards.reduce((s, c) => s + c.value, 0);

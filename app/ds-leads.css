@@ -182,3 +182,107 @@ html[data-mode="dark"] .ld-col.has-stage .ld-col-head { background: color-mix(in
 /* the header sentence's figures carry meaning: open money in brand, wins in green */
 .ld-lede b.ld-lede-money { color: var(--ds-primary); }
 .ld-lede b.ld-lede-won { color: var(--ds-good); }
+
+/* ── Smoother board (2026-11-24, David: "a little smoother looking"). The app
+   is calmer now (white page, hairlines, one strong thing per screen), so the
+   board keeps every figure and every stage color but says them more quietly:
+   - columns: a near-neutral surface with a whisper of the stage color, the
+     3px stage rule on top, a tinted count — no full wash;
+   - cards: one soft solid surface (1px ring + a very soft shadow, 10px
+     corners), the stage color lives in the column head, not on every card;
+     stale amber/red keep their edge because that edge means something;
+   - motion: columns fade their highlight in and out, the drop slot opens
+     like a drawer, a moved card settles into its new column, opening or
+     folding a column eases its width, the board's sides fade where there is
+     more to scroll. Moves only animate after the first paint (.is-live).
+   Overrides the rules above; reduced motion turns all of it off. */
+.ld-board { scroll-behavior: smooth; }
+.ld-col { border-radius: 14px; transition: box-shadow 220ms var(--ds-ease), background-color 220ms var(--ds-ease); }
+.ld-col.has-stage {
+  background: color-mix(in srgb, var(--st) 3%, var(--ds-surface-2));
+  box-shadow: inset 0 0 0 1px var(--ds-line);
+}
+html[data-mode="dark"] .ld-col.has-stage { background: color-mix(in srgb, var(--st) 5%, var(--ds-surface-2)); }
+.ld-col.has-stage .ld-col-head {
+  border-radius: 14px 14px 0 0;
+  background: color-mix(in srgb, var(--st) 3%, var(--ds-surface-2));
+  box-shadow: inset 0 3px 0 var(--st);
+  padding: 14px 12px 0;
+}
+html[data-mode="dark"] .ld-col.has-stage .ld-col-head { background: color-mix(in srgb, var(--st) 5%, var(--ds-surface-2)); }
+.ld-col.has-stage .ld-dot { width: 8px; height: 8px; }
+.ld-col-name { font-weight: 700; letter-spacing: -0.01em; }
+.ld-col.has-stage .ld-col-count { font-weight: 700; background: color-mix(in srgb, var(--st) 13%, transparent); }
+.ld-col-row.is-sub { font-weight: 500; }
+.ld-col-value { font-weight: 700; }
+.ld-col.has-stage .ld-share { height: 3px; margin-top: 10px; }
+.ld-col-body { gap: 8px; padding: 10px; }
+.ld-col.has-stage.is-drop {
+  background: color-mix(in srgb, var(--st) 8%, var(--ds-surface-2));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--st) 70%, transparent);
+}
+.ld-col.has-stage.is-collapsed { box-shadow: inset 0 3px 0 var(--st), inset 0 0 0 1px var(--ds-line); }
+.ld-col.has-stage.is-collapsed:hover { background: color-mix(in srgb, var(--st) 8%, var(--ds-surface-2)); }
+
+.ld-card {
+  border-radius: 10px; padding: 10px 12px 9px;
+  box-shadow: 0 0 0 1px var(--ds-line), 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 14px -10px rgba(15, 23, 42, 0.12);
+  transition: box-shadow 200ms var(--ds-ease), transform 200ms var(--ds-ease), opacity 200ms var(--ds-ease);
+}
+html[data-mode="dark"] .ld-card { box-shadow: 0 0 0 1px var(--ds-line), 0 1px 2px rgba(0, 0, 0, 0.3); }
+.ld-card:hover,
+.ld-col.has-stage .ld-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 1px var(--ds-line-strong), 0 2px 4px rgba(15, 23, 42, 0.05), 0 12px 22px -14px rgba(15, 23, 42, 0.28);
+}
+.ld-card:focus-visible { box-shadow: 0 0 0 2px var(--ds-primary); }
+.ld-card.is-dragging { opacity: 0.3; transform: scale(0.97); box-shadow: 0 0 0 1px var(--ds-line); }
+/* the stage color is the column's; a card's edge only speaks when it's stale */
+.ld-col.has-stage .ld-card::before { background: transparent; }
+.ld-card::before,
+.ld-col.has-stage .ld-card::before { top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; }
+.ld-card.is-warn::before, .ld-col.has-stage .ld-card.is-warn::before { background: var(--ds-warn); }
+.ld-card.is-bad::before, .ld-col.has-stage .ld-card.is-bad::before { background: var(--ds-bad); }
+.ld-card-name { font-weight: 650; }
+.ld-card-value { font-weight: 700; }
+.ld-card-foot { border-top-color: color-mix(in srgb, var(--ds-line) 70%, transparent); }
+.ld-card-next { font-weight: 500; }
+.ld-card-age { font-weight: 600; }
+
+/* the drop slot opens like a drawer and the column's highlight fades */
+.ld-slot { border-radius: 10px; border-width: 1.5px; animation: ld-slot-open 240ms var(--ds-ease) backwards; }
+@keyframes ld-slot-open { from { opacity: 0; height: 0; margin-bottom: -8px; transform: scaleY(0.6); } }
+
+/* after the first paint: a moved card settles, a column opens or folds */
+.ld-board.is-live .ld-card { animation: ld-card-settle 360ms var(--ds-ease) backwards; }
+@keyframes ld-card-settle { from { opacity: 0; transform: translateY(-6px) scale(0.985); } }
+.ld-board.is-live .ld-col:not(.is-collapsed) { animation: ld-col-open 300ms var(--ds-ease) backwards; transform-origin: left center; }
+.ld-board.is-live .ld-col.is-collapsed { animation: ld-col-fold 260ms var(--ds-ease) backwards; }
+@keyframes ld-col-open { from { opacity: 0; transform: scaleX(0.92) translateX(-8px); } }
+@keyframes ld-col-fold { from { opacity: 0; transform: scaleX(0.7); } }
+
+/* the board's sides fade where there is more to scroll (where supported) */
+@property --ld-fl { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --ld-fr { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@supports (animation-timeline: scroll()) {
+  @media (min-width: 1024px) {
+    .ld-board {
+      -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 var(--ld-fl), #000 calc(100% - var(--ld-fr)), transparent 100%);
+      mask-image: linear-gradient(90deg, transparent 0, #000 var(--ld-fl), #000 calc(100% - var(--ld-fr)), transparent 100%);
+      animation: ld-edges linear both;
+      animation-timeline: scroll(self inline);
+    }
+    @keyframes ld-edges {
+      0% { --ld-fl: 0px; --ld-fr: 28px; }
+      6% { --ld-fl: 28px; }
+      94% { --ld-fr: 28px; }
+      100% { --ld-fl: 28px; --ld-fr: 0px; }
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ld-board { scroll-behavior: auto; }
+  .ld-board.is-live .ld-card, .ld-board.is-live .ld-col, .ld-slot { animation: none; }
+  .ld-card:hover, .ld-col.has-stage .ld-card:hover { transform: none; }
+}
