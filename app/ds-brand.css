@@ -111,10 +111,6 @@ html[data-mode="dark"] .ds {
   .app-ui:has(.bb-band) .app-header .gear-turn { color: rgba(255, 255, 255, 0.75); }
   .app-ui:has(.bb-band) .app-header .bell-swing:hover,
   .app-ui:has(.bb-band) .app-header .gear-turn:hover { background: rgba(255, 255, 255, 0.1); color: #FFFFFF; }
-  .app-ui:has(.bb-band) .app-header [data-tour="create"] {
-    background: var(--bb-s);
-    color: var(--bb-on-s);
-  }
 }
 
 /* ═══ The open page: sections under bold titles, no boxes ═══════════════ */
@@ -307,3 +303,26 @@ html[data-mode="dark"] .rail-live .rail-indicator { background: color-mix(in srg
   transition: box-shadow 150ms;
 }
 .rail-live-logo img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+
+/* Talk to Atlas in the desktop top bar: the second color, a mic that breathes */
+.atlas-talk {
+  align-items: center; gap: 8px; height: 34px; padding: 0 14px 0 5px; border: 0; border-radius: 999px; cursor: pointer;
+  font-size: 14px; font-weight: 600; white-space: nowrap;
+  background: var(--ds-secondary); color: var(--ds-on-secondary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 1px 2px rgba(10, 19, 40, 0.2), 0 8px 18px -10px color-mix(in srgb, var(--ds-secondary) 80%, transparent);
+  transition: filter 150ms, transform 120ms var(--ds-ease, ease), box-shadow 200ms;
+}
+.atlas-talk:hover { filter: brightness(1.06); }
+.atlas-talk:active { transform: translateY(1px) scale(0.985); }
+.atlas-talk:focus-visible { outline: 2px solid var(--ds-secondary); outline-offset: 2px; }
+.atlas-talk-mic {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 999px; background: rgba(255, 255, 255, 0.22);
+}
+.atlas-talk-mic::after {
+  content: ""; position: absolute; inset: -3px; border-radius: inherit;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ds-on-secondary) 45%, transparent);
+  animation: atlas-breathe 2.8s var(--ds-ease, ease) infinite;
+}
+@keyframes atlas-breathe { 0%, 100% { opacity: 0; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .atlas-talk-mic::after { animation: none; opacity: 0; } .atlas-talk:active { transform: none; } }

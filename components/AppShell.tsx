@@ -25,7 +25,6 @@ import {
   Plus,
   DollarSign,
   Search,
-  Sparkles,
   Globe,
   MonitorSmartphone,
   UserPlus,
@@ -2581,12 +2580,6 @@ export default function AppShell({
         })}
       </nav>
       <div className="rail-live-foot">
-        {assistantAvailable && (
-          <button type="button" onClick={() => setAssistantOpen(true)} className="rail-live-row">
-            <Sparkles size={17} strokeWidth={2.3} />
-            <span className="flex-1 text-left">{assistantName || "Atlas"}</span>
-          </button>
-        )}
         <Link prefetch={false} href="/app/help" className={`rail-live-row ${isActive("/app/help") ? "is-here" : ""}`}>
           <LifeBuoy size={17} strokeWidth={2.3} />
           <span className="flex-1">Help</span>
@@ -2895,6 +2888,22 @@ export default function AppShell({
 
           {/* Global create — the page-level CTA color, one click from
               anywhere (the rail is pure navigation now) */}
+          {/* Talk to Atlas (David 2026-11-24: out of the sidebar, easier to
+              reach): the voice conversation, one click from every page, in the
+              company's second color so it never gets lost next to Create. */}
+          {assistantAvailable && (
+            <button
+              type="button"
+              onClick={talkToAssistant}
+              className="atlas-talk hidden lg:inline-flex"
+              title={`Talk to ${assistantName || "Atlas"}`}
+            >
+              <span className="atlas-talk-mic" aria-hidden>
+                <Mic size={15} strokeWidth={2.4} />
+              </span>
+              Talk to {assistantName || "Atlas"}
+            </button>
+          )}
           <CreateMenu role={userRole} previewMode={previewMode} salesMoney={salesMoney} />
 
           {/* Team chat — always one click away without spending sidebar space.
