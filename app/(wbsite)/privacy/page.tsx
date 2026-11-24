@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     "How WorkBench collects, uses, and protects your information — and why we never sell it.",
 };
 
-const LAST_UPDATED = "November 20, 2026";
+const LAST_UPDATED = "November 24, 2026";
 
 /* Public privacy policy for WorkBench. This URL is required by the App Store,
    the Play Store, and our payment processor (Finix) onboarding, so it must stay
@@ -86,7 +86,8 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
   {
     heading: "9. Cookies",
     paragraphs: [
-      "We use essential cookies only — primarily a session cookie that keeps you signed in. We do not use advertising or cross-site tracking cookies, and we do not place an advertising platform’s tracking code (a “pixel”) on our website or in the Service.",
+      "Inside the Service we use essential cookies only — primarily a session cookie that keeps you signed in.",
+      "On our public website (not inside the Service or your clients’ portal) we use Microsoft Clarity to see how visitors use our pages: clicks, scrolling and page recordings that help us fix confusing or broken parts of the site. Clarity sets its own cookies, and Microsoft may use a Microsoft cookie that it also uses on other sites. What you type into forms is hidden from these recordings. Microsoft’s handling of this data is described in the Microsoft Privacy Statement (privacy.microsoft.com). Apart from Clarity, we do not place an advertising platform’s tracking code (a “pixel”) on our website or in the Service.",
     ],
   },
   {

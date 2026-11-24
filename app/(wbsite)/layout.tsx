@@ -1,6 +1,7 @@
 import { RATES_SHORT } from "@/lib/plans";
 import { ATLAS_FREE_TOKENS, tokenCount } from "@/lib/atlas-pricing";
 import type { Metadata } from "next";
+import Script from "next/script";
 import WBNav from "@/components/wb/WBNav";
 import WBFooter from "@/components/wb/WBFooter";
 import WBContactButton from "@/components/wb/WBContactButton";
@@ -168,6 +169,19 @@ export default function WBSiteLayout({
           screen, .ds parts) must not follow a dark choice made inside the app. */}
       <ForceLightTheme />
       <WBAnalytics />
+      {/* Microsoft Clarity zivhxcj6tq (David 2026-11-24): heatmaps + session
+          replays of the marketing site only (this layout, never /app or the
+          portal). Runs on the live domain only, so staging, local and e2e
+          visits stay out of the data. Clarity masks typed form input by
+          default. Disclosed in the privacy policy, section 9. */}
+      <Script id="ms-clarity" strategy="afterInteractive">
+        {`(function(c,l,a,r,i,t,y){
+          if(!/(^|\\.)workbenchfsm\\.com$/.test(l.location.hostname))return;
+          c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+          t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+          y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        })(window,document,"clarity","script","zivhxcj6tq");`}
+      </Script>
       <script
         type="application/ld+json"
         // eslint-disable-next-line react/no-danger
