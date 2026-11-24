@@ -308,7 +308,7 @@ export const scheduleSection: HelpSection = {
         },
         {
           type: "p",
-          text: "**Client reminders** go out by themselves: about a day ahead (only for appointments booked at least a day ahead) and about an hour ahead, by email and — once texting is on — by text. The wording follows the type: a phone call says you will call them at their number, a video call includes the join link, and an in-person visit gives the arrival window. Untick **Remind client** on an appointment to keep it quiet. Whoever it is assigned to gets a push about an hour ahead either way. The appointment page shows what was sent and when.",
+          text: "**Client reminders** go out by themselves: about a day ahead (only for appointments booked at least a day ahead) and about an hour ahead, by email and — once texting is on — by text. The wording follows the type: a phone call says you will call them at their number, a video call includes the join link, and an in-person visit gives the arrival window. Untick **Remind client** on an appointment to keep it quiet. To stop them for one client, edit the client and untick **Visit reminders** (their page then shows **Reminders: off**). To stop them for every client, untick **Remind clients before visits and appointments** in **Settings → Booking & forms → Scheduling rules**. Both switches cover job visits too, and Atlas can flip either one. Whoever it is assigned to gets a push about an hour ahead either way. The appointment page shows what was sent and when.",
         },
         {
           type: "p",
