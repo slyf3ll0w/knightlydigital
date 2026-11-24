@@ -20,13 +20,13 @@ import { useAssistant } from "@/components/AssistantContext";
  * Renders nothing when Atlas is off for the company (same rule as TalkToAtlas).
  */
 export const ATLAS_EXAMPLES = [
-  "Schedule a job for Grace on Thursday at 9.",
+  "Put a job on the calendar for Thursday at 9.",
   "What's still owed to me this month?",
   "Make an invoice for today's job and email it.",
   "Text my next client that I'm on my way.",
   "What needs my attention today?",
   "Find a time for a walkthrough next week.",
-  "Record a $250 check from Maria.",
+  "Record a $250 check for my last invoice.",
   "How did we do this month?",
 ] as const;
 

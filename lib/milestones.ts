@@ -81,7 +81,7 @@ async function detect(actor: Actor): Promise<Milestone[]> {
   // ── money: the month so far against every month before it ──
   if (canSeeMoney(actor)) {
     const months = await prisma.$queryRaw<{ m: string; total: number }[]>`
-      SELECT to_char(date_trunc('month', "paidAt" AT TIME ZONE ${tz}), 'YYYY-MM') AS m,
+      SELECT to_char(date_trunc('month', ("paidAt" AT TIME ZONE 'UTC') AT TIME ZONE ${tz}), 'YYYY-MM') AS m,
              SUM("amount")::float AS total
       FROM "Payment"
       WHERE "companyId" = ${companyId} AND "amount" > 0
