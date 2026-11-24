@@ -425,7 +425,6 @@ export default async function ContactsPage({
 
   return (
     <>
-    <div className="hidden lg:block">{desktop}</div>
     <div className="p-4 lg:p-8 max-w-6xl mx-auto lg:hidden">
       {/* Header — secondary actions collapse to icon circles on phones so the
           row never crams; labels return at sm. */}
@@ -637,6 +636,8 @@ export default async function ContactsPage({
         total={listCount}
       />
     </div>
+      {/* desktop tree after the phone one: phone tests take the first matching link */}
+      <div className="hidden lg:block">{desktop}</div>
     </>
   );
 }

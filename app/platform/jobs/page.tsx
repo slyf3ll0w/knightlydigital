@@ -314,7 +314,6 @@ export default async function JobsPage({
 
   return (
     <>
-      <div className="hidden lg:block">{desktop}</div>
       <div className="lg:hidden">
         <div className="p-4 lg:p-8 max-w-6xl mx-auto">
           <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
@@ -485,6 +484,8 @@ export default async function JobsPage({
           />
         </div>
       </div>
+      {/* desktop tree after the phone one: phone tests take the first matching link */}
+      <div className="hidden lg:block">{desktop}</div>
     </>
   );
 }

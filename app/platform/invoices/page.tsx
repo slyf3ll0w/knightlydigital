@@ -378,7 +378,6 @@ export default async function InvoicesPage({
 
   return (
     <>
-    <div className="hidden lg:block">{desktop}</div>
     <div className="p-4 lg:p-8 max-w-6xl mx-auto lg:hidden">
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
         <PageTitle heavy section="invoices" icon={Receipt}>
@@ -568,6 +567,8 @@ export default async function InvoicesPage({
         total={listCount}
       />
     </div>
+      {/* desktop tree after the phone one: phone tests take the first matching link */}
+      <div className="hidden lg:block">{desktop}</div>
     </>
   );
 }
