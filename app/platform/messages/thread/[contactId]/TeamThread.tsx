@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { stickAfterScroll, usePinOnMediaLoad } from "@/lib/chat-pin";
 import Link from "next/link";
-import { ArrowLeft, ImagePlus, Loader2, Phone, RotateCcw, SendHorizonal } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, ImagePlus, Loader2, MoreVertical, Phone, RotateCcw, SendHorizonal, Trash2 } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import Monogram from "@/components/Monogram";
 import CallLink from "@/components/CallLink";
@@ -16,6 +17,9 @@ import FileDropOverlay from "@/components/FileDropOverlay";
 import PendingAttachments, { mergePendingFiles } from "@/components/PendingAttachments";
 import { COMPOSER_ACCEPT } from "@/lib/media-types";
 import MessageMedia, { type ThreadMedia } from "@/components/MessageMedia";
+import MenuPopover from "@/components/MenuPopover";
+import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
+import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 /**
  * Team side of a client thread — built to feel exactly like Team Chat
@@ -112,6 +116,7 @@ export default function TeamThread({
   channel,
   banner,
   tz,
+  canDelete = false,
 }: {
   contactId: string;
   /** Client messages this page load just marked read — taken off the nav badges at once. */
@@ -130,7 +135,38 @@ export default function TeamThread({
   banner?: ReactNode;
   /** The company's timezone — every clock label on the thread. */
   tz: string;
+  /** Owners/admins: the header menu carries Delete conversation. */
+  canDelete?: boolean;
 }) {
+  const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Wipes every message on this thread (the client keeps their record) and
+  // goes back to the inbox. replace, so Back doesn't land on the empty thread.
+  async function deleteConversation() {
+    setMenuOpen(false);
+    if (
+      !(await confirmSheet({
+        title: "Delete this conversation?",
+        message: "Texts already delivered to their phone can't be unsent.",
+        confirmLabel: "Delete conversation",
+        destructive: true,
+      }))
+    )
+      return;
+    setDeleting(true);
+    const { ok, data } = await postJson(`/api/app/messages/${contactId}`, undefined, "DELETE");
+    if (!ok) {
+      setDeleting(false);
+      alertSheet({ message: data?.error ?? GENERIC_ERROR });
+      return;
+    }
+    hapticImpact("MEDIUM");
+    window.dispatchEvent(new CustomEvent("wb:nav-counts"));
+    router.replace("/app/messages");
+    router.refresh();
+  }
   const [messages, setMessages] = useState<ThreadMessage[]>(initialMessages);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
@@ -571,6 +607,30 @@ export default function TeamThread({
             >
               <Phone size={18} />
             </CallLink>
+          )}
+          {canDelete && (
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                disabled={deleting}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 active:bg-gray-100 disabled:opacity-60"
+                aria-label="Conversation options"
+              >
+                {deleting ? <Loader2 size={18} className="animate-spin" /> : <MoreVertical size={18} />}
+              </button>
+              {menuOpen && (
+                <MenuPopover open={menuOpen} onClose={() => setMenuOpen(false)} title="Conversation" top="top-10">
+                  <button
+                    type="button"
+                    onClick={deleteConversation}
+                    className="flex w-full items-center gap-2 px-3.5 py-2.5 text-sm text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)]"
+                  >
+                    <Trash2 size={14} /> Delete conversation
+                  </button>
+                </MenuPopover>
+              )}
+            </div>
           )}
         </div>
 

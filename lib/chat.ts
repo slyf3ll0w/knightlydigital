@@ -92,6 +92,8 @@ export type ResolvedChannel = {
   isEveryone: boolean;
   name: string | null;
   createdById: string | null;
+  /** Group cover photo R2 key (null = none; always null for Everyone). */
+  photoKey: string | null;
   /** Everyone: every active user id. Else: the member ids. */
   memberIds: string[];
 };
@@ -113,6 +115,7 @@ export async function resolveChannel(
       isEveryone: true,
       name: null,
       createdById: null,
+      photoKey: null,
       memberIds: users.map((u) => u.id),
     };
   }
@@ -128,8 +131,32 @@ export async function resolveChannel(
     isEveryone: false,
     name: channel.name,
     createdById: channel.createdById,
+    photoKey: channel.photoKey,
     memberIds: channel.members.map((m) => m.userId),
   };
+}
+
+// ── Group cover photos (ticket #8g5ymm) ─────────────────────────────────────
+// One picture per group chat, kept in R2 for as long as the group exists.
+// It is NOT a PortalMessageMedia row, so the 7-day attachment sweep
+// (runMessageMediaSweep) never sees it.
+
+/** Who may set a cover: the same rule as renaming (PATCH /channels/[id]). */
+export function canSetChatCover(channel: ResolvedChannel): boolean {
+  return !channel.isEveryone && channel.memberIds.length > 2;
+}
+
+/** R2 key for a group cover. A fresh key per upload, so a cached old picture can never linger. */
+export function chatCoverKey(companyId: string, channelId: string, mimeType: string): string {
+  const ext = ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" } as Record<string, string>)[mimeType] ?? "bin";
+  return `companies/${companyId}/chat-covers/${channelId}-${Date.now()}.${ext}`;
+}
+
+/** The page-facing URL for a cover; the key's stamp busts caches on replace. */
+export function chatCoverUrl(channelId: string, photoKey: string | null): string | null {
+  if (!photoKey) return null;
+  const stamp = photoKey.slice(photoKey.lastIndexOf("-") + 1).split(".")[0];
+  return `/api/app/chat/channels/${channelId}/photo?v=${encodeURIComponent(stamp)}`;
 }
 
 /** Create (or reuse) a conversation. One other member = DM (deduped against
@@ -184,6 +211,8 @@ export type ChannelSummary = {
   name: string; // display name resolved for the actor
   memberIds: string[];
   memberCount: number;
+  /** Group cover photo, served by /api/app/chat/channels/[id]/photo (null = the default icon). */
+  photoUrl: string | null;
   unread: number;
   lastMessage: { body: string; userName: string; at: string; deleted: boolean } | null;
 };
@@ -272,6 +301,7 @@ export async function listChannels(actor: Actor): Promise<ChannelSummary[]> {
           select: {
             id: true,
             name: true,
+            photoKey: true,
             lastMessageAt: true,
             members: { select: { userId: true, user: { select: { name: true } } } },
           },
@@ -298,6 +328,7 @@ export async function listChannels(actor: Actor): Promise<ChannelSummary[]> {
     name: "Everyone",
     memberIds: users.map((u) => u.id),
     memberCount: users.length,
+    photoUrl: null,
     unread: unread.get(everyone.id) ?? 0,
     lastMessage: last.get(everyone.id) ?? null,
   });
@@ -317,6 +348,7 @@ export async function listChannels(actor: Actor): Promise<ChannelSummary[]> {
       name: display,
       memberIds: c.members.map((m) => m.userId),
       memberCount: c.members.length,
+      photoUrl: isGroup ? chatCoverUrl(c.id, c.photoKey) : null,
       unread: unread.get(c.id) ?? 0,
       lastMessage: last.get(c.id) ?? null,
       _sort: c.lastMessageAt?.getTime() ?? 0,

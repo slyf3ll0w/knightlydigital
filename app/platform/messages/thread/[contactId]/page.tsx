@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { MEDIA_SELECT, threadMedia } from "@/lib/message-media";
-import { requirePageActor, canSell, contactScope } from "@/lib/permissions";
+import { requirePageActor, canSell, contactScope, isManager } from "@/lib/permissions";
 import { fmtPhone } from "@/lib/format";
 import { phoneDigits } from "@/lib/phone";
 import TeamThread from "./TeamThread";
@@ -111,6 +111,7 @@ export default async function MessageThreadPage({
         companyName={contact.companyName}
         phone={shortCode ? null : contact.phone}
         tz={contact.company.timezone ?? "America/Chicago"}
+        canDelete={isManager(actor.role) && messages.length > 0}
         channel={channel}
         // An unnamed number: file them as a lead / client / contact (the phone's "Create contact")
         banner={

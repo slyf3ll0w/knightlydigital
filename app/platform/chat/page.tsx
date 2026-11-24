@@ -9,6 +9,7 @@ import {
   ensureEveryoneChannel,
   listChannels,
 } from "@/lib/chat";
+import { isBlobStorageConfigured } from "@/lib/blob-storage";
 import ChatClient from "./ChatClient";
 
 export const metadata: Metadata = { title: "Team Chat" };
@@ -67,6 +68,7 @@ export default async function ChatPage() {
       everyoneId={everyone.id}
       initialChannels={channels}
       initialMessages={messages}
+      coverPhotos={isBlobStorageConfigured()}
     />
   );
 }

@@ -39,6 +39,7 @@ import { showWinBurst } from "@/lib/win-burst";
 import { money } from "@/lib/statuses";
 import { themedInkVars, themedBgVars } from "@/lib/section-colors";
 import EmptyState from "@/components/EmptyState";
+import BoardScroller from "@/components/BoardScroller";
 import { Chip, InfoTip } from "@/components/ds";
 
 export type BoardStage = {
@@ -661,7 +662,7 @@ export default function LeadsBoardClient({
         // Horizontal scroller — the scrollbar stays VISIBLE (app-ui slim
         // style): with it hidden, desktop mouse users had no way to reach
         // off-screen stages. Touch swipes; desktop gets the bar + shift-wheel.
-        <div className="ld-board flex-1 flex gap-3 overflow-x-auto pb-24 lg:pb-4 items-stretch snap-x snap-mandatory lg:snap-none -mx-4 px-4 lg:mx-0 lg:px-0">
+        <BoardScroller className="ld-board flex-1 flex gap-3 overflow-x-auto pb-24 lg:pb-4 items-stretch snap-x snap-mandatory lg:snap-none -mx-4 px-4 lg:mx-0 lg:px-0">
           {stages.map((stage, col) => {
             const columnCards = sortCards(byStage.get(stage.id) ?? []);
             const columnValue = columnCards.reduce((s, c) => s + c.value, 0);
@@ -845,7 +846,7 @@ export default function LeadsBoardClient({
             <span className="ld-col-vert">Lost · 30 days</span>
             <span className="ld-col-count">{lost30.length}</span>
           </button>
-        </div>
+        </BoardScroller>
       )}
 
       {/* Hover peek: the full card */}

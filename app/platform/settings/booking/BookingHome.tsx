@@ -53,6 +53,8 @@ export type RulesProps = {
   hours: BusinessHours;
   serviceZips: string[];
   arrivalWindowMinutes: number;
+  /** true = no automatic reminders to clients before visits / appointments */
+  clientRemindersOff: boolean;
   /** 0 = off */
   bookingDriveLimitMinutes: number;
   /** Automatic lunch for the route optimizer: minutes (0 = off) inside a window (minutes from midnight). */
@@ -231,6 +233,7 @@ export default function BookingHome({
   const [hours, setHours] = useState<BusinessHours>(initialRules.hours);
   const [zipsText, setZipsText] = useState(initialRules.serviceZips.join(", "));
   const [window_, setWindow] = useState(initialRules.arrivalWindowMinutes);
+  const [remindClients, setRemindClients] = useState(!initialRules.clientRemindersOff);
   const [driveLimit, setDriveLimit] = useState(initialRules.bookingDriveLimitMinutes);
   const [breakMin, setBreakMin] = useState(initialRules.breakMinutes);
   const [breakAfter, setBreakAfter] = useState(minutesToTime(initialRules.breakAfterMin));
@@ -253,6 +256,7 @@ export default function BookingHome({
         businessHours: hours,
         serviceZips,
         arrivalWindowMinutes: window_,
+        clientRemindersOff: !remindClients,
         bookingDriveLimitMinutes: driveLimit,
         breakMinutes: breakMin,
         ...(afterMin != null && beforeMin != null ? { breakAfterMin: afterMin, breakBeforeMin: beforeMin } : {}),
@@ -271,6 +275,7 @@ export default function BookingHome({
     `${arrivalWindowChoiceLabel(window_)} arrival window`,
     driveLimit > 0 ? `drive limit ${driveLimit} min` : "no drive limit",
     breakMin > 0 ? `${breakMin} min lunch` : "no automatic lunch",
+    remindClients ? "client reminders on" : "client reminders off",
     zipCount > 0 ? `${zipCount} ZIP${zipCount === 1 ? "" : "s"}` : "any address",
   ].join(" · ");
 
@@ -586,6 +591,21 @@ export default function BookingHome({
                     <p className="mt-1 text-xs text-gray-500">Visits only offer times the assigned person can reach from their previous stop and on to the next.</p>
                   </div>
                 </div>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={remindClients}
+                    onChange={(e) => setRemindClients(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                    data-testid="remind-clients"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Remind clients before visits and appointments
+                    <InfoTip>
+                      A text and an email the day before and about an hour before. Off, no client gets them. To stop them for one client only, use Reminders on that client&apos;s page; for one visit, untick its reminder.
+                    </InfoTip>
+                  </span>
+                </label>
                 <div>
                   <label className={smallLabel}>
                     <span className="inline-flex items-center gap-1">
