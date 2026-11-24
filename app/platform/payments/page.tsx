@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { headerNote } from "@/lib/header-notes";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSeeMoney, isManager } from "@/lib/permissions";
 import Link from "next/link";
@@ -68,6 +69,8 @@ export default async function PaymentsDashboardPage({
   searchParams: Promise<{ page?: string; tab?: string; range?: string; show?: string; payout?: string; dispute?: string; period?: string; payment?: string; cursor?: string; all?: string }>;
 }) {
   const actor = await requirePageActor(canSeeMoney);
+  // One true line from this company's numbers, dealt per visit (lib/header-notes.ts)
+  const pageNote = await headerNote("payments", actor);
   const companyId = actor.companyId;
   const params = await searchParams;
   const { page: pageParam } = params;
@@ -115,6 +118,7 @@ export default async function PaymentsDashboardPage({
           <>
             <div className="hidden lg:block">
               <PageHeader
+                note={pageNote}
                 eyebrow="Live from your Square account"
                 title={
                   <span className="inline-flex items-center gap-3">

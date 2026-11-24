@@ -415,3 +415,44 @@ a.bb-row:hover::after, a.bb-row:focus-visible::after, .bb-row.is-link:hover::aft
 @media (prefers-reduced-motion: reduce) {
   .bb-row::after, .bb-table tbody td, .bb-row-title, .bb-table .bb-name { transition: none; }
 }
+
+/* ═══ Less repetitive (2026-11-24) ══════════════════════════════════════
+   The header note: one true line from the company's numbers under the
+   title, dealt per visit (lib/header-notes.ts). Quiet, like the second half
+   of the website's two-tone headlines. */
+.ds-pagenote {
+  margin: 6px 0 0; max-width: 640px;
+  font-size: 15px; line-height: 1.45; font-weight: 500; letter-spacing: -0.005em;
+  color: var(--ds-muted);
+}
+.bb-band .ds-pagenote { color: rgba(255, 255, 255, 0.78); }
+@media (min-width: 1024px) {
+  .ds-pagenote { animation: ds-note-in 520ms var(--ds-ease, ease) 260ms backwards; }
+}
+@keyframes ds-note-in { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { .ds-pagenote { animation: none; } }
+
+/* Home's band follows the day: lighter and a touch warmer in the morning,
+   the standard band through the day, deeper in the evening, deepest at night.
+   Still only the company's two colors. */
+@media (min-width: 1024px) {
+  .bb-band[data-daypart="morning"] {
+    --bb-deep: color-mix(in srgb, var(--bb-p) 52%, #0B1430);
+    --bb-mid: color-mix(in srgb, var(--bb-p) 80%, #0B1430);
+    --bb-foot: color-mix(in srgb, var(--bb-p) 84%, var(--ds-secondary-l, #F86A0A));
+  }
+  .bb-band[data-daypart="evening"] {
+    --bb-deep: color-mix(in srgb, var(--bb-p) 24%, #04070F);
+    --bb-mid: color-mix(in srgb, var(--bb-p) 50%, #04070F);
+    --bb-foot: color-mix(in srgb, var(--bb-p) 82%, #04070F);
+  }
+  .bb-band[data-daypart="night"] {
+    --bb-deep: color-mix(in srgb, var(--bb-p) 16%, #02040A);
+    --bb-mid: color-mix(in srgb, var(--bb-p) 36%, #02040A);
+    --bb-foot: color-mix(in srgb, var(--bb-p) 64%, #02040A);
+  }
+  /* the top bar above Home takes the band's top color for that time of day */
+  .app-ui:has(.bb-band[data-daypart="morning"]) .app-header { --bb-deep: color-mix(in srgb, var(--bb-p) 52%, #0B1430); }
+  .app-ui:has(.bb-band[data-daypart="evening"]) .app-header { --bb-deep: color-mix(in srgb, var(--bb-p) 24%, #04070F); }
+  .app-ui:has(.bb-band[data-daypart="night"]) .app-header { --bb-deep: color-mix(in srgb, var(--bb-p) 16%, #02040A); }
+}

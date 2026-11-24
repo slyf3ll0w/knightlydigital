@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { dayShapeLine, daypartOf, holidayLine } from "@/lib/day-shape";
 import Link from "next/link";
 import {
   Inbox,
@@ -941,11 +942,32 @@ export default async function DashboardPage() {
     return { label: item.sort !== 0 && item.sort < nowT ? "Past" : appointmentTypeLabel[item.apptType as keyof typeof appointmentTypeLabel] ?? "Appointment", tone: "neutral" };
   };
 
+  // The line under the greeting: the day's shape, a holiday heads-up or the
+  // month so far, dealt per visit (lib/day-shape.ts) — Home says something new.
+  const timedToday = todayItems.filter((i) => i.sort !== 0);
+  const homeNotes = [
+    dayShapeLine({
+      stops: todayItems.length,
+      jobs: todayJobs,
+      firstTime: timedToday[0]?.time ?? null,
+      lastTime: timedToday[timedToday.length - 1]?.time ?? null,
+      allDone,
+      waiting: needsTotal,
+    }),
+    holidayLine(local),
+    seePerformance && monthCollected > 0
+      ? `${money(monthCollected)} collected so far in ${now.toLocaleDateString("en-US", { month: "long", timeZone: tz })}.`
+      : null,
+  ].filter((n): n is string => !!n);
+  const homeNote = homeNotes[Math.floor(Math.random() * homeNotes.length)] ?? null;
+
   return (
     <DsPage
       band
+      daypart={daypartOf(local.hour)}
       header={
           <PageHeader
+            note={homeNote}
             heavy
             eyebrow={dateLine}
             title={greetingTitle}

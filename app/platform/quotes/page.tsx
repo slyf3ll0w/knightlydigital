@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { headerNote } from "@/lib/header-notes";
 import { requirePageActor, canSell, viaContactScope, isManager } from "@/lib/permissions";
 import EntityRowActions from "@/components/EntityRowActions";
 import Link from "next/link";
@@ -40,6 +41,8 @@ export default async function QuotesPage({
   searchParams: Promise<{ status?: string; q?: string; page?: string; sort?: string }>;
 }) {
   const actor = await requirePageActor((a) => canSell(a.role));
+  // One true line from this company's numbers, dealt per visit (lib/header-notes.ts)
+  const pageNote = await headerNote("quotes", actor);
   const companyId = actor.companyId;
   const scope = viaContactScope(actor);
   // Dates render in the company's zone — the server clock is UTC.
@@ -204,6 +207,7 @@ export default async function QuotesPage({
       open
       header={
         <PageHeader
+          note={pageNote}
           eyebrow={eyebrow}
           title="Quotes"
           actions={

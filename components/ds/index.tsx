@@ -30,6 +30,7 @@ export function DsPage({
   band = false,
   open = false,
   header,
+  daypart,
 }: {
   children: React.ReactNode;
   className?: string;
@@ -42,6 +43,8 @@ export function DsPage({
   open?: boolean;
   /** With `band`: the page's header, rendered INSIDE the band (so it truly sits on it). */
   header?: React.ReactNode;
+  /** With `band`: the time of day, so the band follows it (morning lighter, evening deeper). */
+  daypart?: "morning" | "day" | "evening" | "night";
 }) {
   // Page entrances (David 2026-11-24): one of five is dealt on every page
   // open so loading feels a little different each time; pure CSS (app/ds-brand.css),
@@ -68,7 +71,7 @@ export function DsPage({
   }
   return (
     <div className="ds bb-wrap" data-enter={enter} suppressHydrationWarning>
-      <div className="bb-band">
+      <div className="bb-band" data-daypart={daypart}>
         <div className="ds bb-page bb-head mx-auto w-full max-w-6xl px-4 pt-4 lg:px-8 lg:pt-8">{header}</div>
       </div>
       <div className={`ds bb-page mx-auto w-full max-w-6xl px-4 pb-10 pt-0 lg:px-8 lg:pt-10 ${className}`}>{children}</div>
@@ -126,11 +129,14 @@ export function PageHeader({
   title,
   info,
   actions,
+  note,
   heavy = false,
   className = "",
 }: {
   eyebrow?: React.ReactNode;
   title: React.ReactNode;
+  /** One line under the title that changes per visit (lib/header-notes.ts). */
+  note?: React.ReactNode;
   /** The heavy-look title size/weight (2026-11-21). */
   heavy?: boolean;
   info?: React.ReactNode;
@@ -148,6 +154,7 @@ export function PageHeader({
           </span>
           {info && <InfoTip label="About this page">{info}</InfoTip>}
         </h1>
+        {note && <p className="ds-pagenote">{note}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>

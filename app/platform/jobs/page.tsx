@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { headerNote } from "@/lib/header-notes";
 import { requirePageActor, jobScope, canSeePricing, canSeeMoney, isManager } from "@/lib/permissions";
 import EntityRowActions from "@/components/EntityRowActions";
 import Link from "next/link";
@@ -35,6 +36,8 @@ export default async function JobsPage({
   searchParams: Promise<{ status?: string; unscheduled?: string; q?: string; page?: string; sort?: string }>;
 }) {
   const actor = await requirePageActor();
+  // One true line from this company's numbers, dealt per visit (lib/header-notes.ts)
+  const pageNote = await headerNote("jobs", actor);
   const companyId = actor.companyId;
   const scope = jobScope(actor);
   const showMoney = canSeePricing(actor.role);
@@ -150,6 +153,7 @@ export default async function JobsPage({
       open
       header={
         <PageHeader
+          note={pageNote}
           eyebrow={eyebrow}
           title="Jobs"
           actions={
