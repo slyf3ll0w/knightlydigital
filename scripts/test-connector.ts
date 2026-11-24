@@ -7,6 +7,7 @@
  * decides which, so nothing reaches an outside AI by default.
  */
 import assert from "node:assert";
+import { ESTIMATOR_LIBRARY_ENABLED } from "../lib/estimator-library-flag";
 import { createHash } from "node:crypto";
 import { toolsForActor } from "../lib/assistant";
 import type { Actor } from "../lib/permissions";
@@ -30,7 +31,9 @@ assert.equal(prepare.size, CONNECTOR_PREPARE.length, "PREPARE has a duplicate");
 const unfiled = all.filter((n) => !read.has(n) && !prepare.has(n) && !never.has(n) && !draft.has(n));
 assert.deepEqual(unfiled, [], `Atlas tools not filed for the connector (add each to READ, PREPARE or NEVER in lib/connector/tools.ts): ${unfiled.join(", ")}`);
 for (const n of all) assert.equal([read.has(n), prepare.has(n), never.has(n), draft.has(n)].filter(Boolean).length, 1, `${n} is filed more than once`);
-const stale = [...read, ...prepare, ...never, ...draft].filter((n) => !all.includes(n));
+// Archived features keep their filing so they come back with one switch
+const ARCHIVED = new Set<string>(ESTIMATOR_LIBRARY_ENABLED ? [] : ["browse_library"]);
+const stale = [...read, ...prepare, ...never, ...draft].filter((n) => !all.includes(n) && !ARCHIVED.has(n));
 assert.deepEqual(stale, [], `filed for the connector but no longer an Atlas tool: ${stale.join(", ")}`);
 // the draft allowance is narrow on purpose: only the page designer's private draft (David 2026-11-20)
 assert.deepEqual([...draft], ["draft_client_theme"], "only the page designer's draft saves without a card");
@@ -38,7 +41,9 @@ console.log(`ok 1: all ${all.length} Atlas tools filed — ${read.size} read, ${
 
 // 2. what an owner's connection offers: nothing from NEVER, sorted, and the two paid tools are out
 const offered = connectorTools(toolsForActor(owner)).map((t) => t.decl.name);
-assert.equal(offered.length, read.size + prepare.size + draft.size);
+// archived tools stay filed but aren't offered
+const archivedFiled = [...ARCHIVED].filter((n) => read.has(n) || prepare.has(n) || draft.has(n)).length;
+assert.equal(offered.length, read.size + prepare.size + draft.size - archivedFiled);
 assert.deepEqual(offered, [...offered].sort((a, b) => a.localeCompare(b)), "the list is in a fixed order");
 for (const n of ["lookup_part_price", "manage_automation", "queue_next_step", "export_data", "place_call"]) assert.ok(!offered.includes(n), `${n} must not be offered`);
 assert.equal(connectorMode("list_money"), "read");

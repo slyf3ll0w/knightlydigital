@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ESTIMATOR_LIBRARY_ENABLED } from "@/lib/estimator-library-flag";
 import { checkFeature } from "@/lib/plan-gate";
 import { getActor, canSell } from "@/lib/permissions";
 import { compileSpec, explainRun, parseVariants, runCompiled, runVariants } from "@/lib/estimator";
@@ -13,6 +14,8 @@ import { loadVisibleListing } from "@/lib/estimator-library";
  * Nothing is counted or saved.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ listing: string }> }) {
+  // The Library is archived (lib/estimator-library-flag.ts)
+  if (!ESTIMATOR_LIBRARY_ENABLED) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const gate = await checkFeature(actor.companyId, "estimator");

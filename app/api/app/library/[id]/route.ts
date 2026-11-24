@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ESTIMATOR_LIBRARY_ENABLED } from "@/lib/estimator-library-flag";
 import { prisma } from "@/lib/db";
 import { getActor, canSell } from "@/lib/permissions";
 import { specFromJson } from "@/lib/estimator";
@@ -6,6 +7,8 @@ import { listingCard, listingMarks, loadVisibleListing } from "@/lib/estimator-l
 
 /** GET /api/app/library/[id] — one listing with its (portable) spec, for Preview. 404 unless LIVE or mine. */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // The Library is archived (lib/estimator-library-flag.ts)
+  if (!ESTIMATOR_LIBRARY_ENABLED) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });

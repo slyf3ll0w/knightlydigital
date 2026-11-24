@@ -39,7 +39,7 @@ assert.deepEqual(
   names(owner),
   [
     "add_client_note", "add_job_line_items", "add_job_note", "add_place", "add_sticky_note", "add_stop",
-    "add_team_member", "assign_client", "browse_library", "business_summary", "cancel_appointment", "charge_saved_card", "clock",
+    "add_team_member", "assign_client", "business_summary", "cancel_appointment", "charge_saved_card", "clock",
     "close_lead", "collect_deposit", "convert_quote", "create_agreement_template", "create_client", "create_invoice",
     "create_job", "create_quote", "create_request", "create_service", "delete_record", "draft_client_theme", "duplicate_document",
     "edit_payment", "email_client", "email_document", "export_data", "find_a_time", "get_ads_conversion_feed", "get_client_activity",

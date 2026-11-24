@@ -1,4 +1,5 @@
 import { prisma } from "../db";
+import { ESTIMATOR_LIBRARY_ENABLED } from "@/lib/estimator-library-flag";
 import { canSell, isManager, jobScope } from "../permissions";
 import { listChannels, resolveChannel, MESSAGE_SELECT, serializeMessage } from "../chat";
 import { listNotes } from "../sticky-notes";
@@ -250,7 +251,8 @@ export const extraTools: Tool[] = [
         required: ["action"],
       },
     },
-    allowed: (a) => canSell(a.role),
+    // Archived with the Library (lib/estimator-library-flag.ts): off for everyone
+    allowed: (a) => ESTIMATOR_LIBRARY_ENABLED && canSell(a.role),
     run: async (actor, args, ctx) => {
       const action = str(args.action, 8);
       if (action === "search") {

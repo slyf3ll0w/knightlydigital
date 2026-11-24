@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ESTIMATOR_LIBRARY_ENABLED } from "@/lib/estimator-library-flag";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BookOpen, Check, ChevronLeft, ChevronRight, Copy, Globe, History, Info, LayoutDashboard, Loader2, MoreHorizontal, Pencil, Play, Power, SlidersHorizontal, Sparkles, Trash2, Users } from "lucide-react";
@@ -160,7 +161,8 @@ export default function ToolClient({
   const atlas = useAssistant();
   const [tool, setTool] = useState(initial);
   useEffect(() => setTool(initial), [initial]);
-  const allowed = useMemo(() => SECTIONS.filter((s) => !s.manager || manager), [manager]);
+  // The Library tab is archived (lib/estimator-library-flag.ts)
+  const allowed = useMemo(() => SECTIONS.filter((s) => (!s.manager || manager) && (s.key !== "share" || ESTIMATOR_LIBRARY_ENABLED)), [manager]);
 
   // ?s= names the section; legacy tab names map into Advanced; a change
   // still building opens on Ask Atlas so it's seen landing
@@ -419,7 +421,7 @@ export default function ToolClient({
     <>
       {!tool.isActive && <Chip>Off</Chip>}
       {published && <Chip tone="primary">Published</Chip>}
-      {tool.sourceListingId && <Chip>From the Library</Chip>}
+      {ESTIMATOR_LIBRARY_ENABLED && tool.sourceListingId && <Chip>From the Library</Chip>}
     </>
   );
 
@@ -819,7 +821,7 @@ export default function ToolClient({
           )}
 
           {/* ── Library ── */}
-          {section === "share" && manager && <SharePanel toolId={tool.id} toolName={tool.name} companyName={companyName} companyIndustry={companyIndustry} />}
+          {section === "share" && manager && ESTIMATOR_LIBRARY_ENABLED && <SharePanel toolId={tool.id} toolName={tool.name} companyName={companyName} companyIndustry={companyIndustry} />}
 
           {/* ── Web form ── */}
           {section === "website" && manager && (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ESTIMATOR_LIBRARY_ENABLED } from "@/lib/estimator-library-flag";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, BookOpen, Calculator, Play, Plus, X } from "lucide-react";
@@ -206,7 +207,7 @@ export default function EstimatesClient({
   const headerActions = (
         <div className="flex items-center gap-2">
         {view === "tools" ? (
-          <Link href="/app/estimates?view=library" prefetch={false} className="ds-btn ds-btn-outline h-10 shrink-0">
+          !ESTIMATOR_LIBRARY_ENABLED ? null : <Link href="/app/estimates?view=library" prefetch={false} className="ds-btn ds-btn-outline h-10 shrink-0">
             <BookOpen size={15} />
             <span className="hidden sm:inline">Browse library</span>
           </Link>

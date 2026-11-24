@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ESTIMATOR_LIBRARY_ENABLED } from "@/lib/estimator-library-flag";
 import { checkFeature } from "@/lib/plan-gate";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
@@ -32,6 +33,8 @@ function toolBrief(spec: EstimatorSpec): string {
 }
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // The Library is archived (lib/estimator-library-flag.ts)
+  if (!ESTIMATOR_LIBRARY_ENABLED) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const gate = await checkFeature(actor.companyId, "estimator");

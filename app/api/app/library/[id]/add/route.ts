@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ESTIMATOR_LIBRARY_ENABLED } from "@/lib/estimator-library-flag";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { addListingToCompany, LISTING_SELECT } from "@/lib/estimator-library";
@@ -9,6 +10,8 @@ import { addListingToCompany, LISTING_SELECT } from "@/lib/estimator-library";
  * pictures are duplicated; History starts with "Added from the Library".
  */
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // The Library is archived (lib/estimator-library-flag.ts)
+  if (!ESTIMATOR_LIBRARY_ENABLED) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });

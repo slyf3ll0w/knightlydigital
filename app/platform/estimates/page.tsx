@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ESTIMATOR_LIBRARY_ENABLED } from "@/lib/estimator-library-flag";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
@@ -32,7 +33,8 @@ export default async function EstimatesPage({ searchParams }: { searchParams: Pr
     return <PlanRequired feature="estimator" back={{ href: "/app/quotes", label: "Back to quotes" }} />;
   const manager = isManager(actor.role);
   const sp = await searchParams;
-  const view: "tools" | "library" = sp.view === "library" ? "library" : "tools";
+  // The Library is archived (lib/estimator-library-flag.ts): ?view=library shows the tools
+  const view: "tools" | "library" = ESTIMATOR_LIBRARY_ENABLED && sp.view === "library" ? "library" : "tools";
   const [rows, company, book] = await Promise.all([
     prisma.estimator.findMany({
       where: { companyId: actor.companyId, ...(manager ? {} : { isActive: true }) },
