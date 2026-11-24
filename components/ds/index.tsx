@@ -26,16 +26,38 @@ export function DsPage({
   children,
   className = "",
   band = false,
+  open = false,
   header,
 }: {
   children: React.ReactNode;
   className?: string;
   band?: boolean;
+  /**
+   * The open page without the band (desktop): white page, the page's own
+   * header, sections straight on the page. Home wears the band; work pages
+   * (Clients, Invoices, …) are open (David 2026-11-24).
+   */
+  open?: boolean;
   /** With `band`: the page's header, rendered INSIDE the band (so it truly sits on it). */
   header?: React.ReactNode;
 }) {
+  if (open && !band) {
+    return (
+      <div className="ds bb-wrap bb-open">
+        <div className={`ds bb-page mx-auto w-full max-w-6xl px-4 pb-10 pt-4 lg:px-8 lg:pt-8 ${className}`}>
+          {header}
+          {children}
+        </div>
+      </div>
+    );
+  }
   if (!band) {
-    return <div className={`ds mx-auto w-full max-w-6xl px-4 pb-10 pt-4 lg:px-8 lg:pt-8 ${className}`}>{children}</div>;
+    return (
+      <div className={`ds mx-auto w-full max-w-6xl px-4 pb-10 pt-4 lg:px-8 lg:pt-8 ${className}`}>
+        {header}
+        {children}
+      </div>
+    );
   }
   return (
     <div className="ds bb-wrap">

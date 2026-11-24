@@ -226,7 +226,7 @@ export default async function ContactsPage({
     .join(" · ");
   const desktop = (
     <DsPage
-      band
+      open
       header={
           <PageHeader
             eyebrow={eyebrow}

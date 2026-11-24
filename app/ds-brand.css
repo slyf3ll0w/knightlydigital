@@ -47,35 +47,39 @@ html[data-mode="dark"] .ds {
   .bb-page { position: relative; }
 
   /* the header inside the band: fills it, white type, secondary accent */
-  .bb-page .ds-pagehead { min-height: 132px; align-items: center; }
-  .bb-page .ds-pagehead .ds-eyebrow { color: rgba(255, 255, 255, 0.72); }
-  .bb-page .ds-pagehead .ds-title { color: #FFFFFF; font-size: 32px; font-weight: 700; letter-spacing: -0.03em; }
-  .bb-page .ds-pagehead .ds-title .bb-acc { color: var(--bb-s) !important; }
-  .bb-page .ds-pagehead .ds-title button { color: rgba(255, 255, 255, 0.7); }
-  .bb-page .ds-pagehead .ds-title button:hover { color: #FFFFFF; }
-  .bb-page .ds-pagehead .ds-wipe-bar { background: var(--bb-s); }
-  .bb-page .ds-pagehead .ds-chip { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28); }
-  .bb-page .ds-pagehead a:not(.ds-btn), .bb-page .ds-pagehead .bb-crumbs { color: rgba(255, 255, 255, 0.75); }
-  .bb-page .ds-pagehead a:not(.ds-btn):hover { color: #FFFFFF; }
-  .bb-page .ds-pagehead .ds-btn-outline,
-  .bb-page .ds-pagehead .ds-btn-ghost,
-  .bb-page .ds-pagehead .ds-btn-soft {
+  .bb-band .ds-pagehead { min-height: 132px; align-items: center; }
+  .bb-band .ds-pagehead .ds-eyebrow { color: rgba(255, 255, 255, 0.72); }
+  .bb-band .ds-pagehead .ds-title { color: #FFFFFF; font-size: 32px; font-weight: 700; letter-spacing: -0.03em; }
+  .bb-band .ds-pagehead .ds-title .bb-acc { color: var(--bb-s) !important; }
+  .bb-band .ds-pagehead .ds-title button { color: rgba(255, 255, 255, 0.7); }
+  .bb-band .ds-pagehead .ds-title button:hover { color: #FFFFFF; }
+  .bb-band .ds-pagehead .ds-wipe-bar { background: var(--bb-s); }
+  .bb-band .ds-pagehead .ds-chip { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28); }
+  .bb-band .ds-pagehead a:not(.ds-btn), .bb-band .ds-pagehead .bb-crumbs { color: rgba(255, 255, 255, 0.75); }
+  .bb-band .ds-pagehead a:not(.ds-btn):hover { color: #FFFFFF; }
+  .bb-band .ds-pagehead .ds-btn-outline,
+  .bb-band .ds-pagehead .ds-btn-ghost,
+  .bb-band .ds-pagehead .ds-btn-soft {
     background: rgba(255, 255, 255, 0.1);
     color: #FFFFFF;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
   }
-  .bb-page .ds-pagehead .ds-btn-outline:hover,
-  .bb-page .ds-pagehead .ds-btn-ghost:hover,
-  .bb-page .ds-pagehead .ds-btn-soft:hover { background: rgba(255, 255, 255, 0.17); }
-  .bb-page .ds-pagehead .ds-btn-primary {
+  .bb-band .ds-pagehead .ds-btn-outline:hover,
+  .bb-band .ds-pagehead .ds-btn-ghost:hover,
+  .bb-band .ds-pagehead .ds-btn-soft:hover { background: rgba(255, 255, 255, 0.17); }
+  .bb-band .ds-pagehead .ds-btn-primary {
     background: var(--bb-s);
     color: var(--bb-on-s);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 1px 2px rgba(0, 0, 0, 0.3),
       0 10px 22px -10px color-mix(in srgb, var(--bb-s) 80%, transparent);
   }
-  .bb-page .ds-pagehead .ds-btn-primary:hover { filter: brightness(1.06); background: var(--bb-s); }
+  .bb-band .ds-pagehead .ds-btn-primary:hover { filter: brightness(1.06); background: var(--bb-s); }
   /* the pressable feel from the website: a press sinks a pixel */
   .bb-page .ds-btn:active { transform: translateY(1px) scale(0.985); }
+
+  /* open pages (no band): the page's own header, a little heavier, then room */
+  .bb-open .ds-pagehead { margin-bottom: 32px; }
+  .bb-open .ds-pagehead .ds-title { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; }
 
   /* the page under the band starts where the band ends */
   .bb-page > .bb-body { margin-top: 0; display: flex; flex-direction: column; gap: 44px; }
@@ -291,3 +295,15 @@ html[data-mode="dark"] .rail-live .rail-indicator { background: color-mix(in srg
 @media (prefers-reduced-motion: reduce) {
   .rail-live-chev, .rail-live-row > svg { transition: none; }
 }
+
+/* the uploaded logo in the sidebar's top-left (no name beside it) */
+.rail-live-co-logo { padding: 0; }
+.rail-live-co-logo:hover { background: transparent; }
+.rail-live-co-logo:hover .rail-live-logo { box-shadow: 0 0 0 1px var(--rail-line), 0 4px 12px -6px rgba(10, 19, 40, 0.25); }
+.rail-live-logo {
+  display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;
+  padding: 6px 10px; border-radius: 10px;
+  box-shadow: 0 0 0 1px var(--rail-line), 0 1px 2px rgba(10, 19, 40, 0.06);
+  transition: box-shadow 150ms;
+}
+.rail-live-logo img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }

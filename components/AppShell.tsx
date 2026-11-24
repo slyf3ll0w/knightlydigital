@@ -2513,12 +2513,7 @@ export default function AppShell({
     .filter((g) => g.items.length > 0);
   const groupCount = (items: NavItem[]) => items.reduce((n, i) => n + badgeCount(i.href), 0);
 
-  const companyMark = companyLogoUrl ? (
-    <span className="theme-fixed rail-live-mark overflow-hidden" style={{ backgroundColor: sidebarLogoColor || "#FFFFFF" }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={companyLogoUrl} alt="" className="h-full w-full object-contain p-1" />
-    </span>
-  ) : (
+  const companyMark = (
     <span className="rail-live-mark font-display" style={{ backgroundColor: railAccent, color: textOn(railAccent) }}>
       {companyName?.charAt(0).toUpperCase() ?? "W"}
     </span>
@@ -2526,12 +2521,35 @@ export default function AppShell({
 
   const sidebarInner = (
     <>
-      <Link prefetch={false} href="/app/dashboard" className="rail-live-co" aria-label={companyName ? `${companyName} home` : "Home"}>
-        {companyMark}
-        <span className="min-w-0 flex-1">
-          <span className="rail-live-name">{companyName ?? "WorkBench"}</span>
-        </span>
-      </Link>
+      {/* An uploaded logo IS the company's identity: it takes the top-left on
+          its own plate (Settings → Sidebar: plate color + logo size), no name
+          beside it (David 2026-11-24). No logo → monogram tile + name. */}
+      {companyLogoUrl ? (
+        <Link
+          prefetch={false}
+          href="/app/dashboard"
+          className="rail-live-co rail-live-co-logo"
+          aria-label={companyName ? `${companyName} home` : "Home"}
+        >
+          <span
+            className="theme-fixed rail-live-logo"
+            style={{
+              backgroundColor: sidebarLogoColor || "#FFFFFF",
+              height: `var(--rail-logo-h, ${Math.min(128, Math.max(36, sidebarLogoSize ?? 56))}px)`,
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={companyLogoUrl} alt={companyName ?? "Company logo"} />
+          </span>
+        </Link>
+      ) : (
+        <Link prefetch={false} href="/app/dashboard" className="rail-live-co" aria-label={companyName ? `${companyName} home` : "Home"}>
+          {companyMark}
+          <span className="min-w-0 flex-1">
+            <span className="rail-live-name">{companyName ?? "WorkBench"}</span>
+          </span>
+        </Link>
+      )}
       <button type="button" onClick={() => setPaletteOpen(true)} className="rail-live-search">
         <Search size={15} strokeWidth={2.2} />
         <span className="flex-1 text-left">Search</span>

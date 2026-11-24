@@ -246,7 +246,7 @@ export default async function InvoiceDetailPage({
 
   return (
     <DsPage
-      band
+      open
       header={
         <>
           {/* Phone: back + status row (unchanged) */}
