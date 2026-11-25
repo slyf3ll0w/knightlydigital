@@ -723,7 +723,7 @@ export default async function DashboardPage() {
   const homeNote = homeNotes[Math.floor(Math.random() * homeNotes.length)] ?? null;
 
   return (
-    <DsPage
+    <DsPage className="ios-grouped"
       band
       daypart={daypartOf(local.hour)}
       header={

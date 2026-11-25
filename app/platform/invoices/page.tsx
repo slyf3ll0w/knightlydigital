@@ -200,7 +200,7 @@ export default async function InvoicesPage({
   const initials = (first?: string | null, last?: string | null) =>
     `${(first ?? "").charAt(0)}${(last ?? "").charAt(0)}`.toUpperCase() || "—";
   const desktop = (
-    <DsPage
+    <DsPage className="ios-grouped"
       open
       header={
         <PageHeader

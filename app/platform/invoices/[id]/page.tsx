@@ -243,7 +243,7 @@ export default async function InvoiceDetailPage({
   );
 
   return (
-    <DsPage
+    <DsPage className="ios-grouped"
       open
       header={
         <>
