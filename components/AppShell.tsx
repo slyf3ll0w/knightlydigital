@@ -553,6 +553,25 @@ function navQuickActions(href: string, label: string, creates: NavItem[]): Quick
 // Create-sheet tile tones (.ds-tile-a … e in app/ds.css), matching the More
 // sheet's groups: Clients → primary, Sales → secondary, Field work → slate,
 // Money → slate-2.
+// Phone Create (iOS look): the four big buttons, in order of what people
+// make most; whatever a role can't make drops out and the next one moves up.
+const CREATE_QUICK = ["/app/jobs/new", "/app/quotes/new", "/app/invoices/new", "/app/contacts/new", "/app/appointments/new", "/app/tasks?new=1"];
+// Each create's icon square takes the color of what it is: people in the
+// primary, selling in the secondary, money green, work and reaching out slate.
+const CREATE_KIND: Record<string, "people" | "sell" | "money" | "work" | "reach"> = {
+  "/app/contacts/new": "people",
+  "/app/contacts/new?type=lead": "people",
+  "/app/requests/new": "people",
+  "/app/appointments/new": "sell",
+  "/app/quotes/new": "sell",
+  "/app/jobs/new": "work",
+  "/app/tasks?new=1": "work",
+  "/app/calls?keypad=1": "reach",
+  "/app/messages?new=1": "reach",
+  "/app/invoices/new": "money",
+  "/app/invoices/request": "money",
+};
+
 // What each create is for, one short line under its name on the phone sheet
 const CREATE_HINTS: Record<string, string> = {
   "/app/contacts/new": "Someone new",
@@ -3331,68 +3350,108 @@ function MobileTabBar({
           }`}
         >
           <div className="mx-auto mt-2.5 h-1 w-9 rounded-full bg-gray-200" />
-          {/* Create (David 2026-11-25, the new look): a title, Atlas's
-              "just say it" line, then every create as a two-column list —
-              a quiet icon in the primary, the name, and what it's for. */}
-          <div className="ph-create">
-            <p className="ph-create-title">Create</p>
-            {openAssistant && (
-              <button
-                type="button"
-                className={`ph-create-say ${sheetOpen ? "is-in" : ""}`}
-                onClick={() => {
-                  hapticImpact("LIGHT");
-                  setSheetOpen(false);
-                  openAssistant();
-                }}
-              >
-                <span className="ph-create-mic" aria-hidden>
-                  <Mic size={17} strokeWidth={2.2} />
-                </span>
-                <span className="min-w-0 flex-1 text-left">
-                  <span className="block font-semibold">Or just say it</span>
-                  <span className="block truncate text-[12.5px] text-[color:var(--ds-muted)]">“Quote the Hales for a spring cleanup”</span>
-                </span>
-              </button>
-            )}
-            <div className="ph-create-grid">
-              {creates.map(({ href, label, icon: Icon }, i) => {
-                const pick = PICKER_TILES[href];
-                const cls = `ph-create-item ${sheetOpen ? "is-in" : ""}`;
-                const style = sheetOpen ? { animationDelay: `${40 + i * 22}ms` } : undefined;
-                const body = (
-                  <>
-                    <span className="ph-create-ic" aria-hidden>
-                      <Icon size={18} strokeWidth={2.1} />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="ph-create-name">{label}</span>
-                      {CREATE_HINTS[href] && <span className="ph-create-hint">{CREATE_HINTS[href]}</span>}
-                    </span>
-                  </>
-                );
-                return pick ? (
-                  <button
-                    key={href}
-                    type="button"
-                    onClick={() => {
-                      hapticImpact("LIGHT");
-                      setSheetOpen(false);
-                      setPicker(pick);
-                    }}
-                    style={style}
-                    className={cls}
-                  >
-                    {body}
-                  </button>
-                ) : (
-                  <Link prefetch={false} key={href} href={href} onClick={() => setSheetOpen(false)} style={style} className={cls}>
-                    {body}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
+          {/* Create, the iOS way (David 2026-11-25: "make it look more like that
+              iOS look"): a centered title; the four things people make most
+              as big share-sheet buttons; Atlas; then the rest as one grouped
+              list in the Settings style — a filled icon square, the name, a
+              chevron, hairlines that start after the icon. */}
+          {(() => {
+            const pickOrLink = (
+              href: string,
+              cls: string,
+              style: React.CSSProperties | undefined,
+              body: React.ReactNode
+            ) => {
+              const pick = PICKER_TILES[href];
+              return pick ? (
+                <button
+                  key={href}
+                  type="button"
+                  onClick={() => {
+                    hapticImpact("LIGHT");
+                    setSheetOpen(false);
+                    setPicker(pick);
+                  }}
+                  style={style}
+                  className={cls}
+                >
+                  {body}
+                </button>
+              ) : (
+                <Link prefetch={false} key={href} href={href} onClick={() => setSheetOpen(false)} style={style} className={cls}>
+                  {body}
+                </Link>
+              );
+            };
+            const quick = CREATE_QUICK.map((h) => creates.find((c) => c.href === h)).filter((c): c is NavItem => Boolean(c)).slice(0, 4);
+            const rest = creates.filter((c) => !quick.includes(c));
+            const tone = (href: string) => CREATE_KIND[href] ?? "work";
+            return (
+              <div className="ios-create">
+                <p className="ios-create-title">Create</p>
+                {quick.length > 0 && (
+                  <div className="ios-create-quick" style={{ gridTemplateColumns: `repeat(${quick.length}, minmax(0, 1fr))` }}>
+                    {quick.map(({ href, label, icon: Icon }, i) =>
+                      pickOrLink(
+                        href,
+                        `ios-create-q ${sheetOpen ? "is-in" : ""}`,
+                        sheetOpen ? { animationDelay: `${30 + i * 30}ms` } : undefined,
+                        <>
+                          <span className={`ios-ic is-${tone(href)} is-lg`} aria-hidden>
+                            <Icon size={24} strokeWidth={2} />
+                          </span>
+                          <span className="ios-create-ql">{label}</span>
+                        </>
+                      )
+                    )}
+                  </div>
+                )}
+                {openAssistant && (
+                  <div className={`ios-group ${sheetOpen ? "is-in" : ""}`} style={sheetOpen ? { animationDelay: "120ms" } : undefined}>
+                    <button
+                      type="button"
+                      className="ios-cell"
+                      onClick={() => {
+                        hapticImpact("LIGHT");
+                        setSheetOpen(false);
+                        openAssistant();
+                      }}
+                    >
+                      <span className="ios-ic is-atlas" aria-hidden>
+                        <Mic size={17} strokeWidth={2.2} />
+                      </span>
+                      <span className="ios-cell-text">
+                        <span className="ios-cell-label">Just say it</span>
+                        <span className="ios-cell-sub">“Quote the Hales for a spring cleanup”</span>
+                      </span>
+                      <ChevronRight size={17} strokeWidth={2.4} className="ios-chev" aria-hidden />
+                    </button>
+                  </div>
+                )}
+                {rest.length > 0 && (
+                  <div className={`ios-group ${sheetOpen ? "is-in" : ""}`} style={sheetOpen ? { animationDelay: "160ms" } : undefined}>
+                    {rest.map(({ href, label, icon: Icon }) =>
+                      pickOrLink(
+                        href,
+                        "ios-cell",
+                        undefined,
+                        <>
+                          <span className={`ios-ic is-${tone(href)}`} aria-hidden>
+                            <Icon size={17} strokeWidth={2.2} />
+                          </span>
+                          <span className="ios-cell-text">
+                            <span className="ios-cell-label">{label}</span>
+                          </span>
+                          {CREATE_HINTS[href] && <span className="ios-cell-detail">{CREATE_HINTS[href]}</span>}
+                          <ChevronRight size={17} strokeWidth={2.4} className="ios-chev" aria-hidden />
+                        </>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           {/* The FAB's + twirls to an × here, on top of the sheet — the real
               FAB sits underneath it and can't show the animation itself */}
           <div className="flex justify-end pr-3 pt-1 pb-[calc(0.625rem+env(safe-area-inset-bottom))]">

@@ -531,35 +531,3 @@ a.bb-row:hover::after, a.bb-row:focus-visible::after, .bb-row.is-link:hover::aft
   .rail-live.rail-drawer, .rail-live.rail-drawer.is-open, .rail-scrim { transition: none; }
 }
 
-/* ══ Phones: Create (David 2026-11-25) ══ the title, Atlas's "just say it"
-   line, then every create as a two-column list: a quiet icon in the primary,
-   the name, and what it's for. Items rise in one after another. */
-.ph-create { padding: 6px 14px 2px; }
-.ph-create-title { margin: 0; padding: 8px 6px 12px; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: var(--ds-ink); }
-.ph-create-say {
-  display: flex; align-items: center; gap: 12px; width: 100%; margin-bottom: 10px; padding: 12px; border: 0; border-radius: 14px;
-  background: var(--ds-primary-soft); color: var(--ds-ink); font-size: 15px; cursor: pointer;
-}
-.ph-create-say:active { filter: brightness(0.97); }
-.ph-create-mic {
-  width: 36px; height: 36px; flex: none; border-radius: 11px; display: grid; place-items: center;
-  background: var(--ds-secondary); color: var(--ds-on-secondary);
-}
-.ph-create-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 6px; }
-.ph-create-item {
-  position: relative; display: flex; align-items: center; gap: 11px; height: 60px; padding: 0 8px; border: 0; border-radius: 12px;
-  background: transparent; text-align: left; cursor: pointer; transition: background-color 140ms ease;
-}
-.ph-create-item:active { background: color-mix(in srgb, var(--ds-ink) 6%, transparent); }
-.ph-create-item::after {
-  content: ""; position: absolute; left: 8px; right: 8px; bottom: 0; height: 1px; background: var(--ds-line);
-}
-.ph-create-ic {
-  width: 36px; height: 36px; flex: none; border-radius: 11px; display: grid; place-items: center;
-  background: var(--ds-primary-soft); color: var(--ds-primary);
-}
-.ph-create-name { display: block; font-size: 15px; font-weight: 600; color: var(--ds-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ph-create-hint { display: block; font-size: 12.5px; color: var(--ds-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ph-create-item.is-in, .ph-create-say.is-in { animation: ph-create-in 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-@keyframes ph-create-in { from { opacity: 0; transform: translateY(10px); } }
-@media (prefers-reduced-motion: reduce) { .ph-create-item.is-in, .ph-create-say.is-in { animation: none; } }
