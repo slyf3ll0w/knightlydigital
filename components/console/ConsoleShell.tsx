@@ -17,6 +17,7 @@ import {
   SquareKanban,
   TrendingUp,
   type LucideIcon,
+  Newspaper,
 } from "lucide-react";
 import ConsoleSearch from "./ConsoleSearch";
 
@@ -61,6 +62,7 @@ const GROUPS: { key: string; label: string; items: Item[] }[] = [
       { href: "/superadmin/library", label: "Library", icon: Library },
       { href: "/superadmin/corrections", label: "Corrections", icon: Library },
       { href: "/superadmin/websites", label: "Websites", icon: MonitorSmartphone },
+      { href: "/superadmin/blog", label: "Blog", icon: Newspaper },
     ],
   },
 ];

@@ -4580,3 +4580,50 @@ model LiveVoiceSession {
   @@index([userId, startedAt])
   @@index([startedAt])
 }
+
+// ── Blog on workbenchfsm.com/blog (2026-11-25) ──────────────────────────────
+// Claude Sonnet writes posts ahead into a queue; the hourly cron publishes
+// the oldest queued post once a day (Chicago time) and tops the queue back
+// up. Managed in Console → Blog. lib/blog.ts owns every write.
+model BlogPost {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String
+  summary     String    @db.Text
+  tag         String // the category label over the title ("Getting paid")
+  keyword     String? // the search phrase the post is written for
+  /// AnnouncementBlock[] (lib/wb-announcements.ts): p / h / list / steps
+  blocks      Json
+  /// a Help guide slug the post links at the end, checked when written
+  helpSlug    String?
+  /// QUEUED (waiting its day) | PUBLISHED | HELD (failed a check, never auto-posts) | PULLED (taken out by hand)
+  status      String    @default("QUEUED")
+  heldReason  String?
+  /// queue order: oldest first; "Post next" moves it ahead of the rest
+  queuedAt    DateTime  @default(now())
+  publishedAt DateTime?
+  /// "sonnet" or "manual"; model id and token use for the Console
+  source      String    @default("sonnet")
+  model       String?
+  tokensIn    Int       @default(0)
+  tokensOut   Int       @default(0)
+  editedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, queuedAt])
+  @@index([status, publishedAt])
+}
+
+// One row (id "default"). Off until turned on in Console → Blog.
+model BlogSettings {
+  id          String   @id @default("default")
+  enabled     Boolean  @default(false)
+  /// the hour of the day (America/Chicago, 0–23) the day's post goes up
+  publishHour Int      @default(9)
+  /// how many posts Sonnet keeps written ahead
+  queueTarget Int      @default(7)
+  /// standing notes for the writer: topics to cover or avoid, tone
+  guidance    String?  @db.Text
+  updatedAt   DateTime @updatedAt
+}

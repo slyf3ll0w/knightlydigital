@@ -50,6 +50,10 @@ export function claudeEnabled(): boolean {
 export const CLAUDE_FALLBACK_MODEL = "claude-sonnet-5-5";
 
 let cached: { client: Anthropic; sig: string } | null = null;
+/** The shared client (key + workspace header), for a request shape askAI does not cover (lib/blog-writer.ts). */
+export function claudeClient(): Anthropic {
+  return client();
+}
 function client(): Anthropic {
   const key = process.env.ANTHROPIC_API_KEY ?? "";
   const workspace = process.env.ANTHROPIC_WORKSPACE_ID?.trim();

@@ -28,6 +28,7 @@ import { FREE_PAGE_PATH } from "@/lib/wb-free";
 import { ALTERNATIVES_PATH } from "@/lib/wb-alternatives";
 import { TOOLS_PATH } from "@/lib/wb-tools";
 import { ANNOUNCEMENTS_PATH } from "@/lib/wb-announcements";
+import { BLOG_PATH } from "@/lib/blog-shared";
 
 /**
  * The site footer, round 5 (David 2026-11-18: "so many links, very busy").
@@ -60,6 +61,7 @@ const columns: { heading: string; links: { label: string; href: string }[] }[] =
     links: [
       { label: "Help Center", href: "/help" },
       { label: "What's new", href: ANNOUNCEMENTS_PATH },
+      { label: "Blog", href: BLOG_PATH },
       { label: "Free tools", href: TOOLS_PATH },
       { label: "Status", href: "/status" },
     ],

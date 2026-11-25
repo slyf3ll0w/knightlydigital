@@ -48,6 +48,7 @@ import { runTelnyxBalanceWatch } from "@/lib/telnyx-balance";
 import { runSetupNudgeSweep } from "@/lib/setup-nudge";
 import { resetDemoCompany } from "@/lib/demo-company";
 import { demoCompanyEnabled } from "@/lib/demo-company-shared";
+import { runBlogPublish, runBlogWrite } from "@/lib/blog";
 
 /**
  * Hourly billing cron. A scheduler (Railway cron service, or an external
@@ -279,6 +280,13 @@ export async function POST(req: NextRequest) {
     // Financial reconciliation: re-derives every money invariant and emails the
     // platform operator on drift. Self-gates to once a day; never throws.
     await step("reconcile", () => runNightlyReconciliation(now));
+    // The blog (workbenchfsm.com/blog): the day's post goes up once its hour
+    // has come, then Sonnet writes one more post if the queue is short. Last,
+    // so a slow write never pushes billing or the reconcile past the budget;
+    // and the write is skipped when the tick has already run long.
+    await step("blogPublish", () => runBlogPublish(now));
+    if (Date.now() - started < BUDGET_MS - 4 * 60_000) await step("blogWrite", () => runBlogWrite());
+    else deferred.push("blogWrite");
   } finally {
     running = false;
   }

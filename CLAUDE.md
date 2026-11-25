@@ -154,6 +154,20 @@ announcement covering estimate tools that learn from your own quotes
 ChatGPT to WorkBench (`docs/plans/workbench-connector-2026-11-17.md`). Raise
 it again when the connector is listed in Claude's directory.
 
+## Blog (workbenchfsm.com/blog, 2026-11-25)
+
+Claude Sonnet (`claude-sonnet-5-5`, `lib/blog-writer.ts`) writes posts ahead
+into a queue; the hourly cron (`blogPublish`, `blogWrite`, last in
+`app/api/cron/recurring`) puts the oldest queued post up once a day at the
+hour set in Console → Blog (Chicago time) and writes one more post per tick
+while the queue is short. Off until turned on there. Posts are rows
+(`BlogPost`), not code, so they have their own sitemap
+(`app/(wbsite)/blog/sitemap.ts`, listed in robots.txt) and are not in
+`app/sitemap.ts` or llms.txt. A post that states a WorkBench price, names a
+real customer or is too short is HELD (`postProblems` in
+`lib/blog-shared.ts`) and never goes up on its own. Superadmin-only, so no
+Atlas / connector tool and no Help guide. Tests: `npx tsx scripts/test-blog.ts`.
+
 ## Project structure
 
 This repo has two distinct products:

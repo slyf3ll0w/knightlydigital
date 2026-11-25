@@ -22,6 +22,7 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: "https://workbenchfsm.com/sitemap.xml",
+    // The blog keeps its own sitemap: its posts come from the database (app/(wbsite)/blog/sitemap.ts)
+    sitemap: ["https://workbenchfsm.com/sitemap.xml", "https://workbenchfsm.com/blog/sitemap.xml"],
   };
 }
