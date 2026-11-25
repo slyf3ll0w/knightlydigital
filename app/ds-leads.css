@@ -304,3 +304,200 @@ html[data-mode="dark"] .ld-card { box-shadow: 0 0 0 1px var(--ds-line), 0 1px 2p
 .ld-board.is-dragging .ld-card:hover,
 .ld-board.is-dragging .ld-col.has-stage .ld-card:hover { transform: none; }
 .ld-board.is-dragging .ld-col { animation: none; }
+
+/* ══ The open board (2026-11-24, David: "do something different with the
+   leads board, I don't think it fits our new style"). Desktop only — phones
+   keep the board above exactly as it was.
+   - the page: white, the page's own header, a slim pipeline bar (each stage's
+     share in its color; a segment jumps to its lane);
+   - lanes WITHOUT boxes: a bold stage title on a 3px rule in the stage color,
+     count + value beside it; leads as rows on hairlines, no cards; the row
+     underline draws in the stage color on hover;
+   - the drop target is a thin insertion line in the stage color; an empty
+     lane is one quiet line that never changes size;
+   - List view: the same leads as one table grouped by stage;
+   - Won / Lost: quiet targets, colored only when a lead is over them.
+   The drag rules (no-flicker block above) still hold. ══ */
+@media (min-width: 1024px) {
+  .ld-open { background: var(--ds-surface); }
+
+  /* header context line */
+  .ld-ctx-stale {
+    font: inherit; color: var(--ds-warn); text-decoration: underline; text-underline-offset: 3px;
+    text-decoration-color: color-mix(in srgb, var(--ds-warn) 40%, transparent);
+  }
+  .ld-ctx-stale[aria-pressed="true"] { text-decoration-color: currentColor; }
+  .ld-ctx-n { margin-left: 2px; font-weight: 500; color: var(--ds-faint); font-variant-numeric: tabular-nums; }
+  .ld-open > .hidden.lg\:block:first-child { margin-bottom: 22px; }
+
+  /* the pipeline bar */
+  .ld-pipe { margin-bottom: 22px; }
+  .ld-pipe-bar { display: flex; gap: 3px; height: 8px; }
+  .ld-pipe-seg {
+    flex-basis: 0; min-width: 10px; height: 100%; border: 0; border-radius: 3px; cursor: pointer; padding: 0;
+    transition: filter 160ms var(--ds-ease), transform 160ms var(--ds-ease);
+  }
+  .ld-pipe-seg:hover { filter: brightness(1.08); transform: scaleY(1.5); }
+  .ld-pipe-legend { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 10px; }
+  .ld-pipe-key {
+    display: inline-flex; align-items: baseline; gap: 6px; padding: 2px 0; border: 0; background: transparent; cursor: pointer;
+    font-size: 13px; color: var(--ds-muted);
+  }
+  .ld-pipe-key:hover .ld-pipe-name { color: var(--ds-ink); text-decoration: underline; text-underline-offset: 3px; }
+  .ld-pipe-dot { align-self: center; width: 8px; height: 8px; border-radius: 2px; }
+  .ld-pipe-name { font-weight: 600; color: var(--ds-ink-2); }
+  .ld-pipe-n { font-variant-numeric: tabular-nums; }
+  .ld-pipe-v { font-weight: 600; color: var(--ds-ink-2); font-variant-numeric: tabular-nums; }
+
+  /* the filter strip: open, on a hairline */
+  .ld-open .ld-bar {
+    padding: 0 0 10px; border-radius: 0; background: transparent; box-shadow: none;
+    border-bottom: 1px solid var(--ds-line-strong); margin-bottom: 18px;
+  }
+  .ld-view { align-self: stretch; gap: 2px; margin-right: 10px; }
+  .ld-view button {
+    position: relative; height: 32px; padding: 0 10px; border: 0; background: transparent; cursor: pointer;
+    font-size: 14px; font-weight: 500; color: var(--ds-muted); transition: color 140ms var(--ds-ease);
+  }
+  .ld-view button:hover { color: var(--ds-ink); }
+  .ld-view button[aria-selected="true"] { color: var(--ds-ink); font-weight: 600; }
+  .ld-view button[aria-selected="true"]::after {
+    content: ""; position: absolute; left: 8px; right: 8px; bottom: -11px; height: 2px; border-radius: 2px; background: var(--ds-primary);
+  }
+
+  /* lanes without boxes */
+  .ld-open .ld-board { gap: 28px; }
+  .ld-open .ld-col,
+  .ld-open .ld-col.has-stage,
+  .ld-open .ld-col.has-stage.is-drop {
+    border-radius: 0; background: transparent; box-shadow: none;
+  }
+  .ld-open .ld-col.has-stage .ld-col-head,
+  .ld-open .ld-col-head {
+    padding: 0 0 10px; border-radius: 0; background: var(--ds-surface);
+    box-shadow: none; border-top: 3px solid var(--st, var(--ds-line-strong));
+  }
+  .ld-open .ld-col-head .ld-col-row:first-child { height: 34px; }
+  .ld-open .ld-col.has-stage .ld-dot { display: none; }
+  .ld-open .ld-col-name { font-size: 15px; font-weight: 700; letter-spacing: -0.015em; }
+  .ld-open .ld-col.has-stage .ld-col-count {
+    min-width: 0; height: auto; padding: 0; background: transparent; font-weight: 600;
+    color: color-mix(in srgb, var(--st) 75%, var(--ds-ink));
+  }
+  .ld-open .ld-col-row.is-sub { height: 18px; font-size: 12.5px; }
+  .ld-open .ld-col.has-stage .ld-share { display: none; }
+  .ld-open .ld-col-head .ld-icon-btn { opacity: 0; transition: opacity 140ms var(--ds-ease), background-color 140ms; }
+  .ld-open .ld-col:hover .ld-col-head .ld-icon-btn,
+  .ld-open .ld-col-head .ld-icon-btn:focus-visible { opacity: 1; }
+  .ld-open .ld-col-body { gap: 0; padding: 0; border-top: 1px solid var(--ds-line); }
+  /* a lane being dropped on: its rule thickens, nothing else moves */
+  .ld-open .ld-col.has-stage.is-drop .ld-col-head { border-top-width: 3px; box-shadow: 0 -3px 0 var(--st); }
+
+  /* leads as rows */
+  .ld-open .ld-card,
+  .ld-open .ld-col.has-stage .ld-card {
+    height: 74px; padding: 10px 2px 9px; border-radius: 0; background: transparent;
+    box-shadow: none; border-bottom: 1px solid var(--ds-line); transform: none;
+  }
+  .ld-open .ld-card:hover,
+  .ld-open .ld-col.has-stage .ld-card:hover { transform: none; box-shadow: none; background: transparent; }
+  .ld-open .ld-card:focus-visible { box-shadow: inset 0 0 0 2px var(--ds-primary); border-radius: 6px; }
+  .ld-open .ld-card::before,
+  .ld-open .ld-col.has-stage .ld-card::before { display: none; }
+  /* the row underline (as on every open list), drawn in the stage color */
+  .ld-open .ld-card::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px;
+    background: var(--st, var(--ds-primary)); transform: scaleX(0); transform-origin: left; pointer-events: none;
+    transition: transform 320ms var(--ds-ease);
+  }
+  .ld-open .ld-card:hover::after { transform: scaleX(1); }
+  .ld-open .ld-card-name { transition: transform 260ms var(--ds-ease); }
+  .ld-open .ld-card:hover .ld-card-name { transform: translateX(4px); }
+  .ld-open .ld-card-foot { padding-top: 4px; border-top: 0; margin-top: 0; }
+  .ld-open .ld-card-next { color: var(--ds-muted); }
+  .ld-open .ld-card-owner { width: 18px; height: 18px; font-size: 8.5px; }
+  .ld-open .ld-card.is-dragging { opacity: 0.35; }
+  .ld-open .ld-board.is-live .ld-card { animation: ld-row-settle 320ms var(--ds-ease) backwards; }
+  @keyframes ld-row-settle { from { opacity: 0; transform: translateY(-4px); } }
+
+  /* the drop target: a thin insertion line; an empty lane keeps its size */
+  .ld-open .ld-col-body > .ld-slot,
+  .ld-open .ld-col.has-stage .ld-slot {
+    height: 0; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 2px; overflow: visible;
+    background: transparent; color: transparent; font-size: 0; animation: none;
+    box-shadow: 0 2px 0 var(--st, var(--ds-primary));
+  }
+  .ld-open .ld-col-body > .ld-slot:only-child,
+  .ld-open .ld-empty {
+    height: 44px; min-height: 44px; box-sizing: border-box; padding: 0 2px; display: flex; align-items: center;
+    border: 0; border-radius: 0; border-bottom: 1px dashed var(--ds-line-strong); background: transparent;
+    font-size: 13px; text-align: left; color: var(--ds-muted); box-shadow: none;
+  }
+  .ld-open .ld-col-body > .ld-slot:only-child {
+    color: color-mix(in srgb, var(--st, var(--ds-primary)) 80%, var(--ds-ink)); font-weight: 600;
+    border-bottom: 2px solid var(--st, var(--ds-primary));
+  }
+  .ld-open .ld-col-body > .ld-slot:only-child::before { content: "Drop here"; }
+  .ld-open .ld-col-body > .ld-slot:only-child { font-size: 0; }
+  .ld-open .ld-col-body > .ld-slot:only-child::before { font-size: 13px; }
+  .ld-open .ld-empty.is-add:hover { border-bottom-color: var(--st, var(--ds-primary)); color: var(--ds-ink); }
+
+  /* folded lanes and the Lost tail: a quiet upright strip with the stage rule */
+  .ld-open .ld-col.is-collapsed,
+  .ld-open .ld-col.has-stage.is-collapsed {
+    width: 36px; padding: 10px 0; background: transparent;
+    box-shadow: none; border-top: 3px solid var(--st, var(--ds-line-strong));
+  }
+  .ld-open .ld-col.is-collapsed:hover { background: var(--ds-surface-2); }
+  .ld-open .ld-col.is-tail { border-top-color: var(--ds-line-strong); }
+  .ld-open .ld-col.is-tail.is-drop { background: var(--ds-surface-2); border-top-color: var(--ds-ink-2); }
+
+  /* Won / Lost while dragging: quiet targets, colored only when a lead is over them */
+  .ld-zone {
+    display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 22px; border-radius: 12px;
+    font-size: 14px; font-weight: 600; color: var(--ds-ink-2); background: var(--ds-surface);
+    box-shadow: 0 0 0 1px var(--ds-line-strong), 0 12px 28px -14px rgba(15, 23, 42, 0.35);
+    transition: background-color 160ms var(--ds-ease), color 160ms var(--ds-ease), box-shadow 160ms var(--ds-ease);
+  }
+  .ld-zone.is-won svg { color: var(--ds-good); }
+  .ld-zone.is-lost svg { color: var(--ds-muted); }
+  .ld-zone.is-won.is-on { background: var(--ds-good); color: #FFFFFF; box-shadow: 0 0 0 1px var(--ds-good), 0 14px 30px -14px rgba(15, 23, 42, 0.4); }
+  .ld-zone.is-won.is-on svg { color: currentColor; }
+  .ld-zone.is-lost.is-on { background: var(--ds-ink-2); color: var(--ds-surface); box-shadow: 0 0 0 1px var(--ds-ink-2); }
+  .ld-zone.is-lost.is-on svg { color: currentColor; }
+
+  /* List view */
+  .ld-open.is-list .ld-board { display: none; }
+  .ld-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  .ld-group { --st: var(--bg-l, var(--ds-primary)); }
+  .ld-group-head th {
+    padding: 22px 0 8px; border-bottom: 0; background: var(--ds-surface);
+    position: sticky; top: 0; z-index: 1;
+  }
+  .ld-group-head th::after {
+    content: ""; display: block; height: 3px; margin-top: 8px; border-radius: 1px; background: var(--st);
+  }
+  .ld-group:first-of-type .ld-group-head th { padding-top: 6px; }
+  .ld-group-name { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700; letter-spacing: -0.015em; color: var(--ds-ink); }
+  .ld-group-n { margin-left: 8px; font-size: 13px; font-weight: 600; color: color-mix(in srgb, var(--st) 75%, var(--ds-ink)); }
+  .ld-group-v { margin-left: 10px; font-size: 13px; font-weight: 600; color: var(--ds-ink-2); font-variant-numeric: tabular-nums; }
+  .ld-group-head:hover th { background: var(--ds-surface); }
+  .ld-lrow { cursor: pointer; --row-tone: var(--st); }
+  .ld-lrow:focus-visible { outline: 2px solid var(--ds-primary); outline-offset: -2px; }
+  .ld-lname { font-weight: 600; color: var(--ds-ink); }
+  .ld-lsub { display: block; font-size: 12.5px; color: var(--ds-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+  .ld-lmuted { color: var(--ds-muted); }
+  .ld-lval { font-weight: 600; color: var(--ds-ink); font-variant-numeric: tabular-nums; }
+  .ld-lage { font-variant-numeric: tabular-nums; color: var(--ds-muted); }
+  .ld-lage.is-warn { color: var(--ds-warn); font-weight: 600; }
+  .ld-lage.is-bad { color: var(--ds-bad); font-weight: 600; }
+  .ld-lowner { display: inline-flex; align-items: center; gap: 7px; color: var(--ds-ink-2); }
+  .ld-lnext { max-width: 260px; overflow: hidden; text-overflow: ellipsis; color: var(--ds-ink-2); }
+  .ld-lnext.is-warn { color: var(--ds-warn); }
+  .ld-lnext.is-bad { color: var(--ds-bad); }
+}
+html[data-mode="dark"] .ld-group { --st: var(--bg-d, var(--ds-primary)); }
+@media (min-width: 1024px) and (prefers-reduced-motion: reduce) {
+  .ld-open .ld-card::after, .ld-open .ld-card-name, .ld-pipe-seg, .ld-zone { transition: none; }
+  .ld-open .ld-board.is-live .ld-card { animation: none; }
+}

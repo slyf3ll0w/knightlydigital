@@ -40,7 +40,7 @@ import { money } from "@/lib/statuses";
 import { themedInkVars, themedBgVars } from "@/lib/section-colors";
 import EmptyState from "@/components/EmptyState";
 import BoardScroller from "@/components/BoardScroller";
-import { Chip, InfoTip } from "@/components/ds";
+import { Chip, InfoTip, PageHeader } from "@/components/ds";
 
 export type BoardStage = {
   id: string;
@@ -237,6 +237,25 @@ export default function LeadsBoardClient({
       }
       return next;
     });
+  }
+  // Desktop view (2026-11-24 redesign): the open board or one grouped list,
+  // remembered on this device. Phones always get the board.
+  const [view, setView] = useState<"board" | "list">("board");
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("wb:leads:view");
+      if (v === "board" || v === "list") setView(v);
+    } catch {
+      /* private mode */
+    }
+  }, []);
+  function pickView(v: "board" | "list") {
+    setView(v);
+    try {
+      localStorage.setItem("wb:leads:view", v);
+    } catch {
+      /* private mode */
+    }
   }
   const sources = useMemo(() => [...new Set(cards.map((c) => c.leadSource).filter((x): x is string => Boolean(x)))].sort(), [cards]);
   function sortCards(list: BoardCard[]): BoardCard[] {
@@ -541,6 +560,18 @@ export default function LeadsBoardClient({
     else if (e.key === "ArrowLeft" && col > 0) go(col - 1, row);
   }
 
+  // The pipeline bar: a stage's segment scrolls its lane (or its list group) into view
+  function goToStage(stageId: string) {
+    if (view === "list") {
+      document.getElementById(`lead-group-${stageId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    if (collapsed.includes(stageId)) toggleCollapsed(stageId);
+    requestAnimationFrame(() =>
+      document.getElementById(`lead-lane-${stageId}`)?.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" })
+    );
+  }
+
   function showPeek(card: BoardCard, el: HTMLElement) {
     if (peekTimer.current) clearTimeout(peekTimer.current);
     if (dragId || (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches)) return;
@@ -556,9 +587,88 @@ export default function LeadsBoardClient({
   }
 
   return (
-    <div className="ld rx-leads p-4 lg:p-8 h-full flex flex-col">
-      {/* Header: the board in one exact sentence */}
-      <div className="flex flex-wrap items-end justify-between gap-y-3 mb-4 max-w-none">
+    <div className={`ld ld-open rx-leads p-4 lg:p-8 h-full flex flex-col ${view === "list" ? "is-list" : ""}`}>
+      {/* Desktop header (2026-11-24 redesign): the page's own header, a context line from the board */}
+      <div className="hidden lg:block">
+        <PageHeader
+          eyebrow={
+            <>
+              {working.length} open {working.length === 1 ? "lead" : "leads"}
+              {totalValue > 0 && <> · {money(totalValue)} in the pipeline</>}
+              {staleCount > 0 && (
+                <>
+                  {" · "}
+                  <button type="button" className="ld-ctx-stale" onClick={() => setStaleOnly((v) => !v)} aria-pressed={staleOnly}>
+                    {staleCount} waiting over a week
+                  </button>
+                </>
+              )}
+              {won30 > 0 && <> · {won30} won in 30 days</>}
+            </>
+          }
+          title="Leads"
+          actions={
+            <>
+              <button type="button" onClick={() => setShowLost(true)} className="ds-btn ds-btn-ghost" title="Leads marked lost or archived">
+                <Archive size={16} />
+                Lost &amp; archived{lost.length > 0 && <span className="ld-ctx-n">{lost.length}</span>}
+              </button>
+              {manager && (
+                <Link href="/app/settings/pipeline" className="ds-btn ds-btn-outline">
+                  <Settings2 size={16} />
+                  Customize stages
+                </Link>
+              )}
+              <button type="button" onClick={() => setAddingTo(stages[0]?.id ?? null)} className="ds-btn ds-btn-primary">
+                <Plus size={16} />
+                New lead
+              </button>
+            </>
+          }
+        />
+      </div>
+
+      {/* The pipeline in one bar: each stage's share by value (by count when nothing has a value) */}
+      {working.length > 0 && workingStages.length > 0 && (
+        <div className="ld-pipe hidden lg:block" aria-label="Pipeline by stage">
+          <div className="ld-pipe-bar">
+            {workingStages.map((st) => {
+              const list = byStage.get(st.id) ?? [];
+              const v = list.reduce((sum, c) => sum + c.value, 0);
+              const weight = totalValue > 0 ? v : list.length;
+              if (weight <= 0) return null;
+              return (
+                <button
+                  key={st.id}
+                  type="button"
+                  className="ld-pipe-seg bg-themed"
+                  style={{ ...themedBgVars(st.color), flexGrow: weight }}
+                  onClick={() => goToStage(st.id)}
+                  title={`${st.name}: ${list.length} ${list.length === 1 ? "lead" : "leads"}${v > 0 ? ` · ${money(v)}` : ""}`}
+                  aria-label={`Go to ${st.name}`}
+                />
+              );
+            })}
+          </div>
+          <div className="ld-pipe-legend">
+            {workingStages.map((st) => {
+              const list = byStage.get(st.id) ?? [];
+              const v = list.reduce((sum, c) => sum + c.value, 0);
+              return (
+                <button key={st.id} type="button" className="ld-pipe-key" onClick={() => goToStage(st.id)}>
+                  <span className="ld-pipe-dot bg-themed" style={themedBgVars(st.color)} aria-hidden />
+                  <span className="ld-pipe-name">{st.name}</span>
+                  <span className="ld-pipe-n">{list.length}</span>
+                  {v > 0 && <span className="ld-pipe-v">{money(v)}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Phone header: the board in one exact sentence */}
+      <div className="flex flex-wrap items-end justify-between gap-y-3 mb-4 max-w-none lg:hidden">
         <div className="min-w-0">
           <PageTitle heavy section="leads" icon={SquareKanban}>
             Leads
@@ -614,6 +724,14 @@ export default function LeadsBoardClient({
 
       {/* Filter bar: search, owner, source, stale only, sort */}
       <div className="ld-bar mb-3">
+        <div className="ld-view hidden lg:flex" role="tablist" aria-label="View">
+          <button type="button" role="tab" aria-selected={view === "board"} onClick={() => pickView("board")}>
+            Board
+          </button>
+          <button type="button" role="tab" aria-selected={view === "list"} onClick={() => pickView("list")}>
+            List
+          </button>
+        </div>
         <label className="ld-search">
           <Search size={14} aria-hidden />
           <input
@@ -718,6 +836,7 @@ export default function LeadsBoardClient({
                   key={stage.id}
                   type="button"
                   {...dropProps(stage.id)}
+                  id={`lead-lane-${stage.id}`}
                   onClick={() => toggleCollapsed(stage.id)}
                   className={`ld-col has-stage is-collapsed ${dropping ? "is-drop" : ""}`}
                   style={themedBgVars(stage.color)}
@@ -733,6 +852,7 @@ export default function LeadsBoardClient({
             return (
               <section
                 key={stage.id}
+                id={`lead-lane-${stage.id}`}
                 className={`ld-col has-stage w-[82vw] sm:w-80 lg:w-[288px] shrink-0 snap-center lg:snap-align-none ${dropping ? "is-drop" : ""}`}
                 style={themedBgVars(stage.color)}
                 aria-label={stage.name}
@@ -889,6 +1009,95 @@ export default function LeadsBoardClient({
         </BoardScroller>
       )}
 
+      {/* List view (desktop): the same leads as one table, grouped by stage */}
+      {view === "list" && board.length > 0 && (
+        <div className="ld-list hidden lg:block">
+          <table className="bb-table">
+            <thead>
+              <tr>
+                <th>Lead</th>
+                <th>Source</th>
+                <th className="r">Value</th>
+                <th className="r">In stage</th>
+                <th>Owner</th>
+                <th>Next step</th>
+              </tr>
+            </thead>
+            {stages.map((stage) => {
+              const rows = sortCards(byStage.get(stage.id) ?? []);
+              if (rows.length === 0) return null;
+              const groupValue = rows.reduce((sum, c) => sum + c.value, 0);
+              return (
+                <tbody key={stage.id} id={`lead-group-${stage.id}`} className="ld-group" style={themedBgVars(stage.color)}>
+                  <tr className="ld-group-head">
+                    <th colSpan={6}>
+                      <span className="ld-group-name">
+                        {stage.isConverted && <Trophy size={13} aria-hidden />}
+                        {stage.name}
+                      </span>
+                      <span className="ld-group-n">{rows.length}</span>
+                      {groupValue > 0 && <span className="ld-group-v">{money(groupValue)}</span>}
+                    </th>
+                  </tr>
+                  {rows.map((card) => {
+                    const stale = stage.isConverted ? null : staleLevel(card);
+                    const next = nextLine(card);
+                    return (
+                      <tr
+                        key={card.id}
+                        tabIndex={0}
+                        className="ld-lrow"
+                        onClick={() => onCardClick(card)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            onCardClick(card);
+                          }
+                        }}
+                        onMouseEnter={(e) => showPeek(card, e.currentTarget)}
+                        onMouseLeave={hidePeek}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          hidePeek();
+                          setMenu({ card, anchor: { x: e.clientX, y: e.clientY } });
+                        }}
+                        aria-label={`${card.name}${card.value > 0 ? `, ${money(card.value)}` : ""}, ${daysWord(card.stageChangedAt)} in ${stage.name}`}
+                      >
+                        <td>
+                          <span className="bb-name ld-lname">{card.name}</span>
+                          <span className="ld-lsub">
+                            {card.repeat && "Repeat · "}
+                            {card.companyName ?? ""}
+                          </span>
+                        </td>
+                        <td className="ld-lmuted">{card.leadSource ?? "—"}</td>
+                        <td className="r ld-lval">{card.value > 0 ? money(card.value) : <span className="ld-lmuted">—</span>}</td>
+                        <td className={`r ld-lage ${stale ? `is-${stale}` : ""}`}>{daysWord(card.stageChangedAt)}</td>
+                        <td>
+                          {card.assignedTo ? (
+                            <span className="ld-lowner">
+                              <span className="ld-card-owner" style={{ background: monogramColor(card.assignedTo.name) }} aria-hidden>
+                                {initials(card.assignedTo.name)}
+                              </span>
+                              {card.assignedTo.name.split(" ")[0]}
+                            </span>
+                          ) : (
+                            <span className="ld-lmuted">No one</span>
+                          )}
+                        </td>
+                        <td className={`ld-lnext ${next.tone ? `is-${next.tone}` : ""}`} title={next.title}>
+                          {next.text}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              );
+            })}
+          </table>
+        </div>
+      )}
+
       {/* Hover peek: the full card */}
       {peek && !dragId && (
         <div className="ld-peek" style={{ left: peek.x, top: peek.y }} role="tooltip">
@@ -932,18 +1141,14 @@ export default function LeadsBoardClient({
         <div className="hidden lg:flex fixed bottom-6 left-1/2 -translate-x-1/2 z-40 gap-3">
           <div
             {...zoneProps("won")}
-            className={`rounded-full flex items-center gap-2 px-8 py-4 text-sm font-bold text-[color:var(--ds-surface)] transition-transform ${
-              hoverZone === "won" ? "bg-[color:var(--ds-good)] scale-110" : "bg-[color:var(--ds-good)] opacity-90"
-            }`}
+            className={`ld-zone is-won ${hoverZone === "won" ? "is-on" : ""}`}
           >
             <Trophy size={18} />
             Won — now a client
           </div>
           <div
             {...zoneProps("lost")}
-            className={`rounded-full flex items-center gap-2 px-8 py-4 text-sm font-bold text-white transition-transform ${
-              hoverZone === "lost" ? "bg-gray-800 scale-110" : "bg-gray-600"
-            }`}
+            className={`ld-zone is-lost ${hoverZone === "lost" ? "is-on" : ""}`}
           >
             <XCircle size={18} />
             Lost
