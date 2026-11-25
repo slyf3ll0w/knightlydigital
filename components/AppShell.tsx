@@ -2538,8 +2538,9 @@ export default function AppShell({
             className={`theme-fixed rail-live-logo ${sidebarLogoColor ? "has-plate" : "is-bare"}`}
             style={{
               ...(sidebarLogoColor ? { backgroundColor: sidebarLogoColor } : {}),
-              height: `var(--rail-logo-h, ${Math.min(128, Math.max(28, sidebarLogoSize ?? 40))}px)`,
-            }}
+              // the size sits on the logo itself, so a plate (Dusk) only adds room around it
+              "--logo-h": `var(--rail-logo-h, ${Math.min(128, Math.max(28, sidebarLogoSize ?? 40))}px)`,
+            } as React.CSSProperties}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={companyLogoUrl} alt={companyName ?? "Company logo"} />

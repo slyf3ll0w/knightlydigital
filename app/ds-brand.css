@@ -286,7 +286,6 @@ html[data-mode="dark"] .rail-live .rail-indicator { background: color-mix(in srg
   transition: background-color 120ms, color 120ms;
 }
 .rail-live-row:hover, .rail-live-row.is-here { background: var(--rail-hover); color: var(--rail-ink); }
-.rail-live-row:hover > svg[data-anim="turn"] { transform: rotate(60deg); transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
 .rail-live-me { margin: 4px -10px -10px; border-top: 1px solid var(--rail-line); }
 @media (prefers-reduced-motion: reduce) {
   .rail-live-chev, .rail-live-row > svg { transition: none; }
@@ -303,7 +302,7 @@ html[data-mode="dark"] .rail-live .rail-indicator { background: color-mix(in srg
 }
 .rail-live-logo.has-plate { justify-content: center; padding: 6px 10px; }
 html[data-mode="dark"] .rail-live-logo.is-bare { background: rgba(255, 255, 255, 0.92); padding: 5px 9px; width: auto; max-width: 100%; }
-.rail-live-logo img { max-width: 100%; max-height: 100%; object-fit: contain; object-position: left center; display: block; }
+.rail-live-logo img { height: var(--logo-h, 40px); width: auto; max-width: 100%; object-fit: contain; object-position: left center; display: block; }
 
 
 /* ═══ Page entrances ════════════════════════════════════════════════════
@@ -435,4 +434,31 @@ a.bb-row:hover::after, a.bb-row:focus-visible::after, .bb-row.is-link:hover::aft
   .app-ui:has(.bb-band[data-daypart="morning"]) .app-header { --bb-deep: color-mix(in srgb, var(--bb-p) 52%, #0B1430); }
   .app-ui:has(.bb-band[data-daypart="evening"]) .app-header { --bb-deep: color-mix(in srgb, var(--bb-p) 24%, #04070F); }
   .app-ui:has(.bb-band[data-daypart="night"]) .app-header { --bb-deep: color-mix(in srgb, var(--bb-p) 16%, #02040A); }
+}
+
+/* Sidebar motion in the new style (David 2026-11-24: the per-icon hover
+   wiggles felt dated). Quiet like Stripe / Linear: no icon motion, a soft
+   background fade on hover, the page marker glides without overshoot, and a
+   group's rows fade in when it opens. */
+.rail-live a > svg,
+.rail-live a:hover > svg,
+.rail-live a:hover > svg[data-anim],
+.rail-live-row > svg,
+.rail-live-row:hover > svg { animation: none !important; transform: none !important; }
+.rail-live nav a,
+.rail-live-row,
+.rail-live-ghead,
+.rail-live-search { transition: background-color 160ms var(--ds-ease, ease), color 160ms var(--ds-ease, ease); }
+.rail-live nav a > svg { transition: color 160ms var(--ds-ease, ease); }
+.rail-live .rail-indicator {
+  transition:
+    transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 150ms ease;
+}
+.rail-live .rail-item-in { animation: rail-live-fade 220ms var(--ds-ease, ease) both !important; }
+@keyframes rail-live-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .rail-live .rail-item-in { animation: none !important; }
+  .rail-live .rail-indicator { transition: none; }
 }

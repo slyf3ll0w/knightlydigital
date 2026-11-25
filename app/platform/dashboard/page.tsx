@@ -1,7 +1,5 @@
 import { prisma } from "@/lib/db";
-import { nextMilestone } from "@/lib/milestones";
 import { dealLine } from "@/lib/empty-lines";
-import MilestoneMoment from "@/components/MilestoneMoment";
 import { dayShapeLine, daypartOf, holidayLine } from "@/lib/day-shape";
 import Link from "next/link";
 import {
@@ -66,8 +64,6 @@ const apptIcons = { PHONE_CALL: Phone, VIDEO_CALL: Video, IN_PERSON: MapPin } as
 
 export default async function DashboardPage() {
   const actor = await requirePageActor();
-  // A milestone moment, if one is fresh and unseen (lib/milestones.ts) — started early, awaited below
-  const milestonePromise = nextMilestone(actor);
   const companyId = actor.companyId;
 
   // Role lens: what this person's dashboard talks about
@@ -752,10 +748,6 @@ export default async function DashboardPage() {
 
   // The caught-up line varies per visit (lib/empty-lines.ts)
   const caughtUp = dealLine("caught-up");
-  const milestone = await milestonePromise;
-  const milestoneEl = milestone && (
-    <MilestoneMoment milestoneKey={milestone.key} kind={milestone.kind} label={milestone.label} line={milestone.line} />
-  );
 
   const allClear = (
     <Card className="flex items-center gap-3 px-5 py-4">
@@ -1009,7 +1001,6 @@ export default async function DashboardPage() {
         {payoutNudge && <PayoutNudge />}
         {showSetupCard && getStarted && <GetStartedCard data={getStarted} />}
         {heroEl}
-        {milestoneEl}
 
         {todayPanel(true)}
 
@@ -1036,7 +1027,6 @@ export default async function DashboardPage() {
         {/* Talk to Atlas: the front door, first under the band (the example
             request is dealt here so the first paint already has it) */}
         <AtlasFrontDoor example={Math.floor(Math.random() * 1000)} />
-        {milestoneEl}
         {(payoutNudge || (showSetupCard && getStarted)) && (
           <div className="flex flex-col gap-4">
             {payoutNudge && <PayoutNudge />}
