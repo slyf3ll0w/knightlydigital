@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { sendEmail, newFeedbackEmail } from "@/lib/email";
+import { isE2eHarnessEmail } from "@/lib/e2e-harness";
 import { isBlobStorageConfigured, putObject } from "@/lib/blob-storage";
 import { reportError } from "@/lib/report-error";
 import {
@@ -107,7 +108,8 @@ export async function POST(req: NextRequest) {
   });
 
   // The email carries the note + where; the picture and the capture stay on the ticket.
-  await sendEmail({
+  // The e2e harness files tickets on every staging push — keep them out of the inbox.
+  if (!isE2eHarnessEmail(ticket.user?.email)) await sendEmail({
     to: FEEDBACK_INBOX,
     ...newFeedbackEmail({
       type: "SUGGESTION",

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { sendEmail, newFeedbackEmail } from "@/lib/email";
+import { isE2eHarnessEmail } from "@/lib/e2e-harness";
 
 /**
  * "Report this conversation" (Atlas drawer, 2026-10-23): the user says what
@@ -89,7 +90,8 @@ export async function POST(req: NextRequest) {
   });
 
   // The email carries the note + context; the full transcript stays on the ticket.
-  await sendEmail({
+  // The e2e harness files tickets on every staging push — keep them out of the inbox.
+  if (!isE2eHarnessEmail(ticket.user?.email)) await sendEmail({
     to: FEEDBACK_INBOX,
     ...newFeedbackEmail({
       type: "BUG",

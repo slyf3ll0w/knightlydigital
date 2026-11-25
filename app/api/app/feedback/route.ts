@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { sendEmail, newFeedbackEmail } from "@/lib/email";
+import { isE2eHarnessEmail } from "@/lib/e2e-harness";
 
 const FEEDBACK_INBOX = process.env.APPLICATION_INBOX ?? "info@streamflaire.com";
 
@@ -43,7 +44,8 @@ export async function POST(req: NextRequest) {
   });
 
   // Best-effort notify — the ticket is saved either way.
-  await sendEmail({
+  // The e2e harness files tickets on every staging push — keep them out of the inbox.
+  if (!isE2eHarnessEmail(ticket.user?.email)) await sendEmail({
     to: FEEDBACK_INBOX,
     ...newFeedbackEmail({
       type,

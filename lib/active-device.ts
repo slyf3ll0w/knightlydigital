@@ -1,3 +1,4 @@
+import { isE2eHarnessEmail } from "@/lib/e2e-harness";
 import { prisma } from "@/lib/db";
 import { ONLINE_WINDOW_MS } from "@/lib/presence";
 import { isAndroidShellUserAgent, isIosShellUserAgent } from "@/lib/sign-in-options";
@@ -61,7 +62,7 @@ export function deviceRuleEnabled(env: Record<string, string | undefined> = proc
 export function exemptEmail(email: string | null | undefined, env: Record<string, string | undefined> = process.env): boolean {
   if (!email) return false;
   const e = email.trim().toLowerCase();
-  if (/^e2e-[^@]+@workbenchfsm\.com$/.test(e)) return true;
+  if (isE2eHarnessEmail(e)) return true;
   const extra = (env.ONE_ACTIVE_DEVICE_EXEMPT ?? "")
     .split(",")
     .map((s) => s.trim().toLowerCase())
