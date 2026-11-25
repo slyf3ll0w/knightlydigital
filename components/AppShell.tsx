@@ -1876,6 +1876,29 @@ export default function AppShell({
   // row offsets move when groups toggle or counts change size.
   const railNavRef = useRef<HTMLElement>(null);
   const railIndRef = useRef<HTMLSpanElement>(null);
+  // The rail's hover light: one soft highlight that glides between rows
+  const railHoverRef = useRef<HTMLSpanElement>(null);
+  const railLastActive = useRef<string | null>(null);
+  const moveRailHover = (e: React.MouseEvent) => {
+    const nav = railNavRef.current;
+    const pill = railHoverRef.current;
+    const row = (e.target as HTMLElement).closest("a");
+    if (!nav || !pill || !row || !nav.contains(row)) return;
+    const top = row.getBoundingClientRect().top - nav.getBoundingClientRect().top + nav.scrollTop;
+    // appearing from nothing: jump into place, then glide from row to row
+    if (!pill.classList.contains("is-on")) {
+      pill.style.transition = "none";
+      pill.style.transform = `translateY(${Math.round(top)}px)`;
+      pill.style.height = `${row.offsetHeight}px`;
+      void pill.offsetWidth;
+      pill.style.transition = "";
+      pill.classList.add("is-on");
+      return;
+    }
+    pill.style.transform = `translateY(${Math.round(top)}px)`;
+    pill.style.height = `${row.offsetHeight}px`;
+  };
+  const hideRailHover = () => railHoverRef.current?.classList.remove("is-on");
   useEffect(() => {
     const nav = railNavRef.current;
     const ind = railIndRef.current;
@@ -1891,6 +1914,14 @@ export default function AppShell({
     ind.style.transform = `translateY(${Math.round(top)}px)`;
     ind.style.height = `${el.offsetHeight}px`;
     ind.classList.add("rail-indicator-on");
+    // landed on a new page: one light sweep across the marker
+    const here = el.getAttribute("href");
+    if (railLastActive.current !== null && here !== railLastActive.current) {
+      ind.classList.remove("is-landing");
+      void ind.offsetWidth;
+      ind.classList.add("is-landing");
+    }
+    railLastActive.current = here;
   });
   // iOS large-title collapse: TitleSentinel (inside each PageTitle) reports
   // when the big in-page title scrolls away; the header raises a small one.
@@ -2463,7 +2494,6 @@ export default function AppShell({
         <Icon
           size={18}
           strokeWidth={active ? 2.6 : 2.3}
-          data-anim={railAnims[href]}
           className={
             active
               ? "shrink-0 text-[color:var(--rail-accent)]"
@@ -2559,7 +2589,14 @@ export default function AppShell({
         <span className="flex-1 text-left">Search</span>
         <kbd>{kbdHint}</kbd>
       </button>
-      <nav ref={railNavRef} aria-label="Pages" className="rail-live-nav">
+      <nav
+        ref={railNavRef}
+        aria-label="Pages"
+        className="rail-live-nav"
+        onMouseOver={moveRailHover}
+        onMouseLeave={hideRailHover}
+      >
+        <span ref={railHoverRef} aria-hidden className="rail-hover" />
         <span ref={railIndRef} aria-hidden className="rail-indicator" />
         {liveDrivers.map(({ href, label, icon: Icon }) => navLink(href, label, Icon))}
         {liveGroups.map((g) => {

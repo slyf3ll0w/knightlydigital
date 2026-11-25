@@ -436,29 +436,46 @@ a.bb-row:hover::after, a.bb-row:focus-visible::after, .bb-row.is-link:hover::aft
   .app-ui:has(.bb-band[data-daypart="night"]) .app-header { --bb-deep: color-mix(in srgb, var(--bb-p) 16%, #02040A); }
 }
 
-/* Sidebar motion in the new style (David 2026-11-24: the per-icon hover
-   wiggles felt dated). Quiet like Stripe / Linear: no icon motion, a soft
-   background fade on hover, the page marker glides without overshoot, and a
-   group's rows fade in when it opens. */
-.rail-live a > svg,
-.rail-live a:hover > svg,
-.rail-live a:hover > svg[data-anim],
-.rail-live-row > svg,
-.rail-live-row:hover > svg { animation: none !important; transform: none !important; }
+/* Sidebar motion (David 2026-11-24): quiet but alive. No per-icon wiggles.
+   HOVER: one soft light glides between rows under the pointer (AppShell
+   moves .rail-hover), the hovered icon takes the brand color.
+   CLICK: the row presses in, the page marker glides to it, a light sweeps
+   across the marker once (.is-landing) and the icon pops as it settles. */
+.rail-live nav a:hover { background: transparent !important; }
+.rail-live nav a:hover > svg { transform: none; color: var(--ds-primary); }
 .rail-live nav a,
 .rail-live-row,
 .rail-live-ghead,
-.rail-live-search { transition: background-color 160ms var(--ds-ease, ease), color 160ms var(--ds-ease, ease); }
+.rail-live-search { transition: background-color 160ms var(--ds-ease, ease), color 160ms var(--ds-ease, ease), transform 140ms var(--ds-ease, ease); }
 .rail-live nav a > svg { transition: color 160ms var(--ds-ease, ease); }
+.rail-live nav a:active { transform: scale(0.975); }
+.rail-hover {
+  position: absolute; left: 8px; right: 8px; top: 0; z-index: 0;
+  border-radius: 8px; pointer-events: none; opacity: 0;
+  background: var(--rail-hover);
+  transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1), height 240ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 180ms ease;
+}
+.rail-hover.is-on { opacity: 1; }
 .rail-live .rail-indicator {
+  overflow: hidden;
   transition:
-    transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    height 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
     opacity 150ms ease;
 }
+.rail-live .rail-indicator.is-landing::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: -40%; width: 40%;
+  background: linear-gradient(100deg, transparent, color-mix(in srgb, var(--ds-primary) 22%, transparent), transparent);
+  animation: rail-sweep 620ms cubic-bezier(0.2, 0.8, 0.2, 1) 160ms both;
+}
+@keyframes rail-sweep { to { left: 110%; } }
+.rail-live a[data-rail-active="true"] > svg { animation: rail-pop 460ms cubic-bezier(0.2, 0.8, 0.2, 1) 120ms; }
+@keyframes rail-pop { 0% { transform: scale(1); } 45% { transform: scale(1.16); } 100% { transform: scale(1); } }
+.rail-live-row:active { transform: scale(0.975); }
 .rail-live .rail-item-in { animation: rail-live-fade 220ms var(--ds-ease, ease) both !important; }
 @keyframes rail-live-fade { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .rail-live .rail-item-in { animation: none !important; }
-  .rail-live .rail-indicator { transition: none; }
+  .rail-hover, .rail-live .rail-indicator { transition: none; }
+  .rail-live .rail-indicator.is-landing::after, .rail-live a[data-rail-active="true"] > svg, .rail-live .rail-item-in { animation: none !important; }
+  .rail-live nav a:active, .rail-live-row:active { transform: none; }
 }
