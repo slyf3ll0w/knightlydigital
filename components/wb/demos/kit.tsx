@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BatteryFull, Check, Send, Signal, Wifi } from "lucide-react";
 import "./demos.css";
+import "../wb-open.css";
 
 /**
  * Shared bits for the coded app-screen demos (components/wb/demos). Copied
@@ -15,6 +16,8 @@ export const NAVY = "#1D2E52";
 /** Brightwire Electric's primary (lib/demo-company.ts brandColor). */
 export const BRAND_PRIMARY = "#10244A";
 export const FONT = { fontFamily: "var(--font-lexend), Lexend, system-ui, sans-serif" };
+/** The phone app's type since 2026-11-25 (app/ds-ios.css): Apple's own font; numbers stay Lexend. */
+export const IOS_FONT = { fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif' };
 export const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 export const firstName = (name: string) => name.split(" ")[0];
 export const initialsOf = (name: string) =>
@@ -255,13 +258,14 @@ export function Toggle({ on }: { on: boolean }) {
  * An upright phone (straight on, never tilted or fanned). A coded screen
  * goes inside; the status bar and island are drawn here.
  */
-export function Phone({ children, width = 280, height = 560, className = "", screen = "bg-white" }: { children: React.ReactNode; width?: number; height?: number; className?: string; screen?: string }) {
+export function Phone({ children, width = 280, height = 560, className = "", screen, ios = false }: { children: React.ReactNode; width?: number; height?: number; className?: string; screen?: string; /** the WorkBench phone app (the iOS kit: gray grouped page, Apple type); client pages leave it off */ ios?: boolean }) {
+  const bg = screen ?? (ios ? "bg-[#F2F2F7]" : "bg-white");
   return (
     <div
       className={`relative flex-none rounded-[2.6rem] bg-[#0A1428] p-[9px] shadow-[0_0_0_1px_rgba(10,20,40,0.2),0_30px_60px_-28px_rgba(10,20,40,0.55)] ${className}`}
       style={{ width, height }}
     >
-      <div className={`ds relative flex h-full w-full flex-col overflow-hidden rounded-[2.05rem] ${screen}`}>
+      <div className={`ds relative flex h-full w-full flex-col overflow-hidden rounded-[2.05rem] ${bg} ${ios ? "wb-ios" : ""}`}>
         <div className="flex h-[38px] flex-none items-center justify-between px-6 pt-1 text-[11.5px] font-semibold text-gray-900">
           <span>9:41</span>
           <span className="flex items-center gap-1">

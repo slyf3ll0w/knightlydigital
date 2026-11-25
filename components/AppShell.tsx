@@ -2766,7 +2766,7 @@ export default function AppShell({
 
   return (
     <div
-      className="app-ui ds flex h-screen bg-paper-plain overflow-hidden"
+      className="app-ui wb-app ds flex h-screen bg-paper-plain overflow-hidden"
       style={{ ...(mobileAccentVars ?? {}), ...(primaryVars ?? {}), ...sectionVars, ...(fontVars ?? {}), ...dsVars } as React.CSSProperties}
     >
       {fontHref && (

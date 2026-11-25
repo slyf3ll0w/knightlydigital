@@ -120,7 +120,7 @@ export const startSection: HelpSection = {
       slug: "find-your-way-around",
       title: "Find your way around (and keyboard shortcuts)",
       summary: "Where everything lives on desktop and on your phone, plus the shortcuts that save clicks.",
-      keywords: ["navigation", "menu", "sidebar", "more", "shortcuts", "keyboard", "command palette", "search", "cmd k", "ctrl k"],
+      keywords: ["navigation", "menu", "sidebar", "more", "shortcuts", "keyboard", "command palette", "search", "cmd k", "ctrl k", "new look", "dark mode", "light mode", "dusk", "theme", "create", "plus button"],
       blocks: [
         {
           type: "h",
@@ -128,7 +128,7 @@ export const startSection: HelpSection = {
         },
         {
           type: "p",
-          text: "The sidebar has Home, Schedule, Clients, Quotes, Jobs and Invoices at the top, then groups: **Work** (Leads, Requests, Estimator tools, Messages, Calls, Appointments, Routes, Tasks, Agreements, Timesheets), **Money** (Payments, Recurring) and **Business** (Reports, Automations, Services, Booking & forms, Team & roles). You only see what your role can open.",
+          text: "The sidebar has Home, Schedule, Clients, Quotes, Jobs and Invoices at the top, then groups: **Work** (Leads, Requests, Estimator tools, Messages, Calls, Appointments, Routes, Tasks, Agreements, Timesheets), **Money** (Payments, Recurring) and **Business** (Reports, Automations, Services, Booking & forms, Team & roles). You only see what your role can open. Beside a page, the sidebar says what is waiting there, like **5 today** on Schedule, **3 waiting** on Quotes or **$2,619 owed** on Invoices. Press a group's name to fold it away; the group holding the page you are on always stays open. If you uploaded a logo, it sits at the top-left.",
         },
         {
           type: "h",
@@ -136,7 +136,19 @@ export const startSection: HelpSection = {
         },
         {
           type: "p",
-          text: "The tab bar has Home and Schedule. Everything else is in **More**, grouped as Clients, Sales, Field work, Money and Business. Press and hold any item for quick actions like `New …`. The `+` button opens the Create sheet — client, lead, request, appointment, quote, job, task, call, message, invoice — and the More and Create sheets both close with a swipe down. **Call** and **Message** open a search box right there: type a name and tap it to call or message them. A red number on **More** (and on the Messages tile inside it) is how many client messages are waiting; it goes down as soon as you open each conversation. The pill at the top-left names the page you came from, and tapping it goes exactly there; inside one section it just says Back.",
+          text: "The tab bar has Home, Schedule and Chat. Everything else is in **Menu**: it slides in from the left and is the same sidebar as on a computer, with the same groups and the same lines saying what is waiting on each page, plus Atlas at the top. Tap a page to go there, or tap outside the menu or drag it to the left to close it. Press and hold any page for quick actions like `New …`. A red number on **Menu** is how many client messages are waiting; it goes down as soon as you open each conversation. The pill at the top-left names the page you came from, and tapping it goes exactly there; inside one section it just says Back.",
+        },
+        {
+          type: "p",
+          text: "The `+` button opens **Create**. The four things people make most (job, quote, invoice and client) are the big buttons at the top, then **Just say it** hands the request to Atlas, and everything else is in the list below: lead, request, appointment, task, call, message and request payment. You only see what your role can make, and it closes with a swipe down. **Call** and **Message** open a search box right there: type a name and tap it to call or message them.",
+        },
+        {
+          type: "h",
+          text: "Light or dark",
+        },
+        {
+          type: "p",
+          text: "WorkBench comes in a light look and a dark one. Pick `Light`, `Dark` or `Automatic` (follows your device) under **Settings → Brand & client pages → Appearance — for this device**. The choice is kept on each device, so your phone and your computer can differ.",
         },
         {
           type: "h",

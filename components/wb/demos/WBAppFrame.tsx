@@ -16,6 +16,7 @@ import {
   Globe,
   Home,
   Inbox,
+  LifeBuoy,
   ListChecks,
   MessageSquare,
   MessagesSquare,
@@ -43,9 +44,9 @@ import { FONT } from "./kit";
 
 /**
  * The real AppShell, drawn for the marketing site's app-screen demos: the
- * desktop rail (company tile, six daily drivers, the Work / Money /
- * Business groups with the one holding the page open, Settings, the user
- * row) and the top bar (Search · Ctrl K, Create in the company primary,
+ * Live sidebar (company mark, Search, six daily drivers with what's waiting
+ * beside each, the Work / Money / Business groups with the one holding the
+ * page open, Help, Settings, the user) and the top bar (Search · Ctrl K, Create in the company primary,
  * Chat, bell, gear) — the same class names as components/AppShell.tsx, so
  * globals.css / ds.css paint them exactly as in the app. Brightwire
  * Electric (lib/demo-company.ts) has no logo, so the rail shows the
@@ -148,99 +149,171 @@ const GROUPS: { label: string; items: Item[] }[] = [
   },
 ];
 
-function NavLink({ Icon, label, on }: { Icon: typeof Home; label: string; on: boolean }) {
+/** What the Live sidebar writes beside a page (AppShell railMeta), for Brightwire's day. */
+export const LIVE_META: Record<string, string> = {
+  Schedule: "5 today",
+  Quotes: "3 waiting",
+  Jobs: "2 to bill",
+  Invoices: "$2,619 owed",
+};
+
+function NavLink({
+  Icon,
+  label,
+  on,
+  meta,
+  charge = false,
+}: {
+  Icon: typeof Home;
+  label: string;
+  on: boolean;
+  meta?: string;
+  charge?: boolean;
+}) {
   return (
     <a
       data-rail-active={on ? "true" : undefined}
-      className={`group relative font-display flex items-center gap-2.5 py-2 pl-4 pr-4 text-[13px] ${
-        on ? "font-semibold" : "font-medium text-[color:var(--rail-muted)]"
+      data-charge={charge ? "" : undefined}
+      className={`rail-row group font-display relative mx-2 flex h-[34px] items-center gap-2.5 rounded-[9px] pl-2.5 pr-2.5 text-[13.5px] ${
+        on ? "font-bold text-[color:var(--rail-ink)]" : "font-medium text-[color:var(--rail-muted)]"
       }`}
     >
-      {on && <span aria-hidden className="rail-indicator rail-indicator-on" style={{ height: "100%" }} />}
-      <Icon size={16} strokeWidth={1.8} className={on ? "text-[color:var(--rail-accent)]" : "text-[color:var(--rail-faint)]"} />
+      {on && (
+        <span
+          aria-hidden
+          className="rail-indicator rail-indicator-on"
+          style={{ top: 0, left: 0, right: 0, height: "100%", transform: "none", zIndex: -1 }}
+        />
+      )}
+      <Icon
+        size={18}
+        strokeWidth={on ? 2.6 : 2.3}
+        className={on ? "shrink-0 text-[color:var(--rail-accent)]" : "shrink-0 text-[color:var(--rail-muted)]"}
+      />
       <span className="truncate">{label}</span>
+      {meta && <span className="rail-meta ml-auto">{meta}</span>}
     </a>
   );
 }
 
-/** The desktop rail, at the app's real size (232 px). */
-function Rail({ nav, height }: { nav: string; height: number }) {
+/**
+ * The Live sidebar (AppShell, 2026-11-24), at the app's real size (256 px):
+ * the company mark + name, the Search row, the six daily drivers with what's
+ * waiting beside each ("5 today", "$2,619 owed"), then Work / Money /
+ * Business as groups that fold (the one holding the page is open), and the
+ * foot: Help, Settings, the user. The page you're on is a wash of the
+ * company primary; `charge` plays the click's secondary line on that row.
+ */
+export function LiveRail({ nav, height, charge = false }: { nav: string; height: number; charge?: boolean }) {
+  const holder = GROUPS.find((g) => g.items.some((i) => i.label === nav))?.label ?? "Work";
   return (
-    <aside className="rail-gray flex w-[232px] shrink-0 flex-col border-r border-[color:var(--rail-line)]" style={{ height }}>
-      <div className="flex min-h-[57px] min-w-0 items-center gap-3 border-b border-[color:var(--rail-line)] px-3.5">
-        <span
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] font-display text-lg font-bold shadow-sm"
-          style={{ backgroundColor: RAIL_ACCENT, color: textOn(RAIL_ACCENT) }}
-        >
+    <aside className="rail-gray rail-live flex shrink-0 border-r border-[color:var(--rail-line)]" style={{ height }}>
+      <a className="rail-live-co">
+        <span className="rail-live-mark font-display" style={{ backgroundColor: RAIL_ACCENT, color: textOn(RAIL_ACCENT) }}>
           {BRAND.name.charAt(0)}
         </span>
-        <span className="truncate font-display text-[15px] font-semibold tracking-tight text-[color:var(--rail-ink)]">{BRAND.name}</span>
-      </div>
-      <nav className="relative flex-1 overflow-hidden py-3">
+        <span className="min-w-0 flex-1">
+          <span className="rail-live-name">{BRAND.name}</span>
+        </span>
+      </a>
+      <span className="rail-live-search">
+        <Search size={15} strokeWidth={2.2} />
+        <span className="flex-1 text-left">Search</span>
+        <kbd>Ctrl K</kbd>
+      </span>
+      <nav className="rail-live-nav" style={{ overflow: "hidden" }}>
         {DRIVERS.map((d) => (
-          <NavLink key={d.label} Icon={d.icon} label={d.label} on={d.label === nav} />
+          <NavLink key={d.label} Icon={d.icon} label={d.label} on={d.label === nav} meta={LIVE_META[d.label]} charge={charge && d.label === nav} />
         ))}
         {GROUPS.map((g) => {
-          const open = g.items.some((i) => i.label === nav);
+          const open = g.label === holder;
           const items = g.items.filter((i) => i.label !== "Timesheets" || nav === "Timesheets");
           return (
-            <div key={g.label} className="mt-3">
-              <div
-                className={`flex w-full items-center gap-2.5 py-2 pl-4 pr-4 font-display text-[10.5px] font-semibold uppercase tracking-[0.12em] ${
-                  open ? "text-[color:var(--rail-muted)]" : "text-[color:var(--rail-faint)]"
-                }`}
-              >
-                <span className="shrink-0">{g.label}</span>
-                <span aria-hidden className="rail-head-rule" />
-                <ChevronDown size={13} className={`shrink-0 ${open ? "" : "-rotate-90"}`} />
-              </div>
-              {open && (
-                <div>
-                  {items.map((i) => (
-                    <NavLink key={i.label} Icon={i.icon} label={i.label} on={i.label === nav} />
-                  ))}
-                </div>
-              )}
+            <div key={g.label} className="rail-live-group">
+              <span className="rail-live-ghead">
+                <span>{g.label}</span>
+                <ChevronDown size={14} strokeWidth={2.4} className={`rail-live-chev ${open ? "is-open" : ""}`} />
+              </span>
+              {open &&
+                items.map((i) => (
+                  <NavLink key={i.label} Icon={i.icon} label={i.label} on={i.label === nav} meta={LIVE_META[i.label]} charge={charge && i.label === nav} />
+                ))}
             </div>
           );
         })}
       </nav>
-      <div className="border-t border-[color:var(--rail-line)] py-1.5">
-        <NavLink Icon={Settings} label="Settings" on={nav === "Settings"} />
-        <div className="flex w-full items-center gap-3 px-4 py-3 text-left">
-          <Avatar name={BRAND.user} size={30} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-semibold text-[color:var(--rail-ink)]">{BRAND.user}</p>
-            <p className="truncate text-[11px] text-[color:var(--rail-faint)]">{BRAND.name}</p>
+      <div className="rail-live-foot">
+        <span className="rail-live-row">
+          <LifeBuoy size={17} strokeWidth={2.3} />
+          <span className="flex-1">Help</span>
+        </span>
+        <span className={`rail-live-row ${nav === "Settings" ? "is-here" : ""}`}>
+          <Settings size={17} strokeWidth={2.3} />
+          <span className="flex-1">Settings</span>
+        </span>
+        <div className="rail-live-me">
+          <div className="flex w-full items-center gap-3 px-3 py-2.5 text-left">
+            <Avatar name={BRAND.user} size={30} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-semibold text-[color:var(--rail-ink)]">{BRAND.user}</p>
+              <p className="truncate text-[11.5px] text-[color:var(--rail-faint)]">Owner</p>
+            </div>
+            <ChevronsUpDown size={13} className="shrink-0 text-[color:var(--rail-faint)]" />
           </div>
-          <ChevronsUpDown size={13} className="shrink-0 text-[color:var(--rail-faint)]" />
         </div>
       </div>
     </aside>
   );
 }
 
-/** The desktop top bar, at the app's real size (57 px). */
-function TopBar() {
+/** The desktop rail (kept as the name the older demos import). */
+function Rail({ nav, height }: { nav: string; height: number }) {
+  return <LiveRail nav={nav} height={height} />;
+}
+
+/**
+ * The desktop top bar, at the app's real size (57 px): Search · Ctrl K,
+ * Create in the company's CTA color, Chat, the bell, the gear. `deep`: over
+ * Home's band the bar takes the band's top color with light controls
+ * (app/ds-brand.css, .app-ui:has(.bb-band) .app-header).
+ */
+export function TopBar({ deep = false }: { deep?: boolean }) {
+  const onDeep = deep
+    ? {
+        bar: { background: "var(--bb-deep)", borderBottomColor: "transparent" } as React.CSSProperties,
+        search: { background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)" } as React.CSSProperties,
+        kbd: { background: "rgba(255,255,255,0.14)", borderColor: "transparent", color: "rgba(255,255,255,0.8)" } as React.CSSProperties,
+        chat: { borderColor: "rgba(255,255,255,0.28)", color: "rgba(255,255,255,0.85)" } as React.CSSProperties,
+        icon: { color: "rgba(255,255,255,0.75)" } as React.CSSProperties,
+      }
+    : null;
   return (
-    <header className="app-header relative flex min-h-[57px] shrink-0 items-center gap-4 border-b border-gray-200 bg-chrome px-6">
-      <span className="ml-auto flex w-full max-w-xs items-center gap-2 rounded-md border border-transparent bg-gray-100 px-3 py-1.5 text-sm text-gray-400">
+    <header
+      className="app-header relative flex min-h-[57px] shrink-0 items-center gap-4 border-b border-gray-200 bg-chrome px-6"
+      style={onDeep?.bar}
+    >
+      <span
+        className="ml-auto flex w-full max-w-xs items-center gap-2 rounded-md border border-transparent bg-gray-100 px-3 py-1.5 text-sm text-gray-400"
+        style={onDeep?.search}
+      >
         <Search size={14} />
         <span>Search</span>
-        <kbd className="ml-auto rounded border border-gray-200 bg-white px-1.5 py-px text-[10px] font-semibold text-gray-400">Ctrl K</kbd>
+        <kbd className="ml-auto rounded border border-gray-200 bg-white px-1.5 py-px text-[10px] font-semibold text-gray-400" style={onDeep?.kbd}>
+          Ctrl K
+        </kbd>
       </span>
       <span className="flex items-center gap-1.5 rounded-full bg-green-600 px-3.5 py-1.5 text-sm font-semibold text-[color:var(--wb-on-accent,#ffffff)]">
         <Plus size={15} />
         Create
       </span>
-      <span className="relative flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600">
+      <span className="relative flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600" style={onDeep?.chat}>
         <MessagesSquare size={15} />
         Chat
       </span>
-      <span className="relative flex rounded-md p-2 text-gray-400">
+      <span className="relative flex rounded-md p-2 text-gray-400" style={onDeep?.icon}>
         <Bell size={17} />
       </span>
-      <span className="flex rounded-md p-2 text-gray-400">
+      <span className="flex rounded-md p-2 text-gray-400" style={onDeep?.icon}>
         <Settings size={17} />
       </span>
     </header>
@@ -305,6 +378,9 @@ export default function WBAppFrame({
   className = "",
   real = false,
   designWidth = 1040,
+  deepBar = false,
+  toast,
+  charge = false,
 }: {
   /** The active sidebar label: "Schedule", "Quotes", "Routes", "Recurring", "Timesheets"… */
   nav: string;
@@ -320,6 +396,12 @@ export default function WBAppFrame({
   real?: boolean;
   /** `real` mode: the width of the desktop window being drawn (rail included). */
   designWidth?: number;
+  /** `real` mode: the top bar over Home's band (the band's deep color). */
+  deepBar?: boolean;
+  /** `real` mode: a live notification card in the top-right of the page. */
+  toast?: React.ReactNode;
+  /** Play the sidebar's click line on the active row. */
+  charge?: boolean;
 }) {
   const fit = useFitZoom(designWidth);
 
@@ -331,10 +413,11 @@ export default function WBAppFrame({
           className="app-ui ds flex overflow-hidden rounded-xl bg-paper-plain shadow-[0_0_0_1px_rgba(10,20,40,0.1),0_30px_60px_-30px_rgba(10,20,40,0.5)]"
           style={{ ...appVars(), ...FONT, zoom: z, height: height + 57, opacity: fit.z === null ? 0 : 1 } as React.CSSProperties}
         >
-          <Rail nav={nav} height={height + 57} />
+          <LiveRail nav={nav} height={height + 57} charge={charge} />
           <div className="page-atmo relative flex min-w-0 flex-1 flex-col overflow-hidden">
-            <TopBar />
+            <TopBar deep={deepBar} />
             <main className="app-main relative flex-1 overflow-hidden">{children}</main>
+            {toast && <div className="pointer-events-none absolute right-6 top-[70px] z-30 w-[360px]">{toast}</div>}
           </div>
         </div>
       </div>
@@ -347,7 +430,7 @@ export default function WBAppFrame({
     <div className={`select-none text-left ${className}`} style={FONT} aria-hidden>
       <div className="app-ui ds overflow-hidden rounded-xl bg-paper-plain shadow-[0_0_0_1px_rgba(10,20,40,0.1),0_30px_60px_-30px_rgba(10,20,40,0.5)]" style={appVars()}>
         <div className="flex">
-          <div className={`${asideCls} flex-none overflow-hidden`} style={{ width: 232 * CHROME_ZOOM }}>
+          <div className={`${asideCls} flex-none overflow-hidden`} style={{ width: 256 * CHROME_ZOOM }}>
             <div style={{ zoom: CHROME_ZOOM } as React.CSSProperties}>
               <Rail nav={nav} height={Math.round((height + barH) / CHROME_ZOOM)} />
             </div>

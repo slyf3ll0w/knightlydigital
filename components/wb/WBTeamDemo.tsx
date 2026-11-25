@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft,
   CalendarClock,
   ChevronDown,
   Info,
@@ -13,6 +12,7 @@ import {
 import Avatar from "@/components/Avatar";
 import PresenceDot from "@/components/console/PresenceDot";
 import { inputCls } from "@/components/Input";
+import "./wb-open.css";
 import {
   AppCanvas,
   AppWindow,
@@ -248,16 +248,14 @@ export default function WBTeamDemo({
         {(w) => (
           <div style={{ width: w, height: 780 }}>
             <AppWindow nav="Team & roles">
-              <div className="mx-auto max-w-4xl p-8">
-                <div className="mb-6 flex flex-wrap items-center justify-between gap-y-3">
+              <div className="wb-open mx-auto w-full max-w-6xl px-8 pb-10 pt-8">
+                <div className="ds-pagehead mb-8 flex flex-wrap items-end justify-between gap-y-3">
                   <div className="flex min-w-0 items-start gap-3">
-                    <span className="mt-1.5 block text-gray-400">
-                      <ArrowLeft size={18} />
-                    </span>
                     <div className="relative min-w-0">
+                      <p className="ds-eyebrow ds-eyebrow-plain">Settings · {saved ? TEAM.length + 1 : TEAM.length} people on the team</p>
                       <h1
-                        className="ds-title flex items-center gap-2"
-                        style={{ fontSize: 30 }}
+                        className="ds-title mt-1 flex items-center gap-2"
+                        style={{ fontSize: 30, fontWeight: 700, letterSpacing: "-0.03em" }}
                       >
                         <span>Team</span>
                         <span className="relative inline-flex align-middle">
@@ -283,7 +281,7 @@ export default function WBTeamDemo({
                     </div>
                   </div>
                   <span
-                    className="btn-primary"
+                    className="ds-btn ds-btn-primary"
                     style={b === 1 ? { transform: "scale(0.97)" } : undefined}
                   >
                     <Plus size={15} />
@@ -336,14 +334,14 @@ export default function WBTeamDemo({
                     </div>
                     <div className="mt-4 flex gap-2">
                       <span
-                        className="btn-primary"
+                        className="ds-btn ds-btn-primary"
                         style={
                           b === 4 ? { transform: "scale(0.97)" } : undefined
                         }
                       >
                         Add member
                       </span>
-                      <span className="rounded-full px-4 py-2 text-sm font-medium text-gray-600">
+                      <span className="ds-btn ds-btn-ghost">
                         Cancel
                       </span>
                     </div>

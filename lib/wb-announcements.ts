@@ -36,6 +36,70 @@ export type Announcement = {
 
 export const ANNOUNCEMENTS: Announcement[] = [
   {
+    slug: "a-new-look",
+    title: "WorkBench has a new look",
+    date: "2026-11-25",
+    tag: "New look",
+    summary:
+      "A cleaner WorkBench on your computer and your phone: your own colors up front, a sidebar that tells you what is waiting, and a phone app built the way iPhone apps are.",
+    help: { slug: "find-your-way-around", label: "Find your way around" },
+    blocks: [
+      {
+        type: "p",
+        text: "Most people who run a service business open WorkBench a few times a day, between jobs, often on a phone. So we rebuilt how it looks around one question: can you see what needs you, and get to it, in a glance? Everything you use works the same as before. It is just clearer, calmer and more yours.",
+      },
+      { type: "h", text: "On your computer" },
+      {
+        type: "list",
+        items: [
+          {
+            title: "Home wears your brand.",
+            text: "Home opens on a band made from your company's colors, with a greeting, a short line about how your day looks, and your most-used buttons. Below it: what needs you, your money, and today's jobs.",
+          },
+          {
+            title: "A sidebar that tells you what is waiting.",
+            text: "Beside each page it says what is there right now: jobs today, quotes waiting on an answer, money owed. Groups fold away, and your uploaded logo sits at the top.",
+          },
+          {
+            title: "Open, white pages.",
+            text: "Every other page has its own clear header with a line about what is going on there, tabs with counts, and simple lists you can scan. No boxes inside boxes.",
+          },
+          {
+            title: "A calmer Leads board.",
+            text: "Quiet columns, white cards that are all the same size, and a line under each stage that grows with how much money is in it. Leads waiting more than a week stand out in amber.",
+          },
+        ],
+      },
+      { type: "h", text: "On your phone" },
+      {
+        type: "list",
+        items: [
+          {
+            title: "Built like an iPhone app.",
+            text: "The phone uses the same type, spacing and grouped lists as the apps that come with your iPhone, with statuses shown as a small colored dot and a word.",
+          },
+          {
+            title: "Menu is your sidebar.",
+            text: "Tap Menu and the same sidebar slides in from the left, with the same lines about what is waiting, and Atlas at the top.",
+          },
+          {
+            title: "A new Create button.",
+            text: "Tap + for the four things you make most as big buttons (job, quote, invoice, client), a Just say it line for Atlas, and everything else in one short list.",
+          },
+        ],
+      },
+      { type: "h", text: "Your colors, light or dark" },
+      {
+        type: "p",
+        text: "WorkBench is drawn from the two colors you set under Settings, so it looks like your business, and it checks that your colors stay readable on every screen. It also comes in a dark look: pick Light, Dark or Automatic under Settings, on each device.",
+      },
+      {
+        type: "p",
+        text: "There is nothing to turn on. Open WorkBench and it is there.",
+      },
+    ],
+  },
+  {
     slug: "lead-sources",
     title: "See where your leads come from",
     date: "2026-11-17",

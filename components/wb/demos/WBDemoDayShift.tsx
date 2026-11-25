@@ -17,7 +17,8 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import PageTitle from "@/components/PageTitle";
+import { Title } from "@/components/wb/WBAppJourney";
+import "../wb-open.css";
 import { FilterChip, Segment, SegmentedRow } from "@/components/FilterChips";
 import TimeGrid, { type GridColumn } from "@/app/platform/schedule/TimeGrid";
 import { TypeGlyph } from "@/app/platform/schedule/TypeGlyph";
@@ -163,7 +164,7 @@ export default function WBDemoDayShift({
         </WBAppFrame>
       </div>
       <div className={wide.narrow ? "flex justify-center" : "flex justify-center lg:hidden"}>
-        <Phone width={300} height={620}>
+        <Phone width={300} height={620} ios>
           <Fit width={390}>
             <PhoneApp tab="Schedule" height={Math.round(((620 - 74) * 390) / 282)}>
               <PhoneDay {...view} />
@@ -233,28 +234,28 @@ function DesktopDay({ date, users, items, dragState, toast, b, newStart, slot, m
   const cursorMin = b === 1 ? newStart : slot;
 
   return (
-    <div className="mx-auto max-w-6xl p-8">
-      <div className="mb-5 flex items-center justify-between gap-2">
-        <PageTitle>Schedule</PageTitle>
+    <div className="wb-open mx-auto w-full max-w-6xl px-8 pb-10 pt-8">
+      <div className="mb-6 flex items-end justify-between gap-2">
+        <Title eyebrow="Tuesday · 6 jobs, the first at 8:00">Schedule</Title>
         <div className="flex items-center gap-2">
-          <span className="btn-tool-line relative flex h-10 w-auto items-center justify-center gap-1.5 rounded-[10px] bg-white px-4 text-sm font-semibold text-gray-700">
+          <span className="ds-btn ds-btn-outline relative">
             <UserPlus size={16} />
             Schedule someone
             {b < 6 && <span className="static min-w-[18px] rounded-full bg-[color:var(--ds-warn-soft)] px-1 py-px text-center text-[11px] font-bold text-[color:var(--ds-warn)]">1</span>}
           </span>
-          <span className="btn-tool-line flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-white px-4 text-sm font-semibold text-gray-700">
+          <span className="ds-btn ds-btn-outline">
             <CalendarOff size={16} />
             Block time
           </span>
-          <span className="btn-tool-line flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-white px-4 text-sm font-semibold text-gray-700">
+          <span className="ds-btn ds-btn-outline">
             <CloudRain size={16} />
             Move the day
           </span>
-          <span className="btn-tool-line flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-[color:var(--ds-secondary-soft)] px-4 text-sm font-semibold text-[color:var(--ds-secondary)]">
+          <span className="ds-btn ds-btn-ghost">
             <CalendarClock size={16} />
             New appointment
           </span>
-          <span className="btn-primary flex h-10">
+          <span className="ds-btn ds-btn-primary">
             <Plus size={15} />
             New job
           </span>
@@ -269,7 +270,7 @@ function DesktopDay({ date, users, items, dragState, toast, b, newStart, slot, m
           <span className="rounded-full p-2">
             <ChevronRight size={18} className="text-gray-600" />
           </span>
-          <span className="btn-tool-line rounded-[10px] bg-white px-3 py-1.5 text-sm font-medium text-gray-700">Today</span>
+          <span className="ds-btn ds-btn-outline ds-btn-sm">Today</span>
         </div>
         <h2 className="text-lg font-bold text-gray-900">{date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</h2>
         {b === 3 && <Loader2 size={15} className="animate-spin text-gray-400" />}

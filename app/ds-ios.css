@@ -17,7 +17,7 @@
    ═══════════════════════════════════════════════════════════════════════ */
 
 @media (max-width: 1023px) {
-  .ds {
+  .wb-app, .wb-app .ds {
     --ds-font-stack: var(--ds-font, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif);
     --ios-bg: #F2F2F7;
     --ios-card: #FFFFFF;
@@ -25,112 +25,110 @@
     --ios-press: rgba(60, 60, 67, 0.08);
     --ios-label2: rgba(60, 60, 67, 0.76);
   }
-  html[data-mode="dark"] .ds {
+  html[data-mode="dark"] .wb-app, html[data-mode="dark"] .wb-app .ds {
     --ios-bg: #000000;
     --ios-card: #1C1C1E;
     --ios-sep: rgba(84, 84, 88, 0.55);
     --ios-press: rgba(255, 255, 255, 0.08);
     --ios-label2: rgba(235, 235, 245, 0.68);
   }
-  .app-ui, .app-ui h1, .app-ui h2, .app-ui h3, .app-ui h4, .app-ui .font-display {
+  .wb-app, .wb-app h1, .wb-app h2, .wb-app h3, .wb-app h4, .wb-app .font-display {
     font-family: var(--ds-font, -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif);
   }
-  .app-ui { -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
-  .app-ui .ds-num, .app-ui .bb-big { font-family: var(--ds-num-font, "Lexend"), system-ui, sans-serif; }
+  .wb-app { -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+  .wb-app .ds-num, .wb-app .bb-big { font-family: var(--ds-num-font, "Lexend"), system-ui, sans-serif; }
 
   /* large titles, Apple's metrics */
-  .bb-open .ds-pagehead .ds-title,
-  .bb-band .ds-pagehead .ds-title { font-size: 34px !important; font-weight: 700 !important; letter-spacing: -0.022em !important; line-height: 1.12; }
-  .ds-pagehead .ds-eyebrow { font-size: 15px; font-weight: 400; letter-spacing: -0.01em; }
-  .ds-pagenote { font-size: 15px; letter-spacing: -0.01em; }
+  .wb-app .bb-open .ds-pagehead .ds-title, .wb-app .bb-band .ds-pagehead .ds-title { font-size: 34px !important; font-weight: 700 !important; letter-spacing: -0.022em !important; line-height: 1.12; }
+  .wb-app .ds-pagehead .ds-eyebrow { font-size: 15px; font-weight: 400; letter-spacing: -0.01em; }
+  .wb-app .ds-pagenote { font-size: 15px; letter-spacing: -0.01em; }
 
   /* section titles: Apple's prominent header, no two-color bar */
-  .bb-h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
-  .bb-h2-text { padding-bottom: 8px; }
-  .bb-h2-text::after { display: none !important; }
-  .bb-sec-head { border-bottom: 0 !important; }
-  .bb-h2-n { font-size: 15px; font-weight: 400; color: var(--ios-label2); }
+  .wb-app .bb-h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+  .wb-app .bb-h2-text { padding-bottom: 8px; }
+  .wb-app .bb-h2-text::after { display: none !important; }
+  .wb-app .bb-sec-head { border-bottom: 0 !important; }
+  .wb-app .bb-h2-n { font-size: 15px; font-weight: 400; color: var(--ios-label2); }
 
   /* rows: 17/15 type, press highlight */
-  .bb-row-title { font-size: 16px; font-weight: 500; letter-spacing: -0.01em; }
-  .bb-row-sub { font-size: 14px; color: var(--ios-label2); }
-  .bb-row, .ds-trow, .mx-row { transition: background-color 120ms ease; }
-  .bb-row:active, .ds-trow:active, .mx-row:active { background: var(--ios-press) !important; }
+  .wb-app .bb-row-title { font-size: 16px; font-weight: 500; letter-spacing: -0.01em; }
+  .wb-app .bb-row-sub { font-size: 14px; color: var(--ios-label2); }
+  .wb-app .bb-row, .wb-app .ds-trow, .wb-app .mx-row { transition: background-color 120ms ease; }
+  .wb-app .bb-row:active, .wb-app .ds-trow:active, .wb-app .mx-row:active { background: var(--ios-press) !important; }
 
   /* statuses: a dot and a gray word */
-  .bb-page .ds-chip, .ds .ds-chip {
+  .wb-app .bb-page .ds-chip, .wb-app .ds .ds-chip {
     height: auto; padding: 0; border-radius: 0; gap: 6px;
     background: transparent !important; box-shadow: none !important;
     font-size: 13.5px; font-weight: 500; color: var(--ios-label2) !important;
   }
-  .bb-page .ds-chip::before, .ds .ds-chip::before {
+  .wb-app .bb-page .ds-chip::before, .wb-app .ds .ds-chip::before {
     content: ""; width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--chip);
   }
-  .bb-page .ds-chip > svg, .ds .ds-chip > svg { display: none; }
-  .bb-band .ds-chip { color: rgba(255, 255, 255, 0.8) !important; }
+  .wb-app .bb-page .ds-chip > svg, .wb-app .ds .ds-chip > svg { display: none; }
+  .wb-app .bb-band .ds-chip { color: rgba(255, 255, 255, 0.8) !important; }
 
   /* buttons: 44px, Apple corners, press = dim, not a jump */
-  .ds-pagehead .ds-btn, .hp-next-acts .ds-btn, .ds-btn-lg { min-height: 44px; border-radius: 12px; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
-  .ds-btn:active, .bb-page .ds-btn:active { transform: none !important; opacity: 0.72; }
-  .app-ui button:not(.ds-btn):active, .app-ui a:active { transition: opacity 80ms; }
+  .wb-app .ds-pagehead .ds-btn, .wb-app .hp-next-acts .ds-btn, .wb-app .ds-btn-lg { min-height: 44px; border-radius: 12px; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+  .wb-app .ds-btn:active, .wb-app .bb-page .ds-btn:active { transform: none !important; opacity: 0.72; }
+  .wb-app button:not(.ds-btn):active, .wb-app a:active { transition: opacity 80ms; }
 
   /* underline tabs: Apple's 15pt, the selected one in the tint */
-  .mx-tab, .ds-utab { font-size: 15px !important; }
+  .wb-app .mx-tab, .wb-app .ds-utab { font-size: 15px !important; }
 
   /* no entrance animations on phones */
-  .bb-wrap[data-enter] *, .bb-in, .bb-bars i { animation: none !important; }
+  .wb-app .bb-wrap[data-enter] *, .wb-app .bb-in, .wb-app .bb-bars i { animation: none !important; }
 
   /* pulling down past Home's band shows the band, not a white gap */
-  .app-ui:has(.bb-band) { background: linear-gradient(180deg, var(--bb-deep) 0 50%, var(--ios-bg) 50% 100%); }
+  .wb-app:has(.bb-band) { background: linear-gradient(180deg, var(--bb-deep) 0 50%, var(--ios-bg) 50% 100%); }
 }
 
 /* ── grouped pages ── */
 @media (max-width: 1023px) {
-  .bb-wrap:has(.ios-grouped),
-  .bb-wrap:has(.ios-grouped) > .bb-page { background: var(--ios-bg) !important; }
-  .ios-grouped { padding-left: 16px !important; padding-right: 16px !important; }
-  .ios-grouped .bb-sec-head { padding: 0 4px; }
-  .ios-grouped .bb-sec-body {
+  .wb-app .bb-wrap:has(.ios-grouped), .wb-app .bb-wrap:has(.ios-grouped) > .bb-page { background: var(--ios-bg) !important; }
+  .wb-app .ios-grouped { padding-left: 16px !important; padding-right: 16px !important; }
+  .wb-app .ios-grouped .bb-sec-head { padding: 0 4px; }
+  .wb-app .ios-grouped .bb-sec-body {
     padding: 0 16px; border-radius: 14px; background: var(--ios-card);
     box-shadow: none; overflow: hidden;
   }
   /* rows inside a card: 56px, hairline dividers inset like iOS */
-  .ios-grouped .bb-sec-body .bb-row {
+  .wb-app .ios-grouped .bb-sec-body .bb-row {
     min-height: 56px; padding-top: 10px; padding-bottom: 10px; margin: 0 -16px; padding-left: 16px; padding-right: 16px;
     border-bottom: 0; position: relative;
   }
-  .ios-grouped .bb-sec-body .bb-row + .bb-row::before {
+  .wb-app .ios-grouped .bb-sec-body .bb-row + .bb-row::before {
     content: ""; position: absolute; top: 0; left: 16px; right: 0; height: 0.5px; background: var(--ios-sep);
   }
-  .ios-grouped .bb-sec-body .bb-row::after { display: none; }
-  .ios-grouped .bb-sec-body > :first-child:not(.bb-rows):not(.bb-row) { padding-top: 14px; }
-  .ios-grouped .bb-sec-body > :last-child:not(.bb-rows):not(.bb-row) { padding-bottom: 14px; }
+  .wb-app .ios-grouped .bb-sec-body .bb-row::after { display: none; }
+  .wb-app .ios-grouped .bb-sec-body > :first-child:not(.bb-rows):not(.bb-row) { padding-top: 14px; }
+  .wb-app .ios-grouped .bb-sec-body > :last-child:not(.bb-rows):not(.bb-row) { padding-bottom: 14px; }
 
   /* Invoices: the list is one card; search + tabs sit on the gray */
-  .ios-grouped .mx-table-inv {
+  .wb-app .ios-grouped .mx-table-inv {
     border-radius: 14px; background: var(--ios-card); overflow: hidden; border: 0 !important;
   }
-  .ios-grouped .mx-table-inv .mx-row {
+  .wb-app .ios-grouped .mx-table-inv .mx-row {
     padding-left: 16px !important; padding-right: 16px !important; border-bottom: 0 !important; position: relative;
   }
-  .ios-grouped .mx-table-inv .mx-row + .mx-row::before {
+  .wb-app .ios-grouped .mx-table-inv .mx-row + .mx-row::before {
     content: ""; position: absolute; top: 0; left: 66px; right: 0; height: 0.5px; background: var(--ios-sep);
   }
-  .ios-grouped .mx-table-inv .mx-row.ds-trow::after { display: none; }
-  .ios-grouped .mx-table-inv .mx-foot { padding-left: 16px; padding-right: 16px; border-top: 0.5px solid var(--ios-sep); }
-  .ios-grouped .mx-search {
+  .wb-app .ios-grouped .mx-table-inv .mx-row.ds-trow::after { display: none; }
+  .wb-app .ios-grouped .mx-table-inv .mx-foot { padding-left: 16px; padding-right: 16px; border-top: 0.5px solid var(--ios-sep); }
+  .wb-app .ios-grouped .mx-search {
     background: rgba(118, 118, 128, 0.12) !important; border: 0 !important; box-shadow: none !important; border-radius: 10px;
   }
-  .ios-grouped .mx-tabs { border-bottom: 0 !important; }
-  .ios-grouped .mx-pic .ds-pic { border-top: 0 !important; border-radius: 14px !important; background: var(--ios-card) !important; padding: 14px 16px !important; }
+  .wb-app .ios-grouped .mx-tabs { border-bottom: 0 !important; }
+  .wb-app .ios-grouped .mx-pic .ds-pic { border-top: 0 !important; border-radius: 14px !important; background: var(--ios-card) !important; padding: 14px 16px !important; }
 
   /* the invoice: its tables and hairlines sit inside cards */
-  .ios-grouped .bb-sec-body .bb-table td { border-bottom-color: var(--ios-sep); }
-  .ios-grouped .bb-sec-body .bb-table tbody tr:last-child td { border-bottom: 0; }
+  .wb-app .ios-grouped .bb-sec-body .bb-table td { border-bottom-color: var(--ios-sep); }
+  .wb-app .ios-grouped .bb-sec-body .bb-table tbody tr:last-child td { border-bottom: 0; }
 
   /* Home: below the band, the gray grouped page; cards start right under the stripe */
-  .bb-wrap:has(.ios-grouped) > .bb-band + .bb-page { padding-top: 20px !important; }
-  .ios-grouped .hp-next { border-radius: 14px; background: var(--ios-card); padding: 14px 16px; }
+  .wb-app .bb-wrap:has(.ios-grouped) > .bb-band + .bb-page { padding-top: 20px !important; }
+  .wb-app .ios-grouped .hp-next { border-radius: 14px; background: var(--ios-card); padding: 14px 16px; }
 }
 
 /* ══ Create, the iOS way (David 2026-11-25) ══

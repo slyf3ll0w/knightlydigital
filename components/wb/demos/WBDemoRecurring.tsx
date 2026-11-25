@@ -1,7 +1,8 @@
 "use client";
 
 import { Check, Info, Pause, Pencil, Repeat, RotateCw, X } from "lucide-react";
-import PageTitle from "@/components/PageTitle";
+import { Title } from "@/components/wb/WBAppJourney";
+import "../wb-open.css";
 import { money } from "@/lib/statuses";
 import WBAppFrame, { PhoneApp } from "./WBAppFrame";
 import { Fit, Phone, useNarrow, useDemoLoop } from "./kit";
@@ -99,7 +100,7 @@ export default function WBDemoRecurring({
         </WBAppFrame>
       </div>
       <div className={wide.narrow ? "flex justify-center" : "flex justify-center lg:hidden"}>
-        <Phone width={300} height={620}>
+        <Phone width={300} height={620} ios>
           <Fit width={390}>
             <PhoneApp height={Math.round(((620 - 74) * 390) / 282)}>
               <RecurringPage {...props} phone />
@@ -165,7 +166,7 @@ function RecurringPage({
   const ready = state.mode === "monthly" && !state.billed ? state.done : 0;
 
   return (
-    <div className={phone ? "p-4" : "mx-auto max-w-4xl p-8"}>
+    <div className={phone ? "p-4" : "wb-open mx-auto w-full max-w-6xl px-8 pb-10 pt-8"}>
       <div className="mb-6 flex items-start justify-between gap-3">
         {phone ? (
           <h1 className="ds-title flex items-center gap-2 !text-[28px]">
@@ -173,14 +174,14 @@ function RecurringPage({
             <Info size={15} className="text-[color:var(--ds-faint)]" />
           </h1>
         ) : (
-          <PageTitle info="Auto-charged plans, plus work billed per completed visit.">Recurring</PageTitle>
+          <Title info eyebrow="4 plans · $1,860 a month">Recurring</Title>
         )}
         <div className="flex items-center gap-2">
           <span className="ds-btn ds-btn-outline shrink-0">
             <RotateCw size={14} />
             {phone ? "Run" : "Run due now"}
           </span>
-          <span className="btn-primary shrink-0">
+          <span className="ds-btn ds-btn-primary shrink-0">
             <Repeat size={14} />
             {phone ? "New" : "New plan"}
           </span>
@@ -207,7 +208,7 @@ function RecurringPage({
                 {ready} completed visit{ready === 1 ? "" : "s"} · 1 client
               </p>
             </div>
-            <span className="btn-primary">Bill ready work</span>
+            <span className="ds-btn ds-btn-primary ds-btn-sm">Bill ready work</span>
           </div>
           <div className="divide-y divide-gray-100">
             <div className={`flex items-center gap-3 py-2.5 text-sm ${phone ? "px-4" : "px-5"}`}>

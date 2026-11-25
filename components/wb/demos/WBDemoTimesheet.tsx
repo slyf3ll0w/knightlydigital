@@ -220,7 +220,7 @@ export default function WBDemoTimesheet({
       {/* the desk: Timesheets, then the job's Profit margin */}
       <div className="min-w-0 flex-1 max-sm:hidden">
         <WBAppFrame nav={onJobPage ? "Jobs" : "Timesheets"} height={472} sidebarFrom="xl">
-          <div className="absolute inset-0 overflow-hidden" style={{ ...FONT, background: BW.canvas, color: BW.ink }}>
+          <div className="absolute inset-0 overflow-hidden" style={{ ...FONT, background: "#FFFFFF", color: BW.ink }}>
             {!onJobPage ? (
               <div ref={sheetRef} className="h-full overflow-hidden px-6 py-6">
                 <div className="mx-auto max-w-[56rem]">

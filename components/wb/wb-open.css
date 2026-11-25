@@ -1,0 +1,36 @@
+/* The coded app screens on the site, in the app's open look (2026-11-25):
+   white page, cards opened onto the page — a hairline above, the section
+   title bold with the app's two-color bar under it — and no gray table
+   heads. Scoped to .wb-open (the journey's pages and the demos' desk
+   screens) so nothing else on the site changes. */
+.wb-open :is(.ds-card, .card-ledger, .card-tool) {
+  background: transparent !important; box-shadow: none !important; border-radius: 0 !important;
+  border: 0 !important; border-top: 1px solid var(--ds-line-strong) !important;
+}
+.wb-open :is(.ds-card, .card-ledger, .card-tool):is(.p-4, .p-5) { padding-left: 0 !important; padding-right: 0 !important; }
+.wb-open :is(.ds-card, .card-ledger, .card-tool) > :is(.px-4, .px-5, .px-6) { padding-left: 0 !important; padding-right: 0 !important; }
+.wb-open :is(.ds-card, .card-ledger) h2 {
+  position: relative; display: inline-flex; padding-bottom: 7px;
+  font-size: 15px !important; font-weight: 700 !important; letter-spacing: -0.015em; color: var(--ds-ink) !important;
+}
+.wb-open :is(.ds-card, .card-ledger) h2::after {
+  content: ""; position: absolute; left: 0; bottom: 0; width: 100%; height: 3px; border-radius: 1px;
+  background: linear-gradient(90deg, var(--ds-primary) 0 62%, var(--ds-secondary) 62% 100%);
+}
+.wb-open .bg-gray-50 { background: transparent !important; }
+.wb-open .divide-gray-100 > * + * { border-color: var(--ds-line) !important; }
+.wb-open .grid.gap-5 { gap: 40px; }
+
+/* The WorkBench phone app on the site's phones (Phone ios / PhoneApp),
+   in the iOS kit (app/ds-ios.css): Apple's type with Lexend numbers, the
+   gray grouped page, white cards with no ring, statuses as a dot and a
+   gray word. Client pages on phones keep their own look. */
+.wb-ios { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.wb-ios :is(h1, h2, h3, h4, .font-display, .ds-title), .wb-ios [style*="Lexend"] { font-family: inherit !important; }
+.wb-ios :is(.ds-num, .numeral-ledger, .bb-big) { font-family: var(--font-lexend), Lexend, system-ui, sans-serif !important; }
+.wb-ios .ds-title { font-weight: 700; letter-spacing: -0.022em; }
+.wb-ios :is(.ds-card, .wb-dscard) { border-radius: 14px !important; box-shadow: none !important; background: #FFFFFF; }
+.wb-ios .wb-dschip { color: rgba(60, 60, 67, 0.76) !important; }
+.wb-ios .ds-chip { height: auto; padding: 0; gap: 6px; background: transparent !important; box-shadow: none !important; font-size: 12.5px; font-weight: 500; color: rgba(60, 60, 67, 0.76) !important; }
+.wb-ios .ds-chip::before { content: ""; width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--chip); }
+.wb-ios .ds-chip > svg { display: none; }

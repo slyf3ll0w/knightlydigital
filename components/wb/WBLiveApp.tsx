@@ -1,37 +1,70 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CalendarDays, ChevronRight, MapPin, Mic, Plus } from "lucide-react";
+import { CalendarDays, ChevronRight, Mic, Plus } from "lucide-react";
 import { AtlasMark } from "@/components/AtlasIcon";
-import {
-  AppCanvas,
-  AppWindow,
-  BW,
-  InfoDot,
-  LiveCard,
-  usd,
-} from "@/components/wb/WBAppJourney";
+import { LiveCard, usd } from "@/components/wb/WBAppJourney";
+import WBAppFrame, { BRAND } from "@/components/wb/demos/WBAppFrame";
+import "./wb-live.css";
 
 /**
- * The home hero's "live app": a copy of the REAL WorkBench dashboard at
- * desktop size (app/platform/dashboard/page.tsx, desktop tree: greeting
- * header with Schedule / New job, Talk to Atlas, the three stats, Today and
- * Needs you) in the real AppShell, for the made-up Brightwire Electric
- * (never a real client). 2026-11-20 fidelity pass: drawn with the app's own
- * classes (.ds, ds-card, ds-row, ds-count, ds-chip) and scaled to fit.
- * It works by itself on a loop while on screen, using only what the app
- * really shows:
- *   1. a booking arrives — the live "New booking" card, and it is in Today,
+ * The home hero's "live app": the REAL WorkBench Home at a desk as it is now
+ * (2026-11-25, the new look): the Live sidebar with what's waiting beside
+ * each page, the top bar in the band's deep color, Home on the branded band
+ * (greeting with the first name in the company's second color, the day's
+ * line, Schedule + New job), then the open page — Talk to Atlas first, Needs
+ * you beside Money, Today as a hairline table. For the made-up Brightwire
+ * Electric, never a real client. It plays by itself while on screen, using
+ * only what the app really does:
+ *   1. a booking arrives — the live "New booking" card, and the job lands
+ *      in Today with the row's arrival flash,
  *   2. the past-due invoice is paid — the live "Payment received" card,
- *      Collected counts up (the dashboard's CountUp), Outstanding drops and
- *      the past-due row leaves Needs you.
+ *      Collected counts up, Still owed drops, and the past-due row leaves
+ *      Needs you.
  * Still, finished state under reduced motion.
  */
 
 const STEP_MS = [1800, 3400, 4600];
 const BASE_COLLECTED = 5190.59;
 const PAID = 1240;
-const DAILY = [0, 410, 2216, 0, 0, 1240, 520, 0, 804.59];
+// October so far (the 6th is today); the rest of the month is still empty
+const DAILY = [410, 2216, 0, 804.59, 520, 1240];
+const MONTH_DAYS = 31;
+
+type TodayRow = { t: string; who: string; work: string; crew: string; amt?: number; st: [string, Tone]; fresh?: boolean };
+type Tone = "good" | "warn" | "bad" | "prim" | "sec" | "muted";
+
+const chipColor: Record<Tone, string> = {
+  good: "var(--ds-good)",
+  warn: "var(--ds-warn)",
+  bad: "var(--ds-bad)",
+  prim: "var(--ds-primary)",
+  sec: "var(--ds-secondary)",
+  muted: "var(--ds-muted)",
+};
+
+function Chip({ tone, children }: { tone: Tone; children: React.ReactNode }) {
+  return (
+    <span className="wbl-chip" style={{ background: chipColor[tone], color: tone === "sec" ? "var(--ds-on-secondary)" : "#fff" }}>
+      {children}
+    </span>
+  );
+}
+
+function Section({ title, count, aside, children }: { title: string; count?: string; aside?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="min-w-0">
+      <div className="wbl-sec-head">
+        <h2 className="wbl-h2">
+          <span className="wbl-h2-text">{title}</span>
+          {count && <span className="wbl-h2-n">{count}</span>}
+        </h2>
+        {aside && <div className="wbl-aside">{aside}</div>}
+      </div>
+      <div style={{ paddingTop: 6 }}>{children}</div>
+    </section>
+  );
+}
 
 export default function WBLiveApp() {
   const [step, setStep] = useState(0);
@@ -45,10 +78,7 @@ export default function WBLiveApp() {
       setCollected(BASE_COLLECTED + PAID);
       return;
     }
-    const io = new IntersectionObserver(
-      ([e]) => (visible.current = e.isIntersecting),
-      { threshold: 0.2 },
-    );
+    const io = new IntersectionObserver(([e]) => (visible.current = e.isIntersecting), { threshold: 0.2 });
     if (ref.current) io.observe(ref.current);
     let timer: ReturnType<typeof setTimeout>;
     let s = 0;
@@ -69,13 +99,9 @@ export default function WBLiveApp() {
     };
   }, []);
 
-  // The dashboard's CountUp: the new total counts up when it lands.
+  // Home's count-up: the new total rolls up when it lands.
   useEffect(() => {
-    if (
-      step !== 2 ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    )
-      return;
+    if (step !== 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const start = performance.now();
     let raf = 0;
     const run = (t: number) => {
@@ -90,333 +116,171 @@ export default function WBLiveApp() {
   const booked = step >= 1;
   const paid = step >= 2;
 
-  const today: {
-    t: string;
-    who: string;
-    sub: string;
-    amt?: number;
-    visit?: boolean;
-    fresh?: boolean;
-  }[] = [
-    {
-      t: "9:00a",
-      who: "Maria Hernandez — AC disconnect replacement",
-      sub: BW.owner,
-      amt: 450,
-    },
-    {
-      t: "10:00a",
-      who: "Olivia Park — Ceiling fan install x3",
-      sub: "Sam Ortiz",
-      amt: 520,
-    },
-    {
-      t: "12:00p",
-      who: "James Whitfield — EV charger install",
-      sub: "Sam Ortiz",
-      amt: 450,
-    },
+  const today: TodayRow[] = [
+    { t: "9:00 AM", who: "Maria Hernandez", work: "AC disconnect replacement", crew: BRAND.user, amt: 450, st: ["Done", "good"] },
+    { t: "10:00 AM", who: "Olivia Park", work: "Ceiling fan install x3", crew: "Sam Ortiz", amt: 520, st: ["On the job", "warn"] },
+    { t: "12:00 PM", who: "James Whitfield", work: "EV charger install", crew: "Sam Ortiz", amt: 450, st: ["Booked", "muted"] },
     ...(booked
-      ? [
-          {
-            t: "1:00p",
-            who: "Rachel Moore — Panel inspection",
-            sub: "Sam Ortiz",
-            amt: 320,
-            fresh: true,
-          },
-        ]
+      ? [{ t: "1:00 PM", who: "Rachel Moore", work: "Panel inspection", crew: "Sam Ortiz", amt: 320, st: ["New", "sec"] as [string, Tone], fresh: true }]
       : []),
-    {
-      t: "3:00p",
-      who: "Tom Becker — Walkthrough for panel upgrade",
-      sub: `In-person · ${BW.owner}`,
-      visit: true,
-    },
+    { t: "3:00 PM", who: "Tom Becker", work: "Walkthrough for a panel upgrade", crew: `In person · ${BRAND.user}`, st: ["Visit", "prim"] },
   ];
 
   const needs = [
-    ...(paid
-      ? []
-      : [{ n: 1, a: "Past-due invoice", b: "Send a reminder", bad: true }]),
-    { n: 3, a: "New leads", b: "Reach out" },
-    { n: 2, a: "New requests", b: "Review & send a quote" },
-    { n: 1, a: "Changes requested", b: "Update the quote" },
-    { n: 1, a: "Approved quote", b: "Convert to a job" },
+    ...(paid ? [] : [{ n: 1, a: "Past-due invoice", go: "Send a reminder", bad: true }]),
+    { n: 3, a: "New leads", go: "Reach out", bad: false },
+    { n: 2, a: "New requests", go: "Review", bad: false },
+    { n: 1, a: "Approved quote", go: "Make it a job", bad: false },
   ];
+  const needsTotal = needs.reduce((n, r) => n + r.n, 0);
 
-  const daily = paid
-    ? [...DAILY.slice(0, -1), DAILY[DAILY.length - 1] + PAID]
-    : DAILY;
-  const max = Math.max(...daily, 1);
-  const bw = (100 - 1.5 * (daily.length - 1)) / daily.length;
+  const days = DAILY.map((v, i) => (paid && i === DAILY.length - 1 ? v + PAID : v));
+  const max = Math.max(...days, 1);
 
   const toast =
     step === 1 ? (
-      <LiveCard
-        key="b"
-        kind="booking"
-        title="New booking"
-        sub="Rachel Moore — Panel inspection, Tue, Oct 6, 1:00 PM"
-      />
+      <LiveCard key="b" kind="booking" title="New booking" sub="Rachel Moore — Panel inspection, Tue, Oct 6, 1:00 PM" />
     ) : step === 2 ? (
-      <LiveCard
-        key="p"
-        kind="payment"
-        title={`Payment received · ${usd(PAID)}`}
-        sub="Derek Olsen"
-      />
+      <LiveCard key="p" kind="payment" title={`Payment received · ${usd(PAID)}`} sub="Derek Olsen" />
     ) : null;
 
   return (
-    <div ref={ref}>
-      <AppCanvas height={800}>
-        {(w) => (
-          <div style={{ width: w, height: 800 }}>
-            <AppWindow
-              nav="Home"
-              counts={{ Invoices: paid ? 0 : 1, Requests: 2 }}
-              bellDot
-              toast={toast}
-            >
-              <div className="mx-auto w-full max-w-6xl px-8 pb-10 pt-8">
-                {/* PageHeader */}
-                <div className="flex flex-wrap items-end justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="ds-eyebrow ds-eyebrow-plain">
-                      Tuesday, October 6
-                    </p>
-                    <h1
-                      className="ds-title mt-1 flex items-center gap-2"
-                      style={{ fontSize: 30 }}
-                    >
-                      <span>
-                        Good evening,{" "}
-                        <span style={{ color: "var(--ds-primary)" }}>Mike</span>
-                      </span>
-                      <InfoDot />
-                    </h1>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="flex gap-2">
-                      <span className="ds-btn ds-btn-outline">
-                        <CalendarDays size={17} strokeWidth={2.2} />
-                        Schedule
-                      </span>
-                      <span className="ds-btn ds-btn-primary">
-                        <Plus size={17} strokeWidth={2.2} />
-                        New job
-                      </span>
-                    </span>
-                  </div>
-                </div>
+    <div ref={ref} className="pointer-events-none" aria-hidden>
+      <WBAppFrame real nav="Home" height={743} designWidth={1280} deepBar toast={toast}>
+        {/* the band: the greeting, the day's line, Schedule + New job */}
+        <div className="wbl-band">
+          <div className="wbl-band-row">
+            <div className="min-w-0">
+              <p className="wbl-eyebrow">Tuesday, October 6</p>
+              <h1 className="wbl-title">
+                Good afternoon, <span className="wbl-acc">Mike</span>
+              </h1>
+              <p className="wbl-note">A full Tuesday: {booked ? 4 : 3} jobs and a walkthrough, the first at 9:00.</p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <span className="wbl-btn wbl-btn-ghost">
+                <CalendarDays size={17} strokeWidth={2.2} />
+                Schedule
+              </span>
+              <span className="wbl-btn wbl-btn-pri">
+                <Plus size={17} strokeWidth={2.2} />
+                New job
+              </span>
+            </div>
+          </div>
+        </div>
 
-                {/* Talk to Atlas */}
-                <div className="mt-6 flex w-full items-center gap-3 rounded-2xl border border-[color:var(--ds-line)] bg-[color:var(--ds-surface)] px-3.5 py-3 text-left shadow-sm">
-                  <AtlasMark
-                    size={40}
-                    accent={BW.secondary}
-                    className="shrink-0 rounded-[12px]"
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] font-semibold text-[color:var(--ds-ink)]">
-                      Talk to Atlas
-                    </span>
-                    <span className="block truncate text-[12.5px] text-[color:var(--ds-ink-2)]">
-                      Say what you need — schedule, quotes, clients, follow-ups.
-                      Hands-free.
-                    </span>
-                  </span>
-                  <span
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-                    style={{
-                      background: "var(--wb-accent, var(--ds-primary))",
-                      color: "var(--wb-on-accent, #ffffff)",
-                    }}
-                  >
-                    <Mic size={18} />
+        {/* the open page */}
+        <div className="wbl-body">
+          <div className="wbl-atlas">
+            <AtlasMark size={44} accent={BRAND.secondary} className="shrink-0 rounded-[12px]" />
+            <div className="min-w-0 flex-1">
+              <p className="wbl-atlas-title">Talk to Atlas</p>
+              <p className="wbl-atlas-line">
+                <span className="wbl-atlas-try">Try</span> “Put a job on the calendar for Thursday at 9.”
+              </p>
+            </div>
+            <span className="wbl-atlas-type">or type</span>
+            <span className="wbl-atlas-mic">
+              <Mic size={22} strokeWidth={2.3} />
+            </span>
+          </div>
+
+          <div className="wbl-split">
+            <Section title="Needs you" count={String(needsTotal)}>
+              {needs.map((r) => (
+                <div key={r.a} className="wbl-row">
+                  <span className={`wbl-num ${r.bad ? "is-bad" : ""}`}>{r.n}</span>
+                  <span className="wbl-row-title">{r.a}</span>
+                  {r.bad && <Chip tone="bad">Overdue</Chip>}
+                  <span className="wbl-go">
+                    {r.go}
+                    <ChevronRight size={15} strokeWidth={2.4} />
                   </span>
                 </div>
-
-                {/* the three stats */}
-                <div className="mt-7 grid grid-cols-3 gap-4">
-                  <div className="ds-card p-5">
-                    <p className="ds-label flex items-center gap-1">
-                      Collected
-                      <InfoDot />
-                    </p>
-                    <p className="ds-value mt-2">{usd(collected)}</p>
-                    <p className="ds-small mt-1.5">this month</p>
-                    <svg
-                      viewBox="0 0 100 24"
-                      className="mt-4 h-8 w-full"
-                      preserveAspectRatio="none"
-                      aria-hidden
-                    >
-                      {daily.map((v, i) => {
-                        const h = v > 0 ? Math.max((v / max) * 22, 2) : 1;
-                        const last = i === daily.length - 1;
-                        return (
-                          <rect
-                            key={i}
-                            x={i * (bw + 1.5)}
-                            y={24 - h}
-                            width={bw}
-                            height={h}
-                            rx={0.75}
-                            fill={
-                              last ? "var(--ds-secondary)" : "var(--ds-primary)"
-                            }
-                            opacity={v > 0 ? (last ? 1 : 0.8) : 0.15}
-                            style={{ transition: "y 0.7s, height 0.7s" }}
-                          />
-                        );
-                      })}
-                    </svg>
-                  </div>
-                  <div className="ds-card p-5">
-                    <p className="ds-label flex items-center gap-1">
-                      Outstanding
-                      <InfoDot />
-                    </p>
-                    <p
-                      className="ds-value mt-2"
-                      style={{ color: "var(--ds-bad)" }}
-                    >
-                      {usd(paid ? 1379.65 : 2619.65)}
-                    </p>
-                    <p className="ds-small mt-1.5">
-                      {paid ? "1 client owes you" : "2 clients owe you"}
-                    </p>
-                  </div>
-                  <div className="ds-card p-5">
-                    <p className="ds-label flex items-center gap-1">
-                      Booked this week
-                      <InfoDot />
-                    </p>
-                    <p className="ds-value mt-2">{usd(booked ? 7615 : 7295)}</p>
-                    <p className="ds-small mt-1.5">
-                      {booked ? 14 : 13} jobs scheduled
-                    </p>
-                  </div>
+              ))}
+            </Section>
+            <Section title="Money">
+              <div style={{ padding: "12px 0" }}>
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="wbl-label">Collected in October</span>
+                  <span className="text-[12.5px] font-semibold" style={{ color: "var(--ds-good)" }}>
+                    +{paid ? 31 : 12}% vs. last month
+                  </span>
                 </div>
-
-                {/* Today + Needs you */}
-                <div className="mt-8 grid grid-cols-[1.45fr_1fr] items-start gap-6">
-                  <section>
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <h2 className="ds-h2 flex items-center gap-1.5">
-                        Today
-                        <span className="ds-small ml-1 font-normal">
-                          · {booked ? 4 : 3} jobs · 1 appointment
-                        </span>
-                      </h2>
-                      <span className="ds-link inline-flex items-center gap-1 text-[13.5px]">
-                        Open schedule <span aria-hidden>→</span>
-                      </span>
-                    </div>
-                    <div className="ds-card ds-divide overflow-hidden">
-                      {today.map((j) => (
-                        <div
-                          key={j.who}
-                          className="ds-row"
-                          style={
-                            j.fresh && step === 1
-                              ? {
-                                  animation:
-                                    "listIn 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both",
-                                }
-                              : undefined
-                          }
-                        >
-                          <span className="flex w-[74px] shrink-0 items-center gap-2.5">
-                            <span className="ds-num w-12 text-right text-[12.5px] font-semibold text-[color:var(--ds-ink-2)]">
-                              {j.t}
-                            </span>
-                            <span
-                              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
-                              style={{
-                                background: j.visit
-                                  ? "var(--ds-secondary-soft)"
-                                  : "var(--ds-primary-soft)",
-                              }}
-                            >
-                              {j.visit ? (
-                                <MapPin
-                                  size={12}
-                                  strokeWidth={2.4}
-                                  style={{ color: "var(--ds-secondary)" }}
-                                />
-                              ) : (
-                                <span
-                                  className="h-2 w-2 rounded-full"
-                                  style={{ background: "var(--ds-primary)" }}
-                                />
-                              )}
-                            </span>
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[14.5px] font-medium text-[color:var(--ds-ink)]">
-                              {j.who}
-                            </span>
-                            <span className="ds-small mt-0.5 block truncate">
-                              {j.sub}
-                            </span>
-                          </span>
-                          {j.amt ? (
-                            <span className="ds-num shrink-0 text-[13.5px] font-semibold text-[color:var(--ds-ink)]">
-                              {usd(j.amt)}
-                            </span>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                  <section>
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <h2 className="ds-h2 flex items-center gap-1.5">
-                        Needs you
-                        <InfoDot />
-                      </h2>
-                    </div>
-                    <div className="ds-card ds-divide overflow-hidden">
-                      {needs.map((r) => (
-                        <div key={r.a} className="ds-row">
-                          <span
-                            key={r.n}
-                            className={`ds-count ${r.bad ? "ds-count-bad" : ""}`}
-                          >
-                            {r.n}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[14.5px] font-medium text-[color:var(--ds-ink)]">
-                              {r.a}
-                            </span>
-                            <span className="ds-small mt-0.5 block truncate">
-                              {r.b}
-                            </span>
-                          </span>
-                          <span className="flex shrink-0 items-center gap-2">
-                            {r.bad && (
-                              <span className="ds-chip ds-chip-bad">
-                                Overdue
-                              </span>
-                            )}
-                            <ChevronRight
-                              size={16}
-                              className="text-[color:var(--ds-faint)]"
-                            />
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
+                <p className="wbl-big">{usd(collected)}</p>
+                <div className="wbl-bars" aria-hidden>
+                  {Array.from({ length: MONTH_DAYS }, (_, i) => {
+                    const v = days[i] ?? 0;
+                    const isToday = i === DAILY.length - 1;
+                    return (
+                      <i
+                        key={i}
+                        className={isToday ? "is-today" : i >= DAILY.length || v <= 0 ? "is-empty" : ""}
+                        style={{ height: `${v > 0 ? Math.max(6, (v / max) * 100) : 4}%` }}
+                      />
+                    );
+                  })}
                 </div>
               </div>
-            </AppWindow>
+              <div className="wbl-row" style={{ minHeight: 64 }}>
+                <span className="min-w-0 flex-1">
+                  <span className="wbl-label block">Still owed</span>
+                  <span className="mt-0.5 block text-[22px] font-bold tabular-nums tracking-[-0.03em] text-[color:var(--ds-ink)]">
+                    {usd(paid ? 1379.65 : 2619.65)}
+                  </span>
+                </span>
+                <span className="text-right">
+                  {!paid && (
+                    <span className="block text-[12.5px] font-semibold" style={{ color: "var(--ds-bad)" }}>
+                      1 past due
+                    </span>
+                  )}
+                  <span className="block text-[13px] text-[color:var(--ds-muted)]">{paid ? "1 client" : "2 clients"}</span>
+                </span>
+              </div>
+            </Section>
           </div>
-        )}
-      </AppCanvas>
+
+          <Section
+            title="Today"
+            count={`${booked ? 4 : 3} jobs · 1 visit`}
+            aside={
+              <span className="wbl-go">
+                Open schedule
+                <ChevronRight size={15} strokeWidth={2.4} />
+              </span>
+            }
+          >
+            <table className="wbl-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 96 }}>Time</th>
+                  <th>Client</th>
+                  <th>Work</th>
+                  <th>Who</th>
+                  <th className="r">Amount</th>
+                  <th style={{ width: 120 }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {today.map((j) => (
+                  <tr key={j.who} className={j.fresh && step === 1 ? "wbl-in" : undefined}>
+                    <td className="wbl-strong tabular-nums">{j.t}</td>
+                    <td className="wbl-strong">{j.who}</td>
+                    <td>{j.work}</td>
+                    <td style={{ color: "var(--ds-muted)" }}>{j.crew}</td>
+                    <td className="r tabular-nums">{j.amt ? usd(j.amt) : <span style={{ color: "var(--ds-faint)" }}>—</span>}</td>
+                    <td>
+                      <Chip tone={j.st[1]}>{j.st[0]}</Chip>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Section>
+        </div>
+      </WBAppFrame>
     </div>
   );
 }

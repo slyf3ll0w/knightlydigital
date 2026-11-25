@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ArrowLeft, Briefcase, CheckCircle, DollarSign, Eye, MoreHorizontal, Pencil } from "lucide-react";
+import { Briefcase, CheckCircle, DollarSign, Eye, MoreHorizontal, Pencil } from "lucide-react";
 import "@/app/client.css";
-import PageTitle from "@/components/PageTitle";
+import { Title } from "@/components/wb/WBAppJourney";
+import "../wb-open.css";
 import StatusChip from "@/components/StatusChip";
 import { Chip as DsChip } from "@/components/ds";
 import {
@@ -354,34 +355,34 @@ function QuoteDetail({
     ...options.map((o, k) => ({ name: o.name, qty: 1, unit: o.unit, optional: true, out: k === dropIdx })),
   ];
   return (
-    <div className="mx-auto max-w-4xl p-8">
+    <div className="wb-open mx-auto w-full max-w-6xl px-8 pb-10 pt-8">
       <div className="mb-4 flex items-center gap-3">
-        <span className="text-gray-400">
-          <ArrowLeft size={18} />
+        <span className="text-[13px] text-[color:var(--ds-muted)]">
+          <span className="font-medium">Quotes</span> › {client}
         </span>
         <StatusChip key={approved ? "a" : "w"} kind="quote" status={approved ? "APPROVED" : "AWAITING_RESPONSE"} className={approved ? "wb-pop-in" : ""} />
       </div>
 
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <PageTitle sub={<span className="ds-link">{client}</span>}>{title}</PageTitle>
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+        <Title sub={<span className="ds-link">{client}</span>}>{title}</Title>
         <div className="flex items-center gap-2">
           {approved ? (
-            <span className="btn-primary">
-              <Briefcase size={13} />
+            <span className="ds-btn ds-btn-primary">
+              <Briefcase size={15} />
               Convert to job
             </span>
           ) : (
             <>
-              <span className="btn-primary">
-                <CheckCircle size={13} />
+              <span className="ds-btn ds-btn-primary">
+                <CheckCircle size={15} />
                 Mark approved
               </span>
-              <span className="ds-btn-outline block rounded-[10px] p-2 text-[color:var(--ds-ink-2)]">
+              <span className="ds-btn ds-btn-ghost px-2.5">
                 <Pencil size={15} />
               </span>
             </>
           )}
-          <span className="ds-btn-outline rounded-[10px] p-2 text-[color:var(--ds-ink-2)]">
+          <span className="ds-btn ds-btn-ghost px-2.5">
             <MoreHorizontal size={16} />
           </span>
         </div>
@@ -393,7 +394,7 @@ function QuoteDetail({
             This quote was approved with a {money(deposit)} required deposit — collect it before the work starts.
           </p>
           <div className="flex items-center gap-3">
-            <span className="btn-primary">
+            <span className="ds-btn ds-btn-primary">
               <DollarSign size={13} />
               Collect deposit
             </span>

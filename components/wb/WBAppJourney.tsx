@@ -2,8 +2,6 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft,
-  ArrowUpDown,
   Bell,
   Briefcase,
   Building2,
@@ -27,6 +25,7 @@ import {
   Home,
   Inbox,
   Info,
+  LifeBuoy,
   ListChecks,
   MapPin,
   MessageSquare,
@@ -50,7 +49,6 @@ import {
   SquareKanban,
   Tag,
   User,
-  UserCheck,
   UserPlus,
   Users,
   Wallet,
@@ -62,6 +60,7 @@ import StatusChip from "@/components/StatusChip";
 import { AtlasMark } from "@/components/AtlasIcon";
 import { dsBrandVars } from "@/lib/ds-theme";
 import { shade } from "@/lib/branding";
+import "./wb-open.css";
 
 /**
  * "Win more of the work" — one job's path through WorkBench, each step on a
@@ -207,7 +206,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: "Business",
     items: [
-      { label: "Overview", icon: Building2 },
+      { label: "Reports", icon: Building2 },
       { label: "Automations", icon: Zap },
       { label: "Services", icon: Tag },
       { label: "Booking & forms", icon: Globe },
@@ -216,6 +215,14 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
     ],
   },
 ];
+
+/** What's waiting beside a page in the Live sidebar (AppShell railMeta). */
+const RAIL_META: Record<string, string> = {
+  Schedule: "5 today",
+  Quotes: "3 waiting",
+  Jobs: "2 to bill",
+  Invoices: "$2,619 owed",
+};
 
 function RailRow({
   item,
@@ -227,33 +234,28 @@ function RailRow({
   count?: number;
 }) {
   const Icon = item.icon;
+  const meta = RAIL_META[item.label];
   return (
     <a
       data-rail-active={active ? "true" : undefined}
-      className={`group relative font-display flex items-center gap-2.5 py-2 pl-4 pr-4 text-[13px] ${active ? "font-semibold" : "font-medium text-[color:var(--rail-muted)]"}`}
+      className={`rail-row group font-display relative mx-2 flex h-[34px] items-center gap-2.5 rounded-[9px] pl-2.5 pr-2.5 text-[13.5px] ${active ? "font-bold text-[color:var(--rail-ink)]" : "font-medium text-[color:var(--rail-muted)]"}`}
     >
       {active && (
         <span
           aria-hidden
           className="rail-indicator rail-indicator-on"
-          style={{ height: "100%" }}
+          style={{ left: 0, right: 0, height: "100%", zIndex: -1 }}
         />
       )}
       <Icon
-        size={16}
-        strokeWidth={1.8}
-        className={
-          active
-            ? "text-[color:var(--rail-accent)]"
-            : "text-[color:var(--rail-faint)]"
-        }
+        size={18}
+        strokeWidth={active ? 2.6 : 2.3}
+        className={active ? "shrink-0 text-[color:var(--rail-accent)]" : "shrink-0 text-[color:var(--rail-muted)]"}
       />
       <span className="truncate">{item.label}</span>
+      {meta && <span className="rail-meta ml-auto">{meta}</span>}
       {count ? (
-        <span
-          key={count}
-          className="rail-count ml-auto text-[color:var(--rail-news)]"
-        >
+        <span key={count} className={`rail-count ${meta ? "ml-2" : "ml-auto"}`}>
           {count}
         </span>
       ) : null}
@@ -288,90 +290,60 @@ export function AppWindow({
       className="app-ui ds relative flex h-full overflow-hidden bg-paper-plain"
       style={APP_VARS}
     >
+      {/* The Live sidebar (AppShell, 2026-11-24): the company, Search, the
+          six daily drivers with what's waiting beside them, then Work /
+          Money / Business as open groups, Help, Settings and the user. */}
       <aside
-        className="rail-gray flex w-[232px] shrink-0 flex-col border-r border-[color:var(--rail-line)]"
+        className="rail-gray rail-live flex shrink-0 border-r border-[color:var(--rail-line)]"
         style={{ "--rail-accent-l": BW.primary } as React.CSSProperties}
       >
-        <div className="flex min-h-[57px] min-w-0 items-center gap-3 border-b border-[color:var(--rail-line)] px-3.5">
-          <span
-            className="font-display flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] text-lg font-bold shadow-sm"
-            style={{ backgroundColor: BW.primary, color: "#ffffff" }}
-          >
+        <a className="rail-live-co">
+          <span className="rail-live-mark font-display" style={{ backgroundColor: BW.primary, color: "#ffffff" }}>
             B
           </span>
-          <span className="font-display truncate text-[15px] font-semibold tracking-tight text-[color:var(--rail-ink)]">
-            {BW.name}
+          <span className="min-w-0 flex-1">
+            <span className="rail-live-name">{BW.name}</span>
           </span>
-        </div>
-        <nav className="relative flex-1 overflow-hidden py-3">
+        </a>
+        <span className="rail-live-search">
+          <Search size={15} strokeWidth={2.2} />
+          <span className="flex-1 text-left">Search</span>
+          <kbd>Ctrl K</kbd>
+        </span>
+        <nav className="rail-live-nav">
           {DRIVERS.map((it) => (
-            <RailRow
-              key={it.label}
-              item={it}
-              active={it.label === nav}
-              count={counts[it.label]}
-            />
+            <RailRow key={it.label} item={it} active={it.label === nav} count={counts[it.label]} />
           ))}
-          {GROUPS.map((g) => {
-            const open = g.items.some((i) => i.label === nav);
-            const rollup = open
-              ? 0
-              : g.items.reduce((n, i) => n + (counts[i.label] ?? 0), 0);
-            return (
-              <div key={g.label} className="mt-3">
-                <div
-                  className={`font-display flex w-full items-center gap-2.5 py-2 pl-4 pr-4 text-[10.5px] font-semibold uppercase tracking-[0.12em] ${open ? "text-[color:var(--rail-muted)]" : "text-[color:var(--rail-faint)]"}`}
-                >
-                  <span className="shrink-0">{g.label}</span>
-                  <span aria-hidden className="rail-head-rule" />
-                  {rollup > 0 && (
-                    <span
-                      key={rollup}
-                      className="rail-count shrink-0 text-[color:var(--rail-num)]"
-                    >
-                      {rollup}
-                    </span>
-                  )}
-                  <ChevronDown
-                    size={13}
-                    className={`shrink-0 ${open ? "" : "-rotate-90"}`}
-                  />
-                </div>
-                {open && (
-                  <div>
-                    {g.items.map((it) => (
-                      <RailRow
-                        key={it.label}
-                        item={it}
-                        active={it.label === nav}
-                        count={counts[it.label]}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </nav>
-        <div className="border-t border-[color:var(--rail-line)] py-1.5">
-          <RailRow
-            item={{ label: "Settings", icon: Settings }}
-            active={nav === "Settings"}
-          />
-          <div className="flex w-full items-center gap-3 px-4 py-3 text-left">
-            <Avatar name={BW.owner} size={30} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold text-[color:var(--rail-ink)]">
-                {BW.owner}
-              </p>
-              <p className="truncate text-[11px] text-[color:var(--rail-faint)]">
-                {BW.name}
-              </p>
+          {GROUPS.map((g) => (
+            <div key={g.label} className="rail-live-group">
+              <span className="rail-live-ghead">
+                <span>{g.label}</span>
+                <ChevronDown size={14} strokeWidth={2.4} className="rail-live-chev is-open" />
+              </span>
+              {g.items.map((it) => (
+                <RailRow key={it.label} item={it} active={it.label === nav} count={counts[it.label]} />
+              ))}
             </div>
-            <ChevronsUpDown
-              size={13}
-              className="shrink-0 text-[color:var(--rail-faint)]"
-            />
+          ))}
+        </nav>
+        <div className="rail-live-foot">
+          <span className="rail-live-row">
+            <LifeBuoy size={17} strokeWidth={2.3} />
+            <span className="flex-1">Help</span>
+          </span>
+          <span className={`rail-live-row ${nav === "Settings" ? "is-here" : ""}`}>
+            <Settings size={17} strokeWidth={2.3} />
+            <span className="flex-1">Settings</span>
+          </span>
+          <div className="rail-live-me">
+            <div className="flex w-full items-center gap-3 px-4 py-3 text-left">
+              <Avatar name={BW.owner} size={30} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold text-[color:var(--rail-ink)]">{BW.owner}</p>
+                <p className="truncate text-[11px] text-[color:var(--rail-faint)]">{BW.name}</p>
+              </div>
+              <ChevronsUpDown size={13} className="shrink-0 text-[color:var(--rail-faint)]" />
+            </div>
           </div>
         </div>
       </aside>
@@ -403,7 +375,7 @@ export function AppWindow({
             <Settings size={17} />
           </span>
         </header>
-        <main className="app-main relative flex-1 overflow-hidden">
+        <main className="app-main relative flex-1 overflow-hidden bg-[color:var(--ds-surface)]">
           {children}
         </main>
         <div className="absolute bottom-6 right-6 z-40 flex items-center gap-0.5 rounded-full bg-white p-1.5 shadow-lg ring-1 ring-black/[0.06]">
@@ -618,14 +590,18 @@ export function Title({
   children,
   info,
   sub,
+  eyebrow,
 }: {
   children: React.ReactNode;
   info?: boolean;
   sub?: React.ReactNode;
+  /** The open header's context line above the title (PageHeader eyebrow). */
+  eyebrow?: React.ReactNode;
 }) {
   return (
     <div className="min-w-0">
-      <h1 className="ds-title flex items-center gap-2" style={{ fontSize: 30 }}>
+      {eyebrow && <p className="ds-eyebrow ds-eyebrow-plain">{eyebrow}</p>}
+      <h1 className="ds-title mt-1 flex items-center gap-2" style={{ fontSize: 30, fontWeight: 700, letterSpacing: "-0.03em" }}>
         <span className="min-w-0">{children}</span>
         {info && <InfoDot />}
       </h1>
@@ -647,15 +623,15 @@ function Fact({
 }) {
   return (
     <div>
-      <span className="block text-xs font-medium text-gray-500">{label}</span>
-      <span className={tone ?? "text-gray-800"}>{children}</span>
+      <span className="block text-[12.5px] font-medium text-[color:var(--ds-muted)]">{label}</span>
+      <span className={`mt-0.5 block text-[14.5px] ${tone ?? "font-medium text-[color:var(--ds-ink)]"}`}>{children}</span>
     </div>
   );
 }
 
 function Facts({ children }: { children: React.ReactNode }) {
   return (
-    <div className="ds-card mb-6 flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 text-sm">
+    <div className="mb-8 flex flex-wrap gap-x-10 gap-y-3 border-y border-[color:var(--ds-line)] py-4 text-sm">
       {children}
     </div>
   );
@@ -676,13 +652,15 @@ function DetailHead({
 }) {
   return (
     <>
-      <div className="mb-4 flex items-center gap-3">
-        <span className="block text-gray-400">
-          <ArrowLeft size={18} />
+      <div className="mb-3 flex items-center gap-2 text-[13px] text-[color:var(--ds-muted)]">
+        <span className="font-medium">{kind === "quote" ? "Quotes" : kind === "invoice" ? "Invoices" : "Jobs"}</span>
+        <ChevronRight size={13} className="text-[color:var(--ds-faint)]" />
+        <span>{client}</span>
+        <span className="ml-1">
+          <StatusChip key={status} kind={kind} status={status} />
         </span>
-        <StatusChip key={status} kind={kind} status={status} />
       </div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
         <Title sub={<span className="ds-link">{client}</span>}>{title}</Title>
         <div className="flex items-center gap-2">{actions}</div>
       </div>
@@ -701,10 +679,10 @@ function Btn({
 }) {
   return (
     <span
-      className="btn-primary"
+      className="ds-btn ds-btn-primary"
       style={pressed ? { transform: "scale(0.97)" } : undefined}
     >
-      <Icon size={13} />
+      <Icon size={15} />
       {children}
     </span>
   );
@@ -712,8 +690,8 @@ function Btn({
 
 function IconBtn({ icon: Icon }: { icon: typeof Send }) {
   return (
-    <span className="ds-btn-outline rounded-[10px] p-2 text-[color:var(--ds-ink-2)]">
-      <Icon size={16} />
+    <span className="ds-btn ds-btn-ghost px-2.5">
+      <Icon size={17} />
     </span>
   );
 }
@@ -787,15 +765,33 @@ function useBeat(active: boolean, times: number[]) {
 
 /* ── the screens ─────────────────────────────────────────────────────────── */
 
-const LIST_PAGE = "mx-auto w-full max-w-6xl px-8 pb-10 pt-8";
-const DETAIL_PAGE = "mx-auto max-w-4xl p-8";
+const LIST_PAGE = "wb-open mx-auto w-full max-w-6xl px-8 pb-10 pt-8";
+const DETAIL_PAGE = "wb-open mx-auto w-full max-w-6xl px-8 pb-10 pt-8";
 
 function chip(active: boolean) {
   const base =
-    "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[9px] px-3.5 py-1.5 text-sm";
+    "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[8px] px-3 py-1.5 text-sm";
   return active
-    ? `${base} chip-pressed font-semibold`
-    : `${base} btn-tool-line bg-white font-medium text-gray-600`;
+    ? `${base} bg-[color:var(--ds-surface)] font-semibold text-[color:var(--ds-ink)] shadow-[0_1px_2px_rgba(10,19,40,0.12)]`
+    : `${base} font-medium text-[color:var(--ds-muted)]`;
+}
+
+/** The open page's underline tabs (with counts), as on every list page. */
+function UTabs({ items, on = 0 }: { items: [string, number?][]; on?: number }) {
+  return (
+    <div className="flex items-center gap-6 border-b border-[color:var(--ds-line-strong)]">
+      {items.map(([label, n], i) => (
+        <span
+          key={label}
+          className={`relative pb-2.5 text-[14px] ${i === on ? "font-semibold text-[color:var(--ds-ink)]" : "font-medium text-[color:var(--ds-muted)]"}`}
+        >
+          {label}
+          {n !== undefined && <span className="ml-1.5 text-[color:var(--ds-faint)]">{n}</span>}
+          {i === on && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[color:var(--ds-primary)]" />}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function RequestsPage({ b }: { b: number }) {
@@ -820,93 +816,88 @@ function RequestsPage({ b }: { b: number }) {
       status: "CONVERTED",
     },
   ];
-  const cols = "grid grid-cols-[1fr_1fr_140px_130px_40px] gap-4";
+  const list = [
+    ...(b >= 1
+      ? [{ who: job.client, what: job.title, when: "Just now", status: "NEW", fresh: true }]
+      : []),
+    ...rows.map((r) => ({ ...r, when: r.when.replace(", 2026", "") })),
+  ];
+  const sel = list[0];
+  const fresh = "fresh" in sel;
   return (
     <div className={LIST_PAGE}>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-y-3">
-        <Title>Requests</Title>
-        <span className="btn-primary">
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+        <Title eyebrow={`${b >= 1 ? 2 : 1} new · 1 needs approval`}>Requests</Title>
+        <span className="ds-btn ds-btn-primary">
           <Plus size={15} />
           New request
         </span>
       </div>
-      <div className="mb-4 flex h-[46px] w-[384px] items-center gap-2.5 rounded-[12px] bg-gray-100 px-4 text-[15px] text-gray-400">
-        <Search size={16} />
-        Search requests, clients…
-      </div>
-      <div className="mb-6 grid grid-cols-4 gap-3">
-        <div className="card-tool p-4">
-          <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-gray-500">
-            <span
-              className="h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{ backgroundColor: "var(--ds-secondary)" }}
-            />
-            <span className="truncate">New requests</span>
-          </p>
-          <p
-            key={b >= 1 ? "n" : "o"}
-            className="numeral-ledger text-2xl font-semibold text-gray-900"
-          >
-            {b >= 1 ? 2 : 1}
-          </p>
-        </div>
-      </div>
-      <div className="mb-4 flex items-center gap-2">
-        <span className={chip(true)}>All</span>
-        <span className={chip(false)}>Needs approval</span>
-        <span className={chip(false)}>New</span>
-        <span className={chip(false)}>Converted</span>
-        <span className={chip(false)}>Archived</span>
-        <span className="mx-0.5 h-5 w-px shrink-0 bg-gray-200" />
-        <span className={chip(false)}>
-          <UserCheck size={13} />
-          Mine
-        </span>
-        <span className="btn-tool-line ml-auto flex items-center gap-1.5 rounded-[10px] bg-white px-3 py-1.5 text-sm font-semibold text-gray-700">
-          <ArrowUpDown size={14} className="text-gray-400" />
-          Newest first
-          <ChevronDown size={14} className="text-gray-400" />
-        </span>
-      </div>
-      <div className="ds-card overflow-hidden">
-        <div className="divide-y divide-gray-100">
-          <div
-            className={`${cols} bg-gray-50 px-4 py-2 text-xs font-medium text-gray-500`}
-          >
-            <span>Client</span>
-            <span>Title</span>
-            <span>Requested</span>
-            <span>Status</span>
-            <span />
+      <div className="grid grid-cols-[380px_minmax(0,1fr)] gap-12">
+        <div className="min-w-0">
+          <UTabs items={[["New", b >= 1 ? 2 : 1], ["Open", 3], ["Converted", 2], ["Archived"]]} />
+          <div className="mt-1">
+            {list.map((r, i) => (
+              <div
+                key={r.who + r.what}
+                className={`relative flex items-start gap-3 border-b border-[color:var(--ds-line)] py-3.5 ${i === 0 ? "-mx-3 rounded-[10px] border-transparent bg-[color:var(--ds-surface-2)] px-3" : ""}`}
+                style={"fresh" in r ? ROW_IN : undefined}
+              >
+                <span
+                  className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+                  style={{ background: r.status === "NEW" ? "var(--ds-secondary)" : "transparent" }}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-baseline justify-between gap-2">
+                    <span className={`truncate text-[14.5px] text-[color:var(--ds-ink)] ${r.status === "NEW" ? "font-semibold" : "font-medium"}`}>{r.who}</span>
+                    <span className="shrink-0 text-[12.5px] text-[color:var(--ds-muted)]">{r.when}</span>
+                  </span>
+                  <span className="mt-0.5 block truncate text-[13.5px] text-[color:var(--ds-muted)]">{r.what}</span>
+                </span>
+              </div>
+            ))}
           </div>
-          {[
-            ...(b >= 1
-              ? [
-                  {
-                    who: job.client,
-                    what: job.title,
-                    when: "Oct 26, 2026",
-                    status: "NEW",
-                    fresh: true,
-                  },
-                ]
-              : []),
-            ...rows,
-          ].map((r) => (
-            <div
-              key={r.who + r.what}
-              className={`${cols} items-center px-4 py-2.5`}
-              style={"fresh" in r ? ROW_IN : undefined}
-            >
-              <span className="text-sm font-medium text-gray-900">{r.who}</span>
-              <span className="truncate text-sm text-gray-600">{r.what}</span>
-              <span className="text-sm text-gray-500">{r.when}</span>
-              <span>
-                <StatusChip kind="request" status={r.status} />
-              </span>
-              <ChevronRight size={14} className="shrink-0 text-gray-400" />
+        </div>
+        <div className="min-w-0" key={sel.who}>
+          <div className="mb-2 flex items-center gap-2 text-[13px] text-[color:var(--ds-muted)]">
+            <span>{fresh ? "Booked on your website" : "From your website form"}</span>
+            <span>·</span>
+            <span>{sel.when}</span>
+          </div>
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h2 className="text-[24px] font-bold tracking-[-0.025em] text-[color:var(--ds-ink)]">{sel.who}</h2>
+              <p className="mt-0.5 text-[15px] text-[color:var(--ds-ink-2)]">{sel.what}</p>
             </div>
-          ))}
+            <StatusChip kind="request" status={sel.status} />
+          </div>
+          <p className="mt-5 max-w-prose text-[14.5px] leading-relaxed text-[color:var(--ds-ink-2)]">
+            {fresh
+              ? "Hi, we'd like two ceiling fans put in, the living room and the main bedroom. Any morning next week works."
+              : "Would like someone to take a look this week if possible."}
+          </p>
+          <div className="mt-6 border-t border-[color:var(--ds-line-strong)]">
+            {[
+              ["Phone", "(469) 555-0142"],
+              ["Email", fresh ? job.email : "hello@example.com"],
+              ["Address", "412 Oak Ln, Plano, TX 75024"],
+            ].map(([k, v]) => (
+              <div key={k} className="flex items-center justify-between border-b border-[color:var(--ds-line)] py-3 text-[14px]">
+                <span className="text-[color:var(--ds-muted)]">{k}</span>
+                <span className="font-medium text-[color:var(--ds-ink)]">{v}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6 flex items-center gap-2">
+            <span className="ds-btn ds-btn-primary">
+              <FileText size={15} />
+              Make a quote
+            </span>
+            <span className="ds-btn ds-btn-outline">
+              <CalendarClock size={15} />
+              Schedule a visit
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -966,7 +957,7 @@ function QuoteBody() {
         </p>
       </div>
       <LineTable head="Product / Service" />
-      <div className="border-t border-[color:var(--ds-line)] bg-[color:var(--ds-surface-2)] px-6 py-4">
+      <div className="border-t border-[color:var(--ds-line)] px-6 py-4">
         <div className="ml-auto w-64 space-y-1.5 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-500">Subtotal</span>
@@ -1115,7 +1106,7 @@ function SchedulePage({ b }: { b: number }) {
   const job = useJob();
   const placed = b >= 2;
   const toolBtn =
-    "btn-tool-line flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-white px-4 text-sm font-semibold text-gray-700";
+    "ds-btn ds-btn-outline";
   const block = (
     day: number,
     start: number,
@@ -1145,9 +1136,9 @@ function SchedulePage({ b }: { b: number }) {
     </div>
   );
   return (
-    <div className="mx-auto max-w-6xl p-8">
-      <div className="mb-5 flex items-center justify-between gap-2">
-        <Title>Schedule</Title>
+    <div className="wb-open mx-auto max-w-6xl px-8 pb-10 pt-8">
+      <div className="mb-6 flex items-end justify-between gap-2">
+        <Title eyebrow={placed ? "6 jobs this week · Thursday is the busiest" : "5 jobs this week · 1 waiting to be scheduled"}>Schedule</Title>
         <div className="flex items-center gap-2">
           <span className={toolBtn}>
             <UserPlus size={16} />
@@ -1162,11 +1153,11 @@ function SchedulePage({ b }: { b: number }) {
             <CalendarOff size={16} />
             Block time
           </span>
-          <span className="btn-tool-line flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-[color:var(--ds-secondary-soft)] px-4 text-sm font-semibold text-[color:var(--ds-secondary)]">
+          <span className="ds-btn ds-btn-ghost">
             <CalendarClock size={16} />
             New appointment
           </span>
-          <span className="btn-primary h-10">
+          <span className="ds-btn ds-btn-primary">
             <Plus size={15} />
             New job
           </span>
@@ -1187,7 +1178,7 @@ function SchedulePage({ b }: { b: number }) {
         <h2 className="text-lg font-bold text-gray-900">
           Oct 25 – Oct 31, 2026
         </h2>
-        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+        <div className="ml-auto flex shrink-0 items-center gap-0.5 rounded-[10px] bg-[color:var(--ds-surface-2)] p-0.5">
           <span className={chip(false)}>Month</span>
           <span className={chip(true)}>Week</span>
           <span className={chip(false)}>Day</span>
@@ -1197,7 +1188,7 @@ function SchedulePage({ b }: { b: number }) {
           </span>
         </div>
       </div>
-      <div className="ds-card overflow-hidden">
+      <div className="overflow-hidden rounded-[12px] border border-[color:var(--ds-line)]">
         <div
           className="grid border-b border-gray-200"
           style={{ gridTemplateColumns: "56px repeat(7, minmax(0, 1fr))" }}
@@ -1582,7 +1573,7 @@ function InvoicePage({ b, paid }: { b: number; paid?: boolean }) {
       </Facts>
       <div className="ds-card mb-6 overflow-hidden">
         <LineTable head="Line item" />
-        <div className="border-t border-[color:var(--ds-line)] bg-[color:var(--ds-surface-2)] px-6 py-4">
+        <div className="border-t border-[color:var(--ds-line)] px-6 py-4">
           <div className="ml-auto w-64 space-y-1.5 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-500">Subtotal</span>

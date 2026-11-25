@@ -14,6 +14,7 @@ import { APP_VARS, InfoDot, usd } from "@/components/wb/WBAppJourney";
  *   - a job's Profit margin card (app/platform/jobs/[id]/page.tsx),
  *   - Expenses → Repeats monthly (app/platform/expenses/ExpensesClient.tsx).
  * Static, as the app draws them (the app does not animate these).
+ * 2026-11-25: redrawn as the Reports page in the open look.
  */
 
 const COLLECTED = 18420;
@@ -33,175 +34,147 @@ const RECURRING: [string, number, string][] = [
   ["Liability insurance", 268, "Insurance"],
 ];
 
-/** One line of the Insights ledger card (LedgerLine in the page). */
-function Ledger({
-  label,
-  hint,
-  value,
-  strong,
+/** OpenSection (components/ds): the bold title on the two-color bar, then the body. */
+function Sec({
+  title,
+  aside,
+  children,
+  className = "",
 }: {
-  label: string;
-  hint?: string;
-  value: string;
-  strong?: boolean;
+  title: React.ReactNode;
+  aside?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3">
+    <section className={`bb-sec min-w-0 ${className}`}>
+      <div className="bb-sec-head">
+        <h2 className="bb-h2">
+          <span className="bb-h2-text">{title}</span>
+        </h2>
+        {aside && <div className="bb-sec-aside">{aside}</div>}
+      </div>
+      <div className="bb-sec-body">{children}</div>
+    </section>
+  );
+}
+
+/** A hairline row: label (and its hint) on the left, the figure on the right. */
+function Line({ label, hint, value, strong }: { label: string; hint?: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex items-center gap-3 border-b border-[color:var(--ds-line)] py-3 last:border-b-0">
       <span className="min-w-0 flex-1">
-        <span
-          className={`block truncate ${strong ? "text-[15px] font-semibold text-gray-900" : "text-sm text-gray-600"}`}
-        >
-          {label}
-        </span>
-        {hint && (
-          <span className="block truncate text-[11px] text-gray-400">
-            {hint}
-          </span>
-        )}
+        <span className={`block truncate ${strong ? "text-[15px] font-semibold text-[color:var(--ds-ink)]" : "text-[14px] text-[color:var(--ds-ink-2)]"}`}>{label}</span>
+        {hint && <span className="block truncate text-[12.5px] text-[color:var(--ds-muted)]">{hint}</span>}
       </span>
-      <span
-        className={`numeral-ledger shrink-0 tabular-nums ${strong ? "text-xl font-bold text-[color:var(--ds-good)]" : "text-[15px] font-semibold text-gray-900"}`}
-      >
-        {value}
-      </span>
+      <span className={`ds-num shrink-0 ${strong ? "text-[17px] font-bold text-[color:var(--ds-good)]" : "text-[14.5px] font-semibold text-[color:var(--ds-ink)]"}`}>{value}</span>
     </div>
   );
 }
 
-function Card({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return <div className={`ds-card ${className}`}>{children}</div>;
-}
-
+/**
+ * Reports (app/platform/business, one page with tabs since 2026-11-21) on
+ * the open page: the header with its context line, the tabs, then the
+ * money, lead sources, a job's margin and the monthly repeats as open
+ * sections — white page, hairlines, the two-color bar.
+ */
 export default function WBInsights() {
   const profit = JOB.revenue - JOB.cost - JOB.labor;
+  const margin = Math.round((profit / JOB.revenue) * 100);
   return (
     <div
-      className="app-ui ds grid select-none gap-4 text-left sm:grid-cols-2"
+      className="app-ui ds select-none overflow-hidden rounded-xl bg-[color:var(--ds-surface)] p-6 text-left shadow-[0_0_0_1px_rgba(10,20,40,0.1),0_30px_60px_-30px_rgba(10,20,40,0.5)] sm:p-8"
       style={APP_VARS}
       aria-hidden
       inert
     >
-      {/* Insights: the money summary (the page's ledger card at this width) */}
-      <Card className="divide-y divide-[color:var(--ds-line)] sm:col-span-2">
-        <Ledger
-          label="Collected revenue"
-          hint="41 payments in this period"
-          value={usd(COLLECTED)}
-        />
-        <Ledger
-          label="Expenses"
-          hint="23 logged — manage"
-          value={`−${usd(SPENT)}`}
-        />
-        <Ledger label="Profit" value={usd(COLLECTED - SPENT)} strong />
-      </Card>
-
-      {/* Insights: By lead source */}
-      <Card>
-        <div className="flex items-center justify-between gap-3 border-b border-[color:var(--ds-line)] px-5 py-4">
-          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[color:var(--ds-ink)]">
-            By lead source
-            <InfoDot />
-          </h2>
-          <span className="shrink-0 text-xs font-semibold text-[color:var(--ds-primary)]">
-            Lead sources →
+      <div className="ds-pagehead mb-5">
+        <p className="ds-eyebrow ds-eyebrow-plain">Nov 1 – Nov 25 · profit is up on last month</p>
+        <h1 className="ds-title mt-1" style={{ fontSize: 30, fontWeight: 700, letterSpacing: "-0.03em" }}>
+          Reports
+        </h1>
+      </div>
+      <div className="mb-8 flex items-center gap-6 overflow-hidden border-b border-[color:var(--ds-line-strong)]">
+        {["Insights", "Timesheets", "Expenses", "Team map"].map((t, i) => (
+          <span key={t} className={`relative shrink-0 pb-2.5 text-[14px] ${i === 0 ? "font-semibold text-[color:var(--ds-ink)]" : "font-medium text-[color:var(--ds-muted)]"}`}>
+            {t}
+            {i === 0 && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[color:var(--ds-primary)]" />}
           </span>
-        </div>
-        <div className="space-y-3 p-5">
-          {SOURCES.map(([key, revenue]) => {
-            const pct = Math.round((revenue / COLLECTED) * 100);
-            return (
-              <div key={key}>
-                <div className="mb-1.5 flex items-baseline justify-between gap-3 text-sm">
-                  <span className="min-w-0 flex-1 truncate font-medium text-gray-800">
-                    {key}
-                  </span>
-                  <span className="numeral-ledger shrink-0 font-semibold text-gray-900">
-                    {usd(revenue)}
-                    <span className="ml-1.5 text-xs font-normal text-gray-400">
-                      {pct}%
-                    </span>
-                  </span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-                  <div
-                    className="h-full rounded-full bg-[color:var(--ds-primary)]"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
-
-      {/* the job page's Profit margin card */}
-      <Card className="self-start p-4">
-        <h2 className="mb-3 flex items-center gap-1.5 text-[14.5px] font-semibold text-[color:var(--ds-ink)]">
-          Profit margin
-        </h2>
-        <div className="space-y-1.5 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-500">Revenue</span>
-            <span className="text-gray-800">{usd(JOB.revenue)}</span>
+        ))}
+      </div>
+      <div className="grid gap-x-12 gap-y-10 sm:grid-cols-2">
+        <Sec title="Money">
+          <div className="pt-3">
+            <span className="bb-label block">Profit this period</span>
+            <span className="bb-big ds-num mt-1 block">{usd(COLLECTED - SPENT)}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Line item cost</span>
-            <span className="text-gray-800">−{usd(JOB.cost)}</span>
+          <div className="mt-3">
+            <Line label="Collected revenue" hint="41 payments in this period" value={usd(COLLECTED)} />
+            <Line label="Expenses" hint="23 logged" value={`−${usd(SPENT)}`} />
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Labor (6h)</span>
-            <span className="text-gray-800">−{usd(JOB.labor)}</span>
-          </div>
-          <div className="flex justify-between border-t border-gray-100 pt-1.5 font-semibold">
-            <span className="text-gray-900">Profit</span>
-            <span className="text-[color:var(--ds-good)]">
-              {usd(profit)} ({Math.round((profit / JOB.revenue) * 100)}%)
+        </Sec>
+        <Sec
+          title={
+            <span className="inline-flex items-center gap-1.5">
+              By lead source
+              <InfoDot />
             </span>
+          }
+          aside={<span className="ds-link text-[13px] font-medium">Lead sources</span>}
+        >
+          <div className="space-y-3.5 pt-4">
+            {SOURCES.map(([key, revenue]) => {
+              const pct = Math.round((revenue / COLLECTED) * 100);
+              return (
+                <div key={key}>
+                  <div className="mb-1.5 flex items-baseline justify-between gap-3 text-[14px]">
+                    <span className="min-w-0 flex-1 truncate font-medium text-[color:var(--ds-ink)]">{key}</span>
+                    <span className="ds-num shrink-0 font-semibold text-[color:var(--ds-ink)]">
+                      {usd(revenue)}
+                      <span className="ml-1.5 text-[12px] font-normal text-[color:var(--ds-muted)]">{pct}%</span>
+                    </span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-[color:var(--ds-line)]">
+                    <div className="h-full rounded-full bg-[color:var(--ds-primary)]" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
-      </Card>
-
-      {/* Expenses → Repeats monthly */}
-      <Card className="sm:col-span-2">
-        <div className="flex items-center gap-2 px-4 pb-2 pt-3">
-          <Repeat size={14} className="text-gray-400" />
-          <h2 className="text-sm font-semibold text-gray-900">
-            Repeats monthly
-          </h2>
-        </div>
-        <div className="divide-y divide-[color:var(--ds-line)]">
-          {RECURRING.map(([what, amount, cat]) => (
-            <div key={what} className="flex items-center gap-3 px-4 py-2.5">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-gray-900">
-                  {what}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Logs on the 1st · next Nov 1 · {cat}
-                </p>
+        </Sec>
+        <Sec title="A job's margin" aside={<span className="text-[13px] text-[color:var(--ds-muted)]">Sub-panel for workshop</span>}>
+          <div className="pt-1">
+            <Line label="Revenue" value={usd(JOB.revenue)} />
+            <Line label="Line item cost" value={`−${usd(JOB.cost)}`} />
+            <Line label="Labor (6h)" value={`−${usd(JOB.labor)}`} />
+            <Line label={`Profit · ${margin}%`} value={usd(profit)} strong />
+          </div>
+        </Sec>
+        <Sec
+          title={
+            <span className="inline-flex items-center gap-1.5">
+              <Repeat size={15} className="text-[color:var(--ds-muted)]" />
+              Repeats monthly
+            </span>
+          }
+        >
+          <div className="pt-1">
+            {RECURRING.map(([what, amount, cat]) => (
+              <div key={what} className="flex items-center gap-3 border-b border-[color:var(--ds-line)] py-3 last:border-b-0">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[14px] font-medium text-[color:var(--ds-ink)]">{what}</p>
+                  <p className="text-[12.5px] text-[color:var(--ds-muted)]">Logs on the 1st · next Dec 1 · {cat}</p>
+                </div>
+                <span className="ds-num shrink-0 text-[14px] font-semibold text-[color:var(--ds-ink)]">{usd(amount)}/mo</span>
+                <span className="flex shrink-0 items-center gap-0.5 text-[color:var(--ds-faint)]">
+                  <span className="rounded-full p-1.5"><Pause size={13} /></span>
+                  <span className="rounded-full p-1.5"><Trash2 size={13} /></span>
+                </span>
               </div>
-              <span className="shrink-0 text-sm font-semibold text-gray-900">
-                {usd(amount)}/mo
-              </span>
-              <span className="flex shrink-0 items-center gap-0.5">
-                <span className="rounded-full p-1.5 text-gray-300">
-                  <Pause size={13} />
-                </span>
-                <span className="rounded-full p-1.5 text-gray-300">
-                  <Trash2 size={13} />
-                </span>
-              </span>
-            </div>
-          ))}
-        </div>
-      </Card>
+            ))}
+          </div>
+        </Sec>
+      </div>
     </div>
   );
 }

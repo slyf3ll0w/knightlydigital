@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Bell, CalendarDays, Check, CheckCircle, ChevronDown, ChevronLeft, Inbox, MapPin, MessageSquare, Mic, MoreHorizontal, Navigation, PenLine, Phone as PhoneIcon, Plus, Receipt, Settings, User } from "lucide-react";
 import { HomeFill, ScheduleFill, ChatFill, MoreFill } from "@/components/TabIcons";
-import { FONT, Phone, firstName, useDemoLoop } from "./kit";
+import { FONT, IOS_FONT, Phone, firstName, useDemoLoop } from "./kit";
 
 /**
  * The close-out checklist on the tech's phone job page (app/platform/jobs/[id]
@@ -60,7 +60,7 @@ export const SHEET: React.CSSProperties = {
 export function DsChip({ tone, children }: { tone: "good" | "warn" | "bad" | "neutral" | "primary"; children: React.ReactNode }) {
   const c = { good: BW.good, warn: BW.warn, bad: BW.bad, neutral: BW.faint, primary: BW.primary }[tone];
   return (
-    <span className="inline-flex h-[22px] flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-0.5 text-[12px] font-medium" style={{ color: tone === "bad" ? BW.bad : BW.ink2 }}>
+    <span className="wb-dschip inline-flex h-[22px] flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-0.5 text-[12px] font-medium" style={{ color: tone === "bad" ? BW.bad : BW.ink2 }}>
       <span className="h-[7px] w-[7px] flex-none rounded-full transition-colors duration-300" style={{ background: c, boxShadow: `0 0 0 2.5px color-mix(in srgb, ${c} 22%, transparent)` }} />
       {children}
     </span>
@@ -94,9 +94,9 @@ export function PhoneApp({
 }) {
   const zoom = (width - 18) / 390;
   return (
-    <Phone width={width} height={height} className={className} screen="bg-[#F5F7FA]">
-      <div className="absolute inset-0 text-left" style={{ ...FONT, zoom, color: BW.ink }}>
-        <div ref={scrollRef} className="absolute inset-0 overflow-hidden" style={{ background: BW.canvas }}>
+    <Phone width={width} height={height} className={className} ios>
+      <div className="absolute inset-0 text-left" style={{ ...IOS_FONT, zoom, color: BW.ink }}>
+        <div ref={scrollRef} className="absolute inset-0 overflow-hidden" style={{ background: "#F2F2F7" }}>
           <div className="px-4 pb-40 pt-[70px]">{children}</div>
         </div>
         <div className="absolute inset-x-0 top-0 flex h-14 items-center px-4">
@@ -169,7 +169,7 @@ export function DockedPill({ icon: Icon, label, pressed }: { icon: typeof Check;
 /** A ds card (app/ds.css .ds-card). */
 export function DsCard({ children, className = "", style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
-    <div className={`rounded-[20px] bg-white ${className}`} style={{ boxShadow: CARD_SHADOW, ...style }}>
+    <div className={`wb-dscard rounded-[20px] bg-white ${className}`} style={{ boxShadow: CARD_SHADOW, ...style }}>
       {children}
     </div>
   );
