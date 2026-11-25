@@ -970,8 +970,10 @@ html[data-mode="dark"] .ds-letter-flag { color: #0B1220; }
 .ds-stat-sub { margin-top: 4px; font-size: 12.5px; font-weight: 550; color: var(--ds-ink-2); }
 
 /* Client page: who they are on the page, two figures beside */
-.ds-client-head { display: grid; gap: 16px; }
-@media (min-width: 1024px) { .ds-client-head { grid-template-columns: minmax(0, 1fr) 420px; align-items: center; } }
+/* Phones only (2026-11-24): this sheet loads after Tailwind, so a bare
+   `display: grid` here beat the element's `lg:hidden` and the phone head
+   (name + Lifetime/Balance) showed on desktop under the desk header. */
+@media (max-width: 1023.98px) { .ds-client-head { display: grid; gap: 16px; } }
 .ds-client-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .ds-client-mono { flex: none; display: inline-flex; border-radius: 999px; }
 .ds-client-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; font-size: 14px; font-weight: 600; color: var(--ds-ink-2); }

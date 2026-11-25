@@ -1,7 +1,7 @@
 "use client";
 
 import { NETWORK_ERROR } from "@/lib/safe-fetch";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, Loader2, X } from "lucide-react";
 import Modal from "@/components/Modal";
@@ -18,6 +18,7 @@ export default function EmailClientButton({
   contactEmail,
   signature: defaultSignature,
   hasLogo,
+  listenOnly = false,
 }: {
   contactId: string;
   contactName: string;
@@ -26,6 +27,8 @@ export default function EmailClientButton({
   signature: string;
   /** Company has a logo to offer under the signature */
   hasLogo: boolean;
+  /** No button of its own: opens when the page's "…" menu fires wb:contact-email (desk) */
+  listenOnly?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -35,6 +38,13 @@ export default function EmailClientButton({
   const [includeLogo, setIncludeLogo] = useState(hasLogo);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!listenOnly) return;
+    const onOpen = () => setOpen(true);
+    window.addEventListener("wb:contact-email", onOpen);
+    return () => window.removeEventListener("wb:contact-email", onOpen);
+  }, [listenOnly]);
 
   function close() {
     if (busy) return;
@@ -69,13 +79,15 @@ export default function EmailClientButton({
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-semibold text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
-      >
-        <Mail size={14} />
-        Email
-      </button>
+      {!listenOnly && (
+        <button
+          onClick={() => setOpen(true)}
+          className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-semibold text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
+        >
+          <Mail size={14} />
+          Email
+        </button>
+      )}
 
       <Modal open={open} onClose={close} size="lg" dismissible={!busy}>
           <div className="space-y-4">

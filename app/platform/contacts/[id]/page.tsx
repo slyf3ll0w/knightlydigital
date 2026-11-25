@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, canSeeMoney, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
 import Link from "next/link";
+import { Fragment } from "react";
+import { mapsSearchHref } from "@/lib/time-entries";
 import SectionHeader from "@/components/SectionHeader";
 import { Phone, Mail, MapPin, ChevronRight, Pencil, Eye, MessageCircle } from "lucide-react";
 import { money, shortDate, clientMessageStatus, type StatusKind } from "@/lib/statuses";
@@ -40,13 +42,16 @@ import { DsPage, OpenSection } from "@/components/ds";
 
 export default async function ContactDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ work?: string }>;
 }) {
   const actor = await requirePageActor((a) => canSell(a.role));
   const companyId = actor.companyId;
 
   const { id } = await params;
+  const workTabRaw = (await searchParams)?.work;
 
   const canReassign = seesAllLeads(actor.role);
 
@@ -320,7 +325,7 @@ export default async function ContactDetailPage({
   // The page's actions — one row on phones (below the head card), the right
   // side of the header at a desk. Two instances, one per width (menus only
   // listen while open, so the hidden copy is inert).
-  const actions = (desk: boolean) => (
+  const phoneActions = (desk: boolean) => (
     <>
           {/* Message = the WorkBench conversation: texts from the business line
               once texting is on (client portal + email otherwise), replies in
@@ -381,6 +386,77 @@ export default async function ContactDetailPage({
     </>
   );
 
+  // Desk (2026-11-24, David: simplify the client page): ONE primary action
+  // (Create), the rest in the "…" menu — Message, Send an email (the page's
+  // EmailClientButton listens for it), Edit, Archive, Delete. Call/text/email
+  // are the links in the context line under the name. Run automation shows
+  // only for managers who have runnable rules.
+  const actions = (desk: boolean) =>
+    desk ? (
+      <>
+        <RunAutomationMenu entity="contact" entityId={contact.id} manager={isManager(actor.role)} />
+        {contact.email && (
+          <EmailClientButton
+            listenOnly
+            contactId={contact.id}
+            contactName={fullName}
+            contactEmail={contact.email}
+            signature={emailSignature}
+            hasLogo={!!contact.company.logoUrl}
+          />
+        )}
+        <ContactActionsMenu
+          contactId={contact.id}
+          contactName={fullName}
+          status={contact.status}
+          canDelete={isManager(actor.role)}
+          messageHref={`/app/messages/thread/${contact.id}`}
+          canEmail={!!contact.email}
+          counts={{
+            requests: contact.requests.length,
+            appointments: contact.appointments.length,
+            quotes: contact.quotes.length,
+            jobs: contact.jobs.length,
+            invoices: contact.invoices.length,
+            payments: contact.payments.length,
+          }}
+        />
+        <ContactCreateMenu contactId={contact.id} canSeeMoney={canSeeMoney(actor)} />
+      </>
+    ) : (
+      phoneActions(false)
+    );
+
+  // The desk's facts: one clickable line under the name, and the summary strip
+  const fullAddress = [contact.address, contact.city, contact.state, contact.zip].filter(Boolean).join(", ");
+  const deskFacts = [
+    contact.companyName ? <span key="co">{contact.companyName}</span> : null,
+    contact.phone ? (
+      <CallLink key="ph" phone={contact.phone} contactId={contact.id} name={fullName} className="cp-ctx-link">
+        {fmtPhone(contact.phone)}
+      </CallLink>
+    ) : null,
+    contact.email ? (
+      <a key="em" href={`mailto:${contact.email}`} className="cp-ctx-link">
+        {contact.email}
+      </a>
+    ) : null,
+    fullAddress ? (
+      <a key="ad" href={mapsSearchHref(fullAddress)} target="_blank" rel="noopener noreferrer" className="cp-ctx-link">
+        {fullAddress}
+      </a>
+    ) : null,
+  ].filter(Boolean);
+  const nowMs = Date.now();
+  const lastJob = contact.jobs
+    .map((j) => j.completedAt ?? (j.scheduledAt && j.scheduledAt.getTime() < nowMs ? j.scheduledAt : null))
+    .filter((d): d is Date => !!d)
+    .sort((a, b) => b.getTime() - a.getTime())[0];
+  const nextVisit = [
+    ...contact.jobs.filter((j) => j.status === "ACTIVE" && j.scheduledAt && j.scheduledAt.getTime() >= nowMs).map((j) => j.scheduledAt as Date),
+    ...contact.appointments.filter((a) => a.status === "SCHEDULED" && a.scheduledAt.getTime() >= nowMs).map((a) => a.scheduledAt),
+  ].sort((a, b) => a.getTime() - b.getTime())[0];
+
   // Open page (2026-11-24): at a desk the page's own header — crumbs, the
   // monogram + name (title wipe kept), the chips, a context line, actions.
   // Phones keep the head card and action row exactly as before.
@@ -392,14 +468,12 @@ export default async function ContactDetailPage({
         <div className="min-w-0">
           <p className="ds-eyebrow ds-eyebrow-plain bb-crumbs">
             <Link prefetch={false} href={backTo} className="hover:text-[color:var(--ds-primary)]">
-              {backLabel}
+              ← {backLabel}
             </Link>
-            <span aria-hidden> / </span>
-            <span>{fullName}</span>
           </p>
-          <div className="mt-2 flex min-w-0 items-center gap-3.5">
+          <div className="mt-2 flex min-w-0 items-center gap-3">
             <span className="ds-client-mono">
-              <Monogram name={fullName} size={46} />
+              <Monogram name={fullName} size={40} />
             </span>
             <h1 className="ds-title flex min-w-0 items-center gap-2">
               <span className="ds-wipe min-w-0">
@@ -409,15 +483,20 @@ export default async function ContactDetailPage({
             </h1>
             <span className="flex flex-wrap items-center gap-1.5">{chips}</span>
           </div>
-          <p className="cp-context">
-            {[
-              contact.companyName,
-              `${contact.status === "LEAD" ? "Lead" : contact.kind === "CONTACT" ? "Contact" : "Client"} since ${shortDate(contact.createdAt, tz)}`,
-              contact.assignedTo?.name ? `Assigned to ${contact.assignedTo.name}` : null,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
+          {deskFacts.length > 0 && (
+            <div className="cp-context">
+              {deskFacts.map((n, i) => (
+                <Fragment key={i}>
+                  {i > 0 && (
+                    <span aria-hidden className="cp-ctx-dot">
+                      ·
+                    </span>
+                  )}
+                  {n}
+                </Fragment>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">{actions(true)}</div>
       </div>
@@ -494,14 +573,45 @@ export default async function ContactDetailPage({
     </>
   );
 
+  // Work tabs (desk): All / Quotes / Jobs / Invoices with counts, via ?work=
+  const workTabs = [
+    { value: "", label: "All", n: workRows.length },
+    { value: "quotes", label: "Quotes", n: workRows.filter((r) => r.kind === "quote").length },
+    { value: "jobs", label: "Jobs", n: workRows.filter((r) => r.kind === "job").length },
+    ...(seeMoney ? [{ value: "invoices", label: "Invoices", n: workRows.filter((r) => r.kind === "invoice").length }] : []),
+  ];
+  const workTab = workTabs.some((t) => t.value === workTabRaw) ? (workTabRaw as string) : "";
+  const workKind = workTab === "quotes" ? "quote" : workTab === "jobs" ? "job" : workTab === "invoices" ? "invoice" : null;
+  const deskWorkRows = workKind ? workRows.filter((r) => r.kind === workKind) : workRows;
+
   const workTable = (
+    <div id="work" className="hidden scroll-mt-24 lg:block">
     <OpenSection
       title="Work"
-      count={workRows.length > 0 ? workRows.length : undefined}
-      className="hidden lg:block"
+      aside={
+        workRows.length > 0 ? (
+          <nav className="clx-tabs cp-work-tabs" aria-label="Show">
+            {workTabs.map((t) => (
+              <Link
+                prefetch={false}
+                key={t.value || "all"}
+                href={t.value ? `?work=${t.value}#work` : "?#work"}
+                scroll={false}
+                className={`clx-tab ${workTab === t.value ? "is-on" : ""}`}
+                aria-current={workTab === t.value ? "page" : undefined}
+              >
+                {t.label}
+                <span className="clx-tab-n">{t.n}</span>
+              </Link>
+            ))}
+          </nav>
+        ) : undefined
+      }
     >
-      {workRows.length === 0 ? (
-        <p className="ds-small py-6">No work yet — use Create to add a request, quote, or job.</p>
+      {deskWorkRows.length === 0 ? (
+        <p className="ds-small py-6">
+          {workRows.length === 0 ? "No work yet — use Create to add a request, quote, or job." : "Nothing here yet."}
+        </p>
       ) : (
         <table className="bb-table">
           <thead>
@@ -516,7 +626,7 @@ export default async function ContactDetailPage({
             </tr>
           </thead>
           <tbody>
-            {workRows.map((row) => (
+            {deskWorkRows.map((row) => (
               <tr key={row.key}>
                 <td className="text-[13px] font-medium text-[color:var(--ds-muted)]">{row.type}</td>
                 <td className="max-w-0">
@@ -543,48 +653,36 @@ export default async function ContactDetailPage({
         </table>
       )}
     </OpenSection>
+    </div>
   );
 
   // Desk summary strip: what they owe, what they've paid, and the facts
   const summary = (
     <div className="cp-sum hidden lg:flex">
       {seeMoney && (
-        <div className="cp-sum-lead">
+        <Link prefetch={false} href="?work=invoices#work" className="cp-sum-lead">
           <span className="bb-label">Balance owed</span>
           <span className={`bb-big ${currentBalance > 0 ? "cp-owed" : ""}`}>{money(currentBalance)}</span>
           <span className="ds-small">{currentBalance > 0 ? "Open invoices" : "All paid up"}</span>
-        </div>
+        </Link>
       )}
       {seeMoney && (
         <div className="cp-sum-kv">
           <span className="bb-label">Lifetime value</span>
           <span className="cp-sum-v">{money(lifetimeValue)}</span>
-        </div>
-      )}
-      {contact.phone && (
-        <div className="cp-sum-kv">
-          <span className="bb-label">Phone</span>
-          <CallLink phone={contact.phone} contactId={contact.id} name={fullName} className="cp-sum-v hover:text-[color:var(--ds-primary)]">
-            {fmtPhone(contact.phone)}
-          </CallLink>
-        </div>
-      )}
-      {contact.email && (
-        <div className="cp-sum-kv min-w-0">
-          <span className="bb-label">Email</span>
-          <a href={`mailto:${contact.email}`} className="cp-sum-v truncate hover:text-[color:var(--ds-primary)]">
-            {contact.email}
-          </a>
-        </div>
-      )}
-      {contact.address && (
-        <div className="cp-sum-kv min-w-0">
-          <span className="bb-label">Address</span>
-          <span className="cp-sum-v truncate">
-            {[contact.address, contact.city, contact.state, contact.zip].filter(Boolean).join(", ")}
+          <span className="ds-small">
+            {contact.status === "LEAD" ? "Lead" : contact.kind === "CONTACT" ? "Contact" : "Client"} since {shortDate(contact.createdAt, tz)}
           </span>
         </div>
       )}
+      <div className="cp-sum-kv">
+        <span className="bb-label">Last job</span>
+        <span className={lastJob ? "cp-sum-v" : "cp-sum-v cp-sum-none"}>{lastJob ? shortDate(lastJob, tz) : "None yet"}</span>
+      </div>
+      <div className="cp-sum-kv">
+        <span className="bb-label">Next visit</span>
+        <span className={nextVisit ? "cp-sum-v" : "cp-sum-v cp-sum-none"}>{nextVisit ? shortDate(nextVisit, tz) : "Nothing booked"}</span>
+      </div>
     </div>
   );
 
@@ -678,113 +776,118 @@ export default async function ContactDetailPage({
             )}
           </div>
 
-          {/* Contact info */}
-          <div className="ds-card p-4">
-            <SectionHeader title="Details" className="mb-3" />
-            <dl className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <dt className="text-gray-500 text-xs">Payment terms</dt>
-                <dd className="text-gray-800">Net {contact.paymentTermsDays}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500 text-xs">Lead source</dt>
-                <dd className="text-gray-800">{contact.leadSource || "—"}</dd>
-                {arrivalLines(sanitizeArrival(contact.leadArrival)).map((l) => (
-                  <dd key={l.label} className="truncate text-xs text-gray-500">
-                    {l.label}: {l.value}
-                  </dd>
-                ))}
-              </div>
-              {contact.notes && (
-                <div className="col-span-2">
-                  <dt className="text-gray-500 text-xs">Notes</dt>
-                  <dd className="text-gray-700 whitespace-pre-wrap">{contact.notes}</dd>
+          {/* Phones: who they are, their cards and addresses, as before. At a
+              desk these sit in the right column (below). */}
+          <div className="space-y-4 lg:hidden">
+            {/* Contact info */}
+            <div className="ds-card p-4">
+              <SectionHeader title="Details" className="mb-3" />
+              <dl className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <dt className="text-gray-500 text-xs">Payment terms</dt>
+                  <dd className="text-gray-800">Net {contact.paymentTermsDays}</dd>
                 </div>
+                <div>
+                  <dt className="text-gray-500 text-xs">Lead source</dt>
+                  <dd className="text-gray-800">{contact.leadSource || "—"}</dd>
+                  {arrivalLines(sanitizeArrival(contact.leadArrival)).map((l) => (
+                    <dd key={l.label} className="truncate text-xs text-gray-500">
+                      {l.label}: {l.value}
+                    </dd>
+                  ))}
+                </div>
+                {contact.notes && (
+                  <div className="col-span-2">
+                    <dt className="text-gray-500 text-xs">Notes</dt>
+                    <dd className="text-gray-700 whitespace-pre-wrap">{contact.notes}</dd>
+                  </div>
+                )}
+              </dl>
+              {canSeeMoney(actor) && (
+                <PdfLink
+                  href={`/api/app/contacts/${contact.id}/statement-pdf`}
+                  className="mt-3 inline-block text-xs font-medium text-[color:var(--ds-primary)] hover:underline" fallbackName="statement.pdf">
+                  Download statement (PDF)
+                </PdfLink>
               )}
-            </dl>
+            </div>
+
             {canSeeMoney(actor) && (
-              <PdfLink
-                href={`/api/app/contacts/${contact.id}/statement-pdf`}
-                className="mt-3 inline-block text-xs font-medium text-[color:var(--ds-primary)] hover:underline" fallbackName="statement.pdf">
-                Download statement (PDF)
-              </PdfLink>
+              <SavedCardsCard
+                contactId={contact.id}
+                cards={contact.savedCards}
+                canManage={isManager(actor.role)}
+                pay={clientPayConfig(contact.company)}
+              />
             )}
-          </div>
 
-          {canSeeMoney(actor) && (
-            <SavedCardsCard
+            <AddressesCard
               contactId={contact.id}
-              cards={contact.savedCards}
-              canManage={isManager(actor.role)}
-              pay={clientPayConfig(contact.company)}
+              primary={
+                [contact.address, contact.city, contact.state, contact.zip]
+                  .filter(Boolean)
+                  .join(", ") || null
+              }
+              addresses={contact.addresses.map((a) => ({
+                id: a.id,
+                label: a.label,
+                address: a.address,
+                city: a.city,
+                state: a.state,
+                zip: a.zip,
+              }))}
+              history={Object.fromEntries(
+                contact.addresses.map((a) => [
+                  a.id,
+                  [
+                    ...contact.jobs
+                      .filter((j) => j.propertyId === a.id)
+                      .map((j) => ({
+                        key: `j-${j.id}`,
+                        kind: "Job",
+                        title: j.title,
+                        href: `/app/jobs/${j.id}`,
+                        date: (j.scheduledAt ?? j.createdAt).toISOString(),
+                      })),
+                    ...contact.quotes
+                      .filter((q) => q.propertyId === a.id)
+                      .map((q) => ({
+                        key: `q-${q.id}`,
+                        kind: "Quote",
+                        title: q.title || `Quote #${q.quoteNumber}`,
+                        href: `/app/quotes/${q.id}`,
+                        date: q.createdAt.toISOString(),
+                      })),
+                    ...contact.appointments
+                      .filter((ap) => ap.propertyId === a.id)
+                      .map((ap) => ({
+                        key: `a-${ap.id}`,
+                        kind: "Appointment",
+                        title: ap.title,
+                        href: `/app/appointments/${ap.id}`,
+                        date: ap.scheduledAt.toISOString(),
+                      })),
+                  ].sort((x, y) => (y.date ?? "").localeCompare(x.date ?? "")),
+                ])
+              )}
             />
-          )}
 
-          <AddressesCard
-            contactId={contact.id}
-            primary={
-              [contact.address, contact.city, contact.state, contact.zip]
-                .filter(Boolean)
-                .join(", ") || null
-            }
-            addresses={contact.addresses.map((a) => ({
-              id: a.id,
-              label: a.label,
-              address: a.address,
-              city: a.city,
-              state: a.state,
-              zip: a.zip,
-            }))}
-            history={Object.fromEntries(
-              contact.addresses.map((a) => [
-                a.id,
-                [
-                  ...contact.jobs
-                    .filter((j) => j.propertyId === a.id)
-                    .map((j) => ({
-                      key: `j-${j.id}`,
-                      kind: "Job",
-                      title: j.title,
-                      href: `/app/jobs/${j.id}`,
-                      date: (j.scheduledAt ?? j.createdAt).toISOString(),
-                    })),
-                  ...contact.quotes
-                    .filter((q) => q.propertyId === a.id)
-                    .map((q) => ({
-                      key: `q-${q.id}`,
-                      kind: "Quote",
-                      title: q.title || `Quote #${q.quoteNumber}`,
-                      href: `/app/quotes/${q.id}`,
-                      date: q.createdAt.toISOString(),
-                    })),
-                  ...contact.appointments
-                    .filter((ap) => ap.propertyId === a.id)
-                    .map((ap) => ({
-                      key: `a-${ap.id}`,
-                      kind: "Appointment",
-                      title: ap.title,
-                      href: `/app/appointments/${ap.id}`,
-                      date: ap.scheduledAt.toISOString(),
-                    })),
-                ].sort((x, y) => (y.date ?? "").localeCompare(x.date ?? "")),
-              ])
-            )}
-          />
+            <PeopleCard
+              contactId={contact.id}
+              primaryName={`${contact.firstName} ${contact.lastName}`.trim()}
+              primaryRole={contact.companyName}
+              people={contact.people.map((p) => ({
+                id: p.id,
+                firstName: p.firstName,
+                lastName: p.lastName,
+                role: p.role,
+                email: p.email,
+                phone: p.phone,
+                notes: p.notes,
+              }))}
+            />
 
-          <PeopleCard
-            contactId={contact.id}
-            primaryName={`${contact.firstName} ${contact.lastName}`.trim()}
-            primaryRole={contact.companyName}
-            people={contact.people.map((p) => ({
-              id: p.id,
-              firstName: p.firstName,
-              lastName: p.lastName,
-              role: p.role,
-              email: p.email,
-              phone: p.phone,
-              notes: p.notes,
-            }))}
-          />
+          </div>
 
           {/* Notes & activity (same pattern as job notes) */}
           <div className="ds-card">
@@ -817,70 +920,199 @@ export default async function ContactDetailPage({
           </div>
         </div>
 
-        {/* Rail: overview + hub link */}
-        <div className="space-y-4">
-          {contact.pipelineStageId && pipelineStages.length > 0 && (
-            <PipelineCard
+        {/* Rail: overview + hub link (flex + gap: hidden/empty items take no space) */}
+        <div className="flex flex-col gap-4">
+          {/* Desk (2026-11-24): the inspector, quieter — contact, addresses, cards
+              on file, portal, fields, stage, owner, calls, then the account details.
+              lg:order-* sets the desk order; phones keep the old order. */}
+          <div className="hidden lg:order-1 lg:block cp-desk">
+            <PeopleCard
               contactId={contact.id}
-              contactName={`${contact.firstName} ${contact.lastName}`.trim()}
-              stages={pipelineStages}
-              currentStageId={contact.pipelineStageId}
-              daysInStage={Math.floor(
-                (Date.now() - (contact.stageChangedAt ?? contact.createdAt).getTime()) / 86400000
-              )}
-              isLead={contact.status === "LEAD"}
+              primaryName={`${contact.firstName} ${contact.lastName}`.trim()}
+              primaryRole={contact.companyName}
+              people={contact.people.map((p) => ({
+                id: p.id,
+                firstName: p.firstName,
+                lastName: p.lastName,
+                role: p.role,
+                email: p.email,
+                phone: p.phone,
+                notes: p.notes,
+              }))}
             />
-          )}
-          <div className="ds-card p-4">
-            <SectionHeader title="Assigned to" className="mb-2" />
-            {canReassign ? (
-              <AssignLead
+
+          </div>
+          <div className="hidden lg:order-2 lg:block cp-desk">
+            <AddressesCard
+              contactId={contact.id}
+              primary={
+                [contact.address, contact.city, contact.state, contact.zip]
+                  .filter(Boolean)
+                  .join(", ") || null
+              }
+              addresses={contact.addresses.map((a) => ({
+                id: a.id,
+                label: a.label,
+                address: a.address,
+                city: a.city,
+                state: a.state,
+                zip: a.zip,
+              }))}
+              history={Object.fromEntries(
+                contact.addresses.map((a) => [
+                  a.id,
+                  [
+                    ...contact.jobs
+                      .filter((j) => j.propertyId === a.id)
+                      .map((j) => ({
+                        key: `j-${j.id}`,
+                        kind: "Job",
+                        title: j.title,
+                        href: `/app/jobs/${j.id}`,
+                        date: (j.scheduledAt ?? j.createdAt).toISOString(),
+                      })),
+                    ...contact.quotes
+                      .filter((q) => q.propertyId === a.id)
+                      .map((q) => ({
+                        key: `q-${q.id}`,
+                        kind: "Quote",
+                        title: q.title || `Quote #${q.quoteNumber}`,
+                        href: `/app/quotes/${q.id}`,
+                        date: q.createdAt.toISOString(),
+                      })),
+                    ...contact.appointments
+                      .filter((ap) => ap.propertyId === a.id)
+                      .map((ap) => ({
+                        key: `a-${ap.id}`,
+                        kind: "Appointment",
+                        title: ap.title,
+                        href: `/app/appointments/${ap.id}`,
+                        date: ap.scheduledAt.toISOString(),
+                      })),
+                  ].sort((x, y) => (y.date ?? "").localeCompare(x.date ?? "")),
+                ])
+              )}
+            />
+
+          </div>
+          <div className="hidden lg:order-3 lg:block cp-desk">
+            {canSeeMoney(actor) && (
+              <SavedCardsCard
                 contactId={contact.id}
-                assignedToId={contact.assignedTo?.id ?? ""}
-                users={teamUsers}
+                cards={contact.savedCards}
+                canManage={isManager(actor.role)}
+                pay={clientPayConfig(contact.company)}
               />
-            ) : (
-              <p className="text-sm text-gray-800">{contact.assignedTo?.name ?? "Unassigned"}</p>
+            )}
+
+          </div>
+          <div className="hidden lg:order-9 lg:block cp-desk">
+            {/* Contact info */}
+            <div className="ds-card p-4">
+              <SectionHeader title="Details" className="mb-3" />
+              <dl className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <dt className="text-gray-500 text-xs">Payment terms</dt>
+                  <dd className="text-gray-800">Net {contact.paymentTermsDays}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 text-xs">Lead source</dt>
+                  <dd className="text-gray-800">{contact.leadSource || "—"}</dd>
+                  {arrivalLines(sanitizeArrival(contact.leadArrival)).map((l) => (
+                    <dd key={l.label} className="truncate text-xs text-gray-500">
+                      {l.label}: {l.value}
+                    </dd>
+                  ))}
+                </div>
+                {contact.notes && (
+                  <div className="col-span-2">
+                    <dt className="text-gray-500 text-xs">Notes</dt>
+                    <dd className="text-gray-700 whitespace-pre-wrap">{contact.notes}</dd>
+                  </div>
+                )}
+              </dl>
+              {canSeeMoney(actor) && (
+                <PdfLink
+                  href={`/api/app/contacts/${contact.id}/statement-pdf`}
+                  className="mt-3 inline-block text-xs font-medium text-[color:var(--ds-primary)] hover:underline" fallbackName="statement.pdf">
+                  Download statement (PDF)
+                </PdfLink>
+              )}
+            </div>
+
+          </div>
+          <div className="lg:order-6">
+            {contact.pipelineStageId && pipelineStages.length > 0 && (
+              <PipelineCard
+                contactId={contact.id}
+                contactName={`${contact.firstName} ${contact.lastName}`.trim()}
+                stages={pipelineStages}
+                currentStageId={contact.pipelineStageId}
+                daysInStage={Math.floor(
+                  (Date.now() - (contact.stageChangedAt ?? contact.createdAt).getTime()) / 86400000
+                )}
+                isLead={contact.status === "LEAD"}
+              />
+            )}
+          </div>
+          <div className="lg:order-7">
+            <div className="ds-card p-4">
+              <SectionHeader title="Assigned to" className="mb-2" />
+              {canReassign ? (
+                <AssignLead
+                  contactId={contact.id}
+                  assignedToId={contact.assignedTo?.id ?? ""}
+                  users={teamUsers}
+                />
+              ) : (
+                <p className="text-sm text-gray-800">{contact.assignedTo?.name ?? "Unassigned"}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="lg:order-5">
+            <CustomFieldsCard
+              contactId={contact.id}
+              defs={fieldDefs}
+              values={(contact.customFields as Record<string, string>) ?? {}}
+            />
+          </div>
+
+
+          <div className="lg:order-8">
+            {(recentCalls.length > 0 || canCallFromLine) && (
+              <div className="ds-card p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <SectionHeader title="Recent calls" />
+                  {recentCalls.length > 0 && (
+                    <Link href={`/app/calls?contact=${contact.id}`} className="text-xs text-gray-500 underline hover:text-gray-700">
+                      All
+                    </Link>
+                  )}
+                </div>
+                {recentCalls.length === 0 ? (
+                  <p className="text-xs text-gray-500">No calls on your business line with this client yet — the Call button above dials from it.</p>
+                ) : (
+                  <div className="ds-card divide-y divide-gray-100 overflow-hidden">
+                    {recentCalls.map((c) => (
+                      <CallRow key={c.id} call={c} showContact={false} tz={contact.company.timezone} />
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
-          <CustomFieldsCard
-            contactId={contact.id}
-            defs={fieldDefs}
-            values={(contact.customFields as Record<string, string>) ?? {}}
-          />
-
-
-          {(recentCalls.length > 0 || canCallFromLine) && (
-            <div className="ds-card p-4">
-              <div className="flex items-center justify-between mb-3">
-                <SectionHeader title="Recent calls" />
-                {recentCalls.length > 0 && (
-                  <Link href={`/app/calls?contact=${contact.id}`} className="text-xs text-gray-500 underline hover:text-gray-700">
-                    All
-                  </Link>
-                )}
-              </div>
-              {recentCalls.length === 0 ? (
-                <p className="text-xs text-gray-500">No calls on your business line with this client yet — the Call button above dials from it.</p>
-              ) : (
-                <div className="ds-card divide-y divide-gray-100 overflow-hidden">
-                  {recentCalls.map((c) => (
-                    <CallRow key={c.id} call={c} showContact={false} tz={contact.company.timezone} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          <PortalAccessCard
-            contactId={contact.id}
-            hubUrl={hubUrl}
-            portalLoginUrl={`${baseUrl}/portal/${contact.company.slug}`}
-            hasEmail={!!contact.email}
-            lastVisitLabel={contact.hubLastVisitAt ? shortDate(contact.hubLastVisitAt, tz) : null}
-            canReset={isManager(actor.role)}
-          />
+          <div className="lg:order-4">
+            <PortalAccessCard
+              contactId={contact.id}
+              hubUrl={hubUrl}
+              portalLoginUrl={`${baseUrl}/portal/${contact.company.slug}`}
+              hasEmail={!!contact.email}
+              lastVisitLabel={contact.hubLastVisitAt ? shortDate(contact.hubLastVisitAt, tz) : null}
+              canReset={isManager(actor.role)}
+            />
+          </div>
         </div>
       </div>
     </DsPage>

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  AlertTriangle, Archive, ArchiveRestore, Loader2, MoreHorizontal, Pencil, Trash2, X,
+  AlertTriangle, Archive, ArchiveRestore, Loader2, Mail, MessageCircle, MoreHorizontal, Pencil, Trash2, X,
 } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
@@ -25,11 +25,17 @@ export default function ContactActionsMenu({
   status,
   canDelete,
   counts,
+  messageHref,
+  canEmail = false,
 }: {
   contactId: string;
   contactName: string;
   status: string;
   canDelete: boolean;
+  /** Desk (2026-11-24): the page keeps one primary action; Message and Email live here */
+  messageHref?: string;
+  /** Show "Send an email" — opens the page's EmailClientButton (listenOnly) via an event */
+  canEmail?: boolean;
   counts: {
     requests: number;
     appointments: number;
@@ -147,6 +153,28 @@ export default function ContactActionsMenu({
         </button>
         {open && (
           <MenuPopover open={open} onClose={() => setOpen(false)} title="Client">
+            {messageHref && (
+              <Link
+                prefetch={false}
+                href={messageHref}
+                className="flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <MessageCircle size={14} className="text-gray-400" />
+                Message
+              </Link>
+            )}
+            {canEmail && (
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  window.dispatchEvent(new Event("wb:contact-email"));
+                }}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <Mail size={14} className="text-gray-400" />
+                Send an email
+              </button>
+            )}
             <Link
               prefetch={false} href={`/app/contacts/${contactId}/edit`}
               className="flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
