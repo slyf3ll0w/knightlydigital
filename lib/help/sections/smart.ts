@@ -1,4 +1,5 @@
 import type { HelpSection } from "../types";
+import { ESTIMATOR_LIBRARY_ENABLED } from "@/lib/estimator-library-flag";
 import { ATLAS_FREE, ATLAS_FULL, CORE, MAX, PRO, PRO_CHIP, PRO_GATE_LINE, PRO_PRICE, proLine, proTip } from "../plan-copy";
 
 export const automationsSection: HelpSection = {
@@ -146,7 +147,7 @@ export const atlasSection: HelpSection = {
         },
         {
           type: "p",
-          text: "Atlas can also read your team chat, list the photos on a job, tidy sticky notes, pull ready-made estimate tools from the Library, and change the look of your booking page. If you ask for something it truly can't do yet, it tells you the closest thing it can do and offers to send the request to us.",
+          text: `Atlas can also read your team chat, list the photos on a job, tidy sticky notes${ESTIMATOR_LIBRARY_ENABLED ? ", pull ready-made estimate tools from the Library," : ""} and change the look of your booking page. If you ask for something it truly can't do yet, it tells you the closest thing it can do and offers to send the request to us.`,
         },
         {
           type: "h",
@@ -462,6 +463,8 @@ export const estimatorSection: HelpSection = {
     },
     {
       slug: "estimate-tool-library",
+      // Archived with the Library (lib/estimator-library-flag.ts, 2026-11-24): written, withheld
+      hidden: !ESTIMATOR_LIBRARY_ENABLED,
       title: "Share and borrow tools in the Library",
       summary: "Start from another business's tool, then set your own rates.",
       plan: PRO_CHIP,

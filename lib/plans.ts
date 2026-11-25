@@ -34,7 +34,7 @@ export function pageDesignerOpen(): boolean {
  *                fair-use ceiling (DISPATCH_FAIR_USE_*) past which usage
  *                bills per unit. A one-time setup fee covers buying the
  *                number and the carrier (10DLC) registration.
- *   Pro (id SHOP) — unlimited users plus the ops tools: Estimator + Library,
+ *   Pro (id SHOP) — unlimited users plus the ops tools: Estimator,
  *                Route Manager, Automations, Agreements, Team map,
  *                Timesheets, QuickBooks Online, and Atlas Full's tokens.
  *   Gallery (id JOBSITE) — CompanyCam-style job photos. COMING SOON — shown on the
@@ -136,7 +136,7 @@ export const PLANS: Record<PlanId, Plan> = {
     comingSoon: false,
     includes: [
       "Unlimited users, every role",
-      "Estimator and the Estimator Library",
+      "Estimator tools",
       "Route Manager (beta)",
       "Automations",
       "Agreements and contracts",
@@ -394,7 +394,7 @@ const FEATURE_BLURB: Record<GatedFeature, string> = {
   routes: "Every stop on a map, drive times between them, one-tap route optimizing, and Find a Time when you book.",
   task_assign: "Hand tasks to anyone on the team and see everyone's open work in one list.",
   team_notes: "Sticky notes the whole team sees, on the dashboard and on the phone.",
-  estimator: "Build estimates from your own price book with the Estimator and its Library of saved assemblies.",
+  estimator: "Build estimates from your own price book with the Estimator.",
   automations: "Zapier-style automations: when something happens in WorkBench, do the next thing for you.",
   agreements: "Service agreements and contracts your clients sign online.",
   team_map: "See where everyone on the clock is right now.",
