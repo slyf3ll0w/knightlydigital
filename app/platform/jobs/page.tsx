@@ -4,30 +4,21 @@ import { headerNote } from "@/lib/header-notes";
 import { requirePageActor, jobScope, canSeePricing, canSeeMoney, isManager } from "@/lib/permissions";
 import EntityRowActions from "@/components/EntityRowActions";
 import Link from "next/link";
-import { Plus, ChevronRight, Briefcase, Download, Search } from "lucide-react";
+import { Plus, ChevronRight, Download, Search } from "lucide-react";
 import { BandBody, Button, DsPage, PageHeader } from "@/components/ds";
 import FilterSelect from "@/components/FilterSelect";
-import PageTitle from "@/components/PageTitle";
 import { money, shortDate } from "@/lib/statuses";
 import { fmtTime } from "@/lib/format";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
 import { WeekBand } from "@/components/ListBands";
 import { startOfWeekIn, zonedParts } from "@/lib/timezone";
-import MobileSearch from "@/components/MobileSearch";
-import Monogram from "@/components/Monogram";
-import FilterBar, { listHref } from "@/components/FilterBar";
+import { listHref } from "@/components/FilterBar";
 import { pickSort, JOB_SORTS, jobOrderBy } from "@/lib/list-sort";
 import Pager from "@/components/Pager";
 import type { JobStatus } from "@prisma/client";
 import PdfLink from "@/components/PdfLink";
 
-const statusFilters = [
-  { value: "", label: "All", mobile: "All" },
-  { value: "ACTIVE", label: "Active", mobile: "Active" },
-  { value: "REQUIRES_INVOICING", label: "Requires Invoicing", mobile: "To invoice" },
-  { value: "ARCHIVED", label: "Closed", mobile: "Closed" },
-];
 
 const PAGE_SIZE = 100;
 
@@ -131,7 +122,8 @@ export default async function JobsPage({
   // ── Desktop: the open page (2026-11-24) — the page's own header with a
   // context line, the week strip kept from the pilot, a filter row (search,
   // the statuses as underline tabs with counts, sort), then hairline rows that
-  // keep the status-colored underline on hover (.ds-trow). Phones: unchanged.
+  // keep the status-colored underline on hover (.ds-trow). Phones (2026-11-25):
+  // the same page, each row folded to two lines (app/ds-open-jobs.css).
   const cur = { q: query, sort: sortRaw };
   const tabs = [
     { key: "", label: "All", n: allCount, href: listHref("/app/jobs", cur, {}) },
@@ -162,7 +154,7 @@ export default async function JobsPage({
               <PdfLink
                 href="/api/app/export/jobs"
                 title="Download all jobs as CSV"
-                className="ds-btn ds-btn-outline"
+                className="ds-btn ds-btn-outline jbx-desk"
                 mime="text/csv"
                 newTab={false}
                 fallbackName="export.csv"
@@ -281,16 +273,18 @@ export default async function JobsPage({
                         </span>
                         <span className="min-w-0">
                           <span className="ds-trow-name clx-name-t">{name || "Client"}</span>
-                          <span className="clx-name-s">{j.title}</span>
+                          <span className="clx-name-s jbx-desk">{j.title}</span>
+                          {/* Phone sub line: what and when */}
+                          <span className="clx-name-s jbx-ph">{j.title} · {when ?? "Unscheduled"}</span>
                         </span>
                       </span>
-                      <span className="clx-dim">#{j.jobNumber}</span>
-                      <span className={when ? "" : "clx-faint"}>{when ?? "Unscheduled"}</span>
-                      <span>
+                      <span className="clx-dim jbx-desk">#{j.jobNumber}</span>
+                      <span className={`jbx-desk ${when ? "" : "clx-faint"}`}>{when ?? "Unscheduled"}</span>
+                      <span className="jbx-c-st">
                         <StatusChip kind="job" status={j.status} />
                       </span>
                       {showMoney && (
-                        <span className="jbx-money">{total > 0 ? money(total) : <span className="clx-faint">—</span>}</span>
+                        <span className="jbx-money jbx-desk">{total > 0 ? money(total) : <span className="clx-faint">—</span>}</span>
                       )}
                       <ChevronRight size={15} className="clx-chev" aria-hidden />
                     </Link>
@@ -317,180 +311,5 @@ export default async function JobsPage({
     </DsPage>
   );
 
-  return (
-    <>
-      <div className="lg:hidden">
-        <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-          <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
-            <PageTitle heavy section="jobs" icon={Briefcase}>
-              Jobs
-            </PageTitle>
-            {/* Phones create from the tab-bar FAB — a second button here just
-                crowded the header */}
-            <div className="hidden lg:flex items-center gap-2">
-              <PdfLink
-                href="/api/app/export/jobs"
-                title="Download all jobs as CSV"
-                className="ds-btn ds-btn-outline ds-btn-sm" mime="text/csv" newTab={false} fallbackName="export.csv">
-                <Download size={14} />
-                Export
-              </PdfLink>
-              {canCreate && (
-                <Link
-                  href="/app/jobs/new"
-                  className="btn-primary"
-                >
-                  <Plus size={15} />
-                  New job
-                </Link>
-              )}
-            </div>
-          </div>
-
-          <MobileSearch
-            action="/app/jobs"
-            placeholder="Search jobs, clients, addresses…"
-            defaultValue={query}
-            params={{ status: validStatus, unscheduled, sort: sortRaw }}
-          />
-
-          <WeekBand
-            days={week}
-            active={{ count: activeCount, href: "/app/jobs?status=ACTIVE" }}
-            toInvoice={{ count: requiresInvoicingCount, href: "/app/jobs?status=REQUIRES_INVOICING" }}
-            unscheduled={{ count: unscheduledCount, href: "/app/jobs?status=ACTIVE&unscheduled=1" }}
-          />
-
-          <FilterBar
-            options={statusFilters}
-            value={unscheduled ? "unscheduled" : (validStatus ?? "")}
-            href={(v) => listHref("/app/jobs", { q: query, sort: sortRaw }, { status: v })}
-            sort={{
-              options: JOB_SORTS,
-              value: sort,
-              href: (v) =>
-                listHref("/app/jobs", { status: validStatus, unscheduled, q: query }, { sort: v }),
-            }}
-          />
-
-          <div className="ds-card overflow-hidden">
-            {jobs.length === 0 ? (
-              <EmptyState
-                art="jobs"
-                hue="var(--ds-primary)"
-                title={validStatus || unscheduled || query ? "No jobs match this filter" : "No jobs yet"}
-                body={
-                  validStatus || unscheduled || query
-                    ? dealLine("no-match", { thing: "jobs", one: "job" })
-                    : "Track work from first visit to final payment — create your first job to get going."
-                }
-                actionHref="/app/jobs/new"
-                actionLabel="Create a job"
-              />
-            ) : (
-              <>
-                <div className="list-settle divide-y divide-gray-100">
-                  <div className="hidden lg:grid grid-cols-[1fr_70px_150px_160px_100px_40px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
-                    <span>Client</span>
-                    <span>#</span>
-                    <span>Schedule</span>
-                    <span>Status</span>
-                    <span className="text-right">Total</span>
-                    <span></span>
-                  </div>
-                  {jobs.map((j) => {
-                    const total = j.lineItems.reduce((s, li) => s + Number(li.total), 0);
-                    const when = j.scheduledAt
-                      ? j.scheduledAnytime
-                        ? `${shortDate(j.scheduledAt, tz)} · Anytime`
-                        : `${shortDate(j.scheduledAt, tz)} · ${fmtTime(j.scheduledAt, tz)}`
-                      : "Unscheduled";
-                    return (
-                      <EntityRowActions
-                        key={j.id}
-                        meta={{
-                          kind: "job",
-                          id: j.id,
-                          title: j.title,
-                          status: j.status,
-                          hasInvoice: Boolean(j.invoice),
-                          scheduledAt: j.scheduledAt ? j.scheduledAt.toISOString() : null,
-                          canEdit: canCreate,
-                          canInvoice: canSeeMoney(actor),
-                          canDelete: isManager(actor.role),
-                        }}
-                      >
-                      <Link
-                        prefetch={false} href={`/app/jobs/${j.id}`}
-                        className="ds-trow block lg:grid lg:grid-cols-[1fr_70px_150px_160px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-                      >
-                        {/* Phone card: two lines only — glance and go. Address,
-                            totals, and the rest live on the job page (David:
-                            "users should just click on the jobs if they want to
-                            learn more"). */}
-                        <div className="lg:hidden flex min-w-0 items-center gap-3">
-                          <Monogram name={`${j.contact.firstName} ${j.contact.lastName}`} size={40} />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-3">
-                              <p className="min-w-0 flex-1 ds-trow-name truncate text-[15.5px] font-semibold text-gray-900">
-                                {j.title}
-                              </p>
-                              <StatusChip kind="job" status={j.status} className="shrink-0" />
-                            </div>
-                            <p className="mt-0.5 truncate text-[13px] text-gray-500">
-                              {j.contact.firstName} {j.contact.lastName} · {when}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="hidden lg:block min-w-0">
-                          <p className="ds-trow-name text-sm font-medium text-gray-900 truncate">
-                            {j.contact.firstName} {j.contact.lastName}
-                          </p>
-                          <p className="text-xs text-gray-500 truncate">{j.title}</p>
-                        </div>
-                        <span className="hidden lg:block text-sm text-gray-500">#{j.jobNumber}</span>
-                        <span className="hidden lg:block text-sm text-gray-500">
-                          {j.scheduledAt ? shortDate(j.scheduledAt, tz) : "Unscheduled"}
-                        </span>
-                        <span className="hidden lg:block">
-                          <StatusChip kind="job" status={j.status} />
-                        </span>
-                        <span className="ds-num hidden lg:block text-sm font-semibold text-[color:var(--ds-ink)] lg:text-right">
-                          {showMoney && total > 0 ? money(total) : "—"}
-                        </span>
-                        <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
-                      </Link>
-                      </EntityRowActions>
-                    );
-                  })}
-                </div>
-                {/* Ledger foot */}
-                <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 lg:grid lg:grid-cols-[1fr_70px_150px_160px_100px_40px]">
-                  <span className="text-xs font-medium text-gray-500">
-                    {jobs.length} {jobs.length === 1 ? "job" : "jobs"}
-                  </span>
-                  <span className="hidden lg:block" />
-                  <span className="hidden lg:block" />
-                  <span className="hidden lg:block" />
-                  <span className="ds-num ds-ledger-total text-sm font-bold lg:text-right">
-                    {showMoney && pageTotal > 0 ? money(pageTotal) : ""}
-                  </span>
-                  <span className="hidden lg:block" />
-                </div>
-              </>
-            )}
-          </div>
-          <Pager
-            basePath="/app/jobs"
-            params={{ status: validStatus, unscheduled, q: query, sort: sortRaw }}
-            page={page}
-            pageSize={PAGE_SIZE}
-            total={listCount}
-          />
-        </div>
-      </div>
-      {/* desktop tree after the phone one: phone tests take the first matching link */}
-      <div className="hidden lg:block">{desktop}</div>
-    </>
-  );
+  return desktop;
 }

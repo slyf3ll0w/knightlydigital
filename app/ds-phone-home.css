@@ -1,0 +1,97 @@
+/* Home on phones (2026-11-25, David: "redo the pages so they are under the
+   new desktop style"). The same band and open page as the desk, at phone
+   size: the band under the top bar with the greeting, the day's line and the
+   two buttons; then Talk to Atlas, Up next, Needs you, Money and Today as
+   open sections on hairlines. Only the company's two colors; light and Dusk
+   come from the ds tokens. Desk rules live in app/ds-brand.css (lg only). */
+
+@media (max-width: 1023px) {
+  .bb-wrap:has(> .bb-band) { background: var(--ds-surface); }
+
+  /* the band: the desk's gradient over a 4px secondary stripe */
+  .bb-band {
+    padding-bottom: 4px;
+    background:
+      linear-gradient(180deg, var(--bb-deep) 0%, var(--bb-mid) 58%, var(--bb-foot) 100%) top / 100% calc(100% - 4px) no-repeat,
+      var(--bb-s);
+  }
+  .bb-band[data-daypart="morning"] {
+    --bb-deep: color-mix(in srgb, var(--bb-p) 52%, #0B1430);
+    --bb-mid: color-mix(in srgb, var(--bb-p) 80%, #0B1430);
+    --bb-foot: color-mix(in srgb, var(--bb-p) 84%, var(--ds-secondary-l, #F86A0A));
+  }
+  .bb-band[data-daypart="evening"] {
+    --bb-deep: color-mix(in srgb, var(--bb-p) 24%, #04070F);
+    --bb-mid: color-mix(in srgb, var(--bb-p) 50%, #04070F);
+    --bb-foot: color-mix(in srgb, var(--bb-p) 82%, #04070F);
+  }
+  .bb-band[data-daypart="night"] {
+    --bb-deep: color-mix(in srgb, var(--bb-p) 16%, #02040A);
+    --bb-mid: color-mix(in srgb, var(--bb-p) 36%, #02040A);
+    --bb-foot: color-mix(in srgb, var(--bb-p) 64%, #02040A);
+  }
+  .bb-band > .bb-page.bb-head { padding: 20px 16px 22px; }
+
+  /* the header inside it: stacked, white type, the secondary accent */
+  .bb-band .ds-pagehead { flex-direction: column; align-items: stretch; gap: 16px; margin: 0; }
+  .bb-band .ds-pagehead .ds-eyebrow { color: rgba(255, 255, 255, 0.72); font-size: 13px; }
+  .bb-band .ds-pagehead .ds-title { color: #FFFFFF; font-size: 26px; line-height: 1.15; font-weight: 700; letter-spacing: -0.03em; }
+  .bb-band .ds-pagehead .ds-title .bb-acc { color: var(--bb-s) !important; }
+  .bb-band .ds-pagehead .ds-title button { color: rgba(255, 255, 255, 0.7); }
+  .bb-band .ds-pagehead .ds-wipe-bar { background: var(--bb-s); }
+  .bb-band .ds-pagenote { margin-top: 6px; font-size: 14px; color: rgba(255, 255, 255, 0.8); }
+  .bb-band .ds-pagehead a:not(.ds-btn) { color: rgba(255, 255, 255, 0.75); }
+  .bb-band .ds-pagehead > div:last-child > span { width: 100%; }
+  .bb-band .ds-pagehead .ds-btn { flex: 1; justify-content: center; height: 42px; }
+  .bb-band .ds-pagehead .ds-btn-outline,
+  .bb-band .ds-pagehead .ds-btn-ghost,
+  .bb-band .ds-pagehead .ds-btn-soft {
+    background: transparent;
+    color: #FFFFFF;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  }
+  .bb-band .ds-pagehead .ds-btn-primary {
+    background: var(--bb-s);
+    color: var(--bb-on-s);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+  .bb-band .ds-btn:active { transform: translateY(1px) scale(0.985); }
+
+  /* the open page under the band */
+  .bb-page > .bb-body { display: flex; flex-direction: column; gap: 26px; padding-top: 20px; }
+  .bb-split { grid-template-columns: minmax(0, 1fr); gap: 26px; }
+  .bb-sec-head .bb-h2 { font-size: 18px; }
+  .bb-row { min-height: 58px; gap: 12px; }
+  a.bb-row:active::after { transform: scaleX(1); }
+  a.bb-row:active { background: var(--ds-surface-2); }
+  /* a row's go-to pill shrinks to its arrow; the row itself is the tap */
+  .bb-row .bb-go { padding: 0 4px; font-size: 0; gap: 0; }
+  .bb-row .bb-go svg { width: 16px; height: 16px; }
+  .bb-big { font-size: 28px; }
+  .bb-bars { height: 44px; gap: 3px; }
+
+  /* Talk to Atlas, sized for a thumb */
+  .hm-atlas { gap: 12px; padding: 12px; border-radius: 14px; }
+  .hm-atlas-mark { width: 38px !important; height: 38px !important; }
+  .hm-atlas-title { font-size: 15px; }
+  .hm-atlas-line { font-size: 13px; }
+  .hm-atlas-type { padding: 0 8px; font-size: 13px; }
+  .hm-atlas-mic { width: 46px; height: 46px; }
+
+  /* Up next: the stop's time large, then the stop, then its buttons */
+  .hp-next-link { display: block; padding: 14px 0 2px; }
+  .hp-next-link:active { opacity: 0.85; }
+  .hp-next-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .hp-next-time { font-size: 32px; line-height: 1; font-weight: 700; letter-spacing: -0.035em; color: var(--ds-ink); font-variant-numeric: tabular-nums; }
+  .hp-next-value { font-size: 15px; font-weight: 600; color: var(--ds-ink-2); }
+  .hp-next-title { display: block; margin-top: 10px; font-size: 16.5px; font-weight: 600; letter-spacing: -0.015em; color: var(--ds-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hp-next-sub { display: block; margin-top: 2px; font-size: 13.5px; color: var(--ds-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hp-next-acts { color: var(--ds-ink); }
+  .hp-next-acts > div { margin-top: 14px; }
+
+  /* Today, as rows */
+  .hp-today-time { width: 56px; flex: none; font-size: 13px; font-weight: 600; color: var(--ds-ink-2); }
+}
+@media (max-width: 1023px) and (prefers-reduced-motion: reduce) {
+  .bb-band .ds-btn:active, .hp-next-link:active { transform: none; }
+}

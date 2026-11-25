@@ -2,8 +2,8 @@
  * Desktop loading skeletons in the new look (2026-11-24): the white open
  * page, the page's own header (context line, big title, actions on the
  * right), hairlines instead of cards, sections under a bold title with the
- * two-color bar. Home's adds the branded band. Phones keep the older shapes
- * in components/ListSkeleton.tsx (each export there renders both).
+ * two-color bar. Home's adds the branded band. Phones get the same shapes
+ * (2026-11-25), narrowed: side columns and secondary actions drop out.
  * Colours come from the kit tokens, so light and Dusk both work.
  */
 
@@ -33,13 +33,13 @@ function SecHead({ w = "w-28", aside = false }: { w?: string; aside?: boolean })
 /** The page header: context line, title, actions. */
 function Head({ crumbs = false, actions = 2 }: { crumbs?: boolean; actions?: number }) {
   return (
-    <div className="mb-8 flex items-end justify-between gap-6">
+    <div className="mb-6 flex items-end justify-between gap-6 lg:mb-8">
       <div className="min-w-0">
         {bar(crumbs ? "w-40" : "w-64", "h-3")}
         <div className="mt-3">{bar("w-52", "h-8", true)}</div>
       </div>
       <div className="flex items-center gap-2">
-        {actions > 1 && <div className="h-10 w-28 rounded-[10px] bg-[color:var(--ds-line)]" />}
+        {actions > 1 && <div className="hidden lg:block h-10 w-28 rounded-[10px] bg-[color:var(--ds-line)]" />}
         {actions > 0 && <div className="h-10 w-32 rounded-[10px] bg-[color:var(--ds-line-strong)]" />}
       </div>
     </div>
@@ -56,8 +56,8 @@ function Rows({ n = 8, avatar = true }: { n?: number; avatar?: boolean }) {
             {bar(i % 3 === 0 ? "w-48" : i % 3 === 1 ? "w-40" : "w-56", "h-3.5", true)}
             <div className="mt-1.5">{bar("w-28", "h-3")}</div>
           </div>
-          <div className="w-28">{bar("w-20", "h-3")}</div>
-          <div className="w-32">{bar("w-24", "h-3")}</div>
+          <div className="hidden w-28 lg:block">{bar("w-20", "h-3")}</div>
+          <div className="hidden w-32 lg:block">{bar("w-24", "h-3")}</div>
           <div className="h-5 w-20 rounded-[5px] bg-[color:var(--ds-line)]" />
           <div className="w-20 text-right">{bar("ml-auto w-16", "h-3.5", true)}</div>
         </div>
@@ -70,7 +70,7 @@ function Rows({ n = 8, avatar = true }: { n?: number; avatar?: boolean }) {
 export function OpenListSkeleton({ picture = false, tabs = 4, rows = 8 }: { picture?: boolean; tabs?: number; rows?: number }) {
   return (
     <div className="ds bb-wrap bb-open">
-      <div className="mx-auto w-full max-w-6xl animate-pulse px-8 pb-10 pt-8">
+      <div className="mx-auto w-full max-w-6xl animate-pulse px-4 pb-10 pt-5 lg:px-8 lg:pt-8">
         <Head />
         {picture && (
           <div className="mb-8 flex h-[120px] items-end gap-3 border-t border-[color:var(--ds-line)] pt-5">
@@ -83,7 +83,7 @@ export function OpenListSkeleton({ picture = false, tabs = 4, rows = 8 }: { pict
           {Array.from({ length: Math.max(1, tabs) }, (_, i) => (
             <div key={i}>{bar(i === 0 ? "w-12" : "w-20", "h-3.5", i === 0)}</div>
           ))}
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto hidden items-center gap-2 lg:flex">
             <div className="h-9 w-48 rounded-[9px] bg-[color:var(--ds-line)]" />
             <div className="h-9 w-32 rounded-[9px] bg-[color:var(--ds-line)]" />
           </div>
@@ -101,7 +101,7 @@ export function OpenListSkeleton({ picture = false, tabs = 4, rows = 8 }: { pict
 export function OpenDetailSkeleton({ sidebar = true }: { sidebar?: boolean }) {
   return (
     <div className="ds bb-wrap bb-open">
-      <div className="mx-auto w-full max-w-6xl animate-pulse px-8 pb-10 pt-8">
+      <div className="mx-auto w-full max-w-6xl animate-pulse px-4 pb-10 pt-5 lg:px-8 lg:pt-8">
         <Head crumbs />
         {/* facts strip */}
         <div className="flex items-end gap-0 border-b border-[color:var(--ds-line-strong)] pb-6">
@@ -110,14 +110,14 @@ export function OpenDetailSkeleton({ sidebar = true }: { sidebar?: boolean }) {
             <div className="mt-2.5">{bar("w-44", "h-9", true)}</div>
           </div>
           {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} className="border-l border-[color:var(--ds-line)] px-6">
+            <div key={i} className="hidden border-l border-[color:var(--ds-line)] px-6 lg:block">
               {bar("w-14", "h-3")}
               <div className="mt-2.5">{bar("w-24", "h-4", true)}</div>
             </div>
           ))}
         </div>
         {/* track */}
-        <div className="grid grid-cols-4 gap-3 border-b border-[color:var(--ds-line)] py-5">
+        <div className="grid grid-cols-2 gap-3 border-b lg:grid-cols-4 border-[color:var(--ds-line)] py-5">
           {Array.from({ length: 4 }, (_, i) => (
             <div key={i}>
               <div className="flex items-center gap-2">
@@ -129,7 +129,7 @@ export function OpenDetailSkeleton({ sidebar = true }: { sidebar?: boolean }) {
             </div>
           ))}
         </div>
-        <div className={`mt-10 grid gap-14 ${sidebar ? "grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]" : ""}`}>
+        <div className={`mt-8 grid gap-10 lg:mt-10 lg:gap-14 ${sidebar ? "lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]" : ""}`}>
           <div>
             <SecHead aside />
             <Rows n={4} avatar={false} />
@@ -163,7 +163,7 @@ export function OpenDetailSkeleton({ sidebar = true }: { sidebar?: boolean }) {
 export function OpenPageSkeleton() {
   return (
     <div className="ds bb-wrap bb-open">
-      <div className="mx-auto w-full max-w-6xl animate-pulse px-8 pb-10 pt-8">
+      <div className="mx-auto w-full max-w-6xl animate-pulse px-4 pb-10 pt-5 lg:px-8 lg:pt-8">
         <Head actions={1} />
         <div className="flex flex-col gap-11">
           {[0, 1, 2].map((i) => (
@@ -188,21 +188,21 @@ export function OpenHomeSkeleton() {
   return (
     <div className="ds bb-wrap">
       <div className="bb-band">
-        <div className="ds bb-page mx-auto w-full max-w-6xl animate-pulse px-8 pt-8">
+        <div className="ds bb-page mx-auto w-full max-w-6xl animate-pulse px-4 pt-5 pb-6 lg:px-8 lg:pt-8 lg:pb-0">
           <div className="ds-pagehead flex items-center justify-between gap-6">
             <div>
               {onBand("w-40", "h-3")}
-              <div className="mt-3">{onBand("w-80", "h-9")}</div>
+              <div className="mt-3">{onBand("w-64 lg:w-80", "h-8 lg:h-9")}</div>
             </div>
-            <div className="flex gap-2">
+            <div className="hidden gap-2 lg:flex">
               <div className="h-10 w-28 rounded-[10px] bg-white/15" />
               <div className="h-10 w-28 rounded-[10px] bg-white/30" />
             </div>
           </div>
         </div>
       </div>
-      <div className="mx-auto w-full max-w-6xl animate-pulse px-8 pb-10 pt-10">
-        <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-14">
+      <div className="mx-auto w-full max-w-6xl animate-pulse px-4 pb-10 pt-7 lg:px-8 lg:pt-10">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-14">
           <div>
             <SecHead w="w-28" />
             <Rows n={5} avatar={false} />

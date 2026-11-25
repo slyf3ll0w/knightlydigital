@@ -6,7 +6,6 @@ import SectionHeader from "@/components/SectionHeader";
 import { MapPin, CalendarDays, User } from "lucide-react";
 import { quoteStatusLabel, money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
-import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import CallTextButtons from "@/components/CallTextButtons";
 import JobActionRow from "@/components/JobActionRow";
@@ -240,14 +239,8 @@ export default async function JobDetailPage({
       className="jbd pb-20 lg:pb-10"
       header={
         <>
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-4 lg:hidden">
-            <BackLink href="/app/jobs" />
-            <StatusChip kind="job" status={job.status} />
-          </div>
-
-          {/* Desktop crumbs (the phone has its back row above) */}
-          <nav className="jbd-crumbs hidden lg:flex" aria-label="Breadcrumb">
+          {/* Crumbs at every width (phones too since 2026-11-25) */}
+          <nav className="jbd-crumbs flex" aria-label="Breadcrumb">
             <Link prefetch={false} href="/app/jobs">Jobs</Link>
             <span aria-hidden>/</span>
             <span>#{job.jobNumber}</span>
@@ -256,7 +249,7 @@ export default async function JobDetailPage({
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-3">
                 <PageTitle>{job.title}</PageTitle>
-                <span className="hidden shrink-0 lg:inline-flex">
+                <span className="inline-flex shrink-0">
                   <StatusChip kind="job" status={job.status} />
                 </span>
               </div>
@@ -274,7 +267,7 @@ export default async function JobDetailPage({
               )}
             </div>
             {actor.role !== "SALES" && (
-              <div className="flex items-center gap-2">
+              <div className="jbd-acts flex flex-wrap items-center gap-2">
                 {job.status === "ACTIVE" && !job.completionSignedAt && (
                   <CollectSignature jobId={job.id} />
                 )}
@@ -329,8 +322,8 @@ export default async function JobDetailPage({
 
       {/* Header facts with backlinks */}
       <div className="jbd-facts flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 ds-card mb-6 text-sm">
-        {/* Desktop-only: who and where, the crew, the price */}
-        <div className="jbd-where hidden lg:block min-w-0">
+        {/* Who and where, the crew, the price (phones too since 2026-11-25) */}
+        <div className="jbd-where min-w-0">
           <span className="text-xs font-medium text-gray-500 block">
             {job.contact.firstName} {job.contact.lastName}
           </span>
@@ -342,7 +335,7 @@ export default async function JobDetailPage({
           )}
         </div>
         {job.assignments.length > 0 && (
-          <div className="hidden lg:block">
+          <div>
             <span className="text-xs font-medium text-gray-500 block">Crew</span>
             <span className="jbd-crew" title={job.assignments.map((a) => a.user.name).join(", ")}>
               {job.assignments.slice(0, 5).map((a) => (
@@ -352,13 +345,13 @@ export default async function JobDetailPage({
           </div>
         )}
         {showMoney && lineTotal > 0 && (
-          <div className="hidden lg:block">
+          <div>
             <span className="text-xs font-medium text-gray-500 block">Price</span>
             <span className="jbd-fact-big">{money(lineTotal)}</span>
           </div>
         )}
         {(loggedMs > 0 || othersOnClock.length > 0) && (
-          <div className="hidden lg:block">
+          <div>
             <span className="text-xs font-medium text-gray-500 block">{othersOnClock.length > 0 ? "On the clock" : "Time logged"}</span>
             <span className="jbd-fact-big">
               {othersOnClock.length > 0 ? othersOnClock.join(", ") : formatDuration(loggedMs)}
@@ -529,7 +522,7 @@ export default async function JobDetailPage({
               {/* Line items — stacked rows on phones */}
               <div className="lg:hidden divide-y divide-gray-100">
                 {job.lineItems.map((li) => (
-                  <div key={li.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                  <div key={li.id} className="flex items-start justify-between gap-3 py-3">
                     <div className="min-w-0 flex-1">
                       <p className="text-[15.5px] font-semibold text-gray-900">{li.name}</p>
                       {li.description && (

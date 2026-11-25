@@ -12,7 +12,6 @@ import {
   XCircle,
   FileText,
   CalendarClock,
-  Inbox,
   Phone,
   UserRound,
   X,
@@ -32,7 +31,6 @@ import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { formatPhoneAsTyped, looksLikePhone, titleCaseName } from "@/lib/phone-input";
 import { callFromLine, useLineCalling } from "@/lib/line-calling";
 import Modal from "@/components/Modal";
-import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { hapticImpact } from "@/lib/haptics";
 import { showWinBurst } from "@/lib/win-burst";
@@ -40,7 +38,7 @@ import { money } from "@/lib/statuses";
 import { themedInkVars, themedBgVars } from "@/lib/section-colors";
 import EmptyState from "@/components/EmptyState";
 import BoardScroller from "@/components/BoardScroller";
-import { Chip, InfoTip, PageHeader } from "@/components/ds";
+import { InfoTip, PageHeader } from "@/components/ds";
 
 export type BoardStage = {
   id: string;
@@ -576,8 +574,8 @@ export default function LeadsBoardClient({
 
   return (
     <div className={`ld ld-open rx-leads p-4 lg:p-8 h-full flex flex-col ${view === "list" ? "is-list" : ""}`}>
-      {/* Desktop header (2026-11-24 redesign): the page's own header, a context line from the board */}
-      <div className="hidden lg:block">
+      {/* The page's own header, a context line from the board (phones too since the 2026-11-25 phone pass) */}
+      <div className="ld-head">
         <PageHeader
           eyebrow={
             <>
@@ -614,61 +612,6 @@ export default function LeadsBoardClient({
             </>
           }
         />
-      </div>
-
-      {/* Phone header: the board in one exact sentence */}
-      <div className="flex flex-wrap items-end justify-between gap-y-3 mb-4 max-w-none lg:hidden">
-        <div className="min-w-0">
-          <PageTitle heavy section="leads" icon={SquareKanban}>
-            Leads
-          </PageTitle>
-          <p className="ld-lede">
-            {totalValue > 0 ? (
-              <>
-                <b className="ld-lede-money">{money(totalValue)}</b> open across <b>{working.length}</b> {working.length === 1 ? "lead" : "leads"}
-              </>
-            ) : (
-              <>
-                <b>{working.length}</b> {working.length === 1 ? "lead" : "leads"} on the board
-              </>
-            )}
-            {staleCount > 0 && (
-              <>
-                {" · "}
-                <button type="button" className="ld-lede-stale" onClick={() => setStaleOnly((v) => !v)} aria-pressed={staleOnly}>
-                  {staleCount} going stale
-                </button>
-              </>
-            )}
-            {won30 > 0 && <> · <b className="ld-lede-won">{won30}</b> won in 30 days</>}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowLost(true)}
-            className="ld-btn"
-            title="Leads marked lost or archived"
-          >
-            <Archive size={15} />
-            <span>
-              Lost &amp; archived{lost.length > 0 && <span className="ml-1 text-[color:var(--ds-faint)] numeral-ledger">{lost.length}</span>}
-            </span>
-          </button>
-          {manager && (
-            <Link href="/app/settings/pipeline" className="ld-btn">
-              <Settings2 size={15} />
-              <span className="hidden sm:inline">Customize board</span>
-            </Link>
-          )}
-          <button
-            onClick={() => setAddingTo(stages[0]?.id ?? null)}
-            className="btn-primary"
-          >
-            <Plus size={15} />
-            New lead
-          </button>
-        </div>
       </div>
 
       {/* Filter bar: search, owner, source, stale only, sort */}

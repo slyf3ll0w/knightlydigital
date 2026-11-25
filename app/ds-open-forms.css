@@ -44,3 +44,73 @@
   /* totals footers: the ledger, no gray panel */
   .fx-open .ds-card .bg-gray-50.border-t { background: transparent; border-top-color: var(--ds-line-strong); padding-left: 0; padding-right: 0; border-radius: 0; }
 }
+
+/* ══ Phones (2026-11-25, the phone pass — David: "redo the pages so they are
+   under the new desktop style"). The same open page as the desk, sized for a
+   thumb: white page, the cards opened into sections with the two-color bar,
+   16px fields (no iOS zoom), and the Save row pinned above the tab bar so it
+   is always one tap away. --wb-tabbar-h is the shell's tab bar height
+   (fallback: the floating capsule, 58px + its 10px lift). ══ */
+@media (max-width: 1023px) {
+  .bb-wrap.fx-open { background: var(--ds-surface); min-height: 100%; }
+  .fx-open .ds-title { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; }
+
+  .fx-open .ds-card:not(:is(.ds-glass, .ds-glass-strong, [role="dialog"]) .ds-card) {
+    background: transparent;
+    box-shadow: none;
+    border: 0;
+    border-radius: 0;
+    border-top: 1px solid var(--ds-line-strong);
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 20px;
+    overflow: visible;
+  }
+  .fx-open .ds-card:not(:is(.ds-glass, .ds-glass-strong, [role="dialog"]) .ds-card) > .px-5 { padding-left: 0; padding-right: 0; }
+  .fx-open .ds-card:not(:is(.ds-glass, .ds-glass-strong, [role="dialog"]) .ds-card) > .border-b:first-child { border-bottom-color: var(--ds-line); padding-top: 0; }
+  .fx-open .ds-card:not(:is(.ds-glass, .ds-glass-strong, [role="dialog"]) .ds-card) h2 {
+    position: relative;
+    padding-bottom: 9px;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--ds-ink);
+  }
+  .fx-open .ds-card:not(:is(.ds-glass, .ds-glass-strong, [role="dialog"]) .ds-card) h2::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 36px;
+    height: 3px;
+    border-radius: 1px;
+    background: linear-gradient(90deg, var(--ds-primary) 0 66%, var(--ds-secondary) 66%);
+  }
+  .fx-open .ds-card label.text-sm.font-medium { color: var(--ds-ink-2); font-weight: 600; }
+  .fx-open .ds-card .bg-gray-50.border-t { background: transparent; border-top-color: var(--ds-line-strong); padding-left: 0; padding-right: 0; border-radius: 0; }
+
+  /* fields: full width, 16px so iOS never zooms in on focus */
+  .fx-open :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea) { font-size: 16px; }
+
+  /* the Save row: pinned above the tab bar on the white page, hairline on top,
+     the main button full width in the secondary */
+  .fx-open form > div:has(> button[type="submit"]) {
+    position: sticky;
+    bottom: var(--wb-tabbar-h, calc(4.5rem + env(safe-area-inset-bottom, 0px)));
+    z-index: 20;
+    margin-left: -16px;
+    margin-right: -16px;
+    padding: 12px 16px;
+    background: var(--ds-surface);
+    border-top: 1px solid var(--ds-line-strong);
+  }
+  .fx-open form > div:has(> button[type="submit"]) > button[type="submit"] {
+    flex: 1 1 auto;
+    min-height: 48px;
+    justify-content: center;
+    background: var(--ds-secondary);
+    border-color: var(--ds-secondary);
+    color: var(--ds-on-secondary);
+  }
+  .fx-open form > div:has(> button[type="submit"]) > :is(a, button:not([type="submit"])) { min-height: 48px; }
+}

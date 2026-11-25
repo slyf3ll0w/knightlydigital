@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { ESTIMATOR_LIBRARY_ENABLED } from "@/lib/estimator-library-flag";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BookOpen, Calculator, Play, Plus, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Play, Plus, Search, X } from "lucide-react";
 import { FlowDots } from "@/components/EstimatorFlow";
-import PageTitle from "@/components/PageTitle";
+import TitleSentinel from "@/components/TitleSentinel";
+import FilterSelect from "@/components/FilterSelect";
 import EmptyState from "@/components/EmptyState";
-import FilterBar, { listHref } from "@/components/FilterBar";
-import MobileSearch from "@/components/MobileSearch";
+import { listHref } from "@/components/FilterBar";
 import EntityRowActions from "@/components/EntityRowActions";
 import EstimatorRunner, { type RunnerEstimator } from "@/components/EstimatorRunner";
 import { useAssistant } from "@/components/AssistantContext";
@@ -233,28 +233,12 @@ export default function EstimatesClient({
   return (
     <DsPage
       open
-      header={
-        <>
-          {/* Phone: the title row as before */}
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-y-3 lg:hidden">
-            <PageTitle heavy section="quotes" icon={Calculator} info={info}>
-              Estimator tools
-            </PageTitle>
-            {headerActions}
-          </div>
-          {/* Desk: the open page header with a context line */}
-          <div className="hidden lg:block">
-            <PageHeader eyebrow={contextLine} title={view === "library" ? "Tool library" : "Estimator tools"} info={info} actions={headerActions} />
-          </div>
-        </>
-      }
+      className="rx-phone"
+      header={<PageHeader eyebrow={contextLine} title={view === "library" ? "Tool library" : "Estimator tools"} info={info} actions={headerActions} />}
     >
+      <span className="hidden"><TitleSentinel title={view === "library" ? "Tool library" : "Estimator tools"} /></span>
       {view === "library" ? (
         <>
-          <div className="mb-4 lg:hidden">
-            <h2 className="ds-heavy-h2">Tool library</h2>
-            <p className="mt-1 text-[13.5px] text-[color:var(--ds-muted)]">Ready-made tools for your trade. Copy one and make it yours.</p>
-          </div>
           <LibraryClient embedded manager={manager} defaultIndustry={libraryIndustry} />
         </>
       ) : (
@@ -279,17 +263,42 @@ export default function EstimatesClient({
 
           {totalCount > 0 && (
             <>
-              <MobileSearch action="/app/estimates" placeholder="Search tools…" defaultValue={query} params={{ status: filter || undefined, sort: current.sort }} />
-              {manager ? (
-                <FilterBar
-                  options={statusFilters}
-                  value={filter}
-                  href={(v) => listHref("/app/estimates", current, { status: v })}
-                  sort={{ options: ESTIMATE_SORTS, value: sort, href: (v) => listHref("/app/estimates", current, { sort: v }) }}
-                />
-              ) : (
-                <FilterBar options={statusFilters.slice(0, 2)} value={filter === "published" ? filter : ""} href={(v) => listHref("/app/estimates", current, { status: v })} sort={{ options: ESTIMATE_SORTS, value: sort, href: (v) => listHref("/app/estimates", current, { sort: v }) }} />
-              )}
+              {/* Search + underline tabs + sort on one hairline row (phones: search above, tabs scroll) */}
+              <div className="rx-tabsrow tl-filters mb-2">
+                <div className="clx-filters">
+                  <form action="/app/estimates" className="clx-search" role="search">
+                    <Search size={15} aria-hidden />
+                    <input type="search" name="q" defaultValue={query} placeholder="Search tools" aria-label="Search tools" />
+                    {filter && <input type="hidden" name="status" value={filter} />}
+                    {current.sort && <input type="hidden" name="sort" value={current.sort} />}
+                  </form>
+                  <nav className="clx-tabs" aria-label="Show">
+                    {(manager ? statusFilters : statusFilters.slice(0, 2)).map((o) => {
+                      const on = (manager ? filter : filter === "published" ? filter : "") === o.value;
+                      return (
+                        <Link
+                          key={o.value || "all"}
+                          prefetch={false}
+                          href={listHref("/app/estimates", current, { status: o.value || undefined })}
+                          aria-current={on ? "page" : undefined}
+                          className={`clx-tab ${on ? "is-on" : ""}`}
+                        >
+                          {o.label}
+                          {!o.value && <span className="clx-tab-n">{totalCount.toLocaleString("en-US")}</span>}
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                  <span className="clx-filters-end">
+                    <FilterSelect
+                      icon="sort"
+                      value={sort}
+                      options={ESTIMATE_SORTS.map((o) => ({ value: o.value, label: o.label, href: listHref("/app/estimates", current, { sort: o.value }) }))}
+                      align="right"
+                    />
+                  </span>
+                </div>
+              </div>
             </>
           )}
 

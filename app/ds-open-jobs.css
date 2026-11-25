@@ -71,3 +71,81 @@
   /* the line items' total ledger */
   .jbd .card-ledger .bb-table + * { border-top-color: var(--ds-line); }
 }
+
+/* ══ Phones (2026-11-25, the phone pass): the same open Jobs list, folded.
+   Filter row: search + sort, the tabs scrolling under it. Rows: client +
+   "job · when" on the left, status on the right; the underline draws on
+   press. .jbx-ph phone-only, .jbx-desk lg-only. ══ */
+.jbx-ph { display: none; }
+@media (max-width: 1023px) {
+  .jbx-ph { display: block; }
+  .jbx-desk { display: none !important; }
+  .jbx-week .ds-pic { margin-bottom: 8px; border-radius: 0; background: transparent; box-shadow: none; padding-left: 0; padding-right: 0; border-top: 1px solid var(--ds-line-strong); }
+
+  .jbx .clx-filters { flex-wrap: wrap; gap: 8px; min-height: 0; border-bottom: 0; }
+  .jbx .clx-search { order: 0; flex: 1 1 0; width: auto; height: 42px; }
+  .jbx .clx-search input { font-size: 16px; }
+  .jbx .clx-filters-end { order: 1; margin-left: 0; }
+  .jbx .clx-tabs { order: 2; flex: 1 1 100%; height: 44px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--ds-line-strong); }
+  .jbx .clx-tabs::-webkit-scrollbar { display: none; }
+  .jbx .clx-tab { white-space: nowrap; font-size: 13.5px; }
+  .jbx .clx-tab:first-child { padding-left: 0; }
+
+  .jbx-head { display: none; }
+  .jbx-table .jbx-row { grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; min-height: 64px; padding: 10px 0; }
+  .jbx-row > .clx-chev { display: none; }
+  .jbx-row .clx-mono { width: 38px; height: 38px; font-size: 12.5px; }
+  .jbx-row .clx-name { gap: 12px; }
+  .jbx-row .clx-name-t { font-size: 15.5px; font-weight: 600; }
+  .jbx-row:hover { background: transparent; }
+  .jbx-row.ds-trow:active::after { transform: scaleX(1); }
+  .jbx-row.ds-trow:active .ds-trow-name { transform: translateX(3px); }
+}
+
+/* One job on a phone (2026-11-25): the same open page as the desk, in one
+   column. Crumbs + title + status + actions, the facts as a two-up grid on
+   hairlines, then every card opened into a section (bold title on a rule
+   with the two-color bar, content straight on the page). */
+@media (max-width: 1023px) {
+  .jbd-crumbs { align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; color: var(--ds-muted); }
+  .jbd-crumbs a { color: var(--ds-primary); font-weight: 500; }
+  .jbd-head { margin-bottom: 18px !important; gap: 12px !important; }
+  .jbd-head > div:first-child { flex: 1 1 100%; }
+  .jbd-head h1, .jbd-head .ds-title { font-size: 26px; }
+  .jbd-acts { width: 100%; }
+
+  .jbd .jbd-facts {
+    display: grid !important; grid-template-columns: 1fr 1fr; gap: 14px 16px; padding: 0 0 18px !important; margin-bottom: 26px !important;
+    background: transparent; box-shadow: none; border-radius: 0; border-bottom: 1px solid var(--ds-line-strong);
+  }
+  .jbd .jbd-facts > div { min-width: 0; }
+  .jbd .jbd-facts > .jbd-where,
+  .jbd .jbd-facts > div:has(> span + div) { grid-column: 1 / -1; } /* where, and the scheduler */
+  .jbd .jbd-facts > .jbd-where { padding-bottom: 12px; border-bottom: 1px solid var(--ds-line); }
+  .jbd .jbd-facts > div > span:first-child { margin-bottom: 3px; color: var(--ds-muted); }
+  .jbd .jbd-facts > div > span:not(:first-child),
+  .jbd .jbd-facts > div > a { font-size: 15px; font-weight: 600; color: var(--ds-ink); }
+  .jbd .jbd-facts .jbd-fact-big { font-size: 16px; font-weight: 600; color: var(--ds-ink); white-space: normal; }
+  .jbd .jbd-crew { display: flex; }
+  .jbd .jbd-crew > * { margin-left: -6px; box-shadow: 0 0 0 2px var(--ds-surface); border-radius: 999px; }
+  .jbd .jbd-crew > *:first-child { margin-left: 0; }
+
+  .jbd :is(.jbd-main, .jbd-side) > * + * { margin-top: 32px; }
+  .jbd .jbd-side { margin-top: 32px; }
+  .jbd :is(.jbd-main, .jbd-side) :is(.ds-card, .card-ledger) {
+    background: transparent; box-shadow: none; border: 0; border-radius: 0; padding-left: 0; padding-right: 0; padding-top: 0;
+    overflow: visible;
+  }
+  .jbd :is(.jbd-main, .jbd-side) :is(.ds-card, .card-ledger) > :first-child {
+    position: relative; padding: 0 0 10px; margin-bottom: 12px; border-bottom: 1px solid var(--ds-line-strong);
+  }
+  .jbd :is(.jbd-main, .jbd-side) :is(.ds-card, .card-ledger) > :first-child::after {
+    content: ""; position: absolute; left: 0; bottom: -2px; width: 40px; height: 3px; border-radius: 1px;
+    background: linear-gradient(90deg, var(--ds-primary) 0 66%, var(--ds-secondary) 66%);
+  }
+  .jbd :is(.jbd-main, .jbd-side) :is(.ds-card, .card-ledger) > :first-child h2 {
+    font-size: 18px; font-weight: 700; letter-spacing: -0.02em; color: var(--ds-ink);
+  }
+  .jbd .card-ledger > :first-child + div { border-top: 0; }
+  .jbd .card-ledger > button:first-child { padding-left: 0; padding-right: 0; }
+}

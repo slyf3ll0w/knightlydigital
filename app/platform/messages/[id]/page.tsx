@@ -5,8 +5,6 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, viaContactScope } from "@/lib/permissions";
 import { shortDate, clientMessageStatus } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
-import BackLink from "@/components/BackLink";
-import PageTitle from "@/components/PageTitle";
 import ViewedFact from "@/components/ViewedFact";
 import { DsPage, OpenSection, PageHeader } from "@/components/ds";
 
@@ -102,52 +100,9 @@ export default async function MessageDetailPage({
   );
 
   return (
-    <>
-    {/* Phone: as before */}
-    <div className="p-4 lg:p-8 max-w-3xl mx-auto lg:hidden">
-      <div className="flex items-center gap-3 mb-4">
-        <BackLink href="/app/messages" />
-        <StatusChip kind="message" status={clientMessageStatus(message)} />
-      </div>
-
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-        <div className="min-w-0">
-          <PageTitle>{message.subject}</PageTitle>
-          <Link
-            prefetch={false} href={`/app/contacts/${message.contact.id}`}
-            className="text-sm text-[color:var(--ds-primary)] hover:underline"
-          >
-            {message.contact.firstName} {message.contact.lastName}
-          </Link>
-        </div>
-        <a
-          href={publicUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-semibold text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
-        >
-          <ExternalLink size={14} />
-          View client page
-        </a>
-      </div>
-
-      <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 ds-card mb-6 text-sm">
-        {facts}
-      </div>
-
-      <div className="ds-card px-6 py-5">
-        {body}
-      </div>
-
-      <p className="mt-4 text-xs text-gray-500">
-        Replies to this email go to your business inbox, not into WorkBench.
-      </p>
-    </div>
-    {/* Desk: the open page — the email as a record, its facts on hairlines */}
-    <div className="hidden lg:block">
       <DsPage
         open
-        className="lg:max-w-4xl"
+        className="lg:max-w-4xl ml-page"
         header={
           <PageHeader
             eyebrow={
@@ -182,7 +137,5 @@ export default async function MessageDetailPage({
         </OpenSection>
         <p className="mt-4 text-xs text-[color:var(--ds-muted)]">Replies to this email go to your business inbox, not into WorkBench.</p>
       </DsPage>
-    </div>
-    </>
   );
 }

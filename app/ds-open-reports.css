@@ -67,3 +67,83 @@
     background: var(--ds-line-strong);
   }
 }
+
+/* ══ Phones (2026-11-25, the phone pass). The same open page as the desk:
+   white page, cards opened onto it with a hairline on top, the Reports tabs
+   as underline tabs that scroll sideways inside their own strip, tables
+   scrolling inside their own box so the page never moves sideways. Link
+   cards and accented notices stay cards (they are buttons). ══ */
+@media (max-width: 1023px) {
+  .bb-wrap:has(> .bb-page.rp-page) { background: var(--ds-surface); }
+  .bb-open .rp-page .ds-card:not(a):not(.ds-card-link):not([class*="border-l-"]) {
+    background: transparent;
+    box-shadow: none;
+    border: 0;
+    border-radius: 0;
+    border-top: 1px solid var(--ds-line-strong);
+  }
+  /* opened cards line up with the page edge, not an inset */
+  .bb-open .rp-page .ds-card:not(a):not(.ds-card-link):not([class*="border-l-"]) > :is(.px-4, .px-5, .p-4, .p-5) { padding-left: 0; padding-right: 0; }
+  .bb-open .rp-page .ds-card:not(a):not(.ds-card-link):not([class*="border-l-"]) > a:is(.px-4, .px-5) { padding-left: 0; padding-right: 0; }
+  .bb-open .rp-page .ds-card:not(a):not(.ds-card-link):not([class*="border-l-"]) > .divide-y > a { padding-left: 0; padding-right: 0; }
+
+  .bb-open .rp-head { margin-bottom: 18px; }
+  .bb-open .rp-page .ds-pagehead .ds-title,
+  .bb-open .rp-head .ds-title { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; }
+
+  /* the in-vs-out picture: open, a hairline under it */
+  .bb-open .rp-page .rp-pic {
+    background: transparent;
+    box-shadow: none;
+    border: 0;
+    border-radius: 0;
+    border-top: 1px solid var(--ds-line-strong);
+    border-bottom: 1px solid var(--ds-line);
+    overflow: visible;
+  }
+  .bb-open .rp-page .rp-pic > div { padding-left: 0; padding-right: 0; }
+
+  /* Reports tabs: underline tabs on a hairline, sliding sideways in their strip */
+  .bb-open .rp-tabs {
+    display: flex;
+    width: 100%;
+    gap: 2px;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    border-bottom: 1px solid var(--ds-line-strong);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .bb-open .rp-tabs::-webkit-scrollbar { display: none; }
+  .bb-open .rp-tabs .rp-tab {
+    position: relative;
+    flex: none;
+    height: 44px;
+    padding: 0 12px;
+    border-radius: 0;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .bb-open .rp-tabs .rp-tab:first-child { padding-left: 0; }
+  .bb-open .rp-tabs .rp-tab.is-on { color: var(--ds-ink); }
+  .bb-open .rp-tabs .rp-tab.is-on::after {
+    content: "";
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 0;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--ds-primary);
+  }
+  .bb-open .rp-tabs .rp-tab.is-on:first-child::after { left: 0; }
+
+  /* anything wide (tables, charts) scrolls inside itself, never the page */
+  .bb-open .rp-page :is(table) { min-width: 100%; }
+  .bb-open .rp-page :is(.overflow-x-auto) { -webkit-overflow-scrolling: touch; }
+  .bb-open .rp-page { overflow-x: clip; }
+
+  /* fields on Help & Feedback and the ad pages: 16px, no iOS zoom */
+  .bb-open .rp-page :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { font-size: 16px; }
+}

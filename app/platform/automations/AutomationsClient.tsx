@@ -3,12 +3,11 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ChevronRight, Pause, Play, Plus, Sparkles, Trash2, X, Zap } from "lucide-react";
-import PageTitle from "@/components/PageTitle";
+import { ArrowRight, ChevronRight, Pause, Play, Plus, Sparkles, Trash2, X } from "lucide-react";
+import TitleSentinel from "@/components/TitleSentinel";
 import { Chip, DsPage, PageHeader } from "@/components/ds";
 import BottomSheet from "@/components/BottomSheet";
 import SwipeRow from "@/components/SwipeRow";
-import { SegmentedRow, Segment } from "@/components/FilterChips";
 import { useAssistant } from "@/components/AssistantContext";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -336,24 +335,33 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
   const pausedCount = rows.filter((r) => !r.isActive).length;
   const liveTab = rows.filter((r) => r.isActive).length;
   const autoInfo = "“When this happens, do that” rules that run on their own. Each fires at most once per record, never moves money, and pauses with one tap.";
+  // The builder is a desk tool: at a desk the header opens it; on a phone
+  // New automation opens the Atlas sheet (as the phone + always did)
   const deskActions = (
     <>
-      {atlas.available && (
-        <Link href="/app/automations/new?atlas=1" prefetch={false} className="ds-btn ds-btn-outline">
-          <Sparkles size={15} /> Ask {atlas.name}
+      <span className="hidden lg:contents">
+        {atlas.available && (
+          <Link href="/app/automations/new?atlas=1" prefetch={false} className="ds-btn ds-btn-outline">
+            <Sparkles size={15} /> Ask {atlas.name}
+          </Link>
+        )}
+        <Link href="/app/automations/new" prefetch={false} className="ds-btn ds-btn-primary">
+          <Plus size={15} /> New automation
         </Link>
+      </span>
+      {atlas.available && (
+        <button type="button" onClick={() => openCreate()} className="ds-btn ds-btn-primary lg:hidden">
+          <Plus size={15} /> New automation
+        </button>
       )}
-      <Link href="/app/automations/new" prefetch={false} className="ds-btn ds-btn-primary">
-        <Plus size={15} /> New automation
-      </Link>
     </>
   );
   return (
     <DsPage
       open
-      className="lg:max-w-5xl"
+      className="rx-phone lg:max-w-5xl"
       header={
-        <div className="hidden lg:block">
+        <div>
           <PageHeader
             eyebrow={
               rows.length > 0
@@ -367,38 +375,7 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
         </div>
       }
     >
-      <div className="flex items-start justify-between gap-3 lg:hidden">
-        <PageTitle section="business" icon={Zap} info="“When this happens, do that” rules that run on their own. Each fires at most once per record, never moves money, and pauses with one tap.">
-          Automations
-        </PageTitle>
-        <div className="flex shrink-0 items-center gap-2">
-          {atlas.available && (
-            <Link href="/app/automations/new?atlas=1" prefetch={false} className="btn-tool-line hidden h-10 items-center gap-1.5 px-3.5 text-sm font-medium lg:inline-flex">
-              <Sparkles size={15} /> Ask {atlas.name}
-            </Link>
-          )}
-          <Link href="/app/automations/new" prefetch={false} className="btn-primary hidden h-10 lg:inline-flex">
-            <Plus size={15} /> New automation
-          </Link>
-          {atlas.available && (
-            <button type="button" onClick={() => openCreate()} aria-label="New automation" className="glass-control flex h-10 w-10 items-center justify-center rounded-full text-gray-800 lg:hidden">
-              <Plus size={20} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {rows.length > 0 && (
-        <p className="auto-lede lg:hidden">
-          <b>{liveCount}</b> {liveCount === 1 ? "rule is" : "rules are"} on
-          {rows.length > liveCount && (
-            <>
-              , <b>{rows.length - liveCount}</b> paused
-            </>
-          )}
-          . Each one runs by itself, at most once per record.
-        </p>
-      )}
+      <span className="hidden"><TitleSentinel title="Automations" /></span>
 
       {error && (
         <div role="alert" className="form-error mb-4 mt-3 flex items-center justify-between">
@@ -408,25 +385,13 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
       )}
 
       {rows.length > 0 && (
-        <div className="sticky top-0 z-10 -mx-4 mb-3 mt-4 bg-[color:var(--ds-canvas)]/90 px-4 py-2 backdrop-blur lg:hidden">
-          <SegmentedRow>
-            {(["all", "live", "paused"] as Filter[]).map((k) => (
-              <Segment key={k} active={filter === k} onClick={() => { hapticImpact("LIGHT"); setFilter(k); }}>
-                {k === "all" ? "All" : k === "live" ? "Live" : "Paused"}
-              </Segment>
-            ))}
-          </SegmentedRow>
-        </div>
-      )}
-
-      {rows.length > 0 && (
-        <nav className="tl-tabs hidden lg:flex" aria-label="Show">
+        <nav className="tl-tabs flex" aria-label="Show">
           {([
             ["all", "All", rows.length],
             ["live", "On", liveTab],
             ["paused", "Paused", pausedCount],
           ] as [Filter, string, number][]).map(([k, label, n]) => (
-            <button key={k} type="button" onClick={() => setFilter(k)} className={`tl-tab ${filter === k ? "is-on" : ""}`} aria-pressed={filter === k}>
+            <button key={k} type="button" onClick={() => { hapticImpact("LIGHT"); setFilter(k); }} className={`tl-tab ${filter === k ? "is-on" : ""}`} aria-pressed={filter === k}>
               {label}
               <span className="tl-tab-n">{n}</span>
             </button>
@@ -441,8 +406,9 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
           <p className="px-4 py-8 text-center text-sm text-[color:var(--ds-muted)]">Nothing {filter}.</p>
         ) : (
           <>
-            <div className="auto-list hidden lg:flex lg:flex-col">{shown.map((a) => <DesktopCard key={a.id} a={a} />)}</div>
+            {/* phone list first: specs take the first visible match */}
             <div className="auto-list auto-list-phone flex flex-col lg:hidden">{shown.map((a) => <PhoneRow key={a.id} a={a} />)}</div>
+            <div className="auto-list hidden lg:flex lg:flex-col">{shown.map((a) => <DesktopCard key={a.id} a={a} />)}</div>
           </>
         )}
       </div>

@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { dealLine } from "@/lib/empty-lines";
 import { headerNote } from "@/lib/header-notes";
 import Link from "next/link";
-import { Plus, ChevronRight, UserCheck, Inbox, Search, Phone, Mail, MapPin, ExternalLink, CalendarPlus, MessageSquare, Globe } from "lucide-react";
+import { Plus, UserCheck, Search, Phone, Mail, MapPin, ExternalLink, CalendarPlus, MessageSquare, Globe } from "lucide-react";
 import { BandBody, Button, Chip, DsPage, PageHeader } from "@/components/ds";
 import FilterSelect from "@/components/FilterSelect";
 import CallLink from "@/components/CallLink";
@@ -10,16 +10,12 @@ import { money } from "@/lib/statuses";
 import { slotLabel } from "@/lib/booking-engine";
 import RequestActions from "./[id]/RequestActions";
 import BookingApprovalBanner from "./[id]/BookingApprovalBanner";
-import PageTitle from "@/components/PageTitle";
-import { FilterChip } from "@/components/FilterChips";
-import FilterBar, { listHref } from "@/components/FilterBar";
+import { listHref } from "@/components/FilterBar";
 import { pickSort, REQUEST_SORTS, requestOrderBy } from "@/lib/list-sort";
 import { shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
-import { InboxBand, waitedFor } from "@/components/ListBands";
-import MobileSearch from "@/components/MobileSearch";
-import Monogram from "@/components/Monogram";
+import { waitedFor } from "@/components/ListBands";
 import Pager from "@/components/Pager";
 import { requirePageActor, canSell, viaContactScope, seesAllLeads, isManager } from "@/lib/permissions";
 import EntityRowActions from "@/components/EntityRowActions";
@@ -164,6 +160,7 @@ export default async function RequestsPage({
   const desktop = (
     <DsPage
       open
+      className="rq-page"
       header={
         <PageHeader
           note={pageNote}
@@ -248,6 +245,39 @@ export default async function RequestsPage({
               />
             </div>
           ) : (
+            <>
+            {/* Phones: the list, and a tap opens the full request (no split) */}
+            <div className="rqx-plist" role="list" aria-label="Requests">
+              {requests.map((r) => {
+                const waiting = r.status === "NEW" || r.status === "NEEDS_APPROVAL";
+                return (
+                  <EntityRowActions
+                    key={r.id}
+                    meta={{ kind: "request", id: r.id, title: r.title, status: r.status, contactId: r.contactId, canDelete: isManager(actor.role) }}
+                  >
+                    <Link prefetch={false} href={`/app/requests/${r.id}`} role="listitem" className="rqx-row">
+                      {r.status === "NEW" && <span className="rqx-dot" aria-label="New" />}
+                      <span className="rqx-row-top">
+                        <span className="rqx-name">{`${r.contact.firstName} ${r.contact.lastName}`.trim() || "Client"}</span>
+                        <span className="rqx-when">{waiting ? `${waitedFor(r.createdAt)} ago` : shortDate(r.createdAt, tz)}</span>
+                      </span>
+                      <span className="rqx-title">{r.title}</span>
+                      <span className="rqx-sub">
+                        <span className="truncate">{sourceLabel[r.source] ?? "Request"}</span>
+                        {r.status !== "NEW" && <StatusChip kind="request" status={r.status} className="shrink-0" />}
+                      </span>
+                    </Link>
+                  </EntityRowActions>
+                );
+              })}
+              <Pager
+                basePath="/app/requests"
+                params={{ status: validStatus, assignee: mineOnly ? "me" : undefined, sort: sortRaw, q: query }}
+                page={page}
+                pageSize={PAGE_SIZE}
+                total={listCount}
+              />
+            </div>
             <div className="rqx-split">
               <div className="rqx-list" role="list" aria-label="Requests">
                 {requests.map((r) => {
@@ -453,156 +483,12 @@ export default async function RequestsPage({
                 <div className="rqx-detail rqx-none">{dealLine("inbox-pick")}</div>
               )}
             </div>
+            </>
           )}
         </section>
       </BandBody>
     </DsPage>
   );
 
-  return (
-    <>
-    <div className="p-4 lg:p-8 max-w-6xl mx-auto lg:hidden">
-      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
-        <PageTitle heavy section="requests" icon={Inbox}>
-          Requests
-        </PageTitle>
-        {/* Phones create from the tab-bar FAB */}
-        <Link
-          href="/app/requests/new"
-          className="btn-primary hidden lg:flex"
-        >
-          <Plus size={15} />
-          New request
-        </Link>
-      </div>
-
-      <MobileSearch
-        action="/app/requests"
-        placeholder="Search requests, clients…"
-        defaultValue={query}
-        params={{ status: validStatus, assignee: mineOnly ? "me" : undefined, sort: sortRaw }}
-      />
-
-      <InboxBand
-        waiting={newCount + needsApprovalCount}
-        oldest={waitingList[0] ? waitedFor(waitingList[0].createdAt) : null}
-        items={waitingList.map((r) => ({
-          id: r.id,
-          name: `${r.contact.firstName} ${r.contact.lastName}`.trim(),
-          title: r.title,
-          age: waitedFor(r.createdAt),
-          approval: r.status === "NEEDS_APPROVAL",
-        }))}
-        needsApproval={{ count: needsApprovalCount, href: "/app/requests?status=NEEDS_APPROVAL" }}
-        allHref="/app/requests?status=NEW"
-      />
-
-      <FilterBar
-        options={statusFilters}
-        value={validStatus ?? ""}
-        href={(v) => listHref("/app/requests", cur, { status: v })}
-        scope={
-          showAll ? (
-            <FilterChip
-              hue="var(--ds-primary)"
-              active={mineOnly}
-              href={listHref("/app/requests", cur, { assignee: mineOnly ? undefined : "me" })}
-            >
-              <UserCheck size={13} />
-              Mine
-            </FilterChip>
-          ) : undefined
-        }
-        sort={{
-          options: REQUEST_SORTS,
-          value: sort,
-          href: (v) => listHref("/app/requests", cur, { sort: v }),
-        }}
-      />
-
-      <div className="ds-card overflow-hidden">
-        {requests.length === 0 ? (
-          <EmptyState
-            art="requests"
-            hue="var(--ds-primary)"
-            title={validStatus ? "No requests with this status" : "No requests yet"}
-            body={
-              validStatus
-                ? dealLine("no-match", { thing: "requests", one: "request" })
-                : "New work starts here — requests arrive from your booking page and contact forms, or log them yourself."
-            }
-            actionHref="/app/requests/new"
-            actionLabel="Create a request"
-          />
-        ) : (
-          <div className="divide-y divide-gray-100">
-            <div className="hidden lg:grid grid-cols-[1fr_1fr_140px_130px_40px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
-              <span>Client</span>
-              <span>Title</span>
-              <span>Requested</span>
-              <span>Status</span>
-              <span></span>
-            </div>
-            {requests.map((r) => (
-              <EntityRowActions
-                key={r.id}
-                meta={{ kind: "request", id: r.id, title: r.title, status: r.status, contactId: r.contactId, canDelete: isManager(actor.role) }}
-              >
-              <Link
-                prefetch={false} href={`/app/requests/${r.id}`}
-                className="ds-trow block lg:grid lg:grid-cols-[1fr_1fr_140px_130px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-              >
-                {/* Phone row: monogram anchor, the work leads, the client
-                    supports */}
-                <div className="lg:hidden flex min-w-0 items-center gap-3">
-                  <Monogram
-                    name={`${r.contact.firstName} ${r.contact.lastName}`}
-                    size={40}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <p className="min-w-0 flex-1 ds-trow-name truncate text-[15.5px] font-semibold text-gray-900">
-                        {r.title}
-                      </p>
-                      <p className="shrink-0 text-xs text-gray-500">{shortDate(r.createdAt, tz)}</p>
-                    </div>
-                    <div className="mt-0.5 flex items-center justify-between gap-3">
-                      <p className="min-w-0 flex-1 truncate text-[13px] text-gray-600">
-                        {r.contact.firstName} {r.contact.lastName}
-                      </p>
-                      <StatusChip kind="request" status={r.status} className="shrink-0" />
-                    </div>
-                  </div>
-                </div>
-                <span className="ds-trow-name hidden lg:block text-sm font-medium text-gray-900">
-                  {r.contact.firstName} {r.contact.lastName}
-                </span>
-                <span className="hidden lg:block text-sm text-gray-600 truncate">{r.title}</span>
-                <span className="hidden lg:block text-sm text-gray-500">{shortDate(r.createdAt, tz)}</span>
-                <span className="hidden lg:block">
-                  <StatusChip kind="request" status={r.status} />
-                </span>
-                <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
-              </Link>
-              </EntityRowActions>
-            ))}
-          </div>
-        )}
-      </div>
-      <Pager
-        basePath="/app/requests"
-        params={{
-          status: validStatus,
-          assignee: mineOnly ? "me" : undefined, sort: sortRaw,
-          q: query,
-        }}
-        page={page}
-        pageSize={PAGE_SIZE}
-        total={listCount}
-      />
-    </div>
-      {/* desktop tree after the phone one: phone tests take the first matching link */}
-      <div className="hidden lg:block">{desktop}</div>
-    </>
-  );
+  return desktop;
 }

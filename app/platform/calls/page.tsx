@@ -1,15 +1,13 @@
 import Link from "next/link";
-import { PhoneCall, Settings2 } from "lucide-react";
+import { Settings2 } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager, contactScope } from "@/lib/permissions";
-import PageTitle from "@/components/PageTitle";
 import EmptyState from "@/components/EmptyState";
 import CallRow, { isMissed } from "@/components/CallRow";
 import CallsLive from "@/components/CallsLive";
 import CallRowSettling from "@/components/CallRowSettling";
 import { callLogStamp } from "@/lib/call-pulse";
 import { LinePanel, LineSub, KeypadFab, type LineStats } from "@/components/LineCard";
-import { SegmentedRow, Segment } from "@/components/FilterChips";
 import { Button, DsPage, PageHeader } from "@/components/ds";
 import { markCallsSeen, resolveCallContacts, type ResolvedCallContact } from "@/lib/voice";
 import { loadCallEvents, type CallEvent } from "@/lib/call-events";
@@ -184,27 +182,8 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
       </div>
     ) : (
       <>
-        {/* Phones: the filter stays put while the list scrolls under it (a frosted bar, like the chat header). */}
-        <div className="glass-bar sticky top-0 z-20 -mx-4 border-b px-4 py-2 lg:hidden">
-          <SegmentedRow>
-            {FILTERS.map(([k, label]) => (
-              <Segment key={k} active={filter === k} href={href(k)}>
-                {label}
-                {badge(k) > 0 && (
-                  <span
-                    className={`ml-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-bold leading-none ${
-                      filter === k ? "bg-white/25" : k === "missed" ? "bg-[color:var(--ds-bad)] text-[color:var(--ds-surface)]" : "bg-[color:var(--ds-primary)] text-[color:var(--ds-on-primary)]"
-                    }`}
-                  >
-                    {badge(k)}
-                  </span>
-                )}
-              </Segment>
-            ))}
-          </SegmentedRow>
-        </div>
-        {/* Desktop: underline tabs on a hairline; the unseen counts ride them */}
-        <div className="rx-tabsrow hidden lg:block">
+        {/* Underline tabs on a hairline; the unseen counts ride them */}
+        <div className="rx-tabsrow">
           <div className="clx-filters">
             <nav className="clx-tabs" aria-label="Show">
               {FILTERS.map(([k, label]) => (
@@ -284,7 +263,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
       open
       className="rx-calls"
       header={
-        <div className="hidden lg:block">
+        <>
           <PageHeader
             eyebrow={contextLine}
             title="Calls"
@@ -296,48 +275,16 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
               ) : undefined
             }
           />
-        </div>
+          {/* Phones: the line under the title (desktop has the panel) */}
+          {phone && !filteredContact && (
+            <div className="rx-linesub lg:hidden">
+              <LineSub lineNumber={phone.lineNumber} forwardTo={phone.forwardTo} />
+            </div>
+          )}
+        </>
       }
     >
       {hasLine && <CallsLive builtWith={builtWith} />}
-      <div className="flex items-start justify-between gap-3 lg:hidden">
-        <PageTitle
-          section="chat"
-          icon={PhoneCall}
-          sub={
-            filteredContact ? (
-              <>
-                Calls with{" "}
-                <Link href={`/app/contacts/${filteredContact.id}`} className="font-medium text-gray-800 hover:underline">
-                  {filteredContact.firstName} {filteredContact.lastName}
-                </Link>{" "}
-                ·{" "}
-                <Link href="/app/calls" className="underline">
-                  all calls
-                </Link>
-              </>
-            ) : phone ? (
-              // Phones: the line lives under the title (desktop has the panel).
-              <span className="lg:hidden">
-                <LineSub lineNumber={phone.lineNumber} forwardTo={phone.forwardTo} />
-              </span>
-            ) : undefined
-          }
-        >
-          Calls
-        </PageTitle>
-        {phone?.manager && (
-          <Link
-            href="/app/settings?s=phone"
-            aria-label="Line settings"
-            title="Line settings"
-            className="btn-tool-line mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-white text-gray-700 lg:hidden"
-          >
-            <Settings2 size={16} />
-          </Link>
-        )}
-      </div>
-
       {!onVoicePlan && <VoicePlanNote what="calls" manager={manager} planPage={Boolean(company?.addonEnabled)} />}
 
       {/* Two columns only when the line panel is there: without it the list (or the "No business line yet" empty) would sit in the 312px panel column, off-center. */}

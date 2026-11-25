@@ -3,15 +3,12 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSeeMoney, viaContactScope, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import { ArrowRight, Check, Mail, Pencil, Phone } from "lucide-react";
-import EmptyState from "@/components/EmptyState";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import ScheduledSendLine from "@/components/ScheduledSendLine";
 import { channelsFromJson, scheduledLine, SEND_DEFAULTS } from "@/lib/send-document";
 import { BandBody, Chip, DsPage, OpenSection } from "@/components/ds";
 import TitleSentinel from "@/components/TitleSentinel";
-import BackLink from "@/components/BackLink";
-import PageTitle from "@/components/PageTitle";
 import ViewedFact from "@/components/ViewedFact";
 import InvoiceActions from "./InvoiceActions";
 import { canText } from "@/lib/sms-consent";
@@ -250,33 +247,13 @@ export default async function InvoiceDetailPage({
       open
       header={
         <>
-          {/* Phone: back + status row (unchanged) */}
-          <div className="flex items-center gap-3 mb-4 lg:hidden">
-            <BackLink href="/app/invoices" />
-            <StatusChip kind="invoice" status={chipStatus} />
-          </div>
-    
-          {/* One header for both widths, so InvoiceActions (and its dialogs) mounts
-              once. Phone: the title + client link as before. Desktop: it sits in
-              the branded band — crumbs, the client as the title, the status chip. */}
+          {/* One header at every width (phones too since 2026-11-25): crumbs,
+              the client as the title, the status chip, then the actions. */}
           <div className="ds-pagehead inv-head flex flex-wrap items-start justify-between gap-4 mb-6 lg:mb-0">
             <div className="min-w-0">
               {/* the collapsed-header title, once for both widths */}
               <TitleSentinel title={titleText} />
-              <div className="lg:hidden">
-                <PageTitle>
-                  <>{titleText}</>
-                </PageTitle>
-                {invoice.contact && (
-                  <Link
-                    prefetch={false} href={`/app/contacts/${invoice.contact.id}`}
-                    className="ds-link text-sm hover:underline"
-                  >
-                    {invoice.contact.firstName} {invoice.contact.lastName}
-                  </Link>
-                )}
-              </div>
-              <div className="hidden lg:block">
+              <div>
                 <p className="ds-eyebrow ds-eyebrow-plain bb-crumbs flex items-center gap-2">
                   <Link prefetch={false} href="/app/invoices">Invoices</Link>
                   <span aria-hidden>/</span>
@@ -305,7 +282,7 @@ export default async function InvoiceDetailPage({
                 </h1>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="inv-head-acts flex flex-wrap items-center gap-2">
             <RunAutomationMenu entity="invoice" entityId={invoice.id} manager={isManager(actor.role)} />
             <InvoiceActions
               invoiceId={invoice.id}
@@ -351,231 +328,8 @@ export default async function InvoiceDetailPage({
         celebrate={celebratePaid}
       />
 
-      {/* ─────────────── Phone (unchanged) ─────────────── */}
-      <div className="lg:hidden">
-      {scheduledLineEl}
-
-      {/* Close-job nudge */}
-      {closeJobNudgeEl}
-
-      {/* Header facts — 2-col grid on phones, flowing definition list at a desk */}
-      <div className="grid grid-cols-2 gap-3 lg:flex lg:flex-wrap lg:gap-x-8 lg:gap-y-2 px-5 py-4 ds-card mb-6 text-sm">
-        <div>
-          <span className="text-xs font-medium text-gray-500 block">Invoice #</span>
-          <span className="text-gray-800">{invoice.invoiceNumber}</span>
-        </div>
-        {invoice.job && (
-          <div>
-            <span className="text-xs font-medium text-gray-500 block">Invoice for</span>
-            <Link prefetch={false} href={`/app/jobs/${invoice.job.id}`} className="ds-link hover:underline">
-              Job #{invoice.job.jobNumber}
-            </Link>
-          </div>
-        )}
-        {sourceQuote && (
-          <div>
-            <span className="text-xs font-medium text-gray-500 block">From quote</span>
-            <Link prefetch={false} href={`/app/quotes/${sourceQuote.id}`} className="ds-link hover:underline">
-              Quote #{sourceQuote.quoteNumber}
-            </Link>
-          </div>
-        )}
-        <div>
-          <span className="text-xs font-medium text-gray-500 block">Issued</span>
-          <span className="text-gray-800">{shortDate(invoice.issuedAt ?? invoice.createdAt, tz)}</span>
-        </div>
-        <div>
-          <span className="text-xs font-medium text-gray-500 block">Due date</span>
-          <span className="text-gray-800">{shortDate(invoice.dueDate, tz)}</span>
-        </div>
-        <ViewedFact
-          firstViewedAt={invoice.firstViewedAt}
-          lastViewedAt={invoice.lastViewedAt}
-          viewCount={invoice.viewCount}
-          sent={invoice.status !== "DRAFT"}
-          tz={tz}
-        />
-        {invoice.paidAt && (
-          <div>
-            <span className="text-xs font-medium text-gray-500 block">Paid</span>
-            <span className="text-gray-800">{shortDate(invoice.paidAt, tz)}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Invoice body */}
-      <div className="ds-card overflow-hidden mb-6">
-        {/* Line items — stacked rows on phones */}
-        <div className="lg:hidden divide-y divide-gray-100">
-          {invoice.lineItems.map((item) => (
-            <div key={item.id} className="flex items-start justify-between gap-3 px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <p className="text-[15.5px] font-semibold text-gray-900">
-                  {item.name || item.description}
-                  {item.recurringInterval && " "}
-                  {item.recurringInterval && (
-                    <Chip tone="primary">Recurring</Chip>
-                  )}
-                </p>
-                {item.name && item.description && (
-                  <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>
-                )}
-                {item.serviceDate && (
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Service date: {shortDate(item.serviceDate, tz)}
-                  </p>
-                )}
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {Number(item.quantity)} × {money(item.unitPrice)}
-                </p>
-              </div>
-              <p className="ds-num shrink-0 text-sm font-semibold text-gray-900">
-                {money(item.total)}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {/* Line items — desktop table */}
-        <div className="hidden lg:block px-6 py-4">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left py-2 text-xs text-gray-500 font-semibold">
-                  Line item
-                </th>
-                <th className="text-right py-2 text-xs text-gray-500 font-semibold w-16">
-                  Qty
-                </th>
-                <th className="text-right py-2 text-xs text-gray-500 font-semibold w-24">
-                  Unit Price
-                </th>
-                <th className="text-right py-2 text-xs text-gray-500 font-semibold w-24">
-                  Total
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {invoice.lineItems.map((item) => (
-                <tr key={item.id}>
-                  <td className="py-3">
-                    <p className="text-gray-900 font-medium">
-                      {item.name || item.description}
-                      {item.recurringInterval && " "}
-                      {item.recurringInterval && (
-                        <Chip tone="primary">Recurring</Chip>
-                      )}
-                    </p>
-                    {item.name && item.description && (
-                      <p className="text-gray-500 text-xs mt-0.5">{item.description}</p>
-                    )}
-                    {item.serviceDate && (
-                      <p className="text-gray-500 text-xs mt-0.5">
-                        Service date: {shortDate(item.serviceDate, tz)}
-                      </p>
-                    )}
-                  </td>
-                  <td className="ds-num py-3 text-right text-gray-600">{Number(item.quantity)}</td>
-                  <td className="ds-num py-3 text-right text-gray-600">{money(item.unitPrice)}</td>
-                  <td className="ds-num py-3 text-right font-medium text-gray-900">{money(item.total)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Totals — full-width rows on phones, right-hand column at a desk */}
-        <div className="px-4 lg:px-6 py-4 border-t border-[color:var(--ds-line)] bg-[color:var(--ds-surface-2)]">
-          <div className="ml-auto w-full lg:w-64 space-y-1.5 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-500">Subtotal</span>
-              <span className="ds-num text-gray-800">{money(invoice.subtotal)}</span>
-            </div>
-            {invoice.discount && Number(invoice.discount) > 0 && (
-              <div className="flex justify-between text-[color:var(--ds-good)]">
-                <span>
-                  Discount
-                  {invoice.discountType === "PERCENT" && invoice.discountValue
-                    ? ` (${Number(invoice.discountValue)}%)`
-                    : ""}
-                </span>
-                <span className="ds-num">−{money(invoice.discount)}</span>
-              </div>
-            )}
-            {invoice.tax && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">
-                  Tax ({parseFloat((Number(invoice.taxRate) * 100).toFixed(3))}%)
-                </span>
-                <span className="ds-num text-gray-800">{money(invoice.tax)}</span>
-              </div>
-            )}
-            {invoice.depositApplied && Number(invoice.depositApplied) > 0 && (
-              <div className="flex justify-between text-[color:var(--ds-good)]">
-                <span>Deposit applied</span>
-                <span className="ds-num">−{money(invoice.depositApplied)}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-bold text-base pt-1.5 border-t border-gray-200">
-              <span className="text-gray-900">Total</span>
-              <span className="ds-num text-gray-900">{money(invoice.total)}</span>
-            </div>
-            {feesPaid > 0 && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">Service fee</span>
-                <span className="ds-num text-gray-800">{money(feesPaid)}</span>
-              </div>
-            )}
-            {totalPaid > 0 && (
-              <div className="flex justify-between text-[color:var(--ds-good)]">
-                <span>Payments</span>
-                <span className="ds-num">−{money(totalPaid)}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-semibold">
-              <span className="text-gray-900">Invoice balance</span>
-              <span className={`ds-num ${balance > 0 ? "text-gray-900" : "text-[color:var(--ds-good)]"}`}>
-                {money(balance)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {invoice.notes && (
-          <div className="px-6 py-4 border-t border-gray-100">
-            <p className="text-xs font-medium text-gray-500 mb-1">Notes</p>
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">{invoice.notes}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Payments */}
-      <div className="ds-card overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-700">Payments</h2>
-          {balance > 0 && (
-            <Link
-              href={`/app/payments/new?invoiceId=${invoice.id}`}
-              className="ds-link text-xs hover:underline"
-            >
-              + Collect Payment
-            </Link>
-          )}
-        </div>
-        {invoice.payments.length === 0 ? (
-          <EmptyState compact title="No payments recorded yet." />
-        ) : (
-          <div className="divide-y divide-gray-50">{paymentRows}</div>
-        )}
-      </div>
-
-      <div className="mt-6">
-        <ActivityTrail rows={activity} />
-      </div>
-      </div>
-
-      {/* ─────────────── Desktop: open page under the band ─────────────── */}
-      <BandBody className="hidden lg:flex">
+      {/* ─────────────── The open page (every width) ─────────────── */}
+      <BandBody>
         {(scheduledLineEl || closeJobNudgeEl) && (
           <div className="-mb-6">
             {scheduledLineEl}
@@ -679,8 +433,8 @@ export default async function InvoiceDetailPage({
                 <thead>
                   <tr>
                     <th>Item</th>
-                    <th className="r">Qty</th>
-                    <th className="r">Unit price</th>
+                    <th className="r inv-desk">Qty</th>
+                    <th className="r inv-desk">Unit price</th>
                     <th className="r">Amount</th>
                   </tr>
                 </thead>
@@ -701,9 +455,11 @@ export default async function InvoiceDetailPage({
                         {item.serviceDate && (
                           <span className="bb-row-sub">Service date: {shortDate(item.serviceDate, tz)}</span>
                         )}
+                        {/* Phone: qty × price under the name (those columns fold away) */}
+                        <span className="bb-row-sub inv-ph">{Number(item.quantity)} × {money(item.unitPrice)}</span>
                       </td>
-                      <td className="r ds-num">{Number(item.quantity)}</td>
-                      <td className="r ds-num">{money(item.unitPrice)}</td>
+                      <td className="r ds-num inv-desk">{Number(item.quantity)}</td>
+                      <td className="r ds-num inv-desk">{money(item.unitPrice)}</td>
                       <td className="r ds-num bb-strong">{money(item.total)}</td>
                     </tr>
                   ))}

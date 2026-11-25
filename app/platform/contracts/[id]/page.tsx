@@ -5,7 +5,6 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
 import { shortDate, quoteStatusLabel } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
-import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import ViewedFact from "@/components/ViewedFact";
 import ContractActions from "./ContractActions";
@@ -48,16 +47,12 @@ export default async function ContractDetailPage({
   const canTextClient = Boolean(contract.contact.phone) && canText(contract.contact) && (await companyCanSendSms(actor.companyId));
 
   return (
-    <DsPage open className="rx-agreement lg:max-w-5xl">
-      <div className="flex items-center gap-3 mb-4 lg:hidden">
-        <BackLink href="/app/contracts" />
-        <StatusChip kind="contract" status={contract.status} />
-      </div>
+    <DsPage open className="rx-agreement rx-phone lg:max-w-5xl">
 
       <div className="rx-dochead flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="min-w-0">
-          {/* Desktop: crumbs + state above the title (phones keep the back row) */}
-          <p className="rx-crumbs hidden lg:flex">
+          {/* Crumbs + state above the title (the crumb is the way back on phones too) */}
+          <p className="rx-crumbs">
             <Link prefetch={false} href="/app/contracts">Agreements</Link>
             {contract.contractNumber ? (
               <>

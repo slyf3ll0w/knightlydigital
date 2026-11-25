@@ -1,9 +1,7 @@
-import { MessageSquare } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager } from "@/lib/permissions";
 import { hasPlan } from "@/lib/plans";
 import VoicePlanNote from "@/components/VoicePlanNote";
-import PageTitle from "@/components/PageTitle";
 import { DsPage, PageHeader } from "@/components/ds";
 import { loadInbox } from "@/lib/inbox";
 import NewMessageButton from "./NewMessageButton";
@@ -42,21 +40,7 @@ export default async function MessagesInboxPage() {
     <DsPage
       open
       className="lg:max-w-4xl"
-      header={
-        <>
-          {/* Phone: the title row as before */}
-          <div className="flex items-center justify-between gap-2 lg:hidden">
-            <PageTitle heavy section="chat" icon={MessageSquare}>
-              Messages
-            </PageTitle>
-            <NewMessageButton hasLine={hasLine} />
-          </div>
-          {/* Desk: the open page header */}
-          <div className="hidden lg:block">
-            <PageHeader eyebrow={contextLine} title="Messages" actions={<NewMessageButton hasLine={hasLine} />} />
-          </div>
-        </>
-      }
+      header={<PageHeader eyebrow={contextLine} title="Messages" actions={<NewMessageButton hasLine={hasLine} />} />}
     >
       {!onVoicePlan && <VoicePlanNote what="texts" manager={isManager(actor.role)} planPage={Boolean(company?.addonEnabled)} />}
       <InboxList initial={rows} tz={tz} />

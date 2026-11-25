@@ -108,7 +108,7 @@ export default async function PaymentsDashboardPage({
     const status = await squareStatusForCompany(companyId);
     // Desktop (2026-11-24): the open page — the page's own header, the Gross
     // volume card and every tab sitting straight on the page (app/ds-open-money.css).
-    // Phones keep the PageTitle header below; the body is one tree for both.
+    // Phones get the same header since 2026-11-25 (Export folds away there).
     const payInfo =
       "Every dollar through your Square account: payments (yours and Square's own sales), payouts to your bank, disputes, and reports by day, tech and job type. Numbers come live from Square each time the page opens.";
     return (
@@ -116,7 +116,7 @@ export default async function PaymentsDashboardPage({
         open
         header={
           <>
-            <div className="hidden lg:block">
+            <div>
               <PageHeader
                 note={pageNote}
                 eyebrow="Live from your Square account"
@@ -132,7 +132,7 @@ export default async function PaymentsDashboardPage({
                     <PdfLink
                       href="/api/app/export/payments"
                       title="Download all payments as CSV"
-                      className="ds-btn ds-btn-outline"
+                      className="ds-btn ds-btn-outline mx-desk"
                       mime="text/csv"
                       newTab={false}
                       fallbackName="export.csv"
@@ -147,27 +147,6 @@ export default async function PaymentsDashboardPage({
                 }
               />
             </div>
-        <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6 lg:hidden">
-          <PageTitle heavy
-            section="payments"
-            icon={DollarSign}
-            info="Every dollar through your Square account: payments (yours and Square's own sales), payouts to your bank, disputes, and reports by day, tech and job type. Numbers come live from Square each time the page opens."
-          >
-            Payments
-            {squareEnvironment() === "sandbox" && <Chip tone="warn">Test mode</Chip>}
-          </PageTitle>
-          {/* Phones create from the tab-bar FAB */}
-          <div className="hidden lg:flex items-center gap-2">
-            <PdfLink href="/api/app/export/payments" title="Download all payments as CSV" className="ds-btn ds-btn-outline ds-btn-sm" mime="text/csv" newTab={false} fallbackName="export.csv">
-              <Download size={14} />
-              Export
-            </PdfLink>
-            <Link href="/app/payments/new" className="btn-primary">
-              <Plus size={15} />
-              Collect payment
-            </Link>
-          </div>
-        </div>
           </>
         }
       >

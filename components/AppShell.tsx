@@ -553,21 +553,19 @@ function navQuickActions(href: string, label: string, creates: NavItem[]): Quick
 // Create-sheet tile tones (.ds-tile-a … e in app/ds.css), matching the More
 // sheet's groups: Clients → primary, Sales → secondary, Field work → slate,
 // Money → slate-2.
-const CREATE_TONES: Record<string, "a" | "b" | "c" | "d" | "e"> = {
-  "/app/contacts/new": "a",
-  "/app/contacts/new?type=lead": "a",
-  "/app/requests/new": "a",
-  "/app/appointments/new": "b",
-  "/app/quotes/new": "b",
-  "/app/estimates?run=1": "b",
-  "/app/contracts/new": "b",
-  "/app/jobs/new": "c",
-  "/app/tasks?new=1": "c",
-  "/app/calls?keypad=1": "e",
-  "/app/messages?new=1": "e",
-  "/app/invoices/new": "d",
-  "/app/invoices/request": "d",
-  "/app/payments/new": "d",
+// What each create is for, one short line under its name on the phone sheet
+const CREATE_HINTS: Record<string, string> = {
+  "/app/contacts/new": "Someone new",
+  "/app/contacts/new?type=lead": "Might hire you",
+  "/app/requests/new": "Asked for work",
+  "/app/appointments/new": "Visit or estimate",
+  "/app/quotes/new": "Price it, send it",
+  "/app/jobs/new": "Book the work",
+  "/app/tasks?new=1": "A to-do",
+  "/app/calls?keypad=1": "From your line",
+  "/app/messages?new=1": "Text or email",
+  "/app/invoices/new": "Bill for work",
+  "/app/invoices/request": "A quick pay link",
 };
 
 // Tab bar: Home · Schedule · [create] · Chat · More. Everything else lives
@@ -633,21 +631,6 @@ function useHistoryTwin(pathname: string) {
     return () => clearTimeout(t);
   }, [pathname]);
 }
-
-// The More sheet remembers the last four pages opened from it (per device).
-const MORE_RECENT_KEY = "wb-more-recent";
-
-// The More sheet's groups (2026-09-26): five short sections instead of one
-// fifteen-tile "Work" wall, each in ONE color from the company's own palette
-// (.ds-tile-a … e in app/ds.css: primary, secondary, three slates). Items
-// come from navGroups (role-filtered); this only decides where they sit.
-const MORE_GROUPS: { label: string; tone: "a" | "b" | "c" | "d" | "e"; hrefs: string[] }[] = [
-  { label: "Clients", tone: "a", hrefs: ["/app/contacts", "/app/leads", "/app/requests", "/app/messages", "/app/calls"] },
-  { label: "Sales", tone: "b", hrefs: ["/app/quotes", "/app/estimates", "/app/contracts", "/app/appointments"] },
-  { label: "Field work", tone: "c", hrefs: ["/app/routes", "/app/jobs", "/app/tasks", "/app/timesheets", "/app/chat"] },
-  { label: "Money", tone: "d", hrefs: ["/app/invoices", "/app/payments", "/app/subscriptions"] },
-  { label: "Business", tone: "e", hrefs: ["/app/business", "/app/automations", "/app/settings/products", "/app/settings/booking", "/app/settings/website", "/app/settings/team"] },
-];
 
 const forRole = (items: NavItem[], role: string, salesMoney: boolean) =>
   items.filter((i) => !i.show || i.show(role, salesMoney));
@@ -1893,6 +1876,8 @@ export default function AppShell({
     void row.offsetWidth;
     row.setAttribute("data-charge", "");
     window.setTimeout(() => row.removeAttribute("data-charge"), 800);
+    // phones: the menu closes once the line has charged (the route change closes it too)
+    if (window.matchMedia("(max-width: 1023px)").matches) window.setTimeout(() => setMoreOpen(false), 280);
   };
   useEffect(() => {
     const nav = railNavRef.current;
@@ -2128,6 +2113,47 @@ export default function AppShell({
     setMoreOpen(false);
     setNotifsOpen(false);
   }, [pathname]);
+  // The phone menu (the Live sidebar as a drawer): Escape closes it, a drag
+  // to the left follows the finger and closes it past a third.
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMoreOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [moreOpen]);
+  const railDrag = useRef<{ x: number; y: number; dx: number; on: boolean } | null>(null);
+  const railDrawerDrag = {
+    onTouchStart: (e: React.TouchEvent<HTMLElement>) => {
+      if (!moreOpen) return;
+      const t = e.touches[0];
+      railDrag.current = { x: t.clientX, y: t.clientY, dx: 0, on: false };
+    },
+    onTouchMove: (e: React.TouchEvent<HTMLElement>) => {
+      const d = railDrag.current;
+      if (!d) return;
+      const t = e.touches[0];
+      const dx = t.clientX - d.x;
+      if (!d.on) {
+        if (Math.abs(t.clientY - d.y) > Math.abs(dx)) return (railDrag.current = null);
+        if (dx > -6) return;
+        d.on = true;
+      }
+      d.dx = Math.min(0, dx);
+      e.currentTarget.style.transition = "none";
+      e.currentTarget.style.transform = `translateX(${d.dx}px)`;
+    },
+    onTouchEnd: (e: React.TouchEvent<HTMLElement>) => {
+      const d = railDrag.current;
+      railDrag.current = null;
+      if (!d?.on) return;
+      const el = e.currentTarget;
+      el.style.transition = "";
+      el.style.transform = "";
+      if (d.dx < -el.offsetWidth / 3) setMoreOpen(false);
+    },
+  };
 
   // Nav badges (new requests, past-due invoices) — refreshed on navigation
   // and when the app returns to the foreground, throttled so tab-hopping
@@ -2571,11 +2597,30 @@ export default function AppShell({
           </span>
         </Link>
       )}
-      <button type="button" onClick={() => setPaletteOpen(true)} className="rail-live-search">
+      <button type="button" onClick={() => { setMoreOpen(false); setPaletteOpen(true); }} className="rail-live-search">
         <Search size={15} strokeWidth={2.2} />
         <span className="flex-1 text-left">Search</span>
         <kbd>{kbdHint}</kbd>
       </button>
+      {assistantAvailable && (
+        <button
+          type="button"
+          className="rail-live-atlas lg:hidden"
+          onClick={() => {
+            hapticImpact("LIGHT");
+            setMoreOpen(false);
+            setAssistantOpen(true);
+          }}
+        >
+          <AtlasMark size={30} accent={brandColorSecondary || brandColor || undefined} className="shrink-0 rounded-[9px]" />
+          <span className="min-w-0 flex-1 text-left">
+            <span className="block truncate font-semibold">{assistantName || "Atlas"}</span>
+            <span className="block truncate text-[12px] text-[color:var(--rail-muted)]">
+              {atlasLocked ? "Out of tokens until the meter refills" : "Ask anything, or hand off a task"}
+            </span>
+          </span>
+        </button>
+      )}
       <nav
         ref={railNavRef}
         aria-label="Pages"
@@ -2717,7 +2762,9 @@ export default function AppShell({
       </Suspense>
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
       <aside
-        className="rail-gray rail-live hidden lg:flex shrink-0 border-r border-[color:var(--rail-line)]"
+        className={`rail-gray rail-live rail-drawer ${moreOpen ? "is-open" : ""} flex shrink-0 border-r border-[color:var(--rail-line)]`}
+        aria-label="Menu"
+        {...railDrawerDrag}
         style={
           {
             "--rail-accent-l": railAccent,
@@ -2728,27 +2775,12 @@ export default function AppShell({
         {sidebarInner}
       </aside>
 
-      {/* ── Mobile "More" sheet — grouped native list, replaces the old
-             black sidebar drawer on phones ──────────────────────────────── */}
-      <MoreSheet
-        open={moreOpen}
-        onClose={() => setMoreOpen(false)}
-        role={userRole}
-        salesMoney={salesMoney}
-        counts={counts}
-        teamCount={teamCount}
-        userName={userName}
-        userEmail={userEmail}
-        userId={userId}
-        isActive={isActive}
-        aiEnabled={assistantAvailable}
-        atlasLocked={atlasLocked}
-        assistantName={assistantName || "Atlas"}
-        assistantAccent={brandColorSecondary || brandColor || undefined}
-        openAssistant={() => setAssistantOpen(true)}
-        suggestChanges={suggestChanges}
-        websiteStudio={websiteStudio}
-        lockedFeatures={lockedFeatures}
+      {/* Phones: the Live sidebar above IS the menu — it slides in from the
+          left over this scrim (David 2026-11-25 picked the drawer). */}
+      <div
+        className={`rail-scrim lg:hidden ${moreOpen ? "is-open" : ""}`}
+        onClick={() => setMoreOpen(false)}
+        aria-hidden
       />
 
       {/* ── Main content area ─────────────────────────────────────────────── */}
@@ -3073,6 +3105,7 @@ export default function AppShell({
         messagesUnread={counts.messages}
         hasLine={hasLine}
         openMore={() => setMoreOpen(true)}
+        openAssistant={assistantAvailable ? () => setAssistantOpen(true) : undefined}
         previewMode={previewMode}
       />
 
@@ -3188,6 +3221,7 @@ function MobileTabBar({
   hasLine,
   openMore,
   previewMode,
+  openAssistant,
 }: {
   role: string;
   salesMoney: boolean;
@@ -3202,6 +3236,8 @@ function MobileTabBar({
   hasLine: boolean;
   openMore: () => void;
   previewMode?: boolean;
+  /** Atlas, when this company has it: "Or just say it" at the top of Create. */
+  openAssistant?: () => void;
 }) {
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -3295,69 +3331,67 @@ function MobileTabBar({
           }`}
         >
           <div className="mx-auto mt-2.5 h-1 w-9 rounded-full bg-gray-200" />
-          <p className="font-display px-5 pt-3.5 pb-2.5 text-[16px] font-bold text-gray-900">
-            Create
-          </p>
-          {/* 6-col grid, tiles span 2 — lets a lone tile on the last row sit
-              centered (col 3) and a pair sit symmetric (cols 2+4). */}
-          <div className="grid grid-cols-6 gap-y-1.5 px-3 pb-2">
-            {creates.map(({ href, label, icon: Icon }, i) => {
-              const rem = creates.length % 3;
-              const placement =
-                rem === 1 && i === creates.length - 1
-                  ? "col-start-3"
-                  : rem === 2 && i === creates.length - 2
-                    ? "col-start-2"
-                    : "";
-              // Tiles erupt from the FAB: the bottom-center tile pops first,
-              // then the wave spreads up and outward (delay = grid distance
-              // from bottom-center, so it reads as bursting out of the +).
-              const rows = Math.ceil(creates.length / 3);
-              const rowFromBottom = rows - 1 - Math.floor(i / 3);
-              const colFromCenter = Math.abs((i % 3) - 1);
-              const delay = 60 + rowFromBottom * 60 + colFromCenter * 35;
-              const pick = PICKER_TILES[href];
-              // No unread count on the Message tile: it starts a new message
-              const unread = 0;
-              const tileClass = `col-span-2 ${placement} flex flex-col items-center gap-2 rounded-2xl px-1 py-3.5 transition-transform active:scale-95 ${
-                sheetOpen ? "anim-tile-pop" : ""
-              }`;
-              const body = (
-                <>
-                  {/* Brand tile (round 4): the same iOS-style icon as the More
-                      sheet, toned by where the thing lands — clients primary,
-                      selling secondary, jobs slate, money slate-2 */}
-                  <span className={`ds-tile ds-tile-${CREATE_TONES[href] ?? "a"} relative shrink-0`}>
-                    <Icon size={21} strokeWidth={2} />
-                    {unread > 0 && <UnreadBubble count={unread} />}
-                  </span>
-                  <span className="font-display text-[11px] font-semibold text-gray-800">
-                    {label}
-                  </span>
-                </>
-              );
-              const style = sheetOpen ? { animationDelay: `${delay}ms` } : undefined;
-              return pick ? (
-                <button
-                  key={href}
-                  type="button"
-                  onClick={() => {
-                    hapticImpact("LIGHT");
-                    setSheetOpen(false);
-                    setPicker(pick);
-                  }}
-                  aria-label={unread > 0 ? `${label} (${unread} unread)` : label}
-                  style={style}
-                  className={tileClass}
-                >
-                  {body}
-                </button>
-              ) : (
-                <Link prefetch={false} key={href} href={href} onClick={() => setSheetOpen(false)} style={style} className={tileClass}>
-                  {body}
-                </Link>
-              );
-            })}
+          {/* Create (David 2026-11-25, the new look): a title, Atlas's
+              "just say it" line, then every create as a two-column list —
+              a quiet icon in the primary, the name, and what it's for. */}
+          <div className="ph-create">
+            <p className="ph-create-title">Create</p>
+            {openAssistant && (
+              <button
+                type="button"
+                className={`ph-create-say ${sheetOpen ? "is-in" : ""}`}
+                onClick={() => {
+                  hapticImpact("LIGHT");
+                  setSheetOpen(false);
+                  openAssistant();
+                }}
+              >
+                <span className="ph-create-mic" aria-hidden>
+                  <Mic size={17} strokeWidth={2.2} />
+                </span>
+                <span className="min-w-0 flex-1 text-left">
+                  <span className="block font-semibold">Or just say it</span>
+                  <span className="block truncate text-[12.5px] text-[color:var(--ds-muted)]">“Quote the Hales for a spring cleanup”</span>
+                </span>
+              </button>
+            )}
+            <div className="ph-create-grid">
+              {creates.map(({ href, label, icon: Icon }, i) => {
+                const pick = PICKER_TILES[href];
+                const cls = `ph-create-item ${sheetOpen ? "is-in" : ""}`;
+                const style = sheetOpen ? { animationDelay: `${40 + i * 22}ms` } : undefined;
+                const body = (
+                  <>
+                    <span className="ph-create-ic" aria-hidden>
+                      <Icon size={18} strokeWidth={2.1} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="ph-create-name">{label}</span>
+                      {CREATE_HINTS[href] && <span className="ph-create-hint">{CREATE_HINTS[href]}</span>}
+                    </span>
+                  </>
+                );
+                return pick ? (
+                  <button
+                    key={href}
+                    type="button"
+                    onClick={() => {
+                      hapticImpact("LIGHT");
+                      setSheetOpen(false);
+                      setPicker(pick);
+                    }}
+                    style={style}
+                    className={cls}
+                  >
+                    {body}
+                  </button>
+                ) : (
+                  <Link prefetch={false} key={href} href={href} onClick={() => setSheetOpen(false)} style={style} className={cls}>
+                    {body}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
           {/* The FAB's + twirls to an × here, on top of the sheet — the real
               FAB sits underneath it and can't show the animation itself */}
@@ -3409,7 +3443,7 @@ function MobileTabBar({
                 )
               )}
             </span>
-            More
+            Menu
           </button>
         </div>
         {creates.length > 0 && (
@@ -3456,338 +3490,3 @@ function UnreadBubble({ count }: { count: number }) {
   );
 }
 
-/**
- * Mobile "More" sheet — everything that used to hide in the black sidebar
- * drawer, laid out as grouped native list rows (the Amex/iOS-settings
- * pattern): profile card up top, sectioned rows with icon tiles and inline
- * badges, sign-out at the bottom.
- */
-function MoreSheet({
-  open,
-  onClose,
-  role,
-  salesMoney,
-  counts,
-  teamCount,
-  userName,
-  userEmail,
-  userId,
-  isActive,
-  aiEnabled,
-  atlasLocked = false,
-  assistantName,
-  assistantAccent,
-  openAssistant,
-  suggestChanges = false,
-  websiteStudio = false,
-  lockedFeatures = [],
-}: {
-  open: boolean;
-  onClose: () => void;
-  role: string;
-  salesMoney: boolean;
-  /** Company.isTest — the Website door shows for test accounts only. */
-  websiteStudio?: boolean;
-  counts: { requests: number; pastDue: number; chat: number; messages: number; tasks: number };
-  teamCount: number;
-  userName?: string | null;
-  userEmail?: string | null;
-  userId?: string | null;
-  isActive: (href: string) => boolean;
-  aiEnabled: boolean;
-  atlasLocked?: boolean;
-  assistantName: string;
-  assistantAccent?: string;
-  openAssistant: () => void;
-  suggestChanges?: boolean;
-  lockedFeatures?: GatedFeature[];
-}) {
-  const manager = isManagerRole(role);
-  const signOut = useAppSignOut();
-
-  const badgeFor = (href: string): { count: number; urgent: boolean } | null => {
-    if (href === "/app/requests" && counts.requests > 0)
-      return { count: counts.requests, urgent: false };
-    if (href === "/app/invoices" && counts.pastDue > 0)
-      return { count: counts.pastDue, urgent: true };
-    if (href === "/app/chat" && counts.chat > 0) return { count: counts.chat, urgent: true };
-    if (href === "/app/messages" && counts.messages > 0) return { count: counts.messages, urgent: true };
-    if (href === "/app/tasks" && counts.tasks > 0) return { count: counts.tasks, urgent: false };
-    return null;
-  };
-
-  // ── The sheet (redesigned 2026-09-26) ─────────────────────────────────
-  // The old sheet was twenty-odd list rows; finding Payments meant reading
-  // the whole thing. Now: a search field, the pages you opened last as
-  // chips, and a 4-across tile grid grouped by section — icon tiles in the
-  // section hue (soft tint, hue ink) so a glance finds "the orange one".
-  const [query, setQuery] = useState("");
-  const [recent, setRecent] = useState<string[]>([]);
-  useEffect(() => {
-    if (!open) return;
-    setQuery("");
-    try {
-      const raw = localStorage.getItem(MORE_RECENT_KEY);
-      setRecent(raw ? (JSON.parse(raw) as string[]) : []);
-    } catch {
-      setRecent([]);
-    }
-  }, [open]);
-  const remember = (href: string) => {
-    try {
-      const next = [href, ...recent.filter((h) => h !== href)].slice(0, 4);
-      localStorage.setItem(MORE_RECENT_KEY, JSON.stringify(next));
-    } catch {
-      /* private mode */
-    }
-  };
-
-  const teamItems: NavItem[] = [
-    ...(teamCount > 1 ? [{ href: "/app/chat", label: "Team Chat", icon: MessagesSquare }] : []),
-  ];
-  const accountItems: NavItem[] = [
-    ...(manager ? [{ href: "/app/settings", label: "Settings", icon: Settings }] : []),
-    { href: "/app/help", label: "Help Center", icon: LifeBuoy },
-  ];
-  // Home + Schedule live on the tab bar; everything else is bucketed by MORE_GROUPS
-  const pool = [...navGroups.slice(1).flatMap((g) => forStudio(forRole(g.items, role, salesMoney), websiteStudio)), ...teamItems];
-  const placed = new Set<string>();
-  const sections = MORE_GROUPS.map((g) => {
-    const items = g.hrefs.map((h) => pool.find((i) => i.href === h)).filter((i): i is NavItem => Boolean(i));
-    for (const i of items) placed.add(i.href);
-    return { label: g.label, tone: g.tone, items };
-  }).filter((s) => s.items.length > 0);
-  const stray = pool.filter((i) => !placed.has(i.href));
-  if (stray.length && sections.length) sections[sections.length - 1].items.push(...stray);
-  const everything = [...sections.flatMap((s) => s.items), ...accountItems];
-  const toneOf = (href: string) => sections.find((s) => s.items.some((i) => i.href === href))?.tone ?? "e";
-  const needle = query.trim().toLowerCase();
-  const shown = needle
-    ? [{ label: "", tone: "a" as const, items: everything.filter((i) => i.label.toLowerCase().includes(needle)) }]
-    : sections;
-  const recentItems = recent
-    .map((h) => everything.find((i) => i.href === h))
-    .filter((i): i is NavItem => Boolean(i));
-
-  const sheetCreates = forRole(createItems, role, salesMoney);
-
-  const { sheetRef, scrollRef, dragY, dragging, dragHandlers } = useSheetDrag(open, onClose);
-
-  const tile = ({ href, label, icon: Icon }: NavItem) => {
-    const badge = badgeFor(href);
-    const active = isActive(href);
-    return (
-      <RowActions key={href} actions={navQuickActions(href, label, sheetCreates)} title={label}>
-      <Link
-        prefetch={false}
-        href={href}
-        onClick={() => {
-          hapticImpact("LIGHT");
-          remember(href);
-        }}
-        className={`relative flex flex-col items-center gap-1.5 rounded-2xl px-1 pb-2 pt-2.5 transition-colors active:bg-gray-100 ${
-          active ? "bg-[color:var(--ds-primary-soft)]" : ""
-        }`}
-      >
-        <span className={`ds-tile ds-tile-${toneOf(href)} relative`}>
-          <Icon size={22} strokeWidth={2} />
-          {badge && (
-            <span
-              className={`absolute -right-1.5 -top-1.5 min-w-[19px] rounded-full px-1.5 py-0.5 text-center text-[10.5px] font-bold tabular-nums ${
-                badge.urgent ? "ds-count-news font-bold" : "ds-count-news"
-              }`}
-            >
-              {badge.count > 99 ? "99+" : badge.count}
-            </span>
-          )}
-        </span>
-        <span className="flex max-w-full items-center gap-1">
-          <span className="min-w-0 truncate text-[11.5px] font-medium leading-tight text-gray-800">{label}</span>
-          {NAV_FEATURES[href] && lockedFeatures.includes(NAV_FEATURES[href]) && <ProChip />}
-        </span>
-      </Link>
-      </RowActions>
-    );
-  };
-
-  return (
-    <>
-      <div
-        className={`fixed inset-0 z-40 bg-black/30 lg:hidden transition-opacity duration-300 ${
-          open ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
-        onClick={onClose}
-        aria-hidden
-      />
-      <div
-        ref={sheetRef}
-        {...dragHandlers}
-        style={open && dragY > 0 ? { transform: `translateY(${dragY}px)` } : undefined}
-        className={`sheet-material fixed inset-x-0 bottom-0 z-50 lg:hidden flex max-h-[88dvh] flex-col rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] ${
-          dragging ? "" : "transition-transform duration-300"
-        } [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
-          open ? "" : "translate-y-full pointer-events-none"
-        }`}
-      >
-        <div className="flex shrink-0 justify-center pb-1 pt-2.5">
-          <div className="h-1 w-9 rounded-full bg-gray-300" />
-        </div>
-        <div ref={scrollRef} className="overscroll-contain overflow-y-auto px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2">
-          {/* Who + where to: profile on the left, settings on the right */}
-          <div className="flex items-center gap-2">
-            <Link
-              prefetch={false}
-              href="/app/settings/profile"
-              onClick={() => hapticImpact("LIGHT")}
-              className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-1.5 transition-colors active:bg-gray-100"
-            >
-              <Avatar name={userName} userId={userId} size={38} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[15px] font-semibold text-gray-900">{userName}</span>
-                <span className="block truncate text-xs text-gray-500">{userEmail}</span>
-              </span>
-            </Link>
-            {manager && (
-              <Link
-                prefetch={false}
-                href="/app/settings"
-                aria-label="Settings"
-                onClick={() => hapticImpact("LIGHT")}
-                className={`glass-control glass-hit flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                  isActive("/app/settings") ? "text-[color:var(--ds-primary)]" : "text-gray-600"
-                }`}
-              >
-                <Settings size={18} strokeWidth={2} />
-              </Link>
-            )}
-          </div>
-
-          {/* Find a page */}
-          <label className="relative mt-2 block px-1">
-            <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Find a page…"
-              aria-label="Find a page"
-              enterKeyHint="search"
-              className="w-full rounded-[14px] bg-gray-100 py-2.5 pl-10 pr-3 text-[16px] text-gray-900 outline-none placeholder:text-gray-400 focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-            />
-          </label>
-
-          {/* Atlas keeps its headline seat */}
-          {aiEnabled && !needle && (
-            <button
-              type="button"
-              onClick={() => {
-                hapticImpact("LIGHT");
-                onClose();
-                openAssistant();
-              }}
-              className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-[color:var(--ds-primary-soft)] px-3 py-2.5 text-left transition-colors active:brightness-95"
-            >
-              <AtlasMark size={36} accent={assistantAccent} className="shrink-0 rounded-[10px]" />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[15px] font-semibold text-gray-900">{assistantName}</span>
-                <span className="block truncate text-xs text-gray-500">
-                  {atlasLocked ? "Out of tokens until the meter refills" : "Ask anything — or hand off a task"}
-                </span>
-              </span>
-              <ChevronRight size={16} className="shrink-0 text-gray-300" />
-            </button>
-          )}
-
-          {/* Where you were last */}
-          {!needle && recentItems.length > 0 && (
-            <div className="mt-3">
-              <p className="ds-eyebrow ds-eyebrow-plain px-1 pb-1.5">Recent</p>
-              <div className="flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
-                {recentItems.map(({ href, label, icon: Icon }) => (
-                  <Link
-                    prefetch={false}
-                    key={href}
-                    href={href}
-                    onClick={() => {
-                      hapticImpact("LIGHT");
-                      remember(href);
-                    }}
-                    className="flex shrink-0 items-center gap-1.5 rounded-full bg-gray-100 py-1.5 pl-2.5 pr-3 text-[13px] font-medium text-gray-800 active:bg-gray-200"
-                  >
-                    <Icon size={14} strokeWidth={2.2} className="text-[color:var(--ds-primary)]" />
-                    {label}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {shown.map((s, si) => (
-            // A hairline above every section after the first marks where it starts
-            <div key={s.label || `s${si}`} className={si > 0 ? "mt-3 border-t border-gray-100 pt-3" : "mt-3"}>
-              {s.label && <p className="ds-eyebrow ds-eyebrow-plain px-1 pb-1">{s.label}</p>}
-              {s.items.length === 0 ? (
-                <p className="px-1 py-6 text-center text-sm text-gray-500">Nothing matches “{query.trim()}”.</p>
-              ) : (
-                <div className="grid grid-cols-4 gap-x-1 gap-y-0.5">{s.items.map(tile)}</div>
-              )}
-            </div>
-          ))}
-
-          {/* Suggest a change (test accounts): close the sheet, then the
-              picker takes the page — the next tap is the pick */}
-          {!needle && suggestChanges && (
-            <button
-              type="button"
-              onClick={() => {
-                hapticImpact("LIGHT");
-                onClose();
-                window.setTimeout(() => window.dispatchEvent(new Event(SUGGEST_CHANGE_EVENT)), 80);
-              }}
-              className="mt-4 flex w-full items-center gap-3 rounded-xl bg-gray-50 px-3 py-2.5 text-left active:bg-gray-100"
-            >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-white text-gray-700 shadow-sm">
-                <Wand2 size={15} strokeWidth={2} />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-[13.5px] font-semibold text-gray-900">Suggest a change</span>
-                <span className="block text-[11.5px] text-gray-500">Press and hold anything on a page — or tap here to pick</span>
-              </span>
-            </button>
-          )}
-
-          {/* Help + sign out: quiet, at the end */}
-          {!needle && (
-            <div className="mt-4 flex items-center gap-2 border-t border-gray-100 pt-3">
-              <Link
-                prefetch={false}
-                href="/app/help"
-                onClick={() => hapticImpact("LIGHT")}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[13.5px] font-semibold text-gray-700 active:bg-gray-100"
-              >
-                <LifeBuoy size={16} strokeWidth={2} />
-                Help Center
-              </Link>
-              <button
-                type="button"
-                onClick={() => void signOut.signOut()}
-                disabled={signOut.signingOut}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[13.5px] font-semibold text-red-600 active:bg-red-50 disabled:opacity-60"
-              >
-                {signOut.signingOut ? <Loader2 size={16} className="animate-spin" /> : <LogOut size={16} strokeWidth={2} />}
-                Sign out
-              </button>
-            </div>
-          )}
-          {!needle && signOut.failed && (
-            <p role="alert" className="mt-2 px-1 text-center text-xs leading-snug text-red-600">
-              {SIGN_OUT_FAILED}
-            </p>
-          )}
-
-          <p className="pt-3 text-center text-[11px] text-gray-400">Powered by WorkBench</p>
-        </div>
-      </div>
-    </>
-  );
-}

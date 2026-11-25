@@ -7,16 +7,11 @@ import Link from "next/link";
 import { Fragment } from "react";
 import { mapsSearchHref } from "@/lib/time-entries";
 import SectionHeader from "@/components/SectionHeader";
-import { Phone, Mail, MapPin, ChevronRight, Pencil, Eye, MessageCircle } from "lucide-react";
+import { Eye } from "lucide-react";
 import { money, shortDate, clientMessageStatus, type StatusKind } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
-import BackLink from "@/components/BackLink";
-import BackParent from "@/components/BackParent";
-import PageTitle from "@/components/PageTitle";
 import Monogram from "@/components/Monogram";
-import { StatCard } from "@/components/ListBands";
 import ContactStatus from "@/components/ContactStatus";
-import CallTextButtons from "@/components/CallTextButtons";
 import CallLink from "@/components/CallLink";
 import CallRow from "@/components/CallRow";
 import JobActionRow from "@/components/JobActionRow";
@@ -325,74 +320,12 @@ export default async function ContactDetailPage({
   // The page's actions — one row on phones (below the head card), the right
   // side of the header at a desk. Two instances, one per width (menus only
   // listen while open, so the hidden copy is inert).
-  const phoneActions = (desk: boolean) => (
-    <>
-          {/* Message = the WorkBench conversation: texts from the business line
-              once texting is on (client portal + email otherwise), replies in
-              the inbox. The Text button beside it is the phone's own Messages
-              app from the tech's number. Phones get the 52px circles instead. */}
-          {desk && (
-          <Link
-            prefetch={false}
-            href={`/app/messages/thread/${contact.id}`}
-            className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-[10px] transition-colors"
-            title={
-              textsReady && !contact.smsOptOut && !contact.smsDisabled
-                ? `Text ${contact.firstName} from ${fmtPhone(lineNumber!)} — replies land in Messages`
-                : `Message ${contact.firstName} — reaches their client portal and email; texts once texting is on`
-            }
-          >
-            <MessageCircle size={14} />
-            Message
-          </Link>
-          )}
-          {desk && contact.phone && (
-            <div className="flex items-center gap-2">
-              <CallTextButtons phone={contact.phone} contactId={contact.id} name={fullName} />
-            </div>
-          )}
-          {contact.email && (
-            <EmailClientButton
-              contactId={contact.id}
-              contactName={fullName}
-              contactEmail={contact.email}
-              signature={emailSignature}
-              hasLogo={!!contact.company.logoUrl}
-            />
-          )}
-          <Link
-            prefetch={false} href={`/app/contacts/${contact.id}/edit`}
-            className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-[10px] transition-colors"
-          >
-            <Pencil size={14} />
-            Edit
-          </Link>
-          <RunAutomationMenu entity="contact" entityId={contact.id} manager={isManager(actor.role)} />
-          <ContactActionsMenu
-            contactId={contact.id}
-            contactName={fullName}
-            status={contact.status}
-            canDelete={isManager(actor.role)}
-            counts={{
-              requests: contact.requests.length,
-              appointments: contact.appointments.length,
-              quotes: contact.quotes.length,
-              jobs: contact.jobs.length,
-              invoices: contact.invoices.length,
-              payments: contact.payments.length,
-            }}
-          />
-          <ContactCreateMenu contactId={contact.id} canSeeMoney={canSeeMoney(actor)} />
-    </>
-  );
-
   // Desk (2026-11-24, David: simplify the client page): ONE primary action
   // (Create), the rest in the "…" menu — Message, Send an email (the page's
   // EmailClientButton listens for it), Edit, Archive, Delete. Call/text/email
   // are the links in the context line under the name. Run automation shows
   // only for managers who have runnable rules.
-  const actions = (desk: boolean) =>
-    desk ? (
+  const actions = (
       <>
         <RunAutomationMenu entity="contact" entityId={contact.id} manager={isManager(actor.role)} />
         {contact.email && (
@@ -423,9 +356,7 @@ export default async function ContactDetailPage({
         />
         <ContactCreateMenu contactId={contact.id} canSeeMoney={canSeeMoney(actor)} />
       </>
-    ) : (
-      phoneActions(false)
-    );
+  );
 
   // The desk's facts: one clickable line under the name, and the summary strip
   const fullAddress = [contact.address, contact.city, contact.state, contact.zip].filter(Boolean).join(", ");
@@ -459,12 +390,12 @@ export default async function ContactDetailPage({
 
   // Open page (2026-11-24): at a desk the page's own header — crumbs, the
   // monogram + name (title wipe kept), the chips, a context line, actions.
-  // Phones keep the head card and action row exactly as before.
+  // Phones get the same header (phone pass 2026-11-25).
   const header = (
     <>
       {/* the collapsed-header title, once for both widths */}
       <TitleSentinel title={fullName} />
-      <div className="ds-pagehead cp-head hidden lg:flex flex-wrap items-start justify-between gap-4">
+      <div className="ds-pagehead cp-head flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="ds-eyebrow ds-eyebrow-plain bb-crumbs">
             <Link prefetch={false} href={backTo} className="hover:text-[color:var(--ds-primary)]">
@@ -498,78 +429,9 @@ export default async function ContactDetailPage({
             </div>
           )}
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">{actions(true)}</div>
+        <div className="cp-head-acts flex flex-wrap items-center justify-end gap-2">{actions}</div>
       </div>
 
-      {/* ─── Phone (unchanged) ─── */}
-      <div className="flex flex-wrap items-center gap-3 mb-4 lg:hidden">
-        {/* A lead's list is the Leads board, not Clients (David 2026-10-06) */}
-        <BackLink href={backTo} />
-        {contact.status === "LEAD" && <BackParent to="/app/leads" />}
-        {chips}
-      </div>
-
-      {/* Heavy look (2026-11-21): who the client is and how to reach them,
-          on the page; what they're worth / owe as two number cards. */}
-      <section className="ds-client-head ds-rise mb-5 lg:hidden" style={{ "--ds-i": 1 } as React.CSSProperties}>
-        <div className="flex min-w-0 items-start gap-4">
-          <span className="ds-client-mono">
-            <Monogram name={`${contact.firstName} ${contact.lastName}`.trim()} size={60} />
-          </span>
-          <div className="min-w-0">
-          <PageTitle heavy>
-            <>{fullName}</>
-          </PageTitle>
-          {contact.companyName && (
-            <p className="mt-0.5 text-[15px] font-semibold opacity-85">{contact.companyName}</p>
-          )}
-          <div className="ds-client-facts mt-3">
-            {contact.phone && (
-              <CallLink
-                phone={contact.phone}
-                contactId={contact.id}
-                name={`${contact.firstName} ${contact.lastName}`.trim()}
-                className="flex items-center gap-1.5 hover:underline"
-              >
-                <Phone size={14} />
-                {fmtPhone(contact.phone)}
-              </CallLink>
-            )}
-            {contact.email && (
-              <a
-                href={`mailto:${contact.email}`}
-                className="flex items-center gap-1.5 hover:underline"
-              >
-                <Mail size={14} />
-                {contact.email}
-              </a>
-            )}
-            {contact.address && (
-              <span className="flex items-center gap-1.5">
-                <MapPin size={14} />
-                {[contact.address, contact.city, contact.state, contact.zip]
-                  .filter(Boolean)
-                  .join(", ")}
-              </span>
-            )}
-          </div>
-          </div>
-        </div>
-        {seeMoney && (
-          <div className="ds-client-stats">
-            <StatCard i={2} tone="good" label="Lifetime value" value={money(lifetimeValue)} sub="Paid, all time" />
-            <StatCard
-              i={3}
-              tone={currentBalance > 0 ? "bad" : "neutral"}
-              label="Balance owed"
-              value={money(currentBalance)}
-              sub={currentBalance > 0 ? "Open invoices" : "All paid up"}
-            />
-          </div>
-        )}
-      </section>
-
-      <div className="mb-6 flex flex-wrap items-center justify-end gap-2 lg:hidden">{actions(false)}</div>
     </>
   );
 
@@ -585,7 +447,7 @@ export default async function ContactDetailPage({
   const deskWorkRows = workKind ? workRows.filter((r) => r.kind === workKind) : workRows;
 
   const workTable = (
-    <div id="work" className="hidden scroll-mt-24 lg:block">
+    <div id="work" className="scroll-mt-24">
     <OpenSection
       title="Work"
       aside={
@@ -613,7 +475,24 @@ export default async function ContactDetailPage({
           {workRows.length === 0 ? "No work yet — use Create to add a request, quote, or job." : "Nothing here yet."}
         </p>
       ) : (
-        <table className="bb-table">
+        <>
+        <div className="bb-rows cp-work-rows lg:hidden">
+          {deskWorkRows.map((row) => (
+            <Link prefetch={false} key={row.key} href={row.href} className="bb-row cp-wrow">
+              <span className="min-w-0 flex-1">
+                <span className="bb-name block truncate">{row.label}</span>
+                <span className="cp-wrow-sub">
+                  {row.type} · {shortDate(row.date, tz)}
+                </span>
+              </span>
+              <span className="cp-wrow-end">
+                <span className="ds-num">{row.amount !== null ? money(row.amount) : ""}</span>
+                <StatusChip kind={row.kind} status={row.status} />
+              </span>
+            </Link>
+          ))}
+        </div>
+        <table className="bb-table hidden lg:table">
           <thead>
             <tr>
               <th style={{ width: 104 }}>Type</th>
@@ -651,6 +530,7 @@ export default async function ContactDetailPage({
             ))}
           </tbody>
         </table>
+        </>
       )}
     </OpenSection>
     </div>
@@ -658,7 +538,7 @@ export default async function ContactDetailPage({
 
   // Desk summary strip: what they owe, what they've paid, and the facts
   const summary = (
-    <div className="cp-sum hidden lg:flex">
+    <div className="cp-sum flex">
       {seeMoney && (
         <Link prefetch={false} href="?work=invoices#work" className="cp-sum-lead">
           <span className="bb-label">Balance owed</span>
@@ -708,187 +588,6 @@ export default async function ContactDetailPage({
         {/* Main: work overview */}
         <div className="lg:col-span-2 space-y-4">
           {workTable}
-          <div className="ds-card ds-card-raised overflow-hidden lg:hidden">
-            <div className="flex items-baseline justify-between px-4 pt-4 pb-3 lg:px-5">
-              <h2 className="ds-heavy-h2">Work</h2>
-              {workRows.length > 0 && <span className="text-[13px] font-semibold text-[color:var(--ds-muted)]">{workRows.length} {workRows.length === 1 ? "item" : "items"}</span>}
-            </div>
-            {workRows.length === 0 ? (
-              <p className="px-4 py-10 text-sm text-gray-400 text-center">
-                No work yet — use Create to add a request, quote, or job.
-              </p>
-            ) : (
-              <div className="divide-y divide-gray-50">
-                <div className="hidden lg:grid grid-cols-[90px_1fr_110px_140px_90px_30px] gap-3 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
-                  <span>Item</span>
-                  <span></span>
-                  <span>Date</span>
-                  <span>Status</span>
-                  <span className="text-right">Amount</span>
-                  <span></span>
-                </div>
-                {workRows.map((row) => (
-                  <Link
-                    key={row.key}
-                    href={row.href}
-                    className="block px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors lg:grid lg:grid-cols-[90px_1fr_110px_140px_90px_30px] lg:items-center lg:gap-3"
-                  >
-                    {/* Phones: name + amount on the first line, then a quiet
-                        "Type · date" meta line with the status pill. */}
-                    <span className="hidden text-xs font-semibold text-gray-500 lg:block">
-                      {row.type}
-                    </span>
-                    <span className="flex items-baseline justify-between gap-3 lg:block lg:min-w-0">
-                      <span className="min-w-0 truncate text-sm font-medium text-gray-900 lg:block lg:truncate">
-                        {row.label}
-                      </span>
-                      {row.amount !== null && (
-                        <span className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900 lg:hidden">
-                          {money(row.amount)}
-                        </span>
-                      )}
-                    </span>
-                    <span className="hidden lg:block text-sm text-gray-500">
-                      {shortDate(row.date, tz)}
-                    </span>
-                    <span className="mt-1 flex items-center gap-2 lg:mt-0 lg:flex-col lg:items-start lg:gap-0.5">
-                      <span className="text-xs text-gray-500 lg:hidden">
-                        {row.type} · {shortDate(row.date, tz)}
-                      </span>
-                      <StatusChip kind={row.kind} status={row.status} />
-                      {row.viewed && (
-                        <span
-                          className="hidden lg:inline-flex items-center gap-1 text-[10px] text-gray-400"
-                          title="Client opened this document"
-                        >
-                          <Eye size={10} />
-                          Seen {shortDate(row.viewed, tz)}
-                        </span>
-                      )}
-                    </span>
-                    <span className="hidden text-sm font-semibold text-gray-900 lg:block lg:text-right">
-                      {row.amount !== null ? money(row.amount) : "—"}
-                    </span>
-                    <ChevronRight size={13} className="text-gray-300 hidden lg:block" />
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Phones: who they are, their cards and addresses, as before. At a
-              desk these sit in the right column (below). */}
-          <div className="space-y-4 lg:hidden">
-            {/* Contact info */}
-            <div className="ds-card p-4">
-              <SectionHeader title="Details" className="mb-3" />
-              <dl className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <dt className="text-gray-500 text-xs">Payment terms</dt>
-                  <dd className="text-gray-800">Net {contact.paymentTermsDays}</dd>
-                </div>
-                <div>
-                  <dt className="text-gray-500 text-xs">Lead source</dt>
-                  <dd className="text-gray-800">{contact.leadSource || "—"}</dd>
-                  {arrivalLines(sanitizeArrival(contact.leadArrival)).map((l) => (
-                    <dd key={l.label} className="truncate text-xs text-gray-500">
-                      {l.label}: {l.value}
-                    </dd>
-                  ))}
-                </div>
-                {contact.notes && (
-                  <div className="col-span-2">
-                    <dt className="text-gray-500 text-xs">Notes</dt>
-                    <dd className="text-gray-700 whitespace-pre-wrap">{contact.notes}</dd>
-                  </div>
-                )}
-              </dl>
-              {canSeeMoney(actor) && (
-                <PdfLink
-                  href={`/api/app/contacts/${contact.id}/statement-pdf`}
-                  className="mt-3 inline-block text-xs font-medium text-[color:var(--ds-primary)] hover:underline" fallbackName="statement.pdf">
-                  Download statement (PDF)
-                </PdfLink>
-              )}
-            </div>
-
-            {canSeeMoney(actor) && (
-              <SavedCardsCard
-                contactId={contact.id}
-                cards={contact.savedCards}
-                canManage={isManager(actor.role)}
-                pay={clientPayConfig(contact.company)}
-              />
-            )}
-
-            <AddressesCard
-              contactId={contact.id}
-              primary={
-                [contact.address, contact.city, contact.state, contact.zip]
-                  .filter(Boolean)
-                  .join(", ") || null
-              }
-              addresses={contact.addresses.map((a) => ({
-                id: a.id,
-                label: a.label,
-                address: a.address,
-                city: a.city,
-                state: a.state,
-                zip: a.zip,
-              }))}
-              history={Object.fromEntries(
-                contact.addresses.map((a) => [
-                  a.id,
-                  [
-                    ...contact.jobs
-                      .filter((j) => j.propertyId === a.id)
-                      .map((j) => ({
-                        key: `j-${j.id}`,
-                        kind: "Job",
-                        title: j.title,
-                        href: `/app/jobs/${j.id}`,
-                        date: (j.scheduledAt ?? j.createdAt).toISOString(),
-                      })),
-                    ...contact.quotes
-                      .filter((q) => q.propertyId === a.id)
-                      .map((q) => ({
-                        key: `q-${q.id}`,
-                        kind: "Quote",
-                        title: q.title || `Quote #${q.quoteNumber}`,
-                        href: `/app/quotes/${q.id}`,
-                        date: q.createdAt.toISOString(),
-                      })),
-                    ...contact.appointments
-                      .filter((ap) => ap.propertyId === a.id)
-                      .map((ap) => ({
-                        key: `a-${ap.id}`,
-                        kind: "Appointment",
-                        title: ap.title,
-                        href: `/app/appointments/${ap.id}`,
-                        date: ap.scheduledAt.toISOString(),
-                      })),
-                  ].sort((x, y) => (y.date ?? "").localeCompare(x.date ?? "")),
-                ])
-              )}
-            />
-
-            <PeopleCard
-              contactId={contact.id}
-              primaryName={`${contact.firstName} ${contact.lastName}`.trim()}
-              primaryRole={contact.companyName}
-              people={contact.people.map((p) => ({
-                id: p.id,
-                firstName: p.firstName,
-                lastName: p.lastName,
-                role: p.role,
-                email: p.email,
-                phone: p.phone,
-                notes: p.notes,
-              }))}
-            />
-
-          </div>
-
           {/* Notes & activity (same pattern as job notes) */}
           <div className="ds-card">
             <div className="px-5 py-4 border-b border-gray-100">
@@ -925,7 +624,7 @@ export default async function ContactDetailPage({
           {/* Desk (2026-11-24): the inspector, quieter — contact, addresses, cards
               on file, portal, fields, stage, owner, calls, then the account details.
               lg:order-* sets the desk order; phones keep the old order. */}
-          <div className="hidden lg:order-1 lg:block cp-desk">
+          <div className="lg:order-1 cp-desk">
             <PeopleCard
               contactId={contact.id}
               primaryName={`${contact.firstName} ${contact.lastName}`.trim()}
@@ -942,7 +641,7 @@ export default async function ContactDetailPage({
             />
 
           </div>
-          <div className="hidden lg:order-2 lg:block cp-desk">
+          <div className="lg:order-2 cp-desk">
             <AddressesCard
               contactId={contact.id}
               primary={
@@ -995,7 +694,7 @@ export default async function ContactDetailPage({
             />
 
           </div>
-          <div className="hidden lg:order-3 lg:block cp-desk">
+          <div className="lg:order-3 cp-desk">
             {canSeeMoney(actor) && (
               <SavedCardsCard
                 contactId={contact.id}
@@ -1006,7 +705,7 @@ export default async function ContactDetailPage({
             )}
 
           </div>
-          <div className="hidden lg:order-9 lg:block cp-desk">
+          <div className="lg:order-9 cp-desk">
             {/* Contact info */}
             <div className="ds-card p-4">
               <SectionHeader title="Details" className="mb-3" />

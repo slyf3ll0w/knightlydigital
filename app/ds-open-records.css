@@ -84,3 +84,84 @@
   /* Leads: the board keeps its full-height frame; the page around it opens */
   .rx-leads { background: var(--ds-surface); }
 }
+
+/* ── Phones (2026-11-25, the phone pass): the same open page as the desk.
+   Pages opt in with `rx-phone` on their DsPage. One tree at every size —
+   the old phone cards/title rows are gone; this only resizes for a thumb. */
+@media (max-width: 1023px) {
+  .rx-phone .ds-pagehead { margin-bottom: 20px; gap: 14px; }
+  .rx-phone .ds-pagehead .ds-title { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; }
+  .rx-phone .ds-pagehead .ds-btn { height: 40px; }
+
+  /* cards open onto the page: no box, a hairline above */
+  .rx-phone .rx-open-card {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    border-top: 1px solid var(--ds-line-strong) !important;
+    border-radius: 0 !important;
+  }
+  .rx-phone .rx-open-card.p-5,
+  .rx-phone section.rx-open-card { padding-left: 0 !important; padding-right: 0 !important; }
+  .rx-phone .rx-open-card :is(.ds-trow, .px-4) { padding-left: 0; padding-right: 0; }
+  .rx-phone .rx-open-card .rx-foot { background: transparent !important; padding-left: 0; padding-right: 0; }
+  .rx-phone .rx-open-card .ds-trow:active { background: var(--ds-surface-2); }
+
+  /* a card's title becomes the open section title, with the two-color bar */
+  .rx-phone .rx-cardh {
+    position: relative;
+    padding-bottom: 10px;
+    font-size: 17px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em;
+    color: var(--ds-ink) !important;
+  }
+  .rx-phone .rx-cardh::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 34px;
+    height: 3px;
+    border-radius: 1px;
+    background: linear-gradient(90deg, var(--ds-primary) 0 66%, var(--ds-secondary) 66%);
+  }
+  .rx-phone .rx-h2 { margin-bottom: 4px; }
+  .rx-phone .rx-bad { color: var(--ds-bad) !important; font-weight: 600; }
+
+  /* document pages: crumbs (the first one is the way back) + state over the title */
+  .rx-phone .rx-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 8px; font-size: 13.5px; color: var(--ds-muted); }
+  .rx-phone .rx-crumbs > a:first-child { color: var(--ds-primary); font-weight: 600; }
+  .rx-phone .rx-crumbs .rx-crumb-link { color: var(--ds-primary); font-weight: 600; }
+  .rx-phone .rx-dochead { margin-bottom: 20px !important; }
+  .rx-phone .rx-dochead h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.03em; }
+  .rx-phone .rx-facts {
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    border-top: 1px solid var(--ds-line-strong);
+    border-bottom: 1px solid var(--ds-line-strong);
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* lists: search on its own line, then the underline tabs (they scroll) */
+  .rx-phone .rx-tabsrow { margin: 0 0 4px; }
+  .rx-phone .rx-tabsrow .clx-filters { flex-wrap: wrap; gap: 0 10px; min-height: 0; }
+  .rx-phone .rx-tabsrow .clx-search { flex: 1 1 100%; width: 100%; height: 42px; margin-bottom: 6px; }
+  .rx-phone .rx-tabsrow .clx-search input { font-size: 16px; }
+  .rx-phone .rx-tabsrow .clx-tabs { flex: 1 1 0; min-width: 0; height: 44px; overflow-x: auto; scrollbar-width: none; }
+  .rx-phone .rx-tabsrow .clx-tabs::-webkit-scrollbar { display: none; }
+  .rx-phone .rx-tabsrow .clx-tab { flex: none; white-space: nowrap; padding: 0 10px; }
+  .rx-phone .rx-tabsrow .clx-tab:first-child { padding-left: 0; }
+  .rx-phone .rx-tabsrow .clx-tab:first-child.is-on::after { left: 0; }
+  .rx-phone .rx-tabsrow .clx-filters-end { margin-left: 0; flex: none; }
+  .rx-phone .rx-tabsrow + .rx-open-card,
+  .rx-phone .rx-tabsrow ~ .rx-open-card { border-top: 0 !important; }
+
+  /* Tasks: whose done list, and the grouped list's open sections */
+  .rx-phone .rx-scope { display: inline-flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--ds-surface-2); box-shadow: inset 0 0 0 1px var(--ds-line); }
+  .rx-phone .rx-scope-btn { display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 7px; font-size: 13px; font-weight: 500; color: var(--ds-muted); }
+  .rx-phone .rx-scope-btn.is-on { background: var(--ds-surface); color: var(--ds-ink); font-weight: 600; box-shadow: 0 1px 2px rgba(10, 19, 40, 0.12); }
+  .rx-tgroups .rx-open-card { margin-top: 2px; }
+}

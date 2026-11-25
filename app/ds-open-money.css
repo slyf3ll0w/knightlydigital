@@ -84,3 +84,69 @@
     padding-left: 0; padding-right: 0; border-top: 1px solid var(--ds-line-strong);
   }
 }
+
+/* ══ Phones (2026-11-25, the phone pass): the same open page, folded to a
+   thumb. .mx-ph shows only on phones, .mx-desk only at lg. Invoices: each
+   ledger row is two lines (name + "#, due" | amount + status); the row
+   underline draws on press in the row's tone. ══ */
+.mx-ph { display: none; }
+@media (max-width: 1023px) {
+  .mx-ph { display: block; }
+  .mx-desk { display: none !important; }
+
+  .mx-filters { flex-wrap: wrap; gap: 8px; min-height: 0; border-bottom: 0; }
+  .mx-search { order: 0; flex: 1 1 0; width: auto; height: 42px; }
+  .mx-search input { font-size: 16px; } /* iOS: no zoom on focus */
+  .mx-filters-end { order: 1; margin-left: 0; }
+  .mx-tabs { order: 2; flex: 1 1 100%; height: 44px; border-bottom: 1px solid var(--ds-line-strong); }
+  .mx-tab { padding: 0 9px; font-size: 13.5px; }
+  .mx-tab:first-child { padding-left: 0; }
+  .mx-tab:first-child.is-on::after { left: 0; }
+
+  .mx-head { display: none; }
+  .mx-table-inv .mx-row {
+    grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name amt" "name st";
+    column-gap: 12px; row-gap: 2px; min-height: 64px; padding: 10px 0;
+  }
+  .mx-table-inv .mx-row > .mx-name { grid-area: name; }
+  .mx-table-inv .mx-row > .mx-c-amt { grid-area: amt; font-size: 14.5px; font-weight: 600; color: var(--ds-ink); }
+  .mx-table-inv .mx-row > .mx-c-amt.mx-late { color: var(--ds-bad); }
+  .mx-table-inv .mx-row > .mx-c-st { grid-area: st; justify-self: end; }
+  .mx-table-inv .mx-row > .mx-c-n,
+  .mx-table-inv .mx-row > .mx-c-iss,
+  .mx-table-inv .mx-row > .mx-c-due,
+  .mx-table-inv .mx-row > .mx-c-tot,
+  .mx-table-inv .mx-row > .mx-c-bal,
+  .mx-table-inv .mx-row > .mx-chev { display: none; }
+  .mx-mono { width: 38px; height: 38px; font-size: 12.5px; }
+  .mx-name { gap: 12px; }
+  .mx-name-t { font-size: 15.5px; font-weight: 600; }
+  .mx-row:hover { background: transparent; }
+  .mx-table-inv .mx-foot { grid-template-columns: 1fr auto; }
+  .mx-table-inv .mx-foot > span:not(:first-child):not(.mx-ph) { display: none; }
+
+  /* press: the row underline (.ds-trow, app/ds.css) draws while the finger is down */
+  .mx-row.ds-trow:active::after { transform: scaleX(1); }
+  .mx-row.ds-trow:active .ds-trow-name { transform: translateX(3px); }
+
+  /* the money picture: open on the page, full bleed hairlines */
+  .bb-open .mx-pic .ds-pic { margin-bottom: 4px; background: transparent; box-shadow: none; border-radius: 0; padding-left: 0; padding-right: 0; border-top: 1px solid var(--ds-line-strong); }
+
+  /* Payments: the cards sit open on the page as on a desk */
+  .bb-open .mx-pay .ds-pay { background: transparent; box-shadow: none; border-radius: 0; border-top: 1px solid var(--ds-line-strong); border-bottom: 1px solid var(--ds-line-strong); }
+  .bb-open .mx-pay .ds-pay-main { padding: 16px 0 14px; }
+  .bb-open .mx-pay .ds-pay-side { background: transparent; padding: 14px 0; border-top: 1px solid var(--ds-line); }
+  .bb-open .mx-pay .ds-card:not(.ds-pay) { background: transparent; box-shadow: none; border-radius: 0; border-top: 1px solid var(--ds-line-strong); }
+  .bb-open .mx-pay .mx-thead { display: none; }
+  .bb-open .mx-pay .mx-prow { padding-left: 0; padding-right: 0; }
+}
+
+/* Phone header for the open pages in this group (quotes, jobs, invoices,
+   payments): title 28/700, the note under it, actions wrap below */
+@media (max-width: 1023px) {
+  .bb-open .ds-pagehead { margin-bottom: 18px; gap: 12px; align-items: flex-start; }
+  .bb-open .ds-pagehead > div:first-child { flex: 1 1 100%; }
+  .bb-open .ds-pagehead .ds-title { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; }
+  .bb-open .ds-pagehead .ds-pagenote { margin-top: 4px; }
+  .bb-open .ds-pagehead > .flex { width: 100%; }
+}

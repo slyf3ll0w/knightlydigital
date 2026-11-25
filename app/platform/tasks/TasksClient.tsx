@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Bell, Check, ChevronRight, Flag, Pencil, Plus, RotateCcw, Trash2, Users } from "lucide-react";
 import { Button, Card, DsPage, Hint, PageHeader } from "@/components/ds";
-import { Segment, SegmentedRow } from "@/components/FilterChips";
+import TitleSentinel from "@/components/TitleSentinel";
 import SwipeRow from "@/components/SwipeRow";
 import RowActions from "@/components/QuickMenu";
 import TaskCheck from "@/components/tasks/TaskCheck";
@@ -392,49 +392,21 @@ export default function TasksClient({
     .filter(Boolean)
     .join(" · ");
   return (
-    <DsPage open className="rx-tasks">
+    <DsPage open className="rx-tasks rx-phone">
       <PageHeader
-        eyebrow={<span className="hidden lg:inline">{contextLine}</span>}
+        eyebrow={contextLine}
         title="Tasks"
         info={pageInfo}
         actions={
-          <>
-            <span className="hidden lg:flex">
-              <Button icon={Plus} onClick={openNew}>
-                New task
-              </Button>
-            </span>
-            <span className="lg:hidden">
-              <button type="button" onClick={openNew} aria-label="New task" className="ds-disc">
-                <Plus size={18} strokeWidth={2.4} />
-              </button>
-            </span>
-          </>
+          <Button icon={Plus} onClick={openNew}>
+            New task
+          </Button>
         }
       />
+      <span className="hidden"><TitleSentinel title="Tasks" /></span>
 
-      {/* Phones: segmented control, frosted and sticky while the list scrolls under it */}
-      <div className="glass-bar sticky top-0 z-20 -mx-4 mt-4 border-b px-4 py-2 lg:hidden">
-        <SegmentedRow>
-          {tabs.map((t) => (
-            <Segment key={t.key} active={tabActive(t.key)} href={hrefFor(t.key)}>
-              {t.label}
-              {t.count ? <span className="ml-0.5 text-[11px] opacity-80">{t.count}</span> : null}
-            </Segment>
-          ))}
-        </SegmentedRow>
-        {doneView && canAssign && (
-          <SegmentedRow className="mt-2">
-            {doneScopes.map((s) => (
-              <Segment key={s.key} active={view === s.key} href={hrefFor(s.key)}>
-                {s.label}
-              </Segment>
-            ))}
-          </SegmentedRow>
-        )}
-      </div>
-      {/* Desktop: the open page's underline tabs with counts */}
-      <div className="rx-tabsrow hidden lg:block">
+      {/* The open page's underline tabs with counts (phones: they scroll) */}
+      <div className="rx-tabsrow">
         <div className="clx-filters">
           <nav className="clx-tabs" aria-label="Show">
             {tabs.map((t) => (
@@ -496,15 +468,15 @@ export default function TasksClient({
               </section>
             ))}
           </div>
-          {/* Phones: the grouped list */}
-          <div className="mt-4 space-y-6 lg:hidden">
+          {/* Phones: the grouped list, open sections (swipe a row for Done / Delete) */}
+          <div className="rx-tgroups mt-6 space-y-7 lg:hidden">
             {groups.map((g, gi) => (
               <section key={g.key} className="ds-rise" style={{ "--ds-i": gi } as React.CSSProperties}>
-                <h2 className="mb-1.5 flex items-center gap-3 px-1 text-[13px] font-semibold text-[color:var(--ds-ink-2)]">
-                  <span className={g.key === "overdue" ? "text-[color:var(--ds-bad)]" : ""}>{g.label}</span>
-                  <span className="numeral-ledger ml-auto font-normal text-[color:var(--ds-faint)]">{g.rows.length}</span>
+                <h2 className="bb-h2 rx-h2">
+                  <span className={`bb-h2-text ${g.key === "overdue" ? "rx-bad" : ""}`}>{g.label}</span>
+                  <span className="bb-h2-n">{g.rows.length}</span>
                 </h2>
-                <Card className="ds-divide overflow-hidden">
+                <Card className="ds-divide rx-open-card overflow-hidden">
                   <div className="divide-y divide-[color:var(--ds-line)]">{g.rows.map(phoneRow)}</div>
                 </Card>
               </section>

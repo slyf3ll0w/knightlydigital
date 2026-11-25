@@ -39,7 +39,7 @@ test.describe("quick-action menus", () => {
     const job = await api.post("/api/app/jobs", { contactId, title: `${runTag} right-click job` });
     const { context, page } = await signedIn(browser, false);
     await page.goto(`${state.baseUrl}/app/jobs`);
-    // The list renders a phone tree and a desktop tree; take the row this width shows
+    // One tree at every width now; :visible still skips any hidden copy of the link
     const row = page.locator(`a[href="/app/jobs/${job.id}"]:visible`).first();
     await expect(row).toBeVisible();
     await row.click({ button: "right" });
@@ -62,7 +62,7 @@ test.describe("quick-action menus", () => {
     const job = await api.post("/api/app/jobs", { contactId, title: `${runTag} held job` });
     const { context, page } = await signedIn(browser, true);
     await page.goto(`${state.baseUrl}/app/jobs`);
-    // The list renders a phone tree and a desktop tree; take the row this width shows
+    // One tree at every width now; :visible still skips any hidden copy of the link
     const row = page.locator(`a[href="/app/jobs/${job.id}"]:visible`).first();
     await expect(row).toBeVisible();
     // The list can re-render once more right after first paint (live

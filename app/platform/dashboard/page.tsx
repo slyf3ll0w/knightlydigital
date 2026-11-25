@@ -8,16 +8,11 @@ import {
   Briefcase,
   Receipt,
   ChevronRight,
-  Phone,
-  Video,
-  MapPin,
   CheckCircle2,
   CalendarPlus,
   CalendarCheck,
   LifeBuoy,
-  Timer,
   Repeat,
-  Navigation,
   CalendarDays,
   Plus,
   SquareKanban,
@@ -26,28 +21,22 @@ import {
 import { money, appointmentTypeLabel } from "@/lib/statuses";
 import { invoiceBalance } from "@/lib/payments";
 import { SECTION_HUES } from "@/lib/section-colors";
-import { formatDuration, mapsHref, mapsSearchHref } from "@/lib/time-entries";
+import { formatDuration } from "@/lib/time-entries";
 import { renderMessageTemplate, DEFAULT_ON_MY_WAY_TEMPLATE } from "@/lib/messaging";
 import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import { startOfDayIn, startOfMonthIn, startOfWeekIn, zonedMidnight, zonedParts } from "@/lib/timezone";
 import GetStartedCard from "./GetStartedCard";
 import GetStartedRow from "../settings/GetStartedRow";
 import PayoutNudge from "./PayoutNudge";
-import TalkToAtlas from "@/components/TalkToAtlas";
 import AtlasFrontDoor from "@/components/AtlasFrontDoor";
 import { loadGetStarted } from "@/lib/get-started";
 import { featureAllowedFor } from "@/lib/plan-gate";
 import DashboardTasks from "./DashboardTasks";
-import DayLine from "./DayLine";
-import MoneyPicture from "./MoneyPicture";
 import Monogram from "@/components/Monogram";
-import { PicLink } from "@/components/ListBands";
 import { dashboardTasks } from "@/lib/tasks";
 import UpNextActions from "./UpNextActions";
-import AtlasHomeButton from "@/components/AtlasHomeButton";
-import SwipeRowContact from "@/components/SwipeRowContact";
 import { PushNudge } from "@/components/PushNotifications";
-import { BandBody, Button, Card, Chip, DsPage, ListRow, OpenSection, PageHeader, SectionTitle } from "@/components/ds";
+import { BandBody, Button, Chip, DsPage, OpenSection, PageHeader } from "@/components/ds";
 import {
   requirePageActor,
   isManager,
@@ -60,7 +49,6 @@ import {
   appointmentScope,
 } from "@/lib/permissions";
 
-const apptIcons = { PHONE_CALL: Phone, VIDEO_CALL: Video, IN_PERSON: MapPin } as const;
 
 export default async function DashboardPage() {
   const actor = await requirePageActor();
@@ -458,7 +446,6 @@ export default async function DashboardPage() {
   // Phones show only what's worth acting on from the couch: the top four,
   // urgency-ordered, drafts left to their list pages. Desktop keeps the
   // full grid.
-  const needsMobile = needs.filter((n) => !("minor" in n && n.minor)).slice(0, 4);
 
   // One sorted "today" list: jobs + sales appointments
   // Compact ledger time ("10:00a") — fits the rail column without wrapping
@@ -619,279 +606,48 @@ export default async function DashboardPage() {
   const dateLine = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: tz });
   const rise = (i: number) => ({ "--ds-i": i }) as React.CSSProperties;
 
-  const heroEl = upNext && (
-    <div className="ds-hero ds-rise p-5 lg:p-6" style={rise(1)}>
-      <Link prefetch={false} href={upNext.href} className="relative block active:opacity-95">
-        <div className="flex items-center justify-between gap-3">
-          <span className="ds-hero-pill">
-            {upNext === clockedHero ? "On the job" : upNext.apptType ? "Up next · appointment" : "Up next"}
-          </span>
-          {seePrices && upNext.value > 0 && (
-            <span className="text-[15px] font-semibold opacity-90">{money(upNext.value)}</span>
-          )}
-        </div>
-        <p className="mt-4 text-[34px] font-semibold leading-none tracking-[-0.03em] lg:text-[40px]">
-          {upNext.time === "Anytime" ? "Anytime today" : upNext.time}
-        </p>
-        <p className="mt-3 truncate text-[17px] font-semibold">{upNext.title}</p>
-        <p className="mt-0.5 truncate text-[13.5px] opacity-80">{upNext.heroSub}</p>
+  // Up next (phones): the stop you're on or heading to, in the open style —
+  // its time large, then Navigate / Call / On my way / Clock in. The desk
+  // reads the whole day in its table instead.
+  const upNextEl = upNext && (
+    <OpenSection
+      title={upNext === clockedHero ? "On the job" : upNext.apptType ? "Up next · appointment" : "Up next"}
+      className="hp-next lg:hidden"
+    >
+      <Link prefetch={false} href={upNext.href} className="hp-next-link">
+        <span className="hp-next-top">
+          <span className="hp-next-time">{upNext.time === "Anytime" ? "Anytime today" : upNext.time}</span>
+          {seePrices && upNext.value > 0 && <span className="hp-next-value ds-num">{money(upNext.value)}</span>}
+        </span>
+        <span className="hp-next-title">{upNext.title}</span>
+        <span className="hp-next-sub">{upNext.heroSub}</span>
       </Link>
-      <UpNextActions
-        kind={upNextJob ? "job" : "appointment"}
-        id={upNextJob ? upNextJob.id : upNext.id.slice(2)}
-        phone={upNext.phone ?? null}
-        address={upNext.address ?? null}
-        omwMessage={upNextOmwMessage}
-        omwSentAt={upNextJob?.onMyWaySentAt?.toISOString() ?? null}
-        clockEntry={
-          upNextJob && myOpenEntry?.jobId === upNextJob.id
-            ? { id: myOpenEntry.id, startedAt: myOpenEntry.startedAt.toISOString() }
-            : null
-        }
-        canClock={upNextJob?.status === "ACTIVE" && actor.role !== "SALES" && timesheetsAllowed}
-        apptType={upNext.apptType}
-        meetingLink={upNext.meetingLink}
-      />
-    </div>
-  );
-
-  // The money picture (replaces the three number cards, 2026-11-23)
-  const moneyEl = (phone: boolean) =>
-    seePerformance && (
-      <MoneyPicture
-        phone={phone}
-        monthName={now.toLocaleDateString("en-US", { month: "long", timeZone: tz })}
-        days={monthDays}
-        todayIndex={local.d - 1}
-        lastMonth={lastMonthDaily}
-        owed={receivableTotal}
-        owedClients={owingAll.slice(0, phone ? 5 : 7)}
-        owingCount={Math.max(receivableClients, owingAll.length)}
-        pastDue={pastDueOwed}
-        booked={weekRevenue}
-        bookedJobs={upcomingJobsWeek.length}
-        week={weekBooked}
-      />
-    );
-
-  // One row per stop. Jobs wear the primary dot, appointments the secondary.
-  const todayRow = (item: (typeof todayItems)[number], phone: boolean) => {
-    const Icon = item.apptType ? apptIcons[item.apptType as keyof typeof apptIcons] : null;
-    const row = (
-      <div className="flex items-center">
-        <ListRow
-          href={item.href}
-          className="min-w-0 flex-1"
-          lead={
-            <span className="flex w-[74px] shrink-0 items-center gap-2.5">
-              <span className="ds-num w-12 text-right text-[12.5px] font-semibold text-[color:var(--ds-ink-2)]">
-                {item.time}
-              </span>
-              <span
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
-                style={{ background: item.apptType ? "var(--ds-secondary-soft)" : "var(--ds-primary-soft)" }}
-              >
-                {Icon ? (
-                  <Icon size={12} strokeWidth={2.4} style={{ color: "var(--ds-secondary)" }} />
-                ) : (
-                  <span className="h-2 w-2 rounded-full" style={{ background: "var(--ds-primary)" }} />
-                )}
-              </span>
-            </span>
+      <div className="hp-next-acts">
+        <UpNextActions
+          kind={upNextJob ? "job" : "appointment"}
+          id={upNextJob ? upNextJob.id : upNext.id.slice(2)}
+          phone={upNext.phone ?? null}
+          address={upNext.address ?? null}
+          omwMessage={upNextOmwMessage}
+          omwSentAt={upNextJob?.onMyWaySentAt?.toISOString() ?? null}
+          clockEntry={
+            upNextJob && myOpenEntry?.jobId === upNextJob.id
+              ? { id: myOpenEntry.id, startedAt: myOpenEntry.startedAt.toISOString() }
+              : null
           }
-          title={phone ? item.title : item.primary}
-          sub={phone ? item.sub : item.detail}
-          trail={
-            seePrices && item.value > 0 ? (
-              <span className="ds-num shrink-0 text-[13.5px] font-semibold text-[color:var(--ds-ink)]">{money(item.value)}</span>
-            ) : undefined
-          }
+          canClock={upNextJob?.status === "ACTIVE" && actor.role !== "SALES" && timesheetsAllowed}
+          apptType={upNext.apptType}
+          meetingLink={upNext.meetingLink}
         />
-        {phone && item.address && (
-          <a
-            href={mapsSearchHref(item.address)}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Directions to ${item.address}`}
-            className="ds-disc mr-3"
-          >
-            <Navigation size={16} strokeWidth={2.1} />
-          </a>
-        )}
       </div>
-    );
-    return phone ? (
-      <SwipeRowContact key={item.id} phone={item.phone} contactId={item.contactId} name={item.contactName}>
-        {row}
-      </SwipeRowContact>
-    ) : (
-      <div key={item.id}>{row}</div>
-    );
-  };
-
-  const needsRows = (list: typeof needs) =>
-    list.map((n) => (
-      <ListRow
-        key={n.href}
-        href={n.href}
-        lead={<span className={`ds-count ${n.urgent ? "ds-count-bad" : ""}`}>{n.count}</span>}
-        title={n.title}
-        sub={n.action}
-        trail={
-          <span className="flex shrink-0 items-center gap-2">
-            {n.urgent && <Chip tone="bad">Overdue</Chip>}
-            <ChevronRight size={16} className="text-[color:var(--ds-faint)]" />
-          </span>
-        }
-      />
-    ));
+    </OpenSection>
+  );
 
   // The caught-up line varies per visit (lib/empty-lines.ts)
   const caughtUp = dealLine("caught-up");
 
-  const allClear = (
-    <Card className="flex items-center gap-3 px-5 py-4">
-      <CheckCircle2 size={20} className="shrink-0" style={{ color: "var(--ds-good)" }} />
-      <p className="text-[14.5px] font-medium">{caughtUp}</p>
-    </Card>
-  );
-
   const needsInfo =
     "Work waiting on you, most urgent first: past-due invoices, bookings to approve and overdue tasks lead the list. Tap a row to jump straight to it.";
-
-  // Today: one panel that draws the day (the line) and lists it underneath.
-  // Phones list what's after the hero; the desk lists the whole day.
-  const todayTitle =
-    todayItems.length === 0 ? (
-      "Nothing on the books today"
-    ) : (
-      <>
-        {todayJobs > 0 && (
-          <>
-            <b>{todayJobs}</b> {plural(todayJobs, "job", "jobs")}
-          </>
-        )}
-        {todayJobs > 0 && todayAppts > 0 && " and "}
-        {todayAppts > 0 && (
-          <>
-            <b>{todayAppts}</b> {plural(todayAppts, "appointment", "appointments")}
-          </>
-        )}{" "}
-        today
-        {allDone ? (
-          <span className="ds-pic-quiet"> · all done</span>
-        ) : upNext && upNext !== clockedHero && upNext.time !== "Anytime" ? (
-          <span className="ds-pic-quiet"> · next at {upNext.time}</span>
-        ) : null}
-      </>
-    );
-  const todayPanel = (phone: boolean) => {
-    const rows = phone ? laterToday : todayItems;
-    return (
-      <section className="ds-rise" style={rise(phone ? 3 : 4)} data-tour="today">
-        <div className="ds-pic hm-today">
-          <div className="ds-pic-head">
-            <h2 className="ds-pic-title">{todayTitle}</h2>
-            <div className="ds-pic-aside">
-              <PicLink href="/app/schedule">{phone ? "Schedule" : "Open schedule"}</PicLink>
-            </div>
-          </div>
-          <DayLine
-            pins={dayPins}
-            ticks={dayTicks}
-            start={startOfDay.getTime() + dayStartH * 3_600_000}
-            end={startOfDay.getTime() + dayEndH * 3_600_000}
-            serverNow={nowT}
-            phone={phone}
-          />
-          {todayItems.length === 0 ? (
-            <div className="hm-today-clear">
-              <p className="ds-small">
-                {nextOnBooks?.scheduledAt ? (
-                  <>
-                    Next up:{" "}
-                    <Link prefetch={false} href={`/app/jobs/${nextOnBooks.id}`} className="hm-today-next">
-                      {nextOnBooks.scheduledAt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: tz })}
-                      {nextOnBooks.scheduledAnytime ? "" : ` · ${fmtTime(nextOnBooks.scheduledAt)}`} · {nextOnBooks.title}
-                      {nextOnBooks.contact ? ` · ${nextOnBooks.contact.firstName} ${nextOnBooks.contact.lastName}` : ""}
-                    </Link>
-                  </>
-                ) : (
-                  "Nothing scheduled ahead yet."
-                )}
-              </p>
-              <span className="flex flex-wrap gap-2">
-                <Link prefetch={false} href="/app/jobs/new" className="ds-btn ds-btn-primary ds-btn-sm">
-                  <Plus size={15} strokeWidth={2.4} />
-                  Schedule a job
-                </Link>
-                {!phone && (
-                  <Link prefetch={false} href="/app/schedule" className="ds-btn ds-btn-outline ds-btn-sm">
-                    <CalendarDays size={15} strokeWidth={2.2} />
-                    Open schedule
-                  </Link>
-                )}
-              </span>
-            </div>
-          ) : rows.length === 0 ? (
-            <p className="hm-today-only ds-small">That&apos;s your only {onlyKind} today. Nothing after it.</p>
-          ) : (
-            <div className="hm-today-list ds-divide">{rows.map((item) => todayRow(item, phone))}</div>
-          )}
-        </div>
-        {todayTasks.length > 0 && (
-          <div className="mt-3">
-            <DashboardTasks tasks={todayTasks} phone={phone} />
-          </div>
-        )}
-      </section>
-    );
-  };
-
-  const onClockEl = isManager(actor.role) && onClock.length > 0 && (
-    <section>
-      <SectionTitle info="Everyone clocked in right now, with how long they've been on and where they clocked in.">
-        On the clock
-      </SectionTitle>
-      <Card className="ds-divide overflow-hidden">
-        {onClock.map((e) => (
-          <ListRow
-            key={e.id}
-            href={e.job ? `/app/jobs/${e.job.id}` : undefined}
-            lead={
-              // The ring fills over an 8-hour day; the live dot says "on now"
-              <span
-                className="hm-clock-ring"
-                style={{ "--fill": `${Math.min(100, ((now.getTime() - e.startedAt.getTime()) / (8 * 3_600_000)) * 100)}%` } as React.CSSProperties}
-                title={`${formatDuration(now.getTime() - e.startedAt.getTime())} of an 8-hour day`}
-              >
-                <Monogram name={e.user.name ?? "Teammate"} size={34} />
-                <span className="hm-clock-live" aria-hidden />
-              </span>
-            }
-            title={e.user.name}
-            sub={e.job ? e.job.title : "General time"}
-            trail={
-              <span className="shrink-0 text-right">
-                <span className="ds-num block text-[13.5px] font-semibold">{formatDuration(now.getTime() - e.startedAt.getTime())}</span>
-                <span className="ds-small block">
-                  since {e.startedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz })}
-                </span>
-              </span>
-            }
-          />
-        ))}
-        <div className="flex gap-1 px-2 py-1.5">
-          <Button href="/app/team-map" variant="ghost" size="sm" icon={MapPin} className="flex-1">
-            Team map
-          </Button>
-          <Button href="/app/timesheets" variant="ghost" size="sm" icon={Timer} className="flex-1">
-            Timesheets
-          </Button>
-        </div>
-      </Card>
-    </section>
-  );
 
   const footer = (
     <>
@@ -978,7 +734,7 @@ export default async function DashboardPage() {
             title={greetingTitle}
             info={pageInfo}
             actions={
-              <span className="hidden gap-2 lg:flex">
+              <span className="flex gap-2">
                 <Button href="/app/schedule" variant="outline" icon={CalendarDays}>
                   Schedule
                 </Button>
@@ -991,39 +747,11 @@ export default async function DashboardPage() {
       }
     >
 
-      {/* ─────────────── Phone ─────────────── */}
-      <div className="mt-6 flex flex-col gap-7 lg:hidden">
-        {/* Voice first: the talk screen is the easiest way to run the day
-            from a truck, so it sits at the top of Home (2026-10-23). */}
-        <TalkToAtlas />
-        {/* The Get started checklist comes first on phones: it used to be the
-            last thing on the page, under three $0 stats (audit 2026-10-12) */}
-        {payoutNudge && <PayoutNudge />}
-        {showSetupCard && getStarted && <GetStartedCard data={getStarted} />}
-        {heroEl}
-
-        {todayPanel(true)}
-
-        {moneyEl(true)}
-
-        <AtlasHomeButton appearance="ds" />
-
-        <section className="ds-rise" style={rise(4)} data-tour="workflow">
-          <SectionTitle info={needsInfo}>Needs you</SectionTitle>
-          {needsMobile.length === 0 ? allClear : <Card className="ds-divide overflow-hidden">{needsRows(needsMobile)}</Card>}
-        </section>
-
-        {onClockEl}
-
-        <PushNudge />
-        {footer}
-      </div>
-
-      {/* ─────────────── Desktop (the branded header, 2026-11-24) ───────────────
+      {/* ─────────────── One tree for every size (phones too, 2026-11-25) ───────────────
           The band carries the greeting; under it the page is open: what needs
-          you beside the month's money, then today as a plain table. The Up next
-          hero and the day/money pictures stay on phones. */}
-      <BandBody className="hidden lg:flex">
+          you beside the month's money, then today. Phones add Up next on top
+          (app/ds-phone-home.css styles the phone sizes). */}
+      <BandBody>
         {/* Talk to Atlas: the front door, first under the band (the example
             request is dealt here so the first paint already has it) */}
         <AtlasFrontDoor example={Math.floor(Math.random() * 1000)} />
@@ -1034,6 +762,8 @@ export default async function DashboardPage() {
           </div>
         )}
         <PushNudge />
+
+        {upNextEl}
 
         <div className={seePerformance ? "bb-split" : ""}>
           <OpenSection
@@ -1152,7 +882,23 @@ export default async function DashboardPage() {
               </Button>
             </div>
           ) : (
-            <table className="bb-table">
+            <>
+            <div className="bb-rows hp-today lg:hidden">
+              {todayItems.map((item, i) => {
+                const st = todayStatus(item);
+                return (
+                  <Link prefetch={false} key={item.id} href={item.href} className="bb-row bb-in" style={rise(i)}>
+                    <span className="hp-today-time ds-num">{item.time}</span>
+                    <span className="bb-row-main">
+                      <span className="bb-row-title">{item.contactName || item.title}</span>
+                      <span className="bb-row-sub">{item.contactName ? item.title : item.detail || "Unassigned"}</span>
+                    </span>
+                    <Chip tone={st.tone}>{st.label}</Chip>
+                  </Link>
+                );
+              })}
+            </div>
+            <table className="bb-table hidden lg:table">
               <thead>
                 <tr>
                   <th style={{ width: 84 }}>Time</th>
@@ -1195,6 +941,7 @@ export default async function DashboardPage() {
                 })}
               </tbody>
             </table>
+            </>
           )}
           {todayTasks.length > 0 && (
             <div className="mt-4">

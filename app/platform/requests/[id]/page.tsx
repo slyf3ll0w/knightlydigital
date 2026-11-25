@@ -7,7 +7,6 @@ import { shortDate, money } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import CallLink from "@/components/CallLink";
 import { Chip, DsPage } from "@/components/ds";
-import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import RequestActions from "./RequestActions";
 import BookingApprovalBanner from "./BookingApprovalBanner";
@@ -52,11 +51,7 @@ export default async function RequestDetailPage({
   const tz = company?.timezone ?? "America/Chicago";
 
   return (
-    <DsPage open className="rx-request">
-      <div className="flex items-center gap-3 mb-4 lg:hidden">
-        <BackLink href="/app/requests" />
-        <StatusChip kind="request" status={request.status} />
-      </div>
+    <DsPage open className="rx-request rx-phone">
 
       {request.status === "NEEDS_APPROVAL" && (
         <BookingApprovalBanner
@@ -78,8 +73,8 @@ export default async function RequestDetailPage({
 
       <div className="rx-dochead flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="min-w-0">
-        {/* Desktop: crumbs + state above the title (phones keep the back row) */}
-        <p className="rx-crumbs hidden lg:flex">
+        {/* Crumbs + state above the title (the crumb is the way back on phones too) */}
+        <p className="rx-crumbs">
           <Link prefetch={false} href="/app/requests">Requests</Link>
           <span aria-hidden>/</span>
           <span>#{request.requestNumber}</span>

@@ -940,18 +940,18 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
 
           {!verified && (state.records?.length ?? 0) > 0 && (
             <>
-              {/* Phones: each DNS record as a small stacked card */}
-              <div className="lg:hidden space-y-2">
+              {/* Phones: each DNS record as an open row on a hairline */}
+              <div className="lg:hidden divide-y divide-[color:var(--ds-line)] border-y border-[color:var(--ds-line)]">
                 {(state.records ?? []).map((r, i) => (
                   <div
                     key={i}
-                    className={`rounded-lg border border-gray-200 p-3 ${
+                    className={`py-3 ${
                       r.status === "verified" ? "text-[color:var(--ds-good)]" : "text-gray-700"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                        {r.type}
+                      <span className="text-[13px] font-semibold text-[color:var(--ds-ink)]">
+                        {r.type} record
                       </span>
                       <button
                         onClick={() => copyValue(r.value)}
@@ -968,11 +968,11 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
                         )}
                       </button>
                     </div>
-                    <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    <p className="mt-1.5 text-[12px] text-[color:var(--ds-muted)]">
                       Name
                     </p>
                     <p className="font-mono text-xs break-all">{r.name}</p>
-                    <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    <p className="mt-1.5 text-[12px] text-[color:var(--ds-muted)]">
                       Value
                     </p>
                     <p className="font-mono text-xs break-all">{r.value}</p>
@@ -1684,7 +1684,7 @@ export default function SettingsClient({
 
         {/* Phones: the index — one card of the six groups */}
         {section === "home" && (
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 lg:hidden">
+          <div className="st-index min-h-0 flex-1 space-y-5 overflow-y-auto p-4 lg:hidden">
             <div className="flex items-center gap-3 px-1">
               {form.logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element

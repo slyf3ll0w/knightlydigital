@@ -110,3 +110,26 @@ html[data-mode="dark"] .rqx-facts dd.rqx-prefer { color: var(--ds-secondary); }
 @media (prefers-reduced-motion: reduce) {
   .rqx-row, .rqx-row::after, .rqx-name { transition: none; }
 }
+
+/* Phones (2026-11-25 phone pass): the same inbox rows as a plain list; a
+   tap opens the full request page instead of the side pane. */
+.rqx-plist { display: none; }
+@media (max-width: 1023px) {
+  .rq-page .ds-pagehead .ds-btn-outline { display: none; }
+  .rqx-split { display: none; }
+  .rqx-plist { display: flex; flex-direction: column; margin: 0 -16px; }
+  .rqx-plist .rqx-row { padding: 14px 16px 14px 30px; min-height: 84px; }
+  .rqx-plist .rqx-row:hover { background: transparent; }
+  .rqx-plist .rqx-row:active { background: var(--ds-surface-2); }
+  .rqx-plist .rqx-dot { left: 14px; }
+  .rq-page .clx-filters { flex-wrap: wrap; gap: 10px 12px; min-height: 0; border-bottom: 0; }
+  .rq-page .clx-search { width: 100%; height: 42px; border-radius: 11px; }
+  .rq-page .clx-search input { font-size: 16px; }
+  .rq-page .clx-filters .clx-tabs {
+    order: 3; flex: 1 1 100%; height: 42px; overflow-x: auto; scrollbar-width: none;
+    border-bottom: 1px solid var(--ds-line-strong); margin: 0 -16px; padding: 0 16px;
+  }
+  .rq-page .clx-filters .clx-tabs::-webkit-scrollbar { display: none; }
+  .rq-page .clx-tab { white-space: nowrap; }
+  .rq-page .clx-filters-end { order: 2; margin-left: 0; }
+}

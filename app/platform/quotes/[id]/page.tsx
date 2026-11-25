@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, canSeeMoney, viaContactScope, isManager } from "@/lib/permissions";
 import Link from "next/link";
-import SectionHeader from "@/components/SectionHeader";
 import { money, shortDate, quoteDepositAmount } from "@/lib/statuses";
 import { quoteExpired } from "@/lib/quote-expiry";
 import StatusChip from "@/components/StatusChip";
@@ -11,8 +10,6 @@ import { channelsFromJson, scheduledLine, SEND_DEFAULTS } from "@/lib/send-docum
 import { BandBody, Chip, DsPage, OpenSection } from "@/components/ds";
 import TitleSentinel from "@/components/TitleSentinel";
 import { Check, Mail, Pencil, Phone } from "lucide-react";
-import BackLink from "@/components/BackLink";
-import PageTitle from "@/components/PageTitle";
 import ViewedFact from "@/components/ViewedFact";
 import QuoteActions from "./QuoteActions";
 import RunAutomationMenu from "@/components/RunAutomationMenu";
@@ -141,46 +138,6 @@ export default async function QuoteDetailPage({
           </Fold>
         </div>
       );
-  const revisionsEl = quote.revisions.length > 0 && (
-        <div className="mt-6 ds-card p-5">
-          <SectionHeader
-            title="Revision history"
-            hint="Captured each time a sent quote was edited — the amounts the client saw before the change."
-            className="mb-3"
-          />
-          <ul className="space-y-2">
-            {quote.revisions.map((rev) => {
-              const snap = rev.snapshot as {
-                sentAt?: string | null;
-                lineItems?: { name: string; quantity: unknown; unitPrice: unknown }[];
-              };
-              const items = snap.lineItems ?? [];
-              return (
-                <li key={rev.id} className="flex items-baseline gap-3 text-sm">
-                  <span className="shrink-0 text-xs font-semibold text-gray-500">
-                    Rev {rev.revision}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-xs text-gray-500">
-                    {items.length} item{items.length === 1 ? "" : "s"}
-                    {snap.sentAt &&
-                      ` · sent ${new Date(snap.sentAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        timeZone: tz,
-                      })}`}
-                    {" · replaced "}
-                    {shortDate(rev.createdAt, tz)}
-                  </span>
-                  <span className="ds-num shrink-0 font-medium text-gray-700">
-                    {money(rev.total)}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      );
-
   // ── Desktop: the open page (2026-11-24), mirroring the invoice ──────────
   // Made → Sent → Viewed → Approved (or Changes requested) → Job, from the
   // quote's own timestamps. Viewed joins once it has gone out; the first step
@@ -247,30 +204,12 @@ export default async function QuoteDetailPage({
       open
       header={
         <>
-          {/* Phone: back + status row (unchanged) */}
-          <div className="flex items-center gap-3 mb-4 lg:hidden">
-            <BackLink href="/app/quotes" />
-            <StatusChip kind="quote" status={chipStatus} />
-          </div>
-
-          {/* One header for both widths, so QuoteActions (and its dialogs)
-              mounts once. Phone: the title + client link as before. Desktop:
-              crumbs, the client as the title, the status chip. */}
+          {/* One header at every width (phones too since 2026-11-25): crumbs,
+              the client as the title, the status chip, then the actions. */}
           <div className="ds-pagehead qt-head flex flex-wrap items-start justify-between gap-4 mb-6 lg:mb-0">
             <div className="min-w-0">
               <TitleSentinel title={titleText} />
-              <div className="lg:hidden">
-                <PageTitle
-                  sub={
-                    <Link prefetch={false} href={`/app/contacts/${quote.contactId}`} className="ds-link hover:underline">
-                      {quote.contact.firstName} {quote.contact.lastName}
-                    </Link>
-                  }
-                >
-                  <>{titleText}</>
-                </PageTitle>
-              </div>
-              <div className="hidden lg:block">
+              <div>
                 <p className="ds-eyebrow ds-eyebrow-plain bb-crumbs flex items-center gap-2">
                   <Link prefetch={false} href="/app/quotes">Quotes</Link>
                   <span aria-hidden>/</span>
@@ -295,7 +234,7 @@ export default async function QuoteDetailPage({
                 </h1>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="inv-head-acts flex flex-wrap items-center gap-2">
               <RunAutomationMenu entity="quote" entityId={quote.id} manager={isManager(actor.role)} />
               <QuoteActions
                 quoteId={quote.id}
@@ -328,300 +267,8 @@ export default async function QuoteDetailPage({
         celebrate={celebrateApproved}
       />
 
-      {/* ─────────────── Phone (unchanged) ─────────────── */}
-      <div className="lg:hidden">
-      {scheduledLineEl}
-
-      {/* Approved with an uncollected deposit → make collecting it the obvious next step */}
-      {depositNudgeEl}
-
-      {/* Header facts (Jobber-style definition list with backlinks) —
-          2-col grid on phones, flowing definition list at a desk */}
-      <div className="grid grid-cols-2 gap-3 lg:flex lg:flex-wrap lg:gap-x-8 lg:gap-y-2 px-5 py-4 ds-card mb-6 text-sm">
-        <div>
-          <span className="text-xs font-medium text-gray-500 block">Quote #</span>
-          <span className="text-gray-800">{quote.quoteNumber}</span>
-        </div>
-        <div>
-          <span className="text-xs font-medium text-gray-500 block">Created</span>
-          <span className="text-gray-800">{shortDate(quote.createdAt, tz)}</span>
-        </div>
-        <ViewedFact
-          firstViewedAt={quote.firstViewedAt}
-          lastViewedAt={quote.lastViewedAt}
-          viewCount={quote.viewCount}
-          sent={!!quote.sentAt}
-          tz={tz}
-        />
-        {quote.validUntil && (
-          <div>
-            <span className="text-xs font-medium text-gray-500 block">Valid until</span>
-            <span
-              className={
-                expired &&
-                ["DRAFT", "AWAITING_RESPONSE", "CHANGES_REQUESTED"].includes(quote.status)
-                  ? "font-medium text-[color:var(--ds-bad)]"
-                  : "text-gray-800"
-              }
-            >
-              {shortDate(quote.validUntil, tz)}
-              {expired && ["DRAFT", "AWAITING_RESPONSE", "CHANGES_REQUESTED"].includes(quote.status)
-                ? " · Expired"
-                : ""}
-            </span>
-          </div>
-        )}
-        {/* The required amount is quote pricing (any seller); the invoice it
-            became is money (canSeeMoney) */}
-        {deposit > 0 && (!depositInvoice || seeMoney) && (
-          <div>
-            <span className="text-xs font-medium text-gray-500 block">
-              {depositInvoice ? "Deposit" : "Required deposit"}
-            </span>
-            {depositInvoice ? (
-              <Link
-                prefetch={false} href={`/app/invoices/${depositInvoice.id}`}
-                className={`font-medium hover:underline ${
-                  depositInvoice.status === "PAID" ? "text-[color:var(--ds-good)]" : "text-[color:var(--ds-warn)]"
-                }`}
-              >
-                {money(depositInvoice.total)} ·{" "}
-                {depositInvoice.status === "PAID" ? "Paid" : "Invoiced"} (#
-                {depositInvoice.invoiceNumber})
-              </Link>
-            ) : (
-              <span className="text-gray-800 font-semibold">{money(deposit)}</span>
-            )}
-          </div>
-        )}
-        {needsAgreement && (
-          <div>
-            <span className="text-xs font-medium text-gray-500 block">Agreement</span>
-            <span
-              className={`font-medium ${
-                agreementSigned ? "text-[color:var(--ds-good)]" : agreementSent ? "text-[color:var(--ds-warn)]" : "text-[color:var(--ds-bad)]"
-              }`}
-            >
-              {agreementSigned
-                ? "Signed"
-                : agreementSent
-                  ? "Awaiting signature"
-                  : "Required — not sent"}
-            </span>
-          </div>
-        )}
-        {quote.request && (
-          <div>
-            <span className="text-xs font-medium text-gray-500 block">From request</span>
-            <Link
-              prefetch={false} href={`/app/requests/${quote.requestId}`}
-              className="ds-link hover:underline"
-            >
-              {quote.request.title}
-            </Link>
-          </div>
-        )}
-        {quote.job && (
-          <div>
-            <span className="text-xs font-medium text-gray-500 block">Used for</span>
-            <Link prefetch={false} href={`/app/jobs/${quote.jobId}`} className="ds-link hover:underline">
-              Job #{quote.job.jobNumber}
-            </Link>
-          </div>
-        )}
-        {quote.approvedAt && (
-          <div>
-            <span className="text-xs font-medium text-gray-500 block">Approved</span>
-            <span className="text-gray-800">
-              {shortDate(quote.approvedAt, tz)}
-              {quote.signatureName ? ` by ${quote.signatureName}` : ""}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Changes requested note */}
-      {quote.status === "CHANGES_REQUESTED" && quote.changeRequest && (
-        <div className="mb-6 rounded-[var(--ds-r)] bg-[color:var(--ds-warn-soft)] px-4 py-3 text-sm text-[color:var(--ds-ink)]">
-          <span className="font-semibold">Client requested changes:</span> {quote.changeRequest}
-          <span className="block mt-1 text-[color:var(--ds-warn)]">
-            <Link prefetch={false} href={`/app/quotes/${quote.id}/edit`} className="font-semibold underline">
-              Edit the quote
-            </Link>{" "}
-            and email it to them again — it goes back to Awaiting Response.
-          </span>
-        </div>
-      )}
-
-      {/* Quote body */}
-      <div className="ds-card overflow-hidden">
-        {quote.clientMessage && (
-          <div className="px-6 py-4 border-b border-gray-100">
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">{quote.clientMessage}</p>
-          </div>
-        )}
-
-        {/* Line items — stacked rows on phones */}
-        <div className="lg:hidden divide-y divide-gray-100">
-          {quote.lineItems.map((item) => (
-            <div
-              key={item.id}
-              className={`flex items-start justify-between gap-3 px-4 py-3 ${
-                item.isOptional && item.optedOut ? "opacity-40" : ""
-              }`}
-            >
-              <div className="min-w-0 flex-1">
-                <p className="text-[15.5px] font-semibold text-gray-900">
-                  {item.name || item.description}
-                  {/* explicit spaces — JSX drops line-break whitespace, and
-                      without them screen readers hear "ReplacementOptional" */}
-                  {item.isOptional && " "}
-                  {item.isOptional && (
-                    <Chip>Optional{item.optedOut ? " — removed by client" : ""}</Chip>
-                  )}
-                  {item.recurringInterval && " "}
-                  {item.recurringInterval && (
-                    <Chip tone="primary">Recurring</Chip>
-                  )}
-                </p>
-                {item.name && item.description && (
-                  <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>
-                )}
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {Number(item.quantity)} × {money(item.unitPrice)}
-                </p>
-              </div>
-              <p className="ds-num shrink-0 text-sm font-semibold text-gray-900">
-                {money(item.total)}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {/* Line items — desktop table */}
-        <div className="hidden lg:block px-6 py-4">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left py-2 text-xs text-gray-500 font-semibold">
-                  Product / Service
-                </th>
-                <th className="text-right py-2 text-xs text-gray-500 font-semibold w-16">
-                  Qty
-                </th>
-                <th className="text-right py-2 text-xs text-gray-500 font-semibold w-24">
-                  Unit Price
-                </th>
-                <th className="text-right py-2 text-xs text-gray-500 font-semibold w-24">
-                  Total
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {quote.lineItems.map((item) => (
-                <tr key={item.id} className={item.isOptional && item.optedOut ? "opacity-40" : ""}>
-                  <td className="py-3">
-                    <p className="text-gray-900 font-medium">
-                      {item.name || item.description}
-                      {/* explicit spaces — JSX drops line-break whitespace, and
-                          without them screen readers hear "ReplacementOptional" */}
-                      {item.isOptional && " "}
-                      {item.isOptional && (
-                        <Chip>Optional{item.optedOut ? " — removed by client" : ""}</Chip>
-                      )}
-                      {item.recurringInterval && " "}
-                      {item.recurringInterval && (
-                        <Chip tone="primary">Recurring</Chip>
-                      )}
-                    </p>
-                    {item.name && item.description && (
-                      <p className="text-gray-500 text-xs mt-0.5">{item.description}</p>
-                    )}
-                  </td>
-                  <td className="ds-num py-3 text-right text-gray-600">{Number(item.quantity)}</td>
-                  <td className="ds-num py-3 text-right text-gray-600">{money(item.unitPrice)}</td>
-                  <td className="ds-num py-3 text-right font-medium text-gray-900">{money(item.total)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Totals — full-width rows on phones, right-hand column at a desk */}
-        <div className="px-4 lg:px-6 py-4 border-t border-[color:var(--ds-line)] bg-[color:var(--ds-surface-2)]">
-          <div className="ml-auto w-full lg:w-64 space-y-1.5 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-500">Subtotal</span>
-              <span className="ds-num text-gray-800">{money(quote.subtotal)}</span>
-            </div>
-            {quote.discount && Number(quote.discount) > 0 && (
-              <div className="flex justify-between text-[color:var(--ds-good)]">
-                <span>
-                  Discount
-                  {quote.discountType === "PERCENT" && quote.discountValue
-                    ? ` (${Number(quote.discountValue)}%)`
-                    : ""}
-                </span>
-                <span className="ds-num">−{money(quote.discount)}</span>
-              </div>
-            )}
-            {quote.tax && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">
-                  Tax ({parseFloat((Number(quote.taxRate) * 100).toFixed(3))}%)
-                </span>
-                <span className="ds-num text-gray-800">{money(quote.tax)}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-bold text-base pt-1.5 border-t border-gray-200">
-              <span className="text-gray-900">Total</span>
-              <span className="ds-num text-gray-900">{money(quote.total)}</span>
-            </div>
-            {deposit > 0 && (
-              <div className="flex justify-between text-[color:var(--ds-primary)]">
-                <span>
-                  Required deposit
-                  {quote.depositType === "PERCENT" ? ` (${Number(quote.depositValue)}%)` : ""}
-                </span>
-                <span className="ds-num font-semibold">{money(deposit)}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Disclaimer */}
-        {quote.disclaimer && (
-          <div className="px-6 py-4 border-t border-gray-100">
-            <p className="text-xs font-medium text-gray-500 mb-1">
-              Contract / Disclaimer
-            </p>
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">{quote.disclaimer}</p>
-          </div>
-        )}
-
-        {/* Internal notes */}
-        {quote.notes && (
-          <div className="px-6 py-4 border-t border-gray-100">
-            <p className="text-xs font-medium text-gray-500 mb-1">Internal notes</p>
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">{quote.notes}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Site-visit photos: what was looked at before the price. They ride
-          onto the job when the quote converts (lib/quote-convert.ts).
-          Test accounts only until the Gallery work is opened. */}
-      {photosEl}
-
-      {revisionsEl}
-
-      <div className="mt-6">
-        <ActivityTrail rows={activity} />
-      </div>
-      </div>
-
-      {/* ─────────────── Desktop: the open page ─────────────── */}
-      <BandBody className="hidden lg:flex">
+      {/* ─────────────── The open page (every width) ─────────────── */}
+      <BandBody>
         {(scheduledLineEl || depositNudgeEl) && (
           <div className="-mb-6">
             {scheduledLineEl}
@@ -694,6 +341,15 @@ export default async function QuoteDetailPage({
                 </Link>
               </div>
             )}
+            {quote.approvedAt && (
+              <div className="inv-fact">
+                <span className="bb-label">Approved</span>
+                <span className="bb-strong">
+                  {shortDate(quote.approvedAt, tz)}
+                  {quote.signatureName ? ` by ${quote.signatureName}` : ""}
+                </span>
+              </div>
+            )}
             {quote.job && (
               <div className="inv-fact">
                 <span className="bb-label">Used for</span>
@@ -758,8 +414,8 @@ export default async function QuoteDetailPage({
                 <thead>
                   <tr>
                     <th>Product / service</th>
-                    <th className="r">Qty</th>
-                    <th className="r">Unit price</th>
+                    <th className="r inv-desk">Qty</th>
+                    <th className="r inv-desk">Unit price</th>
                     <th className="r">Amount</th>
                   </tr>
                 </thead>
@@ -775,9 +431,10 @@ export default async function QuoteDetailPage({
                           {item.recurringInterval && <Chip tone="primary">Recurring</Chip>}
                         </span>
                         {item.name && item.description && <span className="bb-row-sub inv-wrap">{item.description}</span>}
+                        <span className="bb-row-sub inv-ph">{Number(item.quantity)} × {money(item.unitPrice)}</span>
                       </td>
-                      <td className="r ds-num">{Number(item.quantity)}</td>
-                      <td className="r ds-num">{money(item.unitPrice)}</td>
+                      <td className="r ds-num inv-desk">{Number(item.quantity)}</td>
+                      <td className="r ds-num inv-desk">{money(item.unitPrice)}</td>
                       <td className="r ds-num bb-strong">{money(item.total)}</td>
                     </tr>
                   ))}

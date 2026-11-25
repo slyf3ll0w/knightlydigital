@@ -4,11 +4,10 @@ import { headerNote } from "@/lib/header-notes";
 import { requirePageActor, canSeeMoney, viaContactScope, isManager } from "@/lib/permissions";
 import EntityRowActions from "@/components/EntityRowActions";
 import Link from "next/link";
-import { Plus, ChevronRight, DollarSign, Receipt, Download, Search } from "lucide-react";
+import { Plus, ChevronRight, DollarSign, Download, Search } from "lucide-react";
 import { BandBody, Button, DsPage, PageHeader } from "@/components/ds";
 import FilterSelect from "@/components/FilterSelect";
-import PageTitle from "@/components/PageTitle";
-import FilterBar, { listHref } from "@/components/FilterBar";
+import { listHref } from "@/components/FilterBar";
 import { pickSort, INVOICE_SORTS, invoiceOrderBy } from "@/lib/list-sort";
 import { money, shortDate } from "@/lib/statuses";
 import { pastDueFilter } from "@/lib/due-dates";
@@ -17,8 +16,6 @@ import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
 import { MoneyBand } from "@/components/ListBands";
 import { startOfMonthIn, zonedMidnight, zonedParts } from "@/lib/timezone";
-import MobileSearch from "@/components/MobileSearch";
-import Monogram from "@/components/Monogram";
 import Pager from "@/components/Pager";
 import type { InvoiceStatus } from "@prisma/client";
 import PdfLink from "@/components/PdfLink";
@@ -175,9 +172,11 @@ export default async function InvoicesPage({
     0
   );
 
-  // ── Desktop: the open page (2026-11-24) — the page's own header with a
-  // context line, the money picture kept, underline tabs with counts, then
-  // the ledger as hairline rows. Phones keep the tree below as it was.
+  // ── The open page (2026-11-24; phones too since 2026-11-25) — the page's
+  // own header with a context line, the money picture kept, underline tabs
+  // with counts, then the ledger as hairline rows. On a phone each row folds
+  // to two lines (app/ds-open-money.css): name + "#, due" on the left, the
+  // amount that matters + status on the right.
   const byStatus = new Map(statusCounts.map((c) => [c.status as string, c._count]));
   const tabCount: Record<string, number> = {
     "": statusCounts.filter((c) => c.status !== "ARCHIVED").reduce((n, c) => n + c._count, 0),
@@ -213,7 +212,7 @@ export default async function InvoicesPage({
               <PdfLink
                 href="/api/app/export/invoices"
                 title="Download all invoices as CSV"
-                className="ds-btn ds-btn-outline"
+                className="ds-btn ds-btn-outline mx-desk"
                 mime="text/csv"
                 newTab={false}
                 fallbackName="export.csv"
@@ -221,7 +220,7 @@ export default async function InvoicesPage({
                 <Download size={17} />
                 Export
               </PdfLink>
-              <Button href="/app/payments/new" variant="outline" icon={DollarSign}>
+              <Button href="/app/payments/new" variant="outline" icon={DollarSign} className="mx-desk">
                 Collect payment
               </Button>
               <Button href="/app/invoices/new" icon={Plus}>
@@ -336,17 +335,25 @@ export default async function InvoicesPage({
                         <span className="mx-mono" aria-hidden>{inv.contact ? initials(inv.contact.firstName, inv.contact.lastName) : "—"}</span>
                         <span className="min-w-0">
                           <span className="mx-name-t ds-trow-name">{name || "No client"}</span>
-                          <span className="mx-name-s">{inv.subject ?? ""}</span>
+                          <span className="mx-name-s mx-desk">{inv.subject ?? ""}</span>
+                          {/* Phone sub line: number, due date while owed, subject */}
+                          <span className="mx-name-s mx-ph">
+                            #{inv.invoiceNumber}
+                            {balance > 0 && inv.dueDate ? ` · Due ${shortDate(inv.dueDate, tz)}` : ""}
+                            {inv.subject ? ` · ${inv.subject}` : ""}
+                          </span>
                         </span>
                       </span>
-                      <span className="mx-dim">#{inv.invoiceNumber}</span>
-                      <span className={inv.issuedAt ? "mx-dim" : "mx-faint"}>{inv.issuedAt ? shortDate(inv.issuedAt, tz) : "Not sent"}</span>
-                      <span className={late ? "mx-late" : inv.dueDate ? "mx-dim" : "mx-faint"}>{inv.dueDate ? shortDate(inv.dueDate, tz) : "—"}</span>
-                      <span>
+                      <span className="mx-dim mx-c-n">#{inv.invoiceNumber}</span>
+                      <span className={`mx-c-iss ${inv.issuedAt ? "mx-dim" : "mx-faint"}`}>{inv.issuedAt ? shortDate(inv.issuedAt, tz) : "Not sent"}</span>
+                      <span className={`mx-c-due ${late ? "mx-late" : inv.dueDate ? "mx-dim" : "mx-faint"}`}>{inv.dueDate ? shortDate(inv.dueDate, tz) : "—"}</span>
+                      <span className="mx-c-st">
                         <StatusChip kind="invoice" status={inv.status === "DRAFT" && inv.scheduledSendAt ? "SCHEDULED" : inv.status} />
                       </span>
-                      <span className="mx-num mx-dim r">{money(inv.total)}</span>
-                      <span className={`mx-num r ${balance > 0 ? (late ? "mx-late mx-strong" : "mx-strong") : "mx-faint"}`}>{money(balance)}</span>
+                      <span className="mx-num mx-dim r mx-c-tot">{money(inv.total)}</span>
+                      <span className={`mx-num r mx-c-bal ${balance > 0 ? (late ? "mx-late mx-strong" : "mx-strong") : "mx-faint"}`}>{money(balance)}</span>
+                      {/* Phone: one amount — the balance while anything is owed, else the total */}
+                      <span className={`mx-num r mx-ph mx-c-amt ${late ? "mx-late" : ""}`}>{money(balance > 0 ? balance : inv.total)}</span>
                       <ChevronRight size={15} className="mx-chev" aria-hidden />
                     </Link>
                   </EntityRowActions>
@@ -366,6 +373,7 @@ export default async function InvoicesPage({
                 <span className="mx-num r">{money(pageTotal)}</span>
                 <span className="mx-num r ds-ledger-total">{money(pageBalance)}</span>
                 <span />
+                <span className="mx-num r ds-ledger-total mx-ph">{money(pageBalance > 0 ? pageBalance : pageTotal)}</span>
               </div>
             </div>
           )}
@@ -381,199 +389,5 @@ export default async function InvoicesPage({
     </DsPage>
   );
 
-  return (
-    <>
-    <div className="p-4 lg:p-8 max-w-6xl mx-auto lg:hidden">
-      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
-        <PageTitle heavy section="invoices" icon={Receipt}>
-          Invoices
-        </PageTitle>
-        {/* Phones create from the tab-bar FAB (Invoice + Payment both live there) */}
-        <div className="hidden lg:flex items-center gap-2">
-          <PdfLink
-            href="/api/app/export/invoices"
-            title="Download all invoices as CSV"
-            className="ds-btn ds-btn-outline ds-btn-sm" mime="text/csv" newTab={false} fallbackName="export.csv">
-            <Download size={14} />
-            Export
-          </PdfLink>
-          <Link
-            href="/app/payments/new"
-            className="ds-btn ds-btn-outline ds-btn-sm"
-          >
-            <DollarSign size={14} />
-            Collect payment
-          </Link>
-          <Link
-            href="/app/invoices/new"
-            className="ds-btn ds-btn-primary ds-btn-sm"
-          >
-            <Plus size={15} />
-            New invoice
-          </Link>
-        </div>
-      </div>
-
-      <MobileSearch
-        action="/app/invoices"
-        placeholder="Search invoices, clients…"
-        defaultValue={query}
-        params={{ status: validStatus, sort: sortRaw }}
-      />
-
-      <MoneyBand
-        pastDue={{ amount: owedBy("PAST_DUE"), count: pastDue._count, href: "/app/invoices?status=PAST_DUE" }}
-        awaiting={{ amount: owedBy("AWAITING_PAYMENT"), count: awaiting._count, href: "/app/invoices?status=AWAITING_PAYMENT" }}
-        draft={{ amount: Number(draft._sum.total) || 0, count: draft._count, href: "/app/invoices?status=DRAFT" }}
-        paidThisMonth={{ amount: Number(paidMonth._sum.amount) || 0, href: "/app/payments" }}
-        collectedMonths={collectedMonths}
-        open={openForBalance
-          .map((i) => ({
-            id: i.id,
-            name: i.contact ? `${i.contact.firstName} ${i.contact.lastName}`.trim() : "No client",
-            amount: Math.max(0, invoiceBalance(i)),
-            daysLate: i.dueDate ? Math.floor((Date.now() - i.dueDate.getTime()) / 86400000) : null,
-          }))
-          .filter((o) => o.amount > 0)}
-      />
-
-      <FilterBar
-        options={statusFilters}
-        value={scheduledOnly ? "SCHEDULED" : (validStatus ?? "")}
-        href={(v) => listHref("/app/invoices", { q: query, sort: sortRaw }, { status: v })}
-        sort={{
-          options: INVOICE_SORTS,
-          value: sort,
-          href: (v) => listHref("/app/invoices", { status: validStatus, q: query }, { sort: v }),
-        }}
-      />
-
-      <div className="ds-card overflow-hidden">
-        {invoices.length === 0 ? (
-          <EmptyState
-            art="invoices"
-            hue="var(--ds-primary)"
-            title={validStatus ? "No invoices with this status" : "No invoices yet"}
-            body={
-              validStatus
-                ? dealLine("no-match", { thing: "invoices", one: "invoice" })
-                : "Get paid for finished work — send your first invoice with a pay-online link."
-            }
-            actionHref="/app/invoices/new"
-            actionLabel="Create an invoice"
-          />
-        ) : (
-          <>
-            <div className="list-settle divide-y divide-gray-100">
-              <div className="hidden lg:grid grid-cols-[1fr_70px_130px_150px_100px_100px_40px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
-                <span>Client</span>
-                <span>#</span>
-                <span>Due date</span>
-                <span>Status</span>
-                <span className="text-right">Total</span>
-                <span className="text-right">Balance</span>
-                <span></span>
-              </div>
-              {invoices.map((inv) => {
-                const balance = Math.max(0, invoiceBalance(inv));
-                return (
-                  <EntityRowActions
-                    key={inv.id}
-                    meta={{ kind: "invoice", id: inv.id, number: inv.invoiceNumber, status: inv.status, hasPayments: inv.payments.length > 0, hasEmail: Boolean(inv.contact?.email), canDelete: isManager(actor.role) }}
-                  >
-                  <Link
-                    prefetch={false} href={`/app/invoices/${inv.id}`}
-                    className="ds-trow block lg:grid lg:grid-cols-[1fr_70px_130px_150px_100px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-                  >
-                    {/* Phone row: monogram anchor, name + the amount that
-                        matters (balance while anything is owed, else the
-                        total), then #/due + status. Two unlabeled amounts
-                        side by side read as a typo. */}
-                    <div className="lg:hidden flex min-w-0 items-center gap-3">
-                      {inv.contact && (
-                        <Monogram
-                          name={`${inv.contact.firstName} ${inv.contact.lastName}`}
-                          size={40}
-                        />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline justify-between gap-3">
-                          <p className="min-w-0 flex-1 ds-trow-name truncate text-[15.5px] font-semibold text-gray-900">
-                            {inv.contact ? `${inv.contact.firstName} ${inv.contact.lastName}` : "—"}
-                          </p>
-                          <p className="ds-num shrink-0 text-sm font-semibold text-gray-900">
-                            {money(balance > 0 ? balance : inv.total)}
-                          </p>
-                        </div>
-                        <div className="mt-1 flex items-center justify-between gap-3">
-                          <p className="min-w-0 flex-1 truncate text-xs text-gray-500">
-                            #{inv.invoiceNumber}
-                            {/* A dash for a missing due date reads like a glitch —
-                                say nothing instead */}
-                            {balance > 0 && inv.dueDate ? ` · Due ${shortDate(inv.dueDate, tz)}` : ""}
-                            {inv.subject ? ` · ${inv.subject}` : ""}
-                          </p>
-                          <StatusChip kind="invoice" status={inv.status === "DRAFT" && inv.scheduledSendAt ? "SCHEDULED" : inv.status} className="shrink-0" />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="hidden lg:block min-w-0">
-                      <p className="ds-trow-name text-sm font-medium text-gray-900 truncate">
-                        {inv.contact ? `${inv.contact.firstName} ${inv.contact.lastName}` : "—"}
-                      </p>
-                      {inv.subject && <p className="text-xs text-gray-500 truncate">{inv.subject}</p>}
-                    </div>
-                    <span className="hidden lg:block text-sm text-gray-500">#{inv.invoiceNumber}</span>
-                    <span className="hidden lg:block text-sm text-gray-500">
-                      {shortDate(inv.dueDate, tz)}
-                    </span>
-                    <span className="hidden lg:block">
-                      <StatusChip kind="invoice" status={inv.status === "DRAFT" && inv.scheduledSendAt ? "SCHEDULED" : inv.status} />
-                    </span>
-                    <span className="ds-num hidden lg:block text-sm text-gray-600 lg:text-right">
-                      {money(inv.total)}
-                    </span>
-                    <span className="ds-num hidden lg:block text-sm font-semibold text-gray-900 lg:text-right">
-                      {money(balance)}
-                    </span>
-                    <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
-                  </Link>
-                  </EntityRowActions>
-                );
-              })}
-            </div>
-            {/* Ledger foot — running totals, double-ruled like a register */}
-            <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 lg:grid lg:grid-cols-[1fr_70px_130px_150px_100px_100px_40px]">
-              <span className="text-xs font-medium text-gray-500">
-                {invoices.length} {invoices.length === 1 ? "invoice" : "invoices"}
-              </span>
-              <span className="hidden lg:block" />
-              <span className="hidden lg:block" />
-              <span className="hidden lg:block" />
-              <span className="ds-num hidden text-sm font-semibold text-gray-600 lg:block lg:text-right">
-                {money(pageTotal)}
-              </span>
-              <span className="ds-num ds-ledger-total lg:hidden text-sm font-bold">
-                {money(pageBalance > 0 ? pageBalance : pageTotal)}
-              </span>
-              <span className="ds-num ds-ledger-total hidden lg:block text-sm font-bold lg:text-right">
-                {money(pageBalance)}
-              </span>
-              <span className="hidden lg:block" />
-            </div>
-          </>
-        )}
-      </div>
-      <Pager
-        basePath="/app/invoices"
-        params={{ status: validStatus, q: query, sort: sortRaw }}
-        page={page}
-        pageSize={PAGE_SIZE}
-        total={listCount}
-      />
-    </div>
-      {/* desktop tree after the phone one: phone tests take the first matching link */}
-      <div className="hidden lg:block">{desktop}</div>
-    </>
-  );
+  return desktop;
 }

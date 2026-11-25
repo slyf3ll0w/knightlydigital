@@ -74,3 +74,84 @@
   .sch-open .ds-title { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; }
   .sch-open .ds-card { box-shadow: 0 0 0 1px var(--ds-line-strong); }
 }
+
+/* ═══ Phones (2026-11-25 phone pass): the same open pages, sized for a
+   thumb. Clients list: search, then the tabs scrolling sideways with their
+   counts; rows become two lines (name + first detail, balance on the
+   right) with the call button at the row's end. ═══ */
+@media (max-width: 1023px) {
+  .cl-list .ds-pagehead .ds-btn-outline { display: none; }
+  .clx-filters { flex-wrap: wrap; gap: 10px 12px; padding-bottom: 0; min-height: 0; border-bottom: 0; }
+  .clx-search { width: 100%; height: 42px; border-radius: 11px; }
+  .clx-search input { font-size: 16px; }
+  .clx-filters .clx-tabs {
+    order: 3; flex: 1 1 100%; height: 42px; overflow-x: auto; scrollbar-width: none;
+    border-bottom: 1px solid var(--ds-line-strong); margin: 0 -16px; padding: 0 16px;
+  }
+  .clx-filters .clx-tabs::-webkit-scrollbar { display: none; }
+  .clx-tab { white-space: nowrap; padding: 0 10px; }
+  .clx-tab:first-child { padding-left: 0; }
+  .clx-tab:first-child.is-on::after { left: 0; }
+  .clx-filters-end { order: 2; margin-left: 0; }
+  .clx-head { display: none; }
+  .clx-row { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; min-height: 64px; padding: 8px 0; }
+  .clx-row > *:not(.clx-name):not(.clx-bal) { display: none; }
+  .clx-row:hover { background: transparent; }
+  .clx-row:active { background: var(--ds-surface-2); }
+  .clx-table > div:has(.clx-call) .clx-row { padding-right: 46px; }
+  .clx-mono { width: 38px; height: 38px; font-size: 12.5px; }
+  .clx-name-t { font-size: 15.5px; }
+  .clx-name-s { font-size: 13px; }
+  .clx-bal .ds-chip, .clx-bal .clx-faint { display: none; }
+  .clx-bal { font-size: 14.5px; }
+  .clx-call { width: 38px; height: 38px; border-radius: 999px; background: var(--ds-surface-2); color: var(--ds-ink-2); }
+}
+
+/* Phones: one client. The desk header (crumb, monogram + name, chips, the
+   context line of links, the actions), then the summary as a 2×2 of facts,
+   Work as two-line rows, and every card opened onto the page. */
+@media (max-width: 1023px) {
+  .cp-head { margin-bottom: 20px; gap: 14px; }
+  .cp-head .bb-crumbs { display: flex; align-items: center; gap: 6px; color: var(--ds-muted); }
+  .cp-head .ds-title { min-width: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.025em; }
+  .cp-head-acts { width: 100%; justify-content: flex-start; }
+  .cp-context { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 10px; font-size: 14px; color: var(--ds-muted); }
+  .cp-ctx-link { color: var(--ds-ink-2); font-weight: 500; text-decoration: none; }
+  .cp-ctx-dot { color: var(--ds-faint); }
+  .cp-sum {
+    display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 28px;
+    border-top: 1px solid var(--ds-line-strong);
+  }
+  .cp-sum > * { display: flex; flex-direction: column; gap: 3px; padding: 14px 0; border-bottom: 1px solid var(--ds-line); color: inherit; }
+  .cp-sum > *:nth-child(even) { padding-left: 16px; border-left: 1px solid var(--ds-line); }
+  .cp-sum-lead .bb-big { font-size: 26px; }
+  .cp-owed { color: var(--ds-bad); }
+  .cp-sum-none { color: var(--ds-faint); font-weight: 500; }
+  .cp-sum-v { font-size: 15px; font-weight: 600; color: var(--ds-ink); }
+  .cp-page .cp-body { gap: 32px; }
+  .cp-page .cp-body > div { display: flex; flex-direction: column; gap: 28px; }
+  .cp-page .cp-body > div > * { margin-block: 0 !important; }
+  .cp-page .cp-body > div > div:empty { display: none; }
+  .cp-page .bb-sec-aside:has(.cp-work-tabs) { width: 100%; padding-bottom: 0; }
+  .cp-work-tabs { height: 40px; overflow-x: auto; scrollbar-width: none; }
+  .cp-work-tabs::-webkit-scrollbar { display: none; }
+  .cp-wrow { display: flex; align-items: center; gap: 12px; min-height: 62px; }
+  .cp-wrow-sub { display: block; margin-top: 2px; font-size: 12.5px; color: var(--ds-muted); }
+  .cp-wrow-end { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-weight: 600; color: var(--ds-ink); }
+  .cp-page .cp-body > div > .ds-card,
+  .cp-page .cp-body > div > div > .ds-card {
+    position: relative; background: transparent; box-shadow: none; border: 0; border-radius: 0;
+    padding: 16px 0 0; border-top: 1px solid var(--ds-line-strong); overflow: visible;
+  }
+  .cp-page .cp-body > div > .ds-card::before,
+  .cp-page .cp-body > div > div > .ds-card::before {
+    content: ""; position: absolute; left: 0; top: -2px; width: 40px; height: 3px; border-radius: 1px;
+    background: linear-gradient(90deg, var(--ds-primary) 0 66%, var(--ds-secondary) 66%);
+  }
+  .cp-page .cp-body > div > div > .ds-card h2,
+  .cp-page .cp-body > div > .ds-card h2 { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; color: var(--ds-ink); }
+  .cp-page .cp-body > div > .ds-card > .border-b,
+  .cp-page .cp-body > div > div > .ds-card > .border-b,
+  .cp-page .cp-body > div > .ds-card > .p-4,
+  .cp-page .cp-body > div > div > .ds-card > .p-4 { padding-left: 0; padding-right: 0; }
+}

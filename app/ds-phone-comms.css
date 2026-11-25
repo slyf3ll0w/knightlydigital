@@ -1,0 +1,94 @@
+/* Phone pass (2026-11-25): Messages (inbox + a sent email) and Calls (list +
+   one call) on the open page at phone size. The desk rules for the same
+   pieces live in app/ds-open-tools.css and app/ds-open-records.css (lg+);
+   these are their phone halves, so the look carries down. */
+
+@media (max-width: 1023px) {
+  /* ── Messages inbox: hairline rows, unread in ink, the underline on press ── */
+  .bb-open .tl-inbox {
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    border-top: 1px solid var(--ds-line-strong);
+    margin-top: 4px;
+    overflow: visible;
+  }
+  .bb-open .tl-inbox-row {
+    position: relative;
+    min-height: 68px;
+    padding-left: 0;
+    padding-right: 0;
+    border-bottom: 1px solid var(--ds-line) !important;
+    --row-tone: var(--ds-line-strong);
+  }
+  .bb-open .tl-inbox-row.is-unread { --row-tone: var(--ds-primary); }
+  .bb-open .tl-inbox-row:hover { background: transparent; }
+  .bb-open .tl-inbox-row::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--row-tone);
+    transform: scaleX(0);
+    transform-origin: left;
+    pointer-events: none;
+    transition: transform 320ms var(--ds-ease, ease);
+  }
+  .bb-open .tl-inbox-row:active::after { transform: scaleX(1); }
+
+  /* ── A sent email: facts as a 2-up grid on hairlines, the body as text ── */
+  .tl-facts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-top: 1px solid var(--ds-line-strong);
+    font-size: 14px;
+  }
+  .tl-facts > * { padding: 12px 0; border-bottom: 1px solid var(--ds-line); min-width: 0; }
+  .tl-facts > *:nth-child(even) { padding-left: 14px; border-left: 1px solid var(--ds-line); }
+  .tl-facts > * > * { overflow: hidden; text-overflow: ellipsis; }
+  .tl-facts .text-xs { font-size: 12.5px; color: var(--ds-muted); margin-bottom: 2px; }
+  .tl-facts .text-gray-800 { color: var(--ds-ink); font-weight: 600; }
+  .ml-page .ds-pagehead .ds-btn-outline:first-child { display: none; }
+  .tl-msg-body { padding: 16px 0 4px; }
+  .tl-msg-body p:first-child { font-size: 15px; line-height: 1.7; color: var(--ds-ink); }
+
+  /* ── Calls: the line under the title, the tabs scrolling sideways, the
+     list and the call page's cards opened onto the page ── */
+  .rx-calls .ds-pagehead { margin-bottom: 10px; }
+  .rx-linesub { margin: 0 0 14px; }
+  .rx-calls .rx-tabsrow { margin: 6px -16px 0; }
+  .rx-calls .rx-tabsrow .clx-filters { min-height: 0; border-bottom: 1px solid var(--ds-line-strong); padding: 0 16px; }
+  .rx-calls .rx-tabsrow .clx-tabs { height: 44px; overflow-x: auto; scrollbar-width: none; }
+  .rx-calls .rx-tabsrow .clx-tabs::-webkit-scrollbar { display: none; }
+  .rx-calls .rx-tabsrow .clx-tab { white-space: nowrap; }
+  .rx-calls .rx-tabsrow .clx-tab:first-child { padding-left: 0; }
+  .rx-calls .rx-tabsrow .clx-tab:first-child.is-on::after { left: 0; }
+  .rx-bad { color: var(--ds-bad) !important; font-weight: 600; }
+  .rx-ctx-link { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+  :is(.rx-calls, .rx-call) .rx-open-card {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    margin-top: 0 !important;
+  }
+  .rx-calls .rx-open-card { margin: 0 -16px !important; }
+  .rx-call .rx-open-card { border-top: 1px solid var(--ds-line-strong) !important; padding-left: 0 !important; padding-right: 0 !important; margin-top: 24px !important; }
+  .rx-call .rx-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ds-muted); }
+  .rx-call .rx-crumbs a { color: var(--ds-muted); }
+  .rx-call .rx-open-card > div:first-child > :is(h2, h3),
+  .rx-call .rx-open-card > :is(h2, h3) {
+    position: relative;
+    padding-bottom: 10px;
+    font-size: 17px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em;
+    color: var(--ds-ink) !important;
+  }
+}
+@media (max-width: 1023px) and (prefers-reduced-motion: reduce) {
+  .bb-open .tl-inbox-row::after { transition: none; }
+}

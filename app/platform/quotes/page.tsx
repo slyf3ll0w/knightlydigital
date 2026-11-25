@@ -4,18 +4,15 @@ import { headerNote } from "@/lib/header-notes";
 import { requirePageActor, canSell, viaContactScope, isManager } from "@/lib/permissions";
 import EntityRowActions from "@/components/EntityRowActions";
 import Link from "next/link";
-import { Plus, ChevronRight, FileText, Download, Search } from "lucide-react";
+import { Plus, ChevronRight, Download, Search } from "lucide-react";
 import { BandBody, Button, DsPage, PageHeader } from "@/components/ds";
 import FilterSelect from "@/components/FilterSelect";
-import PageTitle from "@/components/PageTitle";
-import FilterBar, { listHref } from "@/components/FilterBar";
+import { listHref } from "@/components/FilterBar";
 import { pickSort, QUOTE_SORTS, quoteOrderBy } from "@/lib/list-sort";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
 import { PipelineBand } from "@/components/ListBands";
-import Monogram from "@/components/Monogram";
-import MobileSearch from "@/components/MobileSearch";
 import Pager from "@/components/Pager";
 import type { QuoteStatus } from "@prisma/client";
 import PdfLink from "@/components/PdfLink";
@@ -216,7 +213,7 @@ export default async function QuotesPage({
               <PdfLink
                 href="/api/app/export/quotes"
                 title="Download all quotes as CSV"
-                className="ds-btn ds-btn-outline"
+                className="ds-btn ds-btn-outline qx-desk"
                 mime="text/csv"
                 newTab={false}
                 fallbackName="export.csv"
@@ -315,14 +312,16 @@ export default async function QuotesPage({
                       <Link prefetch={false} href={`/app/quotes/${q.id}`} className="bb-row qx-row">
                         <span className="min-w-0">
                           <span className="bb-row-title">{name}</span>
-                          {q.title && <span className="bb-row-sub">{q.title}</span>}
+                          {q.title && <span className="bb-row-sub qx-desk">{q.title}</span>}
+                          {/* Phone sub line: number + title */}
+                          <span className="bb-row-sub qx-ph">#{q.quoteNumber}{q.title ? ` · ${q.title}` : ""}</span>
                         </span>
-                        <span className="qx-dim">#{q.quoteNumber}</span>
-                        <span className="qx-dim">{shortDate(q.createdAt, tz)}</span>
-                        <span className={q.sentAt ? "qx-dim" : "qx-faint"}>
+                        <span className="qx-dim qx-desk">#{q.quoteNumber}</span>
+                        <span className="qx-dim qx-desk">{shortDate(q.createdAt, tz)}</span>
+                        <span className={`qx-desk ${q.sentAt ? "qx-dim" : "qx-faint"}`}>
                           {q.sentAt ? shortDate(q.sentAt, tz) : q.scheduledSendAt ? "Scheduled" : "Not sent"}
                         </span>
-                        <span>
+                        <span className="qx-c-st">
                           <StatusChip kind="quote" status={q.status === "DRAFT" && q.scheduledSendAt ? "SCHEDULED" : q.status} />
                         </span>
                         <span className="qx-amt">{money(q.total)}</span>
@@ -355,162 +354,5 @@ export default async function QuotesPage({
     </DsPage>
   );
 
-  return (
-    <>
-    <div className="p-4 lg:p-8 max-w-6xl mx-auto lg:hidden">
-      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-6">
-        <PageTitle heavy section="quotes" icon={FileText}>
-          Quotes
-        </PageTitle>
-        {/* Phones create from the tab-bar FAB */}
-        <div className="hidden lg:flex items-center gap-2">
-          <PdfLink
-            href="/api/app/export/quotes"
-            title="Download all quotes as CSV"
-            className="ds-btn ds-btn-outline ds-btn-sm" mime="text/csv" newTab={false} fallbackName="export.csv">
-            <Download size={14} />
-            Export
-          </PdfLink>
-          <Link
-            href="/app/quotes/new"
-            className="ds-btn ds-btn-primary ds-btn-sm"
-          >
-            <Plus size={15} />
-            New quote
-          </Link>
-        </div>
-      </div>
-
-      <MobileSearch
-        action="/app/quotes"
-        placeholder="Search quotes, clients…"
-        defaultValue={query}
-        params={{ status: validStatus, sort: sortRaw }}
-      />
-
-      <PipelineBand
-        stages={pipeline}
-        showMoney
-        rates={{ sent: pct(madeSent90, made90), approved: pct(sentWon90, sent90) }}
-        waiting={{ avgDays: avgWait, count: waitingRows.length, stalest, href: "/app/quotes?status=AWAITING_RESPONSE" }}
-        won={{ total: wonTotal, prevTotal: wonPrevTotal, points: wonPoints, href: "/app/quotes?status=APPROVED" }}
-      />
-
-      <FilterBar
-        options={statusFilters}
-        value={scheduledOnly ? "SCHEDULED" : (validStatus ?? "")}
-        href={(v) => listHref("/app/quotes", { q: query, sort: sortRaw }, { status: v })}
-        sort={{
-          options: QUOTE_SORTS,
-          value: sort,
-          href: (v) => listHref("/app/quotes", { status: validStatus, q: query }, { sort: v }),
-        }}
-      />
-
-      <div className="ds-card overflow-hidden">
-        {quotes.length === 0 ? (
-          <EmptyState
-            art="quotes"
-            hue="var(--ds-primary)"
-            title={validStatus ? "No quotes with this status" : "No quotes yet"}
-            body={
-              validStatus
-                ? dealLine("no-match", { thing: "quotes", one: "quote" })
-                : "Win the work before it starts — send your first quote and clients can approve it online."
-            }
-            actionHref="/app/quotes/new"
-            actionLabel="Create a quote"
-          />
-        ) : (
-          <>
-            <div className="divide-y divide-gray-100">
-              <div className="hidden lg:grid grid-cols-[1fr_70px_140px_150px_100px_40px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
-                <span>Client</span>
-                <span>#</span>
-                <span>Created</span>
-                <span>Status</span>
-                <span className="text-right">Total</span>
-                <span></span>
-              </div>
-              {quotes.map((q) => (
-                <EntityRowActions
-                  key={q.id}
-                  meta={{ kind: "quote", id: q.id, number: q.quoteNumber, status: q.status, hasEmail: Boolean(q.contact.email), canDelete: isManager(actor.role) }}
-                >
-                <Link
-                  prefetch={false} href={`/app/quotes/${q.id}`}
-                  className="ds-trow block lg:grid lg:grid-cols-[1fr_70px_140px_150px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-                >
-                  {/* Phone row: monogram anchor, name + total, then
-                      #/title + status */}
-                  <div className="lg:hidden flex min-w-0 items-center gap-3">
-                    <Monogram
-                      name={`${q.contact.firstName} ${q.contact.lastName}`}
-                      size={40}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <p className="min-w-0 flex-1 ds-trow-name truncate text-[15.5px] font-semibold text-gray-900">
-                          {q.contact.firstName} {q.contact.lastName}
-                        </p>
-                        <p className="ds-num shrink-0 text-sm font-semibold text-gray-900">
-                          {money(q.total)}
-                        </p>
-                      </div>
-                      <div className="mt-1 flex items-center justify-between gap-3">
-                        <p className="min-w-0 flex-1 truncate text-xs text-gray-500">
-                          #{q.quoteNumber}
-                          {q.title ? ` · ${q.title}` : ""}
-                        </p>
-                        <StatusChip kind="quote" status={q.status === "DRAFT" && q.scheduledSendAt ? "SCHEDULED" : q.status} className="shrink-0" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="hidden lg:block min-w-0">
-                    <p className="ds-trow-name text-sm font-medium text-gray-900 truncate">
-                      {q.contact.firstName} {q.contact.lastName}
-                    </p>
-                    {q.title && <p className="text-xs text-gray-500 truncate">{q.title}</p>}
-                  </div>
-                  <span className="hidden lg:block text-sm text-gray-500">#{q.quoteNumber}</span>
-                  <span className="hidden lg:block text-sm text-gray-500">{shortDate(q.createdAt, tz)}</span>
-                  <span className="hidden lg:block">
-                    <StatusChip kind="quote" status={q.status === "DRAFT" && q.scheduledSendAt ? "SCHEDULED" : q.status} />
-                  </span>
-                  <span className="ds-num hidden lg:block text-sm font-semibold text-gray-900 lg:text-right">
-                    {money(q.total)}
-                  </span>
-                  <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
-                </Link>
-                </EntityRowActions>
-              ))}
-            </div>
-            {/* Ledger foot — total quoted value */}
-            <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 lg:grid lg:grid-cols-[1fr_70px_140px_150px_100px_40px]">
-              <span className="text-xs font-medium text-gray-500">
-                {quotes.length} {quotes.length === 1 ? "quote" : "quotes"}
-              </span>
-              <span className="hidden lg:block" />
-              <span className="hidden lg:block" />
-              <span className="hidden lg:block" />
-              <span className="ds-num ds-ledger-total text-sm font-bold lg:text-right">
-                {money(pageTotal)}
-              </span>
-              <span className="hidden lg:block" />
-            </div>
-          </>
-        )}
-      </div>
-      <Pager
-        basePath="/app/quotes"
-        params={{ status: validStatus, q: query, sort: sortRaw }}
-        page={page}
-        pageSize={PAGE_SIZE}
-        total={listCount}
-      />
-    </div>
-      {/* desktop tree after the phone one: phone tests take the first matching link */}
-      <div className="hidden lg:block">{desktop}</div>
-    </>
-  );
+  return desktop;
 }

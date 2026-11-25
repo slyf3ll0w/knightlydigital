@@ -484,3 +484,82 @@ a.bb-row:hover::after, a.bb-row:focus-visible::after, .bb-row.is-link:hover::aft
   .rail-live nav a[data-charge]::after, .rail-live .rail-item-in { animation: none !important; }
   .rail-live nav a:active, .rail-live-row:active { transform: none; }
 }
+
+/* ══ Phones: the Live sidebar is the menu (David 2026-11-25) ══
+   The same <aside> as the desktop rail — same groups, same "5 today" /
+   "$2,619 owed" lines, same wipe & charge — slides in from the left over a
+   scrim. Sized for a thumb: 46px rows, 16px type. A drag to the left follows
+   the finger (AppShell). Not glass, so the transform is safe. */
+@media (max-width: 1023px) {
+  .rail-live.rail-drawer {
+    position: fixed; top: 0; bottom: 0; left: 0; z-index: 60;
+    width: min(86vw, 340px); gap: 12px; overflow-y: auto; overscroll-behavior: contain;
+    padding: calc(env(safe-area-inset-top, 0px) + 18px) 12px calc(env(safe-area-inset-bottom, 0px) + 14px);
+    background: var(--ds-surface); border-right: 0;
+    box-shadow: 24px 0 48px -24px rgba(5, 8, 16, 0.45);
+    transform: translateX(-104%); visibility: hidden;
+    transition: transform 460ms cubic-bezier(0.32, 0.72, 0, 1), visibility 0s linear 460ms;
+  }
+  .rail-live.rail-drawer.is-open {
+    transform: none; visibility: visible;
+    transition: transform 460ms cubic-bezier(0.32, 0.72, 0, 1), visibility 0s;
+  }
+  .rail-scrim {
+    position: fixed; inset: 0; z-index: 59; background: rgba(5, 8, 16, 0.42);
+    opacity: 0; pointer-events: none; transition: opacity 360ms ease;
+  }
+  .rail-scrim.is-open { opacity: 1; pointer-events: auto; }
+  .rail-drawer .rail-live-co { padding: 6px 8px 8px; }
+  .rail-drawer .rail-live-name { font-size: 16px; }
+  .rail-drawer .rail-live-search { height: 42px; border-radius: 12px; font-size: 15px; padding: 0 12px; }
+  .rail-drawer .rail-live-search kbd { display: none; }
+  .rail-drawer nav a { height: 46px !important; font-size: 15.5px !important; border-radius: 12px !important; gap: 12px !important; }
+  .rail-drawer nav a > svg { width: 20px; height: 20px; }
+  .rail-drawer .rail-meta { font-size: 13px; }
+  .rail-drawer .rail-live-ghead { height: 38px; font-size: 13px; }
+  .rail-drawer .rail-live-row { height: 44px; font-size: 15px; }
+  /* touch has no hover: the wipe plays while the finger is down */
+  .rail-live.rail-drawer nav a:hover::before { transform: scaleX(0); }
+  .rail-live.rail-drawer nav a:active::before { transform: scaleX(1); }
+  .rail-live-atlas {
+    display: flex; align-items: center; gap: 11px; width: 100%; padding: 10px 12px; border: 0; border-radius: 14px;
+    background: var(--ds-primary-soft); color: var(--rail-ink); font-size: 15px; cursor: pointer;
+  }
+  .rail-live-atlas:active { filter: brightness(0.97); }
+}
+@media (max-width: 1023px) and (prefers-reduced-motion: reduce) {
+  .rail-live.rail-drawer, .rail-live.rail-drawer.is-open, .rail-scrim { transition: none; }
+}
+
+/* ══ Phones: Create (David 2026-11-25) ══ the title, Atlas's "just say it"
+   line, then every create as a two-column list: a quiet icon in the primary,
+   the name, and what it's for. Items rise in one after another. */
+.ph-create { padding: 6px 14px 2px; }
+.ph-create-title { margin: 0; padding: 8px 6px 12px; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: var(--ds-ink); }
+.ph-create-say {
+  display: flex; align-items: center; gap: 12px; width: 100%; margin-bottom: 10px; padding: 12px; border: 0; border-radius: 14px;
+  background: var(--ds-primary-soft); color: var(--ds-ink); font-size: 15px; cursor: pointer;
+}
+.ph-create-say:active { filter: brightness(0.97); }
+.ph-create-mic {
+  width: 36px; height: 36px; flex: none; border-radius: 11px; display: grid; place-items: center;
+  background: var(--ds-secondary); color: var(--ds-on-secondary);
+}
+.ph-create-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 6px; }
+.ph-create-item {
+  position: relative; display: flex; align-items: center; gap: 11px; height: 60px; padding: 0 8px; border: 0; border-radius: 12px;
+  background: transparent; text-align: left; cursor: pointer; transition: background-color 140ms ease;
+}
+.ph-create-item:active { background: color-mix(in srgb, var(--ds-ink) 6%, transparent); }
+.ph-create-item::after {
+  content: ""; position: absolute; left: 8px; right: 8px; bottom: 0; height: 1px; background: var(--ds-line);
+}
+.ph-create-ic {
+  width: 36px; height: 36px; flex: none; border-radius: 11px; display: grid; place-items: center;
+  background: var(--ds-primary-soft); color: var(--ds-primary);
+}
+.ph-create-name { display: block; font-size: 15px; font-weight: 600; color: var(--ds-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ph-create-hint { display: block; font-size: 12.5px; color: var(--ds-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ph-create-item.is-in, .ph-create-say.is-in { animation: ph-create-in 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes ph-create-in { from { opacity: 0; transform: translateY(10px); } }
+@media (prefers-reduced-motion: reduce) { .ph-create-item.is-in, .ph-create-say.is-in { animation: none; } }

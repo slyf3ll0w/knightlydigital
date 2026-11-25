@@ -1,16 +1,15 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { ArrowLeft, ChevronRight, FileSignature, Files, Plus, Search } from "lucide-react";
+import { ArrowLeft, ChevronRight, Files, Plus, Search } from "lucide-react";
 import { Button, DsPage, PageHeader } from "@/components/ds";
 import FilterSelect from "@/components/FilterSelect";
-import PageTitle from "@/components/PageTitle";
+import TitleSentinel from "@/components/TitleSentinel";
 import { shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
 import Monogram from "@/components/Monogram";
-import MobileSearch from "@/components/MobileSearch";
-import FilterBar, { listHref } from "@/components/FilterBar";
+import { listHref } from "@/components/FilterBar";
 import { SignBand, waitedFor } from "@/components/ListBands";
 import Pager from "@/components/Pager";
 import { pickSort, CONTRACT_SORTS, contractOrderBy } from "@/lib/list-sort";
@@ -65,33 +64,29 @@ export default async function ContractsPage({
       select: { id: true, name: true, body: true, isActive: true },
     });
     return (
-      <DsPage open className="rx-templates">
-        <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:mb-8">
-          <PageTitle
-            heavy
-            section="contracts"
-            icon={FileSignature}
+      <DsPage
+        open
+        className="rx-templates rx-phone"
+        header={
+          <PageHeader
+            eyebrow={`${templates.filter((t) => t.isActive).length} in use`}
+            title="Templates"
             info="The reusable agreements you start from. Pick one when you send an agreement and fill in the client's details."
-          >
-            Templates
-          </PageTitle>
-          {/* Templates aren't in the phone create sheet, so the button stays
-              on every screen size — icon-only under sm */}
-          <div className="flex items-center gap-2">
-          <Link href="/app/contracts" prefetch={false} className="ds-btn ds-btn-outline h-10 shrink-0">
-            <ArrowLeft size={15} />
-            Agreements
-          </Link>
-          <Link
-            href="/app/contracts?view=templates&new=1"
-            aria-label="New template"
-            className="btn-primary h-10 shrink-0 justify-center sm:px-4"
-          >
-            <Plus size={15} />
-            <span className="hidden sm:inline">New template</span>
-          </Link>
-          </div>
-        </div>
+            actions={
+              <>
+                {/* Templates aren't in the phone create sheet, so New template stays on every size */}
+                <Button href="/app/contracts" variant="outline" icon={ArrowLeft}>
+                  Agreements
+                </Button>
+                <Button href="/app/contracts?view=templates&new=1" icon={Plus}>
+                  New template
+                </Button>
+              </>
+            }
+          />
+        }
+      >
+        <span className="hidden"><TitleSentinel title="Templates" /></span>
         <TemplatesPanel templates={templates} />
       </DsPage>
     );
@@ -163,9 +158,9 @@ export default async function ContractsPage({
   return (
     <DsPage
       open
-      className="rx-agree"
+      className="rx-agree rx-phone"
       header={
-        <div className="hidden lg:block">
+        <div>
           <PageHeader
             eyebrow={contextLine}
             title="Agreements"
@@ -190,34 +185,7 @@ export default async function ContractsPage({
         </div>
       }
     >
-      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:hidden">
-        <PageTitle
-          heavy
-          section="contracts"
-          icon={FileSignature}
-          info={
-            manager
-              ? "Every agreement you've sent, and the templates they start from."
-              : "Every agreement you've sent to a client for an e-signature."
-          }
-        >
-          Agreements
-        </PageTitle>
-        <div className="flex items-center gap-2">
-          {manager && (
-            <Link href="/app/contracts?view=templates" prefetch={false} className="ds-btn ds-btn-outline h-10 shrink-0">
-              <Files size={15} />
-              Templates
-              {templateCount > 0 && <span className="rounded-[6px] bg-[color:var(--ds-surface-2)] px-1.5 text-[12px] font-bold text-[color:var(--ds-ink-2)]">{templateCount}</span>}
-            </Link>
-          )}
-          {/* Phones create from the tab-bar FAB */}
-          <Link href="/app/contracts/new" className="btn-primary hidden lg:inline-flex">
-            <Plus size={15} />
-            New agreement
-          </Link>
-        </div>
-      </div>
+      <span className="hidden"><TitleSentinel title="Agreements" /></span>
 
       <SignBand
         out={outCount}
@@ -245,15 +213,8 @@ export default async function ContractsPage({
         ]}
       />
 
-      <MobileSearch
-        action="/app/contracts"
-        placeholder="Search agreements, clients…"
-        defaultValue={query}
-        params={{ status: validStatus, sort: sortRaw }}
-      />
-
-      {/* Desktop: search + underline tabs with counts + sort on one hairline row */}
-      <div className="rx-tabsrow hidden lg:block">
+      {/* Search + underline tabs with counts + sort on one hairline row (phones: search above, tabs scroll) */}
+      <div className="rx-tabsrow">
         <div className="clx-filters">
           <form action="/app/contracts" className="clx-search" role="search">
             <Search size={15} aria-hidden />
@@ -288,19 +249,6 @@ export default async function ContractsPage({
             />
           </span>
         </div>
-      </div>
-
-      <div className="lg:hidden">
-      <FilterBar
-        options={statusFilters}
-        value={validStatus ?? ""}
-        href={(v) => listHref("/app/contracts", { q: query, sort: sortRaw }, { status: v })}
-        sort={{
-          options: CONTRACT_SORTS,
-          value: sort,
-          href: (v) => listHref("/app/contracts", { status: validStatus, q: query }, { sort: v }),
-        }}
-      />
       </div>
 
       <div className="ds-card rx-open-card overflow-hidden">

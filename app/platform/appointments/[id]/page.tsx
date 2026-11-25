@@ -12,7 +12,6 @@ import { canText } from "@/lib/sms-consent";
 import { HOUR_STAGE_MS, MIN_BOOKING_AGE_MS, bookingAnchor, inSmsQuietHours, reminderOutlook, smsQuietHoursEnd } from "@/lib/reminder-stage";
 import StatusChip from "@/components/StatusChip";
 import { Chip, DsPage } from "@/components/ds";
-import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import JobActionRow from "@/components/JobActionRow";
 import CallLink from "@/components/CallLink";
@@ -162,14 +161,7 @@ export default async function AppointmentDetailPage({
   return (
     // pb-20: phone bottom padding so the docked action pill never covers the
     // last card (same treatment as the job page)
-    <DsPage open className="rx-appt max-lg:pb-20 lg:max-w-5xl">
-      <div className="flex items-center gap-3 mb-4 lg:hidden">
-        <BackLink href="/app/appointments" />
-        <StatusChip kind="appointment" status={appt.status} />
-        {appt.tentative && appt.status === "SCHEDULED" && (
-          <Chip tone="warn">Tentative — awaiting approval</Chip>
-        )}
-      </div>
+    <DsPage open className="rx-appt rx-phone max-lg:pb-20 lg:max-w-5xl">
 
       {appt.tentative && appt.status === "SCHEDULED" && appt.request && (
         <div className="mb-6 rounded-lg bg-[color:var(--ds-warn-soft)] px-4 py-3 text-sm text-[color:var(--ds-ink)]">
@@ -183,8 +175,8 @@ export default async function AppointmentDetailPage({
 
       <div className="rx-dochead flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="min-w-0">
-          {/* Desktop: crumbs + state above the title (phones keep the back row) */}
-          <p className="rx-crumbs hidden lg:flex">
+          {/* Crumbs + state above the title (the crumb is the way back on phones too) */}
+          <p className="rx-crumbs">
             <Link prefetch={false} href="/app/appointments">Appointments</Link>
             {appt.appointmentNumber ? (
               <>
@@ -248,11 +240,9 @@ export default async function AppointmentDetailPage({
       />
 
       <div className="ds-card rx-open-card p-5 mb-5 space-y-3">
-        <div className="hidden lg:block">
-          <h2 className="bb-h2 rx-h2">
-            <span className="bb-h2-text">Details</span>
-          </h2>
-        </div>
+        <h2 className="bb-h2 rx-h2">
+          <span className="bb-h2-text">Details</span>
+        </h2>
         <div className="flex items-start gap-3">
           <CalendarDays size={15} className="text-gray-400 mt-0.5 shrink-0" />
           <p className="text-sm text-gray-800">{when}</p>

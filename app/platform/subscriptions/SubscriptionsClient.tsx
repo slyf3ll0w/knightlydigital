@@ -8,7 +8,7 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { money } from "@/lib/statuses";
 import EmptyState from "@/components/EmptyState";
 import { confirmSheet } from "@/components/ConfirmSheet";
-import PageTitle from "@/components/PageTitle";
+import TitleSentinel from "@/components/TitleSentinel";
 import { Button, Chip, DsPage, InfoTip, PageHeader } from "@/components/ds";
 import Modal from "@/components/Modal";
 import CountUp from "@/components/CountUp";
@@ -346,8 +346,8 @@ export default function SubscriptionsClient({
         ? { amount: money(Number(x.unitPrice) * Number(x.quantity)), per: "per visit" }
         : { amount: null, per: "Recurring job — no billing" };
 
-  // Desktop: the open page (2026-11-24) — its own header with a context
-  // line; phones keep the PageTitle row below exactly as before.
+  // The open page (2026-11-24; phones too since the phone pass) — its own
+  // header with a context line.
   const contextLine = [
     `${live.length} active${live.length === 1 ? " plan" : " plans"}`,
     mrr > 0 ? `${money(mrr)} a month` : null,
@@ -359,9 +359,9 @@ export default function SubscriptionsClient({
   return (
     <DsPage
       open
-      className="rx-rec"
+      className="rx-rec rx-phone"
       header={
-        <div className="hidden lg:block">
+        <div>
           <PageHeader
             eyebrow={subs.length > 0 ? contextLine : undefined}
             title="Recurring"
@@ -384,34 +384,7 @@ export default function SubscriptionsClient({
         </div>
       }
     >
-      <div className="flex items-start justify-between gap-3 mb-5 lg:hidden">
-        <PageTitle heavy info="Auto-charged plans, plus work billed per completed visit.">Recurring</PageTitle>
-        {canManage && (
-          <div className="flex items-center gap-2">
-            {active.length > 0 && (
-              <button
-                onClick={runAll}
-                disabled={runningAll}
-                className="ds-btn ds-btn-outline shrink-0 disabled:opacity-50"
-                title="Generate invoices for any subscriptions that are due now"
-                aria-label="Run due now"
-              >
-                {runningAll ? <Loader2 size={14} className="animate-spin" /> : <RotateCw size={14} />}
-                <span className="hidden sm:inline">Run due now</span>
-                <span className="sm:hidden">Run</span>
-              </button>
-            )}
-            <Link
-              href="/app/subscriptions/new"
-              className="btn-primary shrink-0"
-            >
-              <Repeat size={14} />
-              <span className="hidden sm:inline">New plan</span>
-              <span className="sm:hidden">New</span>
-            </Link>
-          </div>
-        )}
-      </div>
+      <span className="hidden"><TitleSentinel title="Recurring" /></span>
       {error && (
         <div role="alert" className="form-error mb-4">{error}</div>
       )}

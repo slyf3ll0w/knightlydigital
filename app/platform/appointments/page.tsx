@@ -1,10 +1,9 @@
 import { prisma } from "@/lib/db";
 import { Fragment } from "react";
 import Link from "next/link";
-import { Plus, ChevronRight, CalendarClock, UserCheck, Search } from "lucide-react";
-import PageTitle from "@/components/PageTitle";
-import { FilterChip } from "@/components/FilterChips";
-import FilterBar, { listHref } from "@/components/FilterBar";
+import { Plus, ChevronRight, UserCheck, Search } from "lucide-react";
+import TitleSentinel from "@/components/TitleSentinel";
+import { listHref } from "@/components/FilterBar";
 import { appointmentTypeLabel } from "@/lib/statuses";
 import { fmtTime } from "@/lib/format";
 import { startOfDayIn, zonedMidnight, zonedParts } from "@/lib/timezone";
@@ -12,7 +11,6 @@ import AppointmentsStrip, { type StripDay } from "./AppointmentsStrip";
 import StatusChip from "@/components/StatusChip";
 import { Button, Chip, DsPage, PageHeader } from "@/components/ds";
 import EmptyState from "@/components/EmptyState";
-import MobileSearch from "@/components/MobileSearch";
 import Monogram from "@/components/Monogram";
 import Pager from "@/components/Pager";
 import EntityRowActions from "@/components/EntityRowActions";
@@ -228,9 +226,9 @@ export default async function AppointmentsPage({
   return (
     <DsPage
       open
-      className="rx-appts"
+      className="rx-appts rx-phone"
       header={
-        <div className="hidden lg:block">
+        <div>
           <PageHeader
             eyebrow={contextLine}
             title="Appointments"
@@ -243,16 +241,8 @@ export default async function AppointmentsPage({
         </div>
       }
     >
-      <div className="flex flex-wrap items-center justify-between gap-y-3 mb-4 lg:hidden">
-        <PageTitle section="schedule" icon={CalendarClock}>
-          Appointments
-        </PageTitle>
-        {/* Phones create from the tab-bar FAB */}
-        <Link href="/app/appointments/new" className="btn-primary hidden lg:flex">
-          <Plus size={15} />
-          New appointment
-        </Link>
-      </div>
+      {/* phones: the top bar takes the title once the header scrolls away */}
+      <span className="hidden"><TitleSentinel title="Appointments" /></span>
 
       <AppointmentsStrip
         days={stripDays}
@@ -268,15 +258,8 @@ export default async function AppointmentsPage({
         toClose={{ count: toCloseCount, href: "/app/appointments?status=past" }}
       />
 
-      <MobileSearch
-        action="/app/appointments"
-        placeholder="Search appointments, clients…"
-        defaultValue={query}
-        params={{ status: filter || undefined, assignee: mineOnly ? "me" : undefined }}
-      />
-
-      {/* Desktop: search + underline tabs with counts + Mine on one hairline row */}
-      <div className="rx-tabsrow hidden lg:block">
+      {/* Search + underline tabs with counts + Mine on one hairline row (phones: search above, tabs scroll) */}
+      <div className="rx-tabsrow">
         <div className="clx-filters">
           <form action="/app/appointments" className="clx-search" role="search">
             <Search size={15} aria-hidden />
@@ -312,26 +295,6 @@ export default async function AppointmentsPage({
             </span>
           )}
         </div>
-      </div>
-
-      <div className="lg:hidden">
-      <FilterBar
-        options={statusFilters}
-        value={filter}
-        href={(v) => listHref("/app/appointments", cur, { status: v })}
-        scope={
-          showAll ? (
-            <FilterChip
-              hue="var(--ds-primary)"
-              active={mineOnly}
-              href={listHref("/app/appointments", cur, { assignee: mineOnly ? undefined : "me" })}
-            >
-              <UserCheck size={13} />
-              Mine
-            </FilterChip>
-          ) : undefined
-        }
-      />
       </div>
 
       <div className="ds-card rx-open-card overflow-hidden">

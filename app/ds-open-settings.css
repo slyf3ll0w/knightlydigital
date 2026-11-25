@@ -108,3 +108,61 @@
   /* the pop-up: the open group's title at the open-page weight */
   .ds-settings .ds-settings-h { font-size: 26px; font-weight: 700; }
 }
+
+/* ══ Phones (2026-11-25, the phone pass). The same Stripe-style open groups
+   as the desk, stacked for a thumb: cards lose their box (hairline on top),
+   card titles get the two-color bar, a setting's label sits above its
+   control, the Settings index reads as hairline rows with chevrons, and
+   fields are 16px so iOS never zooms. The full settings pages keep their own
+   padding (the open wrapper only adds the white page). ══ */
+@media (max-width: 1023px) {
+  .bb-wrap:has(> .bb-page.st-page) { background: var(--ds-surface); }
+  .bb-page.st-page { padding: 0; max-width: none; }
+  .st-page h1.ds-title { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; }
+
+  :is(.st-page, .ds-settings) .ds-card {
+    background: transparent;
+    box-shadow: none;
+    border: 0;
+    border-radius: 0;
+    border-top: 1px solid var(--ds-line-strong);
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    overflow: visible;
+  }
+  :is(.st-page, .ds-settings) .ds-card + .ds-card { margin-top: 24px; }
+  :is(.st-page, .ds-settings) .ds-card.ds-divide > .ds-row,
+  :is(.st-page, .ds-settings) .ds-card.ds-divide > * > .ds-row { padding-left: 0; padding-right: 0; }
+
+  :is(.st-page, .ds-settings) .ds-card > div:first-child:has(> :is(h2, h3), > .min-w-0 > :is(h2, h3)) {
+    position: relative;
+    padding-bottom: 12px;
+  }
+  :is(.st-page, .ds-settings) .ds-card > div:first-child:has(> :is(h2, h3), > .min-w-0 > :is(h2, h3))::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 36px;
+    height: 3px;
+    border-radius: 1px;
+    background: linear-gradient(90deg, var(--ds-primary) 0 66%, var(--ds-secondary) 66%);
+  }
+  :is(.st-page, .ds-settings) .ds-card > div:first-child > :is(h2, h3),
+  :is(.st-page, .ds-settings) .ds-card > div:first-child > .min-w-0 > :is(h2, h3) {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--ds-ink);
+  }
+  :is(.st-page, .ds-settings) .ds-card label.text-sm { font-size: 14px; font-weight: 600; color: var(--ds-ink); }
+
+  /* the Settings index (phones): the six groups as hairline rows with chevrons */
+  .ds-settings .st-index .ds-card { border-top-color: var(--ds-line); }
+  .ds-settings .st-index .ds-row { min-height: 60px; }
+  .ds-settings .st-index .ds-row:active { background: var(--ds-surface-2); }
+
+  :is(.st-page, .ds-settings) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea) { font-size: 16px; }
+  /* tables (DNS records, team) scroll inside their own box */
+  :is(.st-page, .ds-settings) .overflow-x-auto { -webkit-overflow-scrolling: touch; }
+}

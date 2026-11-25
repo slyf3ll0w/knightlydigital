@@ -2,7 +2,6 @@ import Link from "next/link";
 import SectionHeader from "@/components/SectionHeader";
 import { notFound } from "next/navigation";
 import { Briefcase, CalendarClock, FileText, Mail, MapPin, Phone, Receipt, UserRound } from "lucide-react";
-import BackLink from "@/components/BackLink";
 import { DsPage } from "@/components/ds";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell } from "@/lib/permissions";
@@ -206,9 +205,8 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
   return (
     <DsPage open className="rx-call lg:max-w-3xl">
       {!terminal && <CallsLive />}
-      <BackLink href="/app/calls" className="mb-4 lg:hidden" />
-      {/* Desktop: crumbs instead of the back pill */}
-      <p className="rx-crumbs mb-4 hidden lg:flex">
+      {/* Crumbs (phones too, since the 2026-11-25 phone pass) */}
+      <p className="rx-crumbs mb-4">
         <Link prefetch={false} href="/app/calls">Calls</Link>
         <span aria-hidden>/</span>
         <span>{label}</span>

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Archive, ArchiveRestore, Loader2, MapPin, Pencil, Plus, Route as RouteIcon, Warehouse, X } from "lucide-react";
 import Modal from "@/components/Modal";
+import TitleSentinel from "@/components/TitleSentinel";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { Button, Chip, DsPage, Hint, InfoTip, ListRow, PageHeader } from "@/components/ds";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -104,7 +105,8 @@ export default function PlacesClient({ initial, canArchive }: { initial: PlaceDT
   );
 
   return (
-    <DsPage open>
+    <DsPage open className="rx-phone">
+      <span className="hidden"><TitleSentinel title="Places" /></span>
       <PageHeader
         eyebrow={
           active.length > 0

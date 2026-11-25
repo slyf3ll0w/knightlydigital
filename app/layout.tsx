@@ -20,6 +20,8 @@ import "./ds-open-tools.css";
 import "./ds-open-reports.css";
 import "./ds-open-forms.css";
 import "./ds-open-settings.css";
+import "./ds-phone-home.css";
+import "./ds-phone-comms.css";
 import "./moment.css";
 
 export const viewport: Viewport = {
