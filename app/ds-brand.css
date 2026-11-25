@@ -436,46 +436,51 @@ a.bb-row:hover::after, a.bb-row:focus-visible::after, .bb-row.is-link:hover::aft
   .app-ui:has(.bb-band[data-daypart="night"]) .app-header { --bb-deep: color-mix(in srgb, var(--bb-p) 16%, #02040A); }
 }
 
-/* Sidebar motion (David 2026-11-24): quiet but alive. No per-icon wiggles.
-   HOVER: one soft light glides between rows under the pointer (AppShell
-   moves .rail-hover), the hovered icon takes the brand color.
-   CLICK: the row presses in, the page marker glides to it, a light sweeps
-   across the marker once (.is-landing) and the icon pops as it settles. */
+/* Sidebar motion: Wipe & charge (David 2026-11-24, round 12 option 3).
+   HOVER: the row's tint wipes in from the side the pointer entered on
+   (AppShell sets --wipe-o), and the icon takes the company's primary.
+   CLICK: the row presses in, the page marker glides to it, and a line
+   charges across the row's foot in the company's secondary into its
+   primary, then fades as the page opens (AppShell sets [data-charge]). */
+.rail-live nav a { isolation: isolate; overflow: hidden; }
 .rail-live nav a:hover { background: transparent !important; }
+.rail-live nav a::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  background: var(--rail-hover);
+  transform: scaleX(0); transform-origin: var(--wipe-o, left);
+  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.rail-live nav a:hover::before { transform: scaleX(1); }
+.rail-live nav a[data-rail-active="true"]::before { display: none; }
 .rail-live nav a:hover > svg { transform: none; color: var(--ds-primary); }
+.rail-live nav a::after {
+  content: ""; position: absolute; left: 6px; right: 6px; bottom: 1px; height: 2px; border-radius: 2px; pointer-events: none;
+  background: linear-gradient(90deg, var(--ds-secondary), var(--ds-primary));
+  transform: scaleX(0); transform-origin: left; opacity: 0;
+}
+.rail-live nav a[data-charge]::after { animation: rail-charge 700ms cubic-bezier(0.65, 0, 0.35, 1) both; }
+@keyframes rail-charge {
+  0% { transform: scaleX(0); opacity: 1; }
+  60% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
 .rail-live nav a,
 .rail-live-row,
 .rail-live-ghead,
 .rail-live-search { transition: background-color 160ms var(--ds-ease, ease), color 160ms var(--ds-ease, ease), transform 140ms var(--ds-ease, ease); }
 .rail-live nav a > svg { transition: color 160ms var(--ds-ease, ease); }
 .rail-live nav a:active { transform: scale(0.975); }
-.rail-hover {
-  position: absolute; left: 8px; right: 8px; top: 0; z-index: 0;
-  border-radius: 8px; pointer-events: none; opacity: 0;
-  background: var(--rail-hover);
-  transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1), height 240ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 180ms ease;
-}
-.rail-hover.is-on { opacity: 1; }
 .rail-live .rail-indicator {
-  overflow: hidden;
   transition:
     transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1),
     height 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
     opacity 150ms ease;
 }
-.rail-live .rail-indicator.is-landing::after {
-  content: ""; position: absolute; top: 0; bottom: 0; left: -40%; width: 40%;
-  background: linear-gradient(100deg, transparent, color-mix(in srgb, var(--ds-primary) 22%, transparent), transparent);
-  animation: rail-sweep 620ms cubic-bezier(0.2, 0.8, 0.2, 1) 160ms both;
-}
-@keyframes rail-sweep { to { left: 110%; } }
-.rail-live a[data-rail-active="true"] > svg { animation: rail-pop 460ms cubic-bezier(0.2, 0.8, 0.2, 1) 120ms; }
-@keyframes rail-pop { 0% { transform: scale(1); } 45% { transform: scale(1.16); } 100% { transform: scale(1); } }
 .rail-live-row:active { transform: scale(0.975); }
 .rail-live .rail-item-in { animation: rail-live-fade 220ms var(--ds-ease, ease) both !important; }
 @keyframes rail-live-fade { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .rail-hover, .rail-live .rail-indicator { transition: none; }
-  .rail-live .rail-indicator.is-landing::after, .rail-live a[data-rail-active="true"] > svg, .rail-live .rail-item-in { animation: none !important; }
+  .rail-live nav a::before, .rail-live .rail-indicator { transition: none; }
+  .rail-live nav a[data-charge]::after, .rail-live .rail-item-in { animation: none !important; }
   .rail-live nav a:active, .rail-live-row:active { transform: none; }
 }

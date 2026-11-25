@@ -560,18 +560,6 @@ export default function LeadsBoardClient({
     else if (e.key === "ArrowLeft" && col > 0) go(col - 1, row);
   }
 
-  // The pipeline bar: a stage's segment scrolls its lane (or its list group) into view
-  function goToStage(stageId: string) {
-    if (view === "list") {
-      document.getElementById(`lead-group-${stageId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-      return;
-    }
-    if (collapsed.includes(stageId)) toggleCollapsed(stageId);
-    requestAnimationFrame(() =>
-      document.getElementById(`lead-lane-${stageId}`)?.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" })
-    );
-  }
-
   function showPeek(card: BoardCard, el: HTMLElement) {
     if (peekTimer.current) clearTimeout(peekTimer.current);
     if (dragId || (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches)) return;
@@ -627,45 +615,6 @@ export default function LeadsBoardClient({
           }
         />
       </div>
-
-      {/* The pipeline in one bar: each stage's share by value (by count when nothing has a value) */}
-      {working.length > 0 && workingStages.length > 0 && (
-        <div className="ld-pipe hidden lg:block" aria-label="Pipeline by stage">
-          <div className="ld-pipe-bar">
-            {workingStages.map((st) => {
-              const list = byStage.get(st.id) ?? [];
-              const v = list.reduce((sum, c) => sum + c.value, 0);
-              const weight = totalValue > 0 ? v : list.length;
-              if (weight <= 0) return null;
-              return (
-                <button
-                  key={st.id}
-                  type="button"
-                  className="ld-pipe-seg bg-themed"
-                  style={{ ...themedBgVars(st.color), flexGrow: weight }}
-                  onClick={() => goToStage(st.id)}
-                  title={`${st.name}: ${list.length} ${list.length === 1 ? "lead" : "leads"}${v > 0 ? ` · ${money(v)}` : ""}`}
-                  aria-label={`Go to ${st.name}`}
-                />
-              );
-            })}
-          </div>
-          <div className="ld-pipe-legend">
-            {workingStages.map((st) => {
-              const list = byStage.get(st.id) ?? [];
-              const v = list.reduce((sum, c) => sum + c.value, 0);
-              return (
-                <button key={st.id} type="button" className="ld-pipe-key" onClick={() => goToStage(st.id)}>
-                  <span className="ld-pipe-dot bg-themed" style={themedBgVars(st.color)} aria-hidden />
-                  <span className="ld-pipe-name">{st.name}</span>
-                  <span className="ld-pipe-n">{list.length}</span>
-                  {v > 0 && <span className="ld-pipe-v">{money(v)}</span>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Phone header: the board in one exact sentence */}
       <div className="flex flex-wrap items-end justify-between gap-y-3 mb-4 max-w-none lg:hidden">

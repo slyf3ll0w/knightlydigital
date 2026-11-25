@@ -330,25 +330,6 @@ html[data-mode="dark"] .ld-card { box-shadow: 0 0 0 1px var(--ds-line), 0 1px 2p
   .ld-ctx-n { margin-left: 2px; font-weight: 500; color: var(--ds-faint); font-variant-numeric: tabular-nums; }
   .ld-open > .hidden.lg\:block:first-child { margin-bottom: 22px; }
 
-  /* the pipeline bar */
-  .ld-pipe { margin-bottom: 22px; }
-  .ld-pipe-bar { display: flex; gap: 3px; height: 8px; }
-  .ld-pipe-seg {
-    flex-basis: 0; min-width: 10px; height: 100%; border: 0; border-radius: 3px; cursor: pointer; padding: 0;
-    transition: filter 160ms var(--ds-ease), transform 160ms var(--ds-ease);
-  }
-  .ld-pipe-seg:hover { filter: brightness(1.08); transform: scaleY(1.5); }
-  .ld-pipe-legend { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 10px; }
-  .ld-pipe-key {
-    display: inline-flex; align-items: baseline; gap: 6px; padding: 2px 0; border: 0; background: transparent; cursor: pointer;
-    font-size: 13px; color: var(--ds-muted);
-  }
-  .ld-pipe-key:hover .ld-pipe-name { color: var(--ds-ink); text-decoration: underline; text-underline-offset: 3px; }
-  .ld-pipe-dot { align-self: center; width: 8px; height: 8px; border-radius: 2px; }
-  .ld-pipe-name { font-weight: 600; color: var(--ds-ink-2); }
-  .ld-pipe-n { font-variant-numeric: tabular-nums; }
-  .ld-pipe-v { font-weight: 600; color: var(--ds-ink-2); font-variant-numeric: tabular-nums; }
-
   /* the filter strip: open, on a hairline */
   .ld-open .ld-bar {
     padding: 0 0 10px; border-radius: 0; background: transparent; box-shadow: none;
@@ -365,92 +346,106 @@ html[data-mode="dark"] .ld-card { box-shadow: 0 0 0 1px var(--ds-line), 0 1px 2p
     content: ""; position: absolute; left: 8px; right: 8px; bottom: -11px; height: 2px; border-radius: 2px; background: var(--ds-primary);
   }
 
-  /* lanes without boxes */
-  .ld-open .ld-board { gap: 28px; }
+  /* Quiet columns (David 2026-11-24, round 12 option C): the classic board
+     with nothing busy. No tinted columns, no boxes in boxes: a header on a
+     hairline whose stage-colored line grows with the stage's share of the
+     money, white cards with a hairline ring, and an age that turns amber
+     past a week. Every card is the same height. */
+  .ld-open .ld-board { gap: 16px; }
   .ld-open .ld-col,
-  .ld-open .ld-col.has-stage,
-  .ld-open .ld-col.has-stage.is-drop {
-    border-radius: 0; background: transparent; box-shadow: none;
+  .ld-open .ld-col.has-stage {
+    border-radius: 12px; background: transparent; box-shadow: none;
+    transition: background-color 200ms var(--ds-ease);
   }
+  .ld-open .ld-col.has-stage.is-drop { background: color-mix(in srgb, var(--st) 7%, transparent); box-shadow: none; }
+  html[data-mode="dark"] .ld-open .ld-col.has-stage.is-drop { background: color-mix(in srgb, var(--st) 12%, transparent); }
   .ld-open .ld-col.has-stage .ld-col-head,
   .ld-open .ld-col-head {
-    padding: 0 0 10px; border-radius: 0; background: var(--ds-surface);
-    box-shadow: none; border-top: 3px solid var(--st, var(--ds-line-strong));
+    position: relative; padding: 0 4px 12px; margin-bottom: 12px; border-radius: 0;
+    background: transparent; box-shadow: none; border: 0; border-bottom: 2px solid var(--ds-line);
   }
-  .ld-open .ld-col-head .ld-col-row:first-child { height: 34px; }
+  .ld-open .ld-col-head .ld-col-row:first-child { height: 28px; }
   .ld-open .ld-col.has-stage .ld-dot { display: none; }
-  .ld-open .ld-col-name { font-size: 15px; font-weight: 700; letter-spacing: -0.015em; }
+  .ld-open .ld-col-name { font-size: 14.5px; font-weight: 600; letter-spacing: -0.01em; }
   .ld-open .ld-col.has-stage .ld-col-count {
-    min-width: 0; height: auto; padding: 0; background: transparent; font-weight: 600;
-    color: color-mix(in srgb, var(--st) 75%, var(--ds-ink));
+    min-width: 0; height: auto; padding: 0; background: transparent; font-weight: 500; color: var(--ds-muted);
   }
-  .ld-open .ld-col-row.is-sub { height: 18px; font-size: 12.5px; }
-  .ld-open .ld-col.has-stage .ld-share { display: none; }
+  .ld-open .ld-col-row.is-sub { height: 18px; font-size: 12.5px; font-weight: 400; color: var(--ds-muted); }
+  .ld-open .ld-col.has-stage .ld-col-value { font-weight: 500; color: var(--ds-muted); }
+  /* the share line sits ON the hairline */
+  .ld-open .ld-col.has-stage .ld-share {
+    display: block; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px; margin: 0;
+    border-radius: 0; background: transparent;
+  }
+  .ld-open .ld-col.has-stage .ld-share > span { min-width: 14px; border-radius: 2px; transition: width 400ms var(--ds-ease); }
+  .ld-open .ld-col.has-stage.is-drop .ld-share > span { width: 100% !important; }
   .ld-open .ld-col-head .ld-icon-btn { opacity: 0; transition: opacity 140ms var(--ds-ease), background-color 140ms; }
   .ld-open .ld-col:hover .ld-col-head .ld-icon-btn,
   .ld-open .ld-col-head .ld-icon-btn:focus-visible { opacity: 1; }
-  .ld-open .ld-col-body { gap: 0; padding: 0; border-top: 1px solid var(--ds-line); }
-  /* a lane being dropped on: its rule thickens, nothing else moves */
-  .ld-open .ld-col.has-stage.is-drop .ld-col-head { border-top-width: 3px; box-shadow: 0 -3px 0 var(--st); }
+  .ld-open .ld-col-body { gap: 10px; padding: 0 0 8px; border-top: 0; }
 
-  /* leads as rows */
+  /* white cards on a hairline ring */
   .ld-open .ld-card,
   .ld-open .ld-col.has-stage .ld-card {
-    height: 74px; padding: 10px 2px 9px; border-radius: 0; background: transparent;
-    box-shadow: none; border-bottom: 1px solid var(--ds-line); transform: none;
+    height: 92px; padding: 10px 12px; border: 0; border-radius: 10px; background: var(--ds-surface);
+    box-shadow: 0 0 0 1px var(--ds-line), 0 1px 2px rgba(13, 20, 36, 0.04);
+    transition: box-shadow 200ms var(--ds-ease), transform 200ms var(--ds-ease);
+  }
+  html[data-mode="dark"] .ld-open .ld-card,
+  html[data-mode="dark"] .ld-open .ld-col.has-stage .ld-card {
+    background: var(--ds-surface-2); box-shadow: 0 0 0 1px var(--ds-line), 0 1px 2px rgba(0, 0, 0, 0.3);
   }
   .ld-open .ld-card:hover,
-  .ld-open .ld-col.has-stage .ld-card:hover { transform: none; box-shadow: none; background: transparent; }
-  .ld-open .ld-card:focus-visible { box-shadow: inset 0 0 0 2px var(--ds-primary); border-radius: 6px; }
-  .ld-open .ld-card::before,
-  .ld-open .ld-col.has-stage .ld-card::before { display: none; }
-  /* the row underline (as on every open list), drawn in the stage color */
-  .ld-open .ld-card::after {
-    content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px;
-    background: var(--st, var(--ds-primary)); transform: scaleX(0); transform-origin: left; pointer-events: none;
-    transition: transform 320ms var(--ds-ease);
+  .ld-open .ld-col.has-stage .ld-card:hover {
+    transform: translateY(-1px); background: var(--ds-surface);
+    box-shadow: 0 0 0 1px var(--ds-line-strong), 0 6px 16px -8px rgba(13, 20, 36, 0.25);
   }
-  .ld-open .ld-card:hover::after { transform: scaleX(1); }
-  .ld-open .ld-card-name { transition: transform 260ms var(--ds-ease); }
-  .ld-open .ld-card:hover .ld-card-name { transform: translateX(4px); }
-  .ld-open .ld-card-foot { padding-top: 4px; border-top: 0; margin-top: 0; }
+  html[data-mode="dark"] .ld-open .ld-card:hover,
+  html[data-mode="dark"] .ld-open .ld-col.has-stage .ld-card:hover {
+    background: var(--ds-surface-2); box-shadow: 0 0 0 1px var(--ds-line-strong), 0 8px 18px -8px rgba(0, 0, 0, 0.6);
+  }
+  .ld-open .ld-card:focus-visible { box-shadow: 0 0 0 2px var(--ds-primary); }
+  .ld-open .ld-card::before,
+  .ld-open .ld-col.has-stage .ld-card::before,
+  .ld-open .ld-card::after { display: none; }
+  .ld-open .ld-card-name { font-weight: 600; }
+  .ld-open .ld-card-foot { padding-top: 6px; border-top: 0; margin-top: 0; }
   .ld-open .ld-card-next { color: var(--ds-muted); }
-  .ld-open .ld-card-owner { width: 18px; height: 18px; font-size: 8.5px; }
-  .ld-open .ld-card.is-dragging { opacity: 0.35; }
-  .ld-open .ld-board.is-live .ld-card { animation: ld-row-settle 320ms var(--ds-ease) backwards; }
-  @keyframes ld-row-settle { from { opacity: 0; transform: translateY(-4px); } }
+  .ld-open .ld-card-owner { width: 20px; height: 20px; font-size: 9px; }
+  .ld-open .ld-card.is-dragging { opacity: 0.4; }
+  .ld-open .ld-board.is-live .ld-card { animation: ld-card-rise 320ms var(--ds-ease) backwards; }
+  @keyframes ld-card-rise { from { opacity: 0; transform: translateY(4px); } }
 
-  /* the drop target: a thin insertion line; an empty lane keeps its size */
+  /* dropping: the column tints and its share line fills; nothing changes size */
   .ld-open .ld-col-body > .ld-slot,
   .ld-open .ld-col.has-stage .ld-slot {
-    height: 0; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 2px; overflow: visible;
-    background: transparent; color: transparent; font-size: 0; animation: none;
-    box-shadow: 0 2px 0 var(--st, var(--ds-primary));
+    height: 0; min-height: 0; margin: 0; padding: 0; border: 0; overflow: visible;
+    background: transparent; color: transparent; font-size: 0; animation: none; box-shadow: none;
   }
   .ld-open .ld-col-body > .ld-slot:only-child,
   .ld-open .ld-empty {
-    height: 44px; min-height: 44px; box-sizing: border-box; padding: 0 2px; display: flex; align-items: center;
-    border: 0; border-radius: 0; border-bottom: 1px dashed var(--ds-line-strong); background: transparent;
-    font-size: 13px; text-align: left; color: var(--ds-muted); box-shadow: none;
+    height: 56px; min-height: 56px; box-sizing: border-box; padding: 0 12px; display: flex; align-items: center;
+    border: 1px dashed var(--ds-line-strong); border-radius: 10px; background: transparent;
+    font-size: 13px; text-align: left; color: var(--ds-faint); box-shadow: none;
   }
   .ld-open .ld-col-body > .ld-slot:only-child {
-    color: color-mix(in srgb, var(--st, var(--ds-primary)) 80%, var(--ds-ink)); font-weight: 600;
-    border-bottom: 2px solid var(--st, var(--ds-primary));
+    font-size: 0; border-color: var(--st, var(--ds-primary));
+    color: color-mix(in srgb, var(--st, var(--ds-primary)) 80%, var(--ds-ink));
   }
-  .ld-open .ld-col-body > .ld-slot:only-child::before { content: "Drop here"; }
-  .ld-open .ld-col-body > .ld-slot:only-child { font-size: 0; }
-  .ld-open .ld-col-body > .ld-slot:only-child::before { font-size: 13px; }
-  .ld-open .ld-empty.is-add:hover { border-bottom-color: var(--st, var(--ds-primary)); color: var(--ds-ink); }
+  .ld-open .ld-col-body > .ld-slot:only-child::before { content: "Drop here"; font-size: 13px; font-weight: 600; }
+  .ld-open .ld-empty.is-add span { color: var(--ds-muted); font-weight: 500; }
+  .ld-open .ld-empty.is-add:hover { border-color: var(--st, var(--ds-primary)); color: var(--ds-ink-2); }
+  .ld-open .ld-empty.is-add:hover span { color: var(--ds-ink); }
 
   /* folded lanes and the Lost tail: a quiet upright strip with the stage rule */
   .ld-open .ld-col.is-collapsed,
   .ld-open .ld-col.has-stage.is-collapsed {
-    width: 36px; padding: 10px 0; background: transparent;
-    box-shadow: none; border-top: 3px solid var(--st, var(--ds-line-strong));
+    width: 36px; padding: 10px 0; background: transparent; border-radius: 10px;
+    box-shadow: inset 0 0 0 1px var(--ds-line); border-top: 0;
   }
   .ld-open .ld-col.is-collapsed:hover { background: var(--ds-surface-2); }
-  .ld-open .ld-col.is-tail { border-top-color: var(--ds-line-strong); }
-  .ld-open .ld-col.is-tail.is-drop { background: var(--ds-surface-2); border-top-color: var(--ds-ink-2); }
+  .ld-open .ld-col.is-tail { box-shadow: inset 0 0 0 1px var(--ds-line); }
+  .ld-open .ld-col.is-tail.is-drop { background: var(--ds-surface-2); box-shadow: inset 0 0 0 1.5px var(--ds-ink-2); }
 
   /* Won / Lost while dragging: quiet targets, colored only when a lead is over them */
   .ld-zone {
@@ -498,6 +493,6 @@ html[data-mode="dark"] .ld-card { box-shadow: 0 0 0 1px var(--ds-line), 0 1px 2p
 }
 html[data-mode="dark"] .ld-group { --st: var(--bg-d, var(--ds-primary)); }
 @media (min-width: 1024px) and (prefers-reduced-motion: reduce) {
-  .ld-open .ld-card::after, .ld-open .ld-card-name, .ld-pipe-seg, .ld-zone { transition: none; }
+  .ld-open .ld-card, .ld-open .ld-share > span, .ld-zone { transition: none; }
   .ld-open .ld-board.is-live .ld-card { animation: none; }
 }
