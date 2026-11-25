@@ -21,8 +21,8 @@
   --bb-mid: color-mix(in srgb, var(--bb-p) 64%, #050A18);
   --bb-foot: var(--bb-p);
   /* the secondary as it reads on a dark surface (lib/ds-theme.ts lightens it to 3:1) */
-  --bb-s: var(--ds-secondary-d, #F86A0A);
-  --bb-on-s: var(--ds-on-secondary-d, #FFFFFF);
+  --bb-s: var(--ds-secondary-band, var(--ds-secondary-d, #F86A0A));
+  --bb-on-s: var(--ds-on-secondary-band, var(--ds-on-secondary-d, #FFFFFF));
   --bb-h: 184px;
 }
 html[data-mode="dark"] .ds {
@@ -440,8 +440,8 @@ a.bb-row:hover::after, a.bb-row:focus-visible::after, .bb-row.is-link:hover::aft
    HOVER: the row's tint wipes in from the side the pointer entered on
    (AppShell sets --wipe-o), and the icon takes the company's primary.
    CLICK: the row presses in, the page marker glides to it, and a line
-   charges across the row's foot in the company's secondary into its
-   primary, then fades as the page opens (AppShell sets [data-charge]). */
+   charges across the row's foot in the company's secondary (already
+   adjusted to read on this theme by lib/ds-theme.ts), then fades as the page opens (AppShell sets [data-charge]). */
 .rail-live nav a { isolation: isolate; overflow: hidden; }
 .rail-live nav a:hover { background: transparent !important; }
 .rail-live nav a::before {
@@ -455,7 +455,7 @@ a.bb-row:hover::after, a.bb-row:focus-visible::after, .bb-row.is-link:hover::aft
 .rail-live nav a:hover > svg { transform: none; color: var(--ds-primary); }
 .rail-live nav a::after {
   content: ""; position: absolute; left: 6px; right: 6px; bottom: 1px; height: 2px; border-radius: 2px; pointer-events: none;
-  background: linear-gradient(90deg, var(--ds-secondary), var(--ds-primary));
+  background: var(--ds-secondary);
   transform: scaleX(0); transform-origin: left; opacity: 0;
 }
 .rail-live nav a[data-charge]::after { animation: rail-charge 700ms cubic-bezier(0.65, 0, 0.35, 1) both; }

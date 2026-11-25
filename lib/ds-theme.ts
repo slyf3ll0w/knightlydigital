@@ -54,6 +54,36 @@ export function readableOn(hex: string, surface: "light" | "dark", min = 3): str
   return surface === "light" ? "#0A1328" : "#FFFFFF";
 }
 
+/** `a` mixed into `b` by `t` (0..1 of a), like CSS color-mix in srgb. */
+function mix(a: string, b: string, t: number): string {
+  const ma = HEX.exec(a), mb = HEX.exec(b);
+  if (!ma || !mb) return a;
+  const x = parseInt(ma[1], 16), y = parseInt(mb[1], 16);
+  const ch = (sh: number) => Math.round(((x >> sh) & 255) * t + ((y >> sh) & 255) * (1 - t));
+  return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, "0").toUpperCase()}`;
+}
+
+/**
+ * Home's band is a deep gradient made from the PRIMARY, so the secondary on
+ * it (accent word, main button, 4px stripe) is checked against the band's
+ * own colors, not the page: a secondary close to the primary (navy on navy)
+ * is lightened until it clears 3:1 against every band shade (light, Dusk
+ * and each time of day). These mixes match app/ds-brand.css.
+ */
+function bandSecondary(primary: string, secondary: string): string {
+  const bp = readableOn(primary, "light"); // the band is built from --bb-p, the light-theme primary
+  const grounds = (
+    [[0.34, "#050A18"], [0.64, "#050A18"], [0.24, "#03060E"], [0.5, "#03060E"], [0.52, "#0B1430"],
+      [0.8, "#0B1430"], [0.24, "#04070F"], [0.5, "#04070F"], [0.16, "#02040A"], [0.36, "#02040A"]] as const
+  ).map(([t, g]) => mix(bp, g, t));
+  let c = readableOn(secondary, "dark");
+  for (let i = 0; i < 14; i++) {
+    if (grounds.every((g) => (contrastRatio(c, g) ?? 0) >= 3)) return c.toUpperCase();
+    c = tint(c, 0.14);
+  }
+  return "#FFFFFF";
+}
+
 function alpha(hex: string, a: number): string {
   return `${hex}${Math.round(a * 255).toString(16).padStart(2, "0").toUpperCase()}`;
 }
@@ -85,9 +115,12 @@ export function dsBrandVars(
 ): Record<string, string> {
   const p = normalize(primary) ?? DS_DEFAULT_PRIMARY;
   const s = normalize(secondary) ?? DS_DEFAULT_SECONDARY;
+  const band = bandSecondary(p, s);
   return {
     ...role("primary", p),
     ...role("secondary", s),
+    "--ds-secondary-band": band,
+    "--ds-on-secondary-band": textOn(band),
     ...(font ? { "--ds-font": `"${font}", "Lexend", system-ui, sans-serif` } : {}),
   };
 }
