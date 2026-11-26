@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import RescheduleButton from "./RescheduleButton";
-import EmptyState from "@/components/EmptyState";
+import { HubEmpty, HubGroup, HubPageHead, HubStatus } from "../HubKit";
 
 /**
  * Client hub: every upcoming visit — scheduled jobs and appointments — with
@@ -113,41 +113,47 @@ export default async function HubVisitsPage({
     }),
   ].sort((x, y) => (x.when?.getTime() ?? Infinity) - (y.when?.getTime() ?? Infinity));
 
+  const monthOf = (d: Date) => d.toLocaleDateString("en-US", { month: "short", timeZone: tz });
+  const dayOf = (d: Date) => d.toLocaleDateString("en-US", { day: "numeric", timeZone: tz });
   return (
     <div>
-      <h2 className="numeral-ledger relative mb-6 w-fit text-[22px] font-bold text-gray-900">
-        Upcoming visits
-      </h2>
+      <HubPageHead
+        title="Visits"
+        note={rows.length === 0 ? "Nothing scheduled right now" : rows.length === 1 ? "1 coming up" : `${rows.length} coming up`}
+      />
       {rows.length === 0 ? (
-        <div className="card-ledger overflow-hidden">
-          <EmptyState art="schedule" title="Nothing scheduled right now" body="Confirmed visits and appointments show up here with their arrival windows." />
-        </div>
+        <HubEmpty title="Nothing scheduled right now" body="Confirmed visits and appointments show up here with their arrival windows." />
       ) : (
-        <div className="card-ledger overflow-hidden">
-          <div className="list-settle divide-y divide-gray-100">
-            {rows.map((r) => (
-              <div key={`${r.kind}-${r.id}`} className="px-4 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{r.title}</p>
-                      {r.tentative && (
-                        <span className="stamp text-amber-700">Awaiting confirmation</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5">{r.timeLabel}</p>
-                    {r.address && <p className="text-xs text-gray-500 mt-0.5">{r.address}</p>}
-                  </div>
-                  <RescheduleButton token={token} kind={r.kind} id={r.id} title={r.title} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <HubGroup flush>
+          {rows.map((r) => (
+            <div key={`${r.kind}-${r.id}`} className="hk-row has-lead hk-visit">
+              {r.when ? (
+                <span className="hk-lead">
+                  <span className="hk-date" aria-hidden>
+                    <span className="hk-date-m">{monthOf(r.when)}</span>
+                    <span className="hk-date-d">{dayOf(r.when)}</span>
+                  </span>
+                </span>
+              ) : null}
+              <span className="hk-row-text">
+                <span className="hk-row-title">{r.title}</span>
+                <span className="hk-row-sub">{r.timeLabel}</span>
+                {r.address ? <span className="hk-row-sub">{r.address}</span> : null}
+                {r.tentative ? (
+                  <span className="mt-1 block">
+                    <HubStatus tone="warn" label="Awaiting confirmation" />
+                  </span>
+                ) : null}
+              </span>
+              <span className="hk-row-end">
+                <RescheduleButton token={token} kind={r.kind} id={r.id} title={r.title} />
+              </span>
+            </div>
+          ))}
+        </HubGroup>
       )}
-      <p className="mt-4 text-xs text-gray-500">
-        Need a different time? Use &ldquo;Request reschedule&rdquo; and we&apos;ll get back to
-        you — nothing changes until it&apos;s confirmed.
+      <p className="mt-4 px-1 text-[13.5px] leading-snug text-[color:var(--hh-muted)]">
+        Need a different time? Use &ldquo;Request reschedule&rdquo; and we&apos;ll get back to you — nothing changes until it&apos;s confirmed.
       </p>
     </div>
   );

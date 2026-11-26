@@ -91,7 +91,7 @@ export default async function ClientPreviewPage({
       <>
         <ForceLightTheme />
         <HubShell company={company} firstName={hub.firstName} base={hub.data.base} unreadMessages={hub.unread} currentPath={hub.data.base} theme={theme}>
-          <HubHome d={d} sections={theme && !theme.isDefault ? portalSectionOrder(theme) : undefined} />
+          <HubHome d={d} firstName={hub.firstName} welcome={theme && !theme.isDefault ? theme.portal.welcome : null} sections={theme && !theme.isDefault ? portalSectionOrder(theme) : undefined} />
         </HubShell>
         {notes}
       </>

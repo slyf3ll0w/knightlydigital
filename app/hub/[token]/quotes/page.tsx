@@ -1,22 +1,14 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
-import EmptyState from "@/components/EmptyState";
+import { HubEmpty, HubGroup, HubPageHead, HubRow, type HubTone } from "../HubKit";
 
-// Client-facing stamps — friendlier labels than the internal ones
-const clientQuoteStamp: Record<string, { label: string; tone: string }> = {
-  AWAITING_RESPONSE: {
-    label: "Needs your approval",
-    tone: "border-amber-600/35 bg-amber-500/[0.07] text-amber-700",
-  },
-  APPROVED: { label: "Approved", tone: "border-green-600/30 bg-green-600/[0.06] text-green-700" },
-  CONVERTED: { label: "Approved", tone: "border-green-600/30 bg-green-600/[0.06] text-green-700" },
-  CHANGES_REQUESTED: {
-    label: "Changes requested",
-    tone: "border-blue-600/30 bg-blue-600/[0.06] text-blue-700",
-  },
+// Client-facing statuses — friendlier words than the internal ones, as a dot + word
+const clientQuoteStatus: Record<string, { label: string; tone: HubTone }> = {
+  AWAITING_RESPONSE: { label: "Needs your approval", tone: "warn" },
+  APPROVED: { label: "Approved", tone: "good" },
+  CONVERTED: { label: "Approved", tone: "good" },
+  CHANGES_REQUESTED: { label: "Changes requested", tone: "info" },
 };
 
 export default async function HubQuotesPage({
@@ -38,45 +30,35 @@ export default async function HubQuotesPage({
   });
   if (!contact) notFound();
 
+  const waiting = contact.quotes.filter((q) => q.status === "AWAITING_RESPONSE").length;
   return (
     <div>
-      <h2 className="numeral-ledger relative mb-6 w-fit text-[22px] font-bold text-gray-900">
-        Your quotes
-      </h2>
-      <div className="card-ledger overflow-hidden">
-        {contact.quotes.length === 0 ? (
-          <EmptyState art="quotes" title="No quotes yet" body="When we send you a quote, it shows up here to review and approve." />
-        ) : (
-          <div className="list-settle divide-y divide-gray-100">
-            {contact.quotes.map((q) => {
-              const stamp = clientQuoteStamp[q.status];
-              return (
-                <Link
-                  key={q.id}
-                  href={`/quote/${q.publicToken}`}
-                  className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">
-                        {q.title || `Quote #${q.quoteNumber}`}
-                      </p>
-                      {stamp && <span className={`stamp ${stamp.tone}`}>{stamp.label}</span>}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      #{q.quoteNumber} · {shortDate(q.createdAt)}
-                    </p>
-                  </div>
-                  <span className="numeral-ledger text-base font-semibold text-gray-900">
-                    {money(q.total)}
-                  </span>
-                  <ChevronRight size={15} className="text-gray-400 shrink-0" />
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <HubPageHead
+        title="Quotes"
+        note={
+          contact.quotes.length === 0
+            ? "Quotes we send you show up here."
+            : waiting > 0
+              ? `${waiting} waiting for your approval`
+              : "Nothing waiting for your approval"
+        }
+      />
+      {contact.quotes.length === 0 ? (
+        <HubEmpty title="No quotes yet" body="When we send you a quote, it shows up here to review and approve." />
+      ) : (
+        <HubGroup flush>
+          {contact.quotes.map((q) => (
+            <HubRow
+              key={q.id}
+              href={`/quote/${q.publicToken}`}
+              title={q.title || `Quote #${q.quoteNumber}`}
+              sub={`#${q.quoteNumber} · ${shortDate(q.createdAt)}`}
+              value={money(q.total)}
+              status={clientQuoteStatus[q.status] ?? null}
+            />
+          ))}
+        </HubGroup>
+      )}
     </div>
   );
 }

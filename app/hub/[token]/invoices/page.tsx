@@ -1,11 +1,10 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import Link from "next/link";
-import { ChevronRight, CreditCard } from "lucide-react";
+import { CreditCard } from "lucide-react";
 import { money, shortDate } from "@/lib/statuses";
 import { invoiceBalance } from "@/lib/payments";
 import { canChargeOnline } from "@/lib/payments-gate";
-import EmptyState from "@/components/EmptyState";
+import { HubEmpty, HubGroup, HubPageHead, HubRow, type HubTone } from "../HubKit";
 
 export default async function HubInvoicesPage({
   params,
@@ -30,108 +29,82 @@ export default async function HubInvoicesPage({
   // A card on file only means something when the business can charge it —
   // no online payments (yet), no "save a card" invitation.
   const online = canChargeOnline(contact.company);
-  const paymentMethodCard = online && (
-    <Link
-      href={`/hub/${token}/payment-method`}
-      className="lift-hover flex items-center gap-3 card-ledger p-4 transition-shadow hover:shadow-md"
-    >
-      <CreditCard size={18} className="shrink-0 text-[color:var(--wb-ink,#0B57D8)]" />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-gray-900">
-          {contact.savedCardLabel ? "Card on file" : "Save a card for faster payments"}
-        </p>
-        <p className="text-xs text-gray-500">
-          {contact.savedCardLabel ?? "Add a payment method once — pay invoices in a tap."}
-        </p>
-      </div>
-      <ChevronRight size={15} className="text-gray-400 shrink-0" />
-    </Link>
-  );
-
   const open = contact.invoices.filter((i) => i.status !== "PAID");
   const paid = contact.invoices.filter((i) => i.status === "PAID");
+  const owed = open.reduce((n, i) => n + Math.max(0, invoiceBalance(i)), 0);
 
-  // Client-facing stamps — friendlier labels than the internal ones
-  const clientInvoiceStamp: Record<string, { label: string; tone: string }> = {
-    AWAITING_PAYMENT: {
-      label: "Due",
-      tone: "border-amber-600/35 bg-amber-500/[0.07] text-amber-700",
-    },
-    PAST_DUE: { label: "Past due", tone: "border-red-600/30 bg-red-600/[0.06] text-red-700" },
-    PAID: { label: "Paid", tone: "border-green-600/30 bg-green-600/[0.06] text-green-700" },
+  // Client-facing statuses — friendlier words than the internal ones, as a dot + word
+  const clientInvoiceStatus: Record<string, { label: string; tone: HubTone }> = {
+    AWAITING_PAYMENT: { label: "Due", tone: "warn" },
+    PAST_DUE: { label: "Past due", tone: "bad" },
+    PAID: { label: "Paid", tone: "good" },
   };
 
-  const section = (title: string, list: typeof contact.invoices) =>
+  const group = (title: string, list: typeof contact.invoices) =>
     list.length > 0 && (
-      <div className="mb-6">
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
-          {title}
-        </h3>
-        <div className="card-ledger overflow-hidden">
-          <div className="list-settle divide-y divide-gray-100">
-            {list.map((inv) => {
-              const balance = Math.max(0, invoiceBalance(inv));
-              const stamp = clientInvoiceStamp[inv.status];
-              return (
-                <Link
-                  key={inv.id}
-                  href={`/pay/${inv.publicToken}`}
-                  className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">
-                        {inv.subject || `Invoice #${inv.invoiceNumber}`}
-                      </p>
-                      {stamp && <span className={`stamp ${stamp.tone}`}>{stamp.label}</span>}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      #{inv.invoiceNumber}
-                      {inv.issuedAt && ` · Sent ${shortDate(inv.issuedAt)}`}
-                      {inv.dueDate && ` · Due ${shortDate(inv.dueDate)}`}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="numeral-ledger text-base font-semibold text-gray-900">
-                      {money(inv.total)}
-                    </p>
-                    {balance > 0 && balance < Number(inv.total) && (
-                      <p className="text-xs text-amber-600">Balance {money(balance)}</p>
-                    )}
-                  </div>
-                  <ChevronRight size={15} className="text-gray-400 shrink-0" />
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+      <HubGroup title={title} count={list.length} flush>
+        {list.map((inv) => {
+          const balance = Math.max(0, invoiceBalance(inv));
+          const partial = balance > 0 && balance < Number(inv.total);
+          return (
+            <HubRow
+              key={inv.id}
+              href={`/pay/${inv.publicToken}`}
+              title={inv.subject || `Invoice #${inv.invoiceNumber}`}
+              sub={[
+                `#${inv.invoiceNumber}`,
+                inv.dueDate && inv.status !== "PAID" ? `Due ${shortDate(inv.dueDate)}` : inv.issuedAt ? `Sent ${shortDate(inv.issuedAt)}` : null,
+                partial ? `${money(balance)} left` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+              value={money(inv.total)}
+              status={clientInvoiceStatus[inv.status] ?? null}
+            />
+          );
+        })}
+      </HubGroup>
     );
 
   return (
     <div>
-      <h2 className="numeral-ledger relative mb-6 w-fit text-[22px] font-bold text-gray-900">
-        Your invoices
-      </h2>
+      <HubPageHead
+        title="Invoices"
+        note={
+          contact.invoices.length === 0
+            ? "Invoices we send you show up here."
+            : owed > 0
+              ? `${money(owed)} to pay · ${paid.length} paid`
+              : `All paid · ${paid.length} ${paid.length === 1 ? "invoice" : "invoices"}`
+        }
+      />
       {contact.invoices.length === 0 ? (
-        <div className="card-ledger overflow-hidden">
-          <EmptyState
-            art="invoices"
-            title="No invoices yet"
-            body={
-              online
-                ? "Invoices we send you appear here — pay online in a couple of taps."
-                : "Invoices we send you appear here."
-            }
-          />
-        </div>
+        <HubEmpty
+          title="No invoices yet"
+          body={online ? "Invoices we send you appear here — pay online in a couple of taps." : "Invoices we send you appear here."}
+        />
       ) : (
-        <>
-          {section("Outstanding", open)}
-          {section("Paid", paid)}
-        </>
+        <div className="hk-page">
+          {group("To pay", open)}
+          {group("Paid", paid)}
+        </div>
       )}
-      {paymentMethodCard && <div className="mt-6">{paymentMethodCard}</div>}
+      {online && (
+        <div className="mt-6">
+          <HubGroup flush>
+            <HubRow
+              href={`/hub/${token}/payment-method`}
+              lead={
+                <span className="hk-ic">
+                  <CreditCard size={17} strokeWidth={2.2} />
+                </span>
+              }
+              title={contact.savedCardLabel ? "Card on file" : "Save a card for faster payments"}
+              sub={contact.savedCardLabel ?? "Add a payment method once — pay invoices in a tap."}
+            />
+          </HubGroup>
+        </div>
+      )}
     </div>
   );
 }

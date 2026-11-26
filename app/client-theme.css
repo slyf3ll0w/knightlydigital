@@ -54,15 +54,15 @@
 
 /* Display font: headings, the band title and buttons. Body text stays Lexend
    (docs/design-system.md rule 1) and amounts stay Inter (.hh-num). */
-[data-ch-display][data-ch-display] :is(.ch-title, .ch-h2, .ch-h3, .ch-section, .ch-btn, .ch-btn-2, .hh-hello, .hh-title, .hh-section, .hh-btn, .hh-btn-2, .hh-tab) {
+[data-ch-display][data-ch-display] :is(.ch-title, .ch-h2, .ch-h3, .ch-section, .ch-btn, .ch-btn-2, .hh-hello, .hh-title, .hh-section, .hh-btn, .hh-btn-2, .hh-tab, .hh-hi, .hh-hero-main, .hh-hero-ghost, .hk-title, .hk-h2) {
   font-family: var(--ch-display);
 }
 
 /* Band: gradient or photo (the fill is built in themeRoot) */
-[data-ch-band][data-ch-band] :is(.ch-band, .hh-band) {
+[data-ch-band][data-ch-band] :is(.ch-band, .hh-band, .hh-hero) {
   background: var(--ch-band-fill);
 }
-[data-ch-band="photo"] :is(.ch-band, .hh-band) :is(h1, p, a, .ch-title, .ch-sub, .ch-company, .hh-hello, .hh-company, .hh-welcome) {
+[data-ch-band="photo"] :is(.ch-band, .hh-band, .hh-hero) :is(h1, p, a, .ch-title, .ch-sub, .ch-company, .hh-hello, .hh-hi, .hh-hero-note, .hh-company, .hh-welcome) {
   text-shadow: var(--ch-band-shadow, none);
 }
 

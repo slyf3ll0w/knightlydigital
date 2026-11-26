@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { clientPayConfig, PAY_CONFIG_SELECT } from "@/lib/pay-client-config";
 import SavedCardManager from "./SavedCardManager";
@@ -46,10 +48,11 @@ export default async function HubPaymentMethodPage({
 
   return (
     <div>
-      <h2 className="numeral-ledger relative mb-3 w-fit text-[22px] font-bold text-gray-900">
-        Payment methods
-      </h2>
-      <p className="text-sm text-gray-500 mb-4">
+      <Link href={`/hub/${token}/invoices`} className="hk-back">
+        <ArrowLeft size={16} strokeWidth={2.4} /> Invoices
+      </Link>
+      <h1 className="hk-title">Payment methods</h1>
+      <p className="hk-note mb-5 max-w-xl leading-snug">
         Cards on file let {contact.company.name} charge agreed work without
         chasing you for payment. Your default card is used unless you say
         otherwise — and you can remove any card anytime.

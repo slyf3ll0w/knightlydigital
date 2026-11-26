@@ -11,14 +11,12 @@ const HUB_ACCENT = { "--ch-accent": "var(--hh-accent)", "--ch-on-accent": "var(-
 /** Back arrow + the form's title, on the portal ground. */
 export function HubFormHeader({ base, title, description }: { base: string; title: string; description?: string | null }) {
   return (
-    <div className="mb-5 flex items-start gap-2">
-      <Link href={base} className="-ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-white hover:text-gray-900" aria-label="Back to your hub">
-        <ArrowLeft size={20} />
+    <div className="mb-5">
+      <Link href={base} className="hk-back" aria-label="Back to your hub">
+        <ArrowLeft size={16} strokeWidth={2.4} /> Home
       </Link>
-      <div className="min-w-0 pt-1">
-        <h2 className="ch-h2 text-gray-900">{title}</h2>
-        {description && <p className="mt-1.5 text-[15px] text-gray-600">{description}</p>}
-      </div>
+      <h1 className="hk-title">{title}</h1>
+      {description && <p className="hk-note">{description}</p>}
     </div>
   );
 }

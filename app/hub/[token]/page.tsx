@@ -194,5 +194,12 @@ export default async function HubHomePage({
 
   // The page-designer theme (Pro) may reorder / hide sections; Balance due and the to-do cards stay first
   const theme = await loadClientTheme(contact.companyId);
-  return <HubHome d={data} sections={theme.isDefault ? undefined : portalSectionOrder(theme)} />;
+  return (
+    <HubHome
+      d={data}
+      firstName={contact.firstName}
+      welcome={theme.isDefault ? null : theme.portal.welcome}
+      sections={theme.isDefault ? undefined : portalSectionOrder(theme)}
+    />
+  );
 }

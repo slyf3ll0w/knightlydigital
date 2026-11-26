@@ -300,52 +300,44 @@ export default function HubMessagesThread({
   }
 
   return (
-    <div>
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Messages</h2>
+    <div className="hk-thread-page">
+      <header className="hk-head">
+        <div className="min-w-0">
+          <h1 className="hk-title">Messages</h1>
+          <p className="hk-note">We&apos;ll reply here, and by text or email so you don&apos;t miss it.</p>
+        </div>
+      </header>
 
       <PwaNudge token={token} companyName={companyName} />
 
-      <div className="card-ledger p-4 sm:p-5">
+      <div className="hk-thread">
         {messages.length === 0 ? (
-          <div className="py-10 text-center">
-            <MessageSquare size={32} className="text-gray-300 mx-auto mb-3" />
-            <p className="text-sm text-gray-500">
-              No messages yet — questions about a quote, a visit, or anything
-              else? Send {companyName} a message below.
+          <div className="hk-thread-empty">
+            <MessageSquare size={30} className="mx-auto mb-3 text-[color:var(--hh-faint)]" />
+            <p>
+              No messages yet. Questions about a quote, a visit, or anything else? Send {companyName} a message below.
             </p>
           </div>
         ) : (
-          <div className="space-y-3 max-h-[26rem] overflow-y-auto pr-1">
+          <div className="hk-bubbles">
             {messages.map((m) => {
               const mine = m.direction === "INBOUND";
               return (
-                <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[85%] sm:max-w-[min(75%,30rem)] ${mine ? "text-right" : ""}`}>
-                    <div
-                      className={`inline-block rounded-2xl px-3.5 py-2 text-left ${
-                        mine ? "" : "bg-gray-100"
-                      }`}
-                      style={mine ? { background: accent, color: accentText } : undefined}
-                    >
-                      {m.media && m.media.length > 0 && <MessageMedia media={m.media} className={m.body ? "mb-1.5" : ""} />}
-                      {m.body && (
-                        <p
-                          className={`text-sm leading-relaxed whitespace-pre-wrap break-words ${
-                            mine ? "" : "text-gray-900"
-                          }`}
-                        >
-                          {m.body}
-                        </p>
-                      )}
-                    </div>
-                    <p className="mt-1 text-[11px] text-gray-400">
-                      {mine
-                        ? m.via === "sms"
-                          ? `You (by text) · ${timeLabel(m.createdAt)}`
-                          : `You · ${timeLabel(m.createdAt)}`
-                        : `${m.senderName || companyName} · ${timeLabel(m.createdAt)}`}
-                    </p>
+                <div key={m.id} className={`hk-msg${mine ? " is-mine" : ""}`}>
+                  <div
+                    className="hk-bubble"
+                    style={mine ? { background: accent, color: accentText } : undefined}
+                  >
+                    {m.media && m.media.length > 0 && <MessageMedia media={m.media} className={m.body ? "mb-1.5" : ""} />}
+                    {m.body && <p className="hk-bubble-text">{m.body}</p>}
                   </div>
+                  <p className="hk-msg-meta">
+                    {mine
+                      ? m.via === "sms"
+                        ? `You (by text) · ${timeLabel(m.createdAt)}`
+                        : `You · ${timeLabel(m.createdAt)}`
+                      : `${m.senderName || companyName} · ${timeLabel(m.createdAt)}`}
+                  </p>
                 </div>
               );
             })}
@@ -353,7 +345,7 @@ export default function HubMessagesThread({
           </div>
         )}
 
-        <form onSubmit={handleSend} className="mt-4 flex items-end gap-2">
+        <form onSubmit={handleSend} className="hk-composer">
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -365,23 +357,20 @@ export default function HubMessagesThread({
             }}
             rows={draft.includes("\n") || draft.length > 80 ? 3 : 1}
             maxLength={5000}
-            placeholder={`Message ${companyName}…`}
-            className="flex-1 resize-none rounded-[10px] border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 bg-white"
+            placeholder={`Message ${companyName}`}
+            className="hk-composer-input"
           />
           <button
             type="submit"
             disabled={sending || !draft.trim()}
             aria-label="Send message"
-            className="shrink-0 rounded-[10px] p-2.5 transition-opacity disabled:opacity-40"
+            className="hk-composer-send"
             style={{ background: accent, color: accentText }}
           >
             {sending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
           </button>
         </form>
-        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-        <p className="mt-2 text-[11px] text-gray-400">
-          We&apos;ll reply here — and by text or email so you don&apos;t miss it.
-        </p>
+        {error && <p className="hk-composer-error">{error}</p>}
       </div>
     </div>
   );

@@ -97,3 +97,59 @@ export function clientBandVars(b: ClientBand): Record<`--ch-${string}`, string> 
     "--ch-accent-strong": b.accentStrong,
   };
 }
+
+/** `a` mixed into `b` by `t` (0..1 of a), like CSS color-mix in srgb. */
+function mix(a: string, b: string, t: number): string {
+  const x = parseInt(a.slice(1), 16);
+  const y = parseInt(b.slice(1), 16);
+  const ch = (sh: number) => Math.round(((x >> sh) & 255) * t + ((y >> sh) & 255) * (1 - t));
+  return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, "0").toUpperCase()}`;
+}
+function lighten(hex: string, t: number): string {
+  return mix("#FFFFFF", hex, t);
+}
+
+export type PortalBand = {
+  /** The band's top (company color deepened, like the app's Home band). */
+  deep: string;
+  /** The band's middle. */
+  mid: string;
+  /** The gradient itself, deep → mid → the company color at the foot. */
+  fill: string;
+  /** The accent as it reads ON the band (accent word, main button, 4px stripe). */
+  accent: string;
+  /** Text on that accent. */
+  onAccent: string;
+  /** The company color as it reads on white (tab bar, links): darkened until 3:1. */
+  tint: string;
+};
+
+/**
+ * The portal's band in the app's new look (2026-11-25): the same gradient as
+ * the app's Home band, made from the company's color, and the accent checked
+ * against the band's own shades — a secondary close to the band color (navy
+ * on navy) is lightened until it clears 3:1 on the deep and middle shades,
+ * where the greeting and buttons sit (the app does the same in
+ * lib/ds-theme.ts bandSecondary). White ink always reads on deep and mid.
+ */
+export function portalBand(b: Pick<ClientBand, "band" | "accent">): PortalBand {
+  const band = normalize(b.band) ?? CLIENT_DEFAULT_ACCENT;
+  const deep = mix(band, "#050A18", 0.34);
+  const mid = mix(band, "#050A18", 0.64);
+  let accent = normalize(b.accent) ?? band;
+  for (let i = 0; i < 14; i++) {
+    if ([deep, mid].every((g) => (contrastRatio(accent, g) ?? 0) >= 3)) break;
+    accent = lighten(accent, 0.14);
+  }
+  if (![deep, mid].every((g) => (contrastRatio(accent, g) ?? 0) >= 3)) accent = WHITE;
+  let tint = band;
+  for (let i = 0; i < 10 && (contrastRatio(tint, WHITE) ?? 0) < 3; i++) tint = mix(tint, "#050A18", 0.86);
+  return {
+    deep,
+    mid,
+    fill: `linear-gradient(180deg, ${deep} 0%, ${mid} 62%, ${band} 100%)`,
+    accent,
+    onAccent: (contrastRatio(WHITE, accent) ?? 0) >= 4.5 ? WHITE : INK,
+    tint,
+  };
+}

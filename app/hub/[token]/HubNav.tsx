@@ -46,8 +46,10 @@ export default function HubNav({
     href === base ? pathname === base : pathname.startsWith(href);
 
   if (variant === "bottom") {
+    // iOS tab bar: a blurred bar on a hairline, the company color (made
+    // readable, --hh-tint) on the current tab, a red dot on Messages.
     return (
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-chrome border-t border-gray-200 flex items-stretch pb-[env(safe-area-inset-bottom)]">
+      <nav className="hk-tabbar lg:hidden">
         {nav.map((n) => {
           const active = isActive(n.href);
           const Icon = n.icon;
@@ -56,15 +58,12 @@ export default function HubNav({
               key={n.href}
               href={n.href}
               onClick={() => hapticImpact("LIGHT")}
-              className={`flex-1 flex flex-col items-center gap-1 pt-2 pb-2.5 text-[10.5px] transition-colors ${
-                active ? "tab-ink-on font-semibold" : "tab-ink font-medium"
-              }`}
+              aria-current={active ? "page" : undefined}
+              className={active ? "hk-tab is-on" : "hk-tab"}
             >
               <span className="relative">
-                <Icon size={23} strokeWidth={active ? 2.2 : 1.9} />
-                {n.badge ? (
-                  <span className="absolute -top-1 -right-1.5 flex h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[color:var(--fab-ring)]" />
-                ) : null}
+                <Icon size={24} strokeWidth={active ? 2.3 : 1.9} />
+                {n.badge ? <span className="hk-tab-dot" aria-label="New" /> : null}
               </span>
               {n.label}
             </Link>
@@ -74,8 +73,8 @@ export default function HubNav({
     );
   }
 
-  // Top tabs sit on the heavy band (hub-heavy.css .hh-tab): the band's ink,
-  // a 3 px underline on the current tab, the count as an inverted badge.
+  // Top tabs sit on the band (hub-heavy.css .hh-tab): white ink, a 3 px
+  // underline in the accent on the current tab, the count as an inverted badge.
   return (
     <nav className="flex gap-7">
       {nav.map((n) => {
