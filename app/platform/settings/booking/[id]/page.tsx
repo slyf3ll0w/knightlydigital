@@ -16,7 +16,7 @@ export default async function BookingItemEditorPage({ params }: { params: Promis
   const actor = await requirePageActor((a) => isManager(a.role));
   const { id } = await params;
 
-  const [type, company, team, workItems, fieldDefs] = await Promise.all([
+  const [type, company, team, workItems, fieldDefs, leadBoards] = await Promise.all([
     prisma.bookingType.findFirst({ where: { id, companyId: actor.companyId }, include: bookingTypeInclude }),
     prisma.company.findUnique({
       where: { id: actor.companyId },
@@ -44,6 +44,7 @@ export default async function BookingItemEditorPage({ params }: { params: Promis
       orderBy: { name: "asc" },
     }),
     getActiveFieldDefs(actor.companyId),
+    prisma.leadBoard.findMany({ where: { companyId: actor.companyId }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, name: true } }),
   ]);
   if (!type) {
     const migrated = await prisma.bookingType.findFirst({ where: { legacyFormId: id, companyId: actor.companyId }, select: { id: true } });
@@ -104,6 +105,8 @@ export default async function BookingItemEditorPage({ params }: { params: Promis
           depositValue: w.depositValue == null ? null : Number(w.depositValue),
         }))}
         contactFieldDefs={fieldDefs.map((d) => ({ id: d.id, label: d.label }))}
+        leadBoards={leadBoards}
+        leadBoardId={type.leadBoardId}
         company={{
           name: company.name,
           slug: company.slug,

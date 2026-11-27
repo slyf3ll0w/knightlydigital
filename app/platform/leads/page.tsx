@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/db";
 import type { QuoteStatus, RequestStatus } from "@prisma/client";
 import { requirePageActor, canSell, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
-import { ensureStages } from "@/lib/pipeline";
-import LeadsBoardClient, { type BoardCard, type BoardStage, type LostLead } from "./LeadsBoardClient";
+import { ensureStages, listBoards, stagesOfBoard, MAIN_BOARD_NAME } from "@/lib/pipeline";
+import LeadsBoardClient, { type BoardCard, type BoardStage, type BoardTab, type LostLead } from "./LeadsBoardClient";
 
 export const dynamic = "force-dynamic";
 
@@ -16,11 +16,31 @@ export const dynamic = "force-dynamic";
 const CONVERTED_SHOWN = 25;
 const LOST_SHOWN = 200;
 
-export default async function LeadsPage() {
+export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ board?: string | string[] }> }) {
   const actor = await requirePageActor((a) => canSell(a.role));
   const companyId = actor.companyId;
 
-  const stages = await ensureStages(companyId);
+  // More than one board (lib/pipeline.ts): ?board=<id> picks one, none = the main board
+  const asked = (await searchParams).board;
+  const [allStages, extraBoards] = await Promise.all([ensureStages(companyId), listBoards(prisma, companyId)]);
+  const boardId = extraBoards.find((b) => b.id === (typeof asked === "string" ? asked : ""))?.id ?? null;
+  const stages = stagesOfBoard(allStages, boardId);
+  const openByStage = extraBoards.length
+    ? new Map(
+        (
+          await prisma.contact.groupBy({
+            by: ["pipelineStageId"],
+            where: { companyId, pipelineStageId: { in: allStages.filter((s) => !s.isConverted).map((s) => s.id) }, ...contactScope(actor) },
+            _count: { _all: true },
+          })
+        ).map((g) => [g.pipelineStageId, g._count._all])
+      )
+    : new Map<string | null, number>();
+  const tab = (id: string | null, name: string): BoardTab => {
+    const own = allStages.filter((s) => !s.isConverted && (s.boardId ?? null) === id);
+    return { id, name, open: own.reduce((n, s) => n + (openByStage.get(s.id) ?? 0), 0), firstStageId: own[0]?.id ?? null };
+  };
+  const boards: BoardTab[] = extraBoards.length ? [tab(null, MAIN_BOARD_NAME), ...extraBoards.map((b) => tab(b.id, b.name))] : [];
   const convertedStage = stages.find((s) => s.isConverted);
   const [company] = await Promise.all([
     prisma.company.findUnique({
@@ -115,7 +135,10 @@ export default async function LeadsPage() {
 
   return (
     <LeadsBoardClient
+      key={boardId ?? "main"}
       stages={boardStages}
+      boards={boards}
+      boardId={boardId}
       cards={cards}
       team={team}
       manager={isManager(actor.role)}

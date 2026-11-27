@@ -22,7 +22,9 @@ import {
   ExternalLink,
   ChevronsLeft,
   ListChecks,
+  Columns3,
 } from "lucide-react";
+import { promptSheet } from "@/components/ConfirmSheet";
 import { monogramColor } from "@/components/Monogram";
 import { QuickMenu, type QuickAction } from "@/components/QuickMenu";
 import CallLink from "@/components/CallLink";
@@ -159,8 +161,13 @@ function initials(name: string): string {
   return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
 }
 
+/** One leads board in the switcher (lib/pipeline.ts): id null = the main board. */
+export type BoardTab = { id: string | null; name: string; open: number; firstStageId: string | null };
+
 export default function LeadsBoardClient({
   stages,
+  boards = [],
+  boardId = null,
   cards,
   team,
   manager,
@@ -169,6 +176,10 @@ export default function LeadsBoardClient({
   won30 = 0,
 }: {
   stages: BoardStage[];
+  /** Every board when the company has more than one (empty = just the main board). */
+  boards?: BoardTab[];
+  /** The board on screen (null = main). */
+  boardId?: string | null;
   cards: BoardCard[];
   team: { id: string; name: string }[];
   manager: boolean;
@@ -349,6 +360,37 @@ export default function LeadsBoardClient({
   }, [stages, visible]);
 
   // ── moves ──────────────────────────────────────────────────────────────────
+
+  // Another board: the card lands in that board's first column and leaves this one
+  async function moveToBoard(card: BoardCard, to: BoardTab) {
+    if (!to.firstStageId) return;
+    const prev = board;
+    setBoard((b) => b.filter((c) => c.id !== card.id));
+    const { ok, data } = await postJson(`/api/app/contacts/${card.id}/stage`, { stageId: to.firstStageId }, "PATCH");
+    if (!ok) {
+      setBoard(prev);
+      showToast({ message: data?.error ?? GENERIC_ERROR, tone: "red" });
+      return;
+    }
+    showToast({ message: `${card.name} moved to ${to.name}`, tone: "gray" });
+    refresh();
+  }
+  const otherBoards = boards.filter((b) => (b.id ?? null) !== (boardId ?? null) && b.firstStageId);
+  const boardHref = (id: string | null) => (id ? `/app/leads?board=${id}` : "/app/leads");
+
+  // Managers: a new board with the starter columns, opened straight away
+  async function newBoard() {
+    const name = (await promptSheet({ title: "New leads board", message: "Name it for the kind of lead it holds. It starts with the standard columns; you can change them.", placeholder: "Commercial leads", confirmLabel: "Create board" }))?.trim();
+    if (!name) return;
+    const { ok, data } = await postJson("/api/app/pipeline/boards", { name });
+    const created = (data as { board?: { id: string } } | null)?.board;
+    if (!ok || !created) {
+      showToast({ message: (data as { error?: string } | null)?.error ?? GENERIC_ERROR, tone: "red" });
+      return;
+    }
+    router.push(boardHref(created.id));
+    router.refresh();
+  }
 
   async function moveCard(card: BoardCard, stageId: string) {
     if (card.stageId === stageId) return;
@@ -600,10 +642,16 @@ export default function LeadsBoardClient({
                 Lost &amp; archived{lost.length > 0 && <span className="ld-ctx-n">{lost.length}</span>}
               </button>
               {manager && (
-                <Link href="/app/settings/pipeline" className="ds-btn ds-btn-outline">
+                <Link href={boardId ? `/app/settings/pipeline?board=${boardId}` : "/app/settings/pipeline"} className="ds-btn ds-btn-outline">
                   <Settings2 size={16} />
                   Customize stages
                 </Link>
+              )}
+              {manager && boards.length === 0 && (
+                <button type="button" onClick={() => void newBoard()} className="ds-btn ds-btn-outline" data-new-board>
+                  <Columns3 size={16} />
+                  New board
+                </button>
               )}
               <button type="button" onClick={() => setAddingTo(stages[0]?.id ?? null)} className="ds-btn ds-btn-primary">
                 <Plus size={16} />
@@ -613,6 +661,24 @@ export default function LeadsBoardClient({
           }
         />
       </div>
+
+      {/* Boards: one tab each, only once the company has more than one */}
+      {boards.length > 0 && (
+        <nav className="ld-boards mb-3" aria-label="Leads boards" data-lead-boards>
+          {boards.map((b) => (
+            <Link key={b.id ?? "main"} href={boardHref(b.id)} prefetch={false} aria-current={(b.id ?? null) === (boardId ?? null) ? "page" : undefined}>
+              {b.name}
+              <span className="ld-boards-n">{b.open}</span>
+            </Link>
+          ))}
+          {manager && (
+            <button type="button" onClick={() => void newBoard()} data-new-board>
+              <Plus size={14} />
+              New board
+            </button>
+          )}
+        </nav>
+      )}
 
       {/* Filter bar: search, owner, source, stale only, sort */}
       <div className="ld-bar mb-3">
@@ -687,7 +753,7 @@ export default function LeadsBoardClient({
             <div className="mx-auto mt-5 w-full max-w-xs text-left">
               <QuickAdd
                 stageId={addingTo}
-                firstStageId={stages[0]?.id ?? addingTo}
+                firstStageId={boards.length > 0 ? "" : (stages[0]?.id ?? addingTo)}
                 onDone={(err) => {
                   setAddingTo(null);
                   if (err) showToast({ message: err, tone: "red" });
@@ -807,7 +873,7 @@ export default function LeadsBoardClient({
                   {addingTo === stage.id && (
                     <QuickAdd
                       stageId={stage.id}
-                      firstStageId={stages[0]?.id ?? stage.id}
+                      firstStageId={boards.length > 0 ? "" : (stages[0]?.id ?? stage.id)}
                       onDone={(err) => {
                         setAddingTo(null);
                         if (err) showToast({ message: err, tone: "red" });
@@ -1073,6 +1139,8 @@ export default function LeadsBoardClient({
             const others = stages.filter((s) => !s.isConverted && s.id !== c.stageId);
             if (others.length > 0) out.push({ key: "h-move", label: "Move to", heading: true });
             for (const s of others) out.push({ key: `move-${s.id}`, label: s.name, icon: SquareKanban, onSelect: () => moveCard(c, s.id) });
+            if (otherBoards.length > 0 && c.stageId !== convertedStageId) out.push({ key: "h-board", label: "Move to board", heading: true });
+            if (c.stageId !== convertedStageId) for (const b of otherBoards) out.push({ key: `board-${b.id ?? "main"}`, label: b.name, icon: Columns3, onSelect: () => moveToBoard(c, b) });
             out.push({ key: "h-close", label: "Close", heading: true });
             out.push({ key: "won", label: "Mark won", icon: Trophy, onSelect: () => closeCard(c, "won") });
             out.push({
@@ -1095,6 +1163,11 @@ export default function LeadsBoardClient({
         <ActionSheet
           card={sheetCard}
           stages={stages.filter((s) => !s.isConverted)}
+          boards={sheetCard.stageId === convertedStageId ? [] : otherBoards}
+          onMoveBoard={(b) => {
+            setSheetCard(null);
+            void moveToBoard(sheetCard, b);
+          }}
           onClose={() => setSheetCard(null)}
           onMove={(stageId) => {
             setSheetCard(null);
@@ -1392,6 +1465,8 @@ function QuickAdd({
 function ActionSheet({
   card,
   stages,
+  boards = [],
+  onMoveBoard,
   onClose,
   onMove,
   onWon,
@@ -1399,6 +1474,9 @@ function ActionSheet({
 }: {
   card: BoardCard;
   stages: BoardStage[];
+  /** The company's other boards: the card can be sent to one */
+  boards?: BoardTab[];
+  onMoveBoard?: (b: BoardTab) => void;
   onClose: () => void;
   onMove: (stageId: string) => void;
   onWon: () => void;
@@ -1495,6 +1573,20 @@ function ActionSheet({
             </button>
           ))}
         </div>
+
+        {boards.length > 0 && (
+          <>
+            <p className="stamp text-gray-500 mt-5 mb-2">Move to board</p>
+            <div className="space-y-1">
+              {boards.map((b) => (
+                <button key={b.id ?? "main"} onClick={() => onMoveBoard?.(b)} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-left text-gray-700 hover:bg-gray-50 transition-colors">
+                  <Columns3 size={14} className="shrink-0 text-gray-400" />
+                  {b.name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         {/* Close out */}
         <div className="grid grid-cols-2 gap-2 mt-5">

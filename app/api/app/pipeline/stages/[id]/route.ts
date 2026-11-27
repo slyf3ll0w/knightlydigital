@@ -27,7 +27,7 @@ export async function PATCH(
     const name = String(body.name).trim().slice(0, 40);
     if (!name) return NextResponse.json({ error: "The stage needs a name." }, { status: 400 });
     const dupe = await prisma.pipelineStage.findFirst({
-      where: { companyId, name: { equals: name, mode: "insensitive" }, NOT: { id } },
+      where: { companyId, boardId: stage.boardId ?? null, name: { equals: name, mode: "insensitive" }, NOT: { id } },
     });
     if (dupe) return NextResponse.json({ error: "A stage with that name already exists." }, { status: 400 });
     data.name = name;
@@ -58,7 +58,7 @@ export async function PATCH(
     if (trigger) {
       // One stage per trigger: claiming it releases it elsewhere
       await tx.pipelineStage.updateMany({
-        where: { companyId, autoAdvanceOn: trigger as never, NOT: { id } },
+        where: { companyId, boardId: stage.boardId ?? null, autoAdvanceOn: trigger as never, NOT: { id } },
         data: { autoAdvanceOn: null },
       });
     }
@@ -96,7 +96,7 @@ export async function DELETE(
     result = await prisma.$transaction(
       async (tx) => {
         const fallback = await tx.pipelineStage.findFirst({
-          where: { companyId, NOT: { id }, isConverted: false },
+          where: { companyId, boardId: stage.boardId ?? null, NOT: { id }, isConverted: false },
           orderBy: { sortOrder: "asc" },
         });
         if (!fallback) return null;

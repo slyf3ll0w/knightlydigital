@@ -136,12 +136,20 @@ export default async function ContactDetailPage({
   const fieldDefs = await getActiveFieldDefs(companyId);
 
   // Pipeline card data — only when this contact has a card on the Leads board
+  // Only the columns of the board the card is on (plus Converted): stage
+  // names repeat across boards, and changing boards is done from the card.
   const pipelineStages = contact.pipelineStageId
-    ? await prisma.pipelineStage.findMany({
-        where: { companyId },
-        orderBy: { sortOrder: "asc" },
-        select: { id: true, name: true },
-      })
+    ? await prisma.pipelineStage
+        .findMany({
+          where: { companyId },
+          orderBy: { sortOrder: "asc" },
+          select: { id: true, name: true, boardId: true, isConverted: true },
+        })
+        .then((all) => {
+          const here = all.find((s) => s.id === contact.pipelineStageId);
+          const boardId = here && !here.isConverted ? here.boardId ?? null : null;
+          return all.filter((s) => s.isConverted || (s.boardId ?? null) === boardId).map((s) => ({ id: s.id, name: s.name }));
+        })
     : [];
   // Repeat = worked with the company before THIS pipeline run — a first-time
   // conversion sitting in Converted isn't a repeat

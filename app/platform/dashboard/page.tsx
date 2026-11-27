@@ -1,3 +1,4 @@
+import { firstStageIds } from "@/lib/pipeline";
 import { prisma } from "@/lib/db";
 import { dealLine } from "@/lib/empty-lines";
 import { dayShapeLine, daypartOf, holidayLine } from "@/lib/day-shape";
@@ -207,14 +208,13 @@ export default async function DashboardPage() {
     // New leads = cards waiting in the Leads board's first column (the same
     // rule as the sidebar badge); before the board exists, unstaged leads.
     sell
-      ? prisma.pipelineStage
-          .findFirst({ where: { companyId, isConverted: false }, orderBy: { sortOrder: "asc" }, select: { id: true } })
+      ? firstStageIds(prisma, companyId)
           .then((first) =>
             prisma.contact.count({
               where: {
                 companyId,
                 ...contactScope(actor),
-                ...(first ? { pipelineStageId: first.id } : { status: "LEAD", pipelineStageId: null }),
+                ...(first.length ? { pipelineStageId: { in: first } } : { status: "LEAD", pipelineStageId: null }),
               },
             })
           )

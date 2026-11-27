@@ -525,3 +525,19 @@ html[data-mode="dark"] .ld-group { --st: var(--bg-d, var(--ds-primary)); }
   .ld-open .ld-card:active { transform: scale(0.985); }
   .ld-open .ld-card-name { font-size: 15px; }
 }
+
+/* Leads boards (ticket #p6pp98): one plain tab per board above the filter
+   bar, the same underline as the Board / List tabs. Scrolls sideways on a
+   phone. */
+.ld-boards { display: flex; align-items: stretch; gap: 4px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--ds-line); }
+.ld-boards::-webkit-scrollbar { display: none; }
+.ld-boards a, .ld-boards button {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; flex: none; height: 38px; padding: 0 12px;
+  border: 0; background: transparent; cursor: pointer; white-space: nowrap;
+  font-size: 14px; font-weight: 500; color: var(--ds-muted); transition: color 140ms var(--ds-ease);
+}
+.ld-boards a:hover, .ld-boards button:hover { color: var(--ds-ink); }
+.ld-boards a[aria-current="page"] { color: var(--ds-ink); font-weight: 600; }
+.ld-boards a[aria-current="page"]::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--ds-primary); }
+.ld-boards-n { font-size: 12px; font-weight: 500; color: var(--ds-faint); font-variant-numeric: tabular-nums; }
+.ld-boards button { margin-left: auto; font-size: 13px; }

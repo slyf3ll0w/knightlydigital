@@ -274,7 +274,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
       // Hub requests are repeat business, not leads — the board stays as it is
       const moves: (PipelineMove | null)[] = [];
       if (!hubContact) {
-        moves.push(await enterPipeline(tx, company.id, contact.id));
+        moves.push(await enterPipeline(tx, company.id, contact.id, { bookingTypeId: type.id }));
         moves.push(await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED"));
         if (quote && intake.quoteMode === "send") moves.push(await autoAdvance(tx, company.id, contact.id, "QUOTE_SENT"));
       }

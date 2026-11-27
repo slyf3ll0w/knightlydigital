@@ -391,6 +391,7 @@ model Company {
   contractTemplates     ContractTemplate[]
   places                Place[]
   blockedNumbers        BlockedNumber[]
+  leadBoards            LeadBoard[]
   contracts             Contract[]
   expenses              Expense[]
   recurringExpenses     RecurringExpense[]
@@ -1201,10 +1202,38 @@ model PipelineStage {
   // contact becomes an ACTIVE client. Hidden via Company.hideConvertedLeads.
   isConverted   Boolean          @default(false)
   autoAdvanceOn PipelineTrigger?
+  // Which leads board this column is on. null = the company's main board
+  // (every company has it, no row needed); set = one of its extra boards
+  // (LeadBoard). The Converted section is always null: one per company,
+  // shown at the end of every board.
+  boardId       String?
+  board         LeadBoard?       @relation(fields: [boardId], references: [id], onDelete: Cascade)
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
   contacts Contact[]
+
+  @@index([companyId, sortOrder])
+}
+
+// An extra leads board (ticket #p6pp98, 2026-11-27): its own columns, its
+// own automatic moves. A lead sits on one board at a time (its stage says
+// which). New leads land on the main board unless a rule sends them here:
+// a booking form that names this board (BookingType.leadBoardId), or a lead
+// source listed in `sources`. Rules live in lib/pipeline.ts.
+model LeadBoard {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  sortOrder Int      @default(0)
+  // Lead source names (Contact.leadSource) whose new leads land on this board.
+  sources   String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stages       PipelineStage[]
+  bookingTypes BookingType[]
 
   @@index([companyId, sortOrder])
 }
@@ -2278,6 +2307,9 @@ model BookingType {
   showOnPage           Boolean             @default(true)
   intake               Json?
   legacyFormId         String?
+  // New leads from this form land on this leads board (null = the main board, or the lead-source rule).
+  leadBoardId          String?
+  leadBoard            LeadBoard?     @relation(fields: [leadBoardId], references: [id], onDelete: SetNull)
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
 

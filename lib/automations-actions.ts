@@ -350,7 +350,10 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
     }
     case "move_lead": {
       if (!contact) return "skipped: no client";
-      const stage = await prisma.pipelineStage.findFirst({ where: { companyId, isConverted: false, name: { equals: String(step.stageName), mode: "insensitive" } }, select: { id: true, name: true } });
+      // Stage names repeat across boards: the one on the card's own board wins, then the main board's
+      const named = await prisma.pipelineStage.findMany({ where: { companyId, isConverted: false, name: { equals: String(step.stageName), mode: "insensitive" } }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true, boardId: true } });
+      const here = contact.pipelineStageId ? (await prisma.pipelineStage.findUnique({ where: { id: contact.pipelineStageId }, select: { boardId: true } }))?.boardId ?? null : null;
+      const stage = named.find((s) => (s.boardId ?? null) === here) ?? named.find((s) => !s.boardId) ?? named[0];
       if (!stage) return `skipped: no stage named "${step.stageName}"`;
       if (contact.pipelineStageId === stage.id) return "skipped: already in that stage";
       if (!contact.pipelineStageId) return "skipped: client is not on the leads board";

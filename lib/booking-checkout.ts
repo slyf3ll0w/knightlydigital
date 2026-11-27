@@ -135,7 +135,7 @@ export async function createServiceBooking(params: {
           // Hub bookings are repeat business, not leads — the board stays as it is
           const moves: (PipelineMove | null)[] = [];
           if (!customer.contactId) {
-            moves.push(await enterPipeline(tx, company.id, contact.id));
+            moves.push(await enterPipeline(tx, company.id, contact.id, { bookingTypeId: type.id }));
             moves.push(await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED"));
           }
 
