@@ -350,7 +350,7 @@ final class VoipEngine: NSObject {
     }
 
     @MainActor
-    private func connect(membership: String?) async {
+    private func connect(membership: String?, coldTries: Int = 0) async {
         // The phone's own credential — never the browser's (a shared one had the
         // desktop bumped off the line every time the phone registered).
         var query: [String: String] = ["device": "ios"]
@@ -366,6 +366,17 @@ final class VoipEngine: NSObject {
             return finishConnect(nil, error: "offline", membership: membership)
         }
         if status == 401 {
+            // A cold launch from a push reads the cookie jar before iOS has
+            // loaded it (cookies=0): that is not "signed out". Ending the
+            // system call screen on it dropped a call the person could have
+            // answered a second later (ticket #8ld9vq). Look again for a few
+            // seconds while a call is waiting on us.
+            if !cookie.contains("session-token"), coldTries < 8, calls.values.contains(where: { $0.direction == .inbound && $0.sdk == nil }) {
+                trace("grant-401-cold", "try=(coldTries + 1)")
+                connectStartedAt = Date()
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                return await connect(membership: membership, coldTries: coldTries + 1)
+            }
             trace("grant-401")
             return finishConnect(nil, error: "signedOut", membership: membership)
         }
@@ -392,8 +403,17 @@ final class VoipEngine: NSObject {
             // A pushed call on a phone that cannot register: let it ring out
             // so the server's own fallback takes over, unless it is signed out —
             // then nobody here can ever take it.
-            if error == "signedOut" || (error ?? "").hasPrefix("off:") {
+            if error == "signedOut" {
                 for id in calls.keys where calls[id]?.sdk == nil { finish(id, reason: .failed, tell: "ineligible") }
+            } else if (error ?? "").hasPrefix("off:") {
+                // The company the app is signed into has no line, but the call
+                // may belong to another company on this login: ask the server
+                // before giving up (postReady answers "switch" with the
+                // membership to register as; anything else ends the call).
+                for id in Array(calls.keys) {
+                    guard let r = calls[id], r.direction == .inbound, r.sdk == nil else { continue }
+                    if membership == nil, !r.switched, !r.readyPosted { postReady(id) } else { finish(id, reason: .failed, tell: "ineligible") }
+                }
             }
             return
         }

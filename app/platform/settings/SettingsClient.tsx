@@ -67,6 +67,7 @@ import { SQUARE_BANK_ACCOUNTS_URL } from "@/lib/square-links";
 import { slugify } from "@/lib/slugify";
 import SmsNotificationsCard from "./SmsNotificationsCard";
 import BusinessLineCard from "./BusinessLineCard";
+import BlockedNumbersCard from "./BlockedNumbersCard";
 import type { LineSummary } from "@/lib/business-line-shared";
 import {
   SECTION_HUE_DEFAULTS,
@@ -2509,6 +2510,9 @@ export default function SettingsClient({
 
         {/* Business line — the company's own number: calls forward to a cell, texts go out from it once registered */}
         {show("phone") && line?.enabled && <BusinessLineCard initial={line} />}
+
+        {/* Blocked numbers — callers and texters the business never wants to hear from */}
+        {show("phone") && line?.number && <BlockedNumbersCard />}
 
         {/* Text notifications — the one-time consent attestation behind provider texts */}
         {show("phone") && <SmsNotificationsCard initialOnAt={company.smsAcknowledgedAt} hasLine={Boolean(line?.number)} />}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Bell, BellRing, Loader2, MessageSquare, Send, Share, SquarePlus, X } from "lucide-react";
 import { textOn } from "@/lib/branding";
 import MessageMedia, { type ThreadMedia } from "@/components/MessageMedia";
+import { enterSends } from "@/lib/enter-sends";
 
 /**
  * The client's side of the portal message thread. Their own messages sit
@@ -350,7 +351,7 @@ export default function HubMessagesThread({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
+              if (enterSends(e)) {
                 e.preventDefault();
                 handleSend(e);
               }

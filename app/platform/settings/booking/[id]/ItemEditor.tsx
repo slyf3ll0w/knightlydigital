@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, ChevronUp, Code2, Copy, ExternalLink, Loader2, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import SectionHeader from "@/components/SectionHeader";
+import { InfoTip } from "@/components/ds";
 import BackLink from "@/components/BackLink";
 import Avatar from "@/components/Avatar";
 import { confirmSheet } from "@/components/ConfirmSheet";
@@ -744,7 +745,16 @@ export default function ItemEditor({
                     {sq.type === "text" ? (
                       <input type="text" value={sq.placeholder} onChange={(e) => setIntake({ serviceQuestion: { ...sq, placeholder: e.target.value } })} placeholder="Placeholder text (optional)" className={inputClass} />
                     ) : (
-                      <OptionRows options={sq.options} onChange={(options) => setIntake({ serviceQuestion: { ...sq, options } })} withDescriptions={sq.type === "radio"} />
+                      <>
+                        <OptionRows options={sq.options} onChange={(options) => setIntake({ serviceQuestion: { ...sq, options } })} withDescriptions={sq.type === "radio"} />
+                        <label className="flex cursor-pointer items-center gap-2 pt-1 text-sm text-gray-700">
+                          <input type="checkbox" checked={sq.matchPage} onChange={(e) => setIntake({ serviceQuestion: { ...sq, matchPage: e.target.checked } })} className="accent-[color:var(--ds-primary)]" />
+                          Pick the one the page is about
+                          <InfoTip label="How the form picks">
+                            When this form is on your website, it arrives with the choice that matches the page already picked: on your Fence repair page, Fence repair. It reads the page&apos;s address and title, and picks nothing when it can&apos;t tell. Visitors can change it. To set it yourself, add data-service=&quot;Fence repair&quot; to the snippet on that page.
+                          </InfoTip>
+                        </label>
+                      </>
                     )}
                   </div>
                 )}

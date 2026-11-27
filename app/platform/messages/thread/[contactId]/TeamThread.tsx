@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { stickAfterScroll, usePinOnMediaLoad } from "@/lib/chat-pin";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ImagePlus, Loader2, MoreVertical, Phone, RotateCcw, SendHorizonal, Trash2 } from "lucide-react";
+import { ArrowLeft, Ban, ImagePlus, Loader2, MoreVertical, Phone, RotateCcw, SendHorizonal, Trash2 } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import Monogram from "@/components/Monogram";
 import CallLink from "@/components/CallLink";
@@ -20,6 +20,8 @@ import MessageMedia, { type ThreadMedia } from "@/components/MessageMedia";
 import MenuPopover from "@/components/MenuPopover";
 import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { enterSends } from "@/lib/enter-sends";
+import { useBlockedNumber } from "@/components/BlockNumber";
 
 /**
  * Team side of a client thread — built to feel exactly like Team Chat
@@ -141,6 +143,9 @@ export default function TeamThread({
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Block / unblock their number (lib/blocked-numbers.ts); only a real phone number can be blocked.
+  const block = useBlockedNumber(phone, contactName);
+  const canBlock = block.usable && block.blocked !== null;
 
   // Wipes every message on this thread (the client keeps their record) and
   // goes back to the inbox. replace, so Back doesn't land on the empty thread.
@@ -608,7 +613,7 @@ export default function TeamThread({
               <Phone size={18} />
             </CallLink>
           )}
-          {canDelete && (
+          {(canDelete || canBlock) && (
             <div className="relative shrink-0">
               <button
                 type="button"
@@ -621,6 +626,19 @@ export default function TeamThread({
               </button>
               {menuOpen && (
                 <MenuPopover open={menuOpen} onClose={() => setMenuOpen(false)} title="Conversation" top="top-10">
+                  {canBlock && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        void block.toggle();
+                      }}
+                      className="flex w-full items-center gap-2 px-3.5 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      <Ban size={14} /> {block.blocked ? "Unblock this number" : "Block this number"}
+                    </button>
+                  )}
+                  {canDelete && (
                   <button
                     type="button"
                     onClick={deleteConversation}
@@ -628,6 +646,7 @@ export default function TeamThread({
                   >
                     <Trash2 size={14} /> Delete conversation
                   </button>
+                  )}
                 </MenuPopover>
               )}
             </div>
@@ -757,7 +776,7 @@ export default function TeamThread({
                 if (e.target.value.trim()) pingTyping();
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
+                if (enterSends(e)) {
                   e.preventDefault();
                   send();
                 }

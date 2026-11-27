@@ -14,6 +14,8 @@ import DialPad from "@/components/DialPad";
 import Monogram from "@/components/Monogram";
 import { MicRow, MicWarning } from "@/components/MicControls";
 import CallFromLineButton from "@/components/CallFromLineButton";
+import TextNumberButton from "@/components/TextNumberButton";
+import { BlockNumberButton } from "@/components/BlockNumber";
 import VoicemailPlayer from "@/components/VoicemailPlayer";
 import AddPersonSheet from "./AddPersonSheet";
 
@@ -644,8 +646,14 @@ export default function CallScreenLive({
         </div>
       )}
       {terminal && canCall && customerNumber && customerNumber !== "unknown" && (
-        <div className="mt-5 flex justify-center">
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
           <CallFromLineButton to={customerNumber} contactId={contactId} contactName={label} agentPhone="" label={direction === "INBOUND" ? "Call back" : "Call again"} />
+          <TextNumberButton number={customerNumber} contactId={contactId} />
+        </div>
+      )}
+      {terminal && customerNumber && customerNumber !== "unknown" && (
+        <div className="mt-3 flex justify-center">
+          <BlockNumberButton number={customerNumber} who={label} />
         </div>
       )}
     </div>

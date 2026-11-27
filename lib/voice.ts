@@ -1,3 +1,4 @@
+import { isBlockedNumber } from "@/lib/blocked-numbers";
 import { reportError } from "@/lib/report-error";
 import { isDemoCompanyId } from "@/lib/demo-guard";
 /**
@@ -591,6 +592,14 @@ async function onInboundInitiated(p: VoiceEventPayload): Promise<void> {
 
   const from = p.from ?? "";
   const digits = phoneDigits(from);
+  // A number this business blocked (lib/blocked-numbers.ts): hung up before
+  // anything rings. No row, no push, no voicemail; the caller hears the call
+  // fail, the same as a number that is out of service.
+  if (await isBlockedNumber(company.id, from).catch(() => false)) {
+    console.info(`[voice] call to ${to} from a blocked number; hanging up`);
+    await callAction(ccid, "hangup");
+    return;
+  }
   const contact = digits
     ? await prisma.contact.findFirst({
         where: { companyId: company.id, phoneDigits: digits },
