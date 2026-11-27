@@ -38,7 +38,7 @@ export const ANNOUNCEMENTS: Announcement[] = [
   {
     slug: "a-new-look",
     title: "WorkBench has a new look",
-    date: "2026-11-25",
+    date: "2026-11-27",
     tag: "New look",
     summary:
       "A cleaner WorkBench on your computer and your phone: your own colors up front, a sidebar that tells you what is waiting, and a phone app built the way iPhone apps are.",
