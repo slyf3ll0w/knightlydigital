@@ -24,7 +24,10 @@ export async function GET() {
   const companyId = actor.companyId;
   const [users, stages, customFields, agreementTemplates, company, smsLive, qbo] = await Promise.all([
     prisma.user.findMany({ where: { companyId, isActive: true }, select: { id: true, name: true, role: true }, orderBy: { name: "asc" } }),
-    prisma.pipelineStage.findMany({ where: { companyId, isConverted: false }, select: { id: true, name: true }, orderBy: { sortOrder: "asc" } }),
+    // Automations name a stage by its name, and names repeat across leads boards: one row per name
+    prisma.pipelineStage
+      .findMany({ where: { companyId, isConverted: false }, select: { id: true, name: true }, orderBy: [{ boardId: { sort: "asc", nulls: "first" } }, { sortOrder: "asc" }] })
+      .then((rows) => rows.filter((r, i) => rows.findIndex((x) => x.name.toLowerCase() === r.name.toLowerCase()) === i)),
     prisma.contactFieldDef.findMany({ where: { companyId, isActive: true }, select: { id: true, label: true, type: true, options: true }, orderBy: { sortOrder: "asc" } }),
     prisma.contractTemplate.findMany({ where: { companyId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.company.findUnique({ where: { id: companyId }, select: { ...ATLAS_ACCESS_SELECT, reviewLink: true, timezone: true, assistantName: true } }),

@@ -22,11 +22,14 @@ export async function POST(req: NextRequest) {
   // order of everything else, so it's dropped rather than refused.
   const all = await prisma.pipelineStage.findMany({
     where: { companyId },
-    select: { id: true, isConverted: true },
+    select: { id: true, isConverted: true, boardId: true },
   });
   const pinned = new Set(all.filter((s) => s.isConverted).map((s) => s.id));
-  const known = new Set(all.filter((s) => !s.isConverted).map((s) => s.id));
   const ids = orderedIds.filter((id) => !pinned.has(id));
+  // One board at a time: the board is the one the first listed column is on,
+  // and the list must name every column of THAT board.
+  const boardOf = all.find((s) => s.id === ids[0])?.boardId ?? null;
+  const known = new Set(all.filter((s) => !s.isConverted && (s.boardId ?? null) === boardOf).map((s) => s.id));
   const complete =
     ids.length === known.size &&
     ids.every((id) => known.has(id)) &&

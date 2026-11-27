@@ -18,6 +18,7 @@ import PageTitle from "@/components/PageTitle";
 import { InfoTip } from "@/components/ds";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import LeadSourceField from "@/components/LeadSourceField";
 
 type Stage = {
   id: string;
@@ -52,12 +53,20 @@ const SAMPLE_PAYLOAD = `{
   "message": "Needs a gutter cleaning quote"
 }`;
 
+/** An extra leads board being edited (null = the main board). */
+type BoardInfo = { id: string; name: string; sources: string[]; forms: { id: string; name: string }[] };
+
 export default function PipelineSettingsClient({
+  board = null,
+  boards = [],
   initialStages,
   convertedStage,
   hideConverted,
   webhookUrl,
 }: {
+  board?: BoardInfo | null;
+  /** Every board, main first, when the company has more than one */
+  boards?: { id: string | null; name: string }[];
   initialStages: Stage[];
   convertedStage: { id: string; name: string; color: string | null } | null;
   hideConverted: boolean;
@@ -73,6 +82,38 @@ export default function PipelineSettingsClient({
   const [hook, setHook] = useState<string | null>(webhookUrl);
   const [copied, setCopied] = useState(false);
   const [hidden, setHidden] = useState(hideConverted);
+  const [sources, setSources] = useState<string[]>(board?.sources ?? []);
+  const [pickSource, setPickSource] = useState("");
+  const boardQuery = board ? `?board=${board.id}` : "";
+
+  async function saveSources(next: string[]) {
+    if (!board) return;
+    const prev = sources;
+    setSources(next);
+    await run(() => postJson(`/api/app/pipeline/boards/${board.id}`, { sources: next }, "PATCH"), () => setSources(prev));
+  }
+
+  async function deleteBoard() {
+    if (!board) return;
+    if (
+      !(await confirmSheet({
+        title: `Delete the ${board.name} board?`,
+        message: "Its leads move to the first stage of your main board. Its stages are removed.",
+        confirmLabel: "Delete board",
+        destructive: true,
+      }))
+    )
+      return;
+    setSaving(true);
+    const { ok, data } = await postJson(`/api/app/pipeline/boards/${board.id}`, undefined, "DELETE");
+    setSaving(false);
+    if (!ok) {
+      setError(data?.error ?? GENERIC_ERROR);
+      return;
+    }
+    router.replace("/app/settings/pipeline");
+    router.refresh();
+  }
 
   const refresh = () => startTransition(() => router.refresh());
 
@@ -85,7 +126,7 @@ export default function PipelineSettingsClient({
   // id, and the server refuses a list that names the pinned section.
   async function resync() {
     try {
-      const res = await fetch("/api/app/pipeline/stages");
+      const res = await fetch(`/api/app/pipeline/stages?board=${board?.id ?? "main"}`);
       if (!res.ok) return;
       const all = (await res.json()) as ServerStage[];
       setStages(
@@ -201,7 +242,7 @@ export default function PipelineSettingsClient({
     // orderable rows, and the next reorder was refused for naming it.)
     let created: Stage | null = null;
     const ok = await run(async () => {
-      const r = await postJson<Stage>("/api/app/pipeline/stages", { name: newName.trim() });
+      const r = await postJson<Stage>("/api/app/pipeline/stages", { name: newName.trim(), ...(board ? { boardId: board.id } : {}) });
       if (r.ok && r.data?.id) {
         const { id, name, color, autoAdvanceOn } = r.data;
         created = { id, name, color, autoAdvanceOn: autoAdvanceOn ?? null };
@@ -253,10 +294,95 @@ export default function PipelineSettingsClient({
         </PageTitle>
       </div>
       <p className="text-sm mb-6 lg:ml-8">
-        <Link href="/app/leads" className="ds-link hover:underline">
+        <Link href={`/app/leads${boardQuery}`} className="ds-link hover:underline">
           Open the board
         </Link>
       </p>
+
+      {/* More than one board: pick which one's stages these are */}
+      {boards.length > 0 && (
+        <nav className="ld-boards mb-5" aria-label="Leads boards">
+          {boards.map((b) => (
+            <Link key={b.id ?? "main"} href={b.id ? `/app/settings/pipeline?board=${b.id}` : "/app/settings/pipeline"} prefetch={false} aria-current={(b.id ?? null) === (board?.id ?? null) ? "page" : undefined}>
+              {b.name}
+            </Link>
+          ))}
+        </nav>
+      )}
+
+      {/* This board: its name, which new leads land on it, and removing it */}
+      {board && (
+        <div className="ds-card p-5 mb-6" data-board-card>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="ds-h2 flex items-center gap-1.5">
+              This board
+              <InfoTip>
+                New leads land on your main board unless a rule sends them here. Two rules: a booking form set to this board (Booking &amp; forms, the form&apos;s Sharing section), or a lead source listed below. Only new leads follow a rule; move anyone else from their card on the board.
+              </InfoTip>
+            </h2>
+            <button type="button" onClick={() => void deleteBoard()} disabled={saving} className="inline-flex items-center gap-1.5 text-sm text-[color:var(--ds-bad)] hover:underline disabled:opacity-50">
+              <Trash2 size={14} />
+              Delete board
+            </button>
+          </div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Name</label>
+          <input
+            defaultValue={board.name}
+            maxLength={40}
+            onBlur={async (e) => {
+              const box = e.target;
+              const v = box.value.trim();
+              if (!v || v === board.name) {
+                box.value = board.name;
+                return;
+              }
+              if (!(await run(() => postJson(`/api/app/pipeline/boards/${board.id}`, { name: v }, "PATCH")))) box.value = board.name;
+            }}
+            className="w-full max-w-sm px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary-soft)]"
+          />
+          <p className="mt-4 mb-1 text-xs font-medium text-gray-600">New leads from these sources land here</p>
+          {sources.length > 0 && (
+            <ul className="mb-2 divide-y divide-gray-100">
+              {sources.map((s) => (
+                <li key={s} className="flex items-center gap-3 py-1.5 text-sm text-gray-800">
+                  <span className="min-w-0 flex-1 truncate">{s}</span>
+                  <button type="button" onClick={() => void saveSources(sources.filter((x) => x !== s))} className="text-xs font-semibold text-gray-500 hover:text-gray-900 hover:underline">
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <LeadSourceField value={pickSource} onChange={setPickSource} emptyLabel="Pick a source" className="max-w-xs" />
+            <button
+              type="button"
+              disabled={!pickSource || saving || sources.some((s) => s.toLowerCase() === pickSource.toLowerCase())}
+              onClick={() => {
+                void saveSources([...sources, pickSource]);
+                setPickSource("");
+              }}
+              className="ds-btn disabled:opacity-50"
+            >
+              <Plus size={14} />
+              Add
+            </button>
+          </div>
+          {board.forms.length > 0 && (
+            <p className="mt-4 text-sm text-gray-600">
+              Forms that send leads here:{" "}
+              {board.forms.map((f, i) => (
+                <span key={f.id}>
+                  {i > 0 && ", "}
+                  <Link href={`/app/settings/booking/${f.id}`} className="ds-link hover:underline">
+                    {f.name}
+                  </Link>
+                </span>
+              ))}
+            </p>
+          )}
+        </div>
+      )}
 
       {error && (
         <div role="alert" className="form-error mb-4">

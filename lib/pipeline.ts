@@ -23,11 +23,109 @@ import { fireAutomations } from "@/lib/automations-server";
  *    whichever stage claims that trigger — forward only, so a re-send never
  *    demotes a lead. The phone/text hooks live in lib/voice.ts and the
  *    Messages POST route; the default "Contacted" column claims CONTACT_MADE.
+ *
+ * More than one board (2026-11-27, ticket #p6pp98). Every company has its
+ * main board: the stages with `boardId` null, no row needed. A company can
+ * add boards (LeadBoard), each with its own columns, its own trigger claims
+ * and its own limit of MAX_STAGES. A lead is on one board at a time, the
+ * board of its stage. New leads land on the main board unless a rule sends
+ * them elsewhere (`routeBoard`): the booking form names a board, or the
+ * lead's source is listed on one. Automatic moves stay on the card's own
+ * board. The Converted section is one per company (boardId null) and closes
+ * every board. "First stage" always means the first stage OF A BOARD.
  */
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
 export const MAX_STAGES = 12;
+/** Extra boards a company may add beside its main one. */
+export const MAX_BOARDS = 8;
+/** What the main board is called where boards are listed. */
+export const MAIN_BOARD_NAME = "Main board";
+
+/** The stages one board shows, in order: its own columns, then the shared Converted section. `boardId` null = the main board. */
+export function stagesOfBoard<T extends { boardId: string | null; isConverted: boolean }>(stages: T[], boardId: string | null): T[] {
+  return stages.filter((s) => s.isConverted || (s.boardId ?? null) === (boardId ?? null));
+}
+
+/** The first working column of a board (where its new leads land). */
+export async function firstStageOf(db: Db, companyId: string, boardId: string | null) {
+  return db.pipelineStage.findFirst({
+    where: { companyId, isConverted: false, boardId: boardId ?? null },
+    orderBy: { sortOrder: "asc" },
+  });
+}
+
+/** Every board's first working column: "new leads" badges count the cards in these. */
+export async function firstStageIds(db: Db, companyId: string): Promise<string[]> {
+  const stages = await db.pipelineStage.findMany({
+    where: { companyId, isConverted: false },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, boardId: true },
+  });
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const s of stages) {
+    const key = s.boardId ?? "";
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s.id);
+  }
+  return out;
+}
+
+export async function listBoards(db: Db, companyId: string) {
+  return db.leadBoard.findMany({ where: { companyId }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] });
+}
+
+/**
+ * Which board a NEW lead lands on: the form's board when it names one, else
+ * the board that lists the lead's source, else the main board (null).
+ */
+export async function routeBoard(db: Db, companyId: string, hint: { bookingTypeId?: string | null; source?: string | null }): Promise<string | null> {
+  if (hint.bookingTypeId) {
+    const type = await db.bookingType.findFirst({ where: { id: hint.bookingTypeId, companyId }, select: { leadBoardId: true } });
+    if (type?.leadBoardId) return type.leadBoardId;
+  }
+  const source = hint.source?.trim().toLowerCase();
+  if (source) {
+    const boards = await db.leadBoard.findMany({ where: { companyId, NOT: { sources: { isEmpty: true } } }, orderBy: { sortOrder: "asc" }, select: { id: true, sources: true } });
+    const hit = boards.find((b) => b.sources.some((s) => s.trim().toLowerCase() === source));
+    if (hit) return hit.id;
+  }
+  return null;
+}
+
+/** Add a board with the starter columns (same names and automatic moves as a new main board). */
+export async function createBoard(companyId: string, name: string) {
+  return prisma.$transaction(async (tx) => {
+    const last = await tx.leadBoard.findFirst({ where: { companyId }, orderBy: { sortOrder: "desc" }, select: { sortOrder: true } });
+    const board = await tx.leadBoard.create({ data: { companyId, name, sortOrder: (last?.sortOrder ?? -1) + 1 } });
+    for (let i = 0; i < DEFAULT_STAGES.length; i++) {
+      await tx.pipelineStage.create({ data: { companyId, boardId: board.id, sortOrder: i, ...DEFAULT_STAGES[i] } });
+    }
+    return board;
+  });
+}
+
+/** Remove a board: its cards go to the first column of the main board, its columns go with it. */
+export async function deleteBoard(companyId: string, boardId: string): Promise<{ moved: number }> {
+  return prisma.$transaction(async (tx) => {
+    const board = await tx.leadBoard.findFirst({ where: { id: boardId, companyId }, select: { id: true } });
+    if (!board) return { moved: 0 };
+    const stageIds = (await tx.pipelineStage.findMany({ where: { companyId, boardId }, select: { id: true } })).map((s) => s.id);
+    const main = await firstStageOf(tx, companyId, null);
+    const moved = stageIds.length
+      ? await tx.contact.updateMany({
+          where: { companyId, pipelineStageId: { in: stageIds } },
+          data: { pipelineStageId: main?.id ?? null, stageChangedAt: new Date() },
+        })
+      : { count: 0 };
+    await tx.pipelineStage.deleteMany({ where: { companyId, boardId } });
+    await tx.leadBoard.delete({ where: { id: boardId } });
+    return { moved: moved.count };
+  });
+}
 
 /**
  * A board change the automations engine should hear about (lib/automations.ts
@@ -141,10 +239,12 @@ export async function ensureStages(companyId: string) {
   // Stray-lead sweep: probe before writing so the board's every render isn't
   // an updateMany against the contacts table
   const strayWhere = { companyId, status: "LEAD" as const, pipelineStageId: null };
+  // Strays land on the MAIN board's first column (stages[0] alone could be another board's)
+  const mainFirst = stages.find((s) => !s.isConverted && !s.boardId) ?? stages[0];
   if (await prisma.contact.findFirst({ where: strayWhere, select: { id: true } })) {
     await prisma.contact.updateMany({
       where: strayWhere,
-      data: { pipelineStageId: stages[0].id, stageChangedAt: new Date() },
+      data: { pipelineStageId: mainFirst.id, stageChangedAt: new Date() },
     });
   }
   return stages;
@@ -188,11 +288,11 @@ export async function enterPipeline(
   db: Db,
   companyId: string,
   contactId: string,
-  opts?: { stageId?: string }
+  opts?: { stageId?: string; boardId?: string | null; bookingTypeId?: string | null }
 ): Promise<PipelineMove | null> {
   const contact = await db.contact.findFirst({
     where: { id: contactId, companyId },
-    select: { id: true, status: true, pipelineStage: { select: { id: true, isConverted: true } } },
+    select: { id: true, status: true, leadSource: true, pipelineStage: { select: { id: true, isConverted: true } } },
   });
   if (!contact || (contact.pipelineStage && !contact.pipelineStage.isConverted)) return null;
 
@@ -201,12 +301,13 @@ export async function enterPipeline(
         where: { id: opts.stageId, companyId, isConverted: false },
       })
     : null;
+  // The board named, else the one a rule picks (the form they came through,
+  // then their lead source), else the main board
   if (!stage) {
-    stage = await db.pipelineStage.findFirst({
-      where: { companyId, isConverted: false },
-      orderBy: { sortOrder: "asc" },
-    });
+    const boardId = opts?.boardId ?? (await routeBoard(db, companyId, { bookingTypeId: opts?.bookingTypeId, source: contact.leadSource }));
+    if (boardId) stage = await firstStageOf(db, companyId, boardId);
   }
+  if (!stage) stage = await firstStageOf(db, companyId, null);
   if (!stage) return null; // board never opened — the ensureStages sweep will catch them
 
   await db.contact.update({
@@ -232,15 +333,16 @@ export async function autoAdvance(
   contactId: string,
   trigger: PipelineTrigger
 ): Promise<PipelineMove | null> {
-  const target = await db.pipelineStage.findFirst({
-    where: { companyId, autoAdvanceOn: trigger },
-  });
-  if (!target) return null;
   const contact = await db.contact.findFirst({
     where: { id: contactId, companyId, pipelineStageId: { not: null } },
-    select: { id: true, pipelineStage: { select: { id: true, sortOrder: true } } },
+    select: { id: true, pipelineStage: { select: { id: true, sortOrder: true, boardId: true, isConverted: true } } },
   });
-  if (!contact?.pipelineStage) return null;
+  if (!contact?.pipelineStage || contact.pipelineStage.isConverted) return null;
+  // The column that claims this trigger ON THE CARD'S OWN BOARD: a card never changes boards by itself
+  const target = await db.pipelineStage.findFirst({
+    where: { companyId, autoAdvanceOn: trigger, boardId: contact.pipelineStage.boardId ?? null, isConverted: false },
+  });
+  if (!target) return null;
   if (target.sortOrder <= contact.pipelineStage.sortOrder) return null;
   await db.contact.update({
     where: { id: contact.id },

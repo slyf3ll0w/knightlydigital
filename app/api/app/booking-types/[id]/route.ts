@@ -70,6 +70,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { settings, error } = applyBookingTypePatch(current, body);
   if (error) return NextResponse.json({ error }, { status: 400 });
 
+  // { leadBoardId }: which leads board this form's new leads land on (null = the main board)
+  let leadBoardId: string | null | undefined;
+  if (body.leadBoardId !== undefined) {
+    if (body.leadBoardId === null || body.leadBoardId === "") leadBoardId = null;
+    else {
+      const board = await prisma.leadBoard.findFirst({ where: { id: String(body.leadBoardId), companyId: actor.companyId }, select: { id: true } });
+      if (!board) return NextResponse.json({ error: "That leads board no longer exists." }, { status: 400 });
+      leadBoardId = board.id;
+    }
+  }
+
   // Questions + words: stored sanitized against the (possibly new) kind/mode
   const intake =
     body.intake !== undefined
@@ -158,6 +169,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(intake ? { intake: intake as unknown as Prisma.InputJsonValue } : {}),
         ...(slug ? { slug } : {}),
         ...(sortOrder !== undefined ? { sortOrder } : {}),
+        ...(leadBoardId !== undefined ? { leadBoardId } : {}),
       },
       include: bookingTypeInclude,
     });

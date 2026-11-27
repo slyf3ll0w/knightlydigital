@@ -1,3 +1,4 @@
+import { firstStageIds } from "@/lib/pipeline";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, canSeeMoney, contactScope, viaContactScope } from "@/lib/permissions";
@@ -72,12 +73,9 @@ export async function GET() {
 
   // The board's first column — a lead still sitting there is "new"; used by
   // the live lead rows and by the handled check on recorded lead notices.
-  const firstStage = await prisma.pipelineStage.findFirst({
-    where: { companyId: actor.companyId, isConverted: false },
-    orderBy: { sortOrder: "asc" },
-    select: { id: true },
-  });
-  const firstStageId = firstStage?.id ?? null;
+  const firstIds = await firstStageIds(prisma, actor.companyId);
+  // Every board's first column; no boards yet = unstaged leads
+  const firstStageId = firstIds.length ? { in: firstIds } : null;
 
   // The person's Bell switches (My Profile → Notifications): a live row for an
   // event they turned off stays out of the list. Pushes already skip writing

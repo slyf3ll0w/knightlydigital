@@ -125,6 +125,8 @@ export default function ItemEditor({
   company,
   baseUrl,
   previewMode,
+  leadBoards = [],
+  leadBoardId = null,
 }: {
   item: Draft;
   team: TeamRow[];
@@ -145,6 +147,9 @@ export default function ItemEditor({
   };
   baseUrl: string;
   previewMode: boolean;
+  /** The company's extra leads boards (empty = only the main board, and the picker is hidden) */
+  leadBoards?: { id: string; name: string }[];
+  leadBoardId?: string | null;
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState<Draft>(initial);
@@ -159,6 +164,17 @@ export default function ItemEditor({
     const { ok, data } = await postJson("/api/app/settings", { hubBookingTypeId: id }, "PATCH");
     if (!ok) {
       setHubForm(company.hubFormId);
+      setError(data?.error ?? GENERIC_ERROR);
+    }
+  }
+  // Which leads board this form's new leads land on (lib/pipeline.ts routeBoard)
+  const [leadBoard, setLeadBoard] = useState<string>(leadBoardId ?? "");
+  async function saveLeadBoard(next: string) {
+    const prev = leadBoard;
+    setLeadBoard(next);
+    const { ok, data } = await postJson(`/api/app/booking-types/${draft.id}`, { leadBoardId: next || null }, "PATCH");
+    if (!ok) {
+      setLeadBoard(prev);
       setError(data?.error ?? GENERIC_ERROR);
     }
   }
@@ -953,6 +969,24 @@ export default function ItemEditor({
               label="Use as the client hub form"
               hint={hubForm === draft.id ? "Existing clients get this under “Get work done” in their hub, with their details already filled in." : "Clients see the plain request form in their hub unless one item is chosen."}
             />
+            {leadBoards.length > 0 && (
+              <div>
+                <label className={`${smallLabel} flex items-center gap-1.5`}>
+                  New leads go to
+                  <InfoTip label="Which leads board">
+                    Someone new who comes in through this form lands on this leads board. People already on a board stay where they are.
+                  </InfoTip>
+                </label>
+                <select value={leadBoard} onChange={(e) => void saveLeadBoard(e.target.value)} className={inputClass} aria-label="Leads board for new leads">
+                  <option value="">Main board</option>
+                  {leadBoards.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className={smallLabel}>Link</label>
               <div className="flex items-center gap-1">

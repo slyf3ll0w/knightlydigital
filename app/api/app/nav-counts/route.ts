@@ -1,3 +1,4 @@
+import { firstStageIds } from "@/lib/pipeline";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, canSeeMoney, contactScope, viaContactScope, jobScope } from "@/lib/permissions";
@@ -37,22 +38,17 @@ export async function GET() {
       : Promise.resolve(0),
     // Team chat unread across every channel the actor belongs to
     totalUnread(actor),
-    // Leads badge: cards sitting in the board's entry (first) stage. Before
-    // the board is first opened (no stages yet), unstaged leads count.
+    // Leads badge: cards sitting in the entry (first) stage of any board.
+    // Before the board is first opened (no stages yet), unstaged leads count.
     canSell(actor.role)
-      ? prisma.pipelineStage
-          .findFirst({
-            where: { companyId: actor.companyId, isConverted: false },
-            orderBy: { sortOrder: "asc" },
-            select: { id: true },
-          })
+      ? firstStageIds(prisma, actor.companyId)
           .then((first) =>
             prisma.contact.count({
               where: {
                 companyId: actor.companyId,
                 ...contactScope(actor),
-                ...(first
-                  ? { pipelineStageId: first.id }
+                ...(first.length
+                  ? { pipelineStageId: { in: first } }
                   : { status: "LEAD", pipelineStageId: null }),
               },
             })

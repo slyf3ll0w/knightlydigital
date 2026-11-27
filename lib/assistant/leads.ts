@@ -1,6 +1,6 @@
 import { prisma } from "../db";
 import { canSell, canSeePricing, contactScope, isManager } from "../permissions";
-import { ensureStages, triggerLabel, PIPELINE_TRIGGERS } from "../pipeline";
+import { ensureStages, listBoards, triggerLabel, PIPELINE_TRIGGERS, MAIN_BOARD_NAME } from "../pipeline";
 import { type Tool, str, money, clientName, findContact, stage } from "./core";
 import { quoted } from "./untrusted";
 
@@ -10,13 +10,29 @@ import { quoted } from "./untrusted";
  * the same /api/app/pipeline and /contacts/[id]/stage routes the board uses.
  */
 
+/**
+ * A board by name ("main" / "Main board" / "" = the main board → null).
+ * undefined = no board by that name.
+ */
+async function resolveBoard(companyId: string, name: string): Promise<{ id: string | null; name: string } | undefined> {
+  const q = name.trim().toLowerCase();
+  if (!q || q === "main" || q === MAIN_BOARD_NAME.toLowerCase()) return { id: null, name: MAIN_BOARD_NAME };
+  const boards = await listBoards(prisma, companyId);
+  const hit = boards.find((b) => b.id === name) ?? boards.find((b) => b.name.toLowerCase() === q) ?? boards.find((b) => b.name.toLowerCase().includes(q));
+  return hit ? { id: hit.id, name: hit.name } : undefined;
+}
+
+/** Stage names repeat across boards: `boardId` (the board asked for, or the card's own) is searched first. */
 async function resolveStage(
   companyId: string,
   nameOrId: string,
-  opts?: { includeConverted?: boolean }
+  opts?: { includeConverted?: boolean; boardId?: string | null; onlyBoard?: boolean }
 ) {
   const all = await ensureStages(companyId);
-  const stages = opts?.includeConverted ? all : all.filter((s) => !s.isConverted);
+  const pool = opts?.includeConverted ? all : all.filter((s) => !s.isConverted);
+  const prefer = opts?.boardId ?? null;
+  const mine = pool.filter((s) => (s.boardId ?? null) === prefer);
+  const stages = opts?.onlyBoard ? mine : [...mine, ...pool.filter((s) => (s.boardId ?? null) !== prefer)];
   const q = nameOrId.trim().toLowerCase();
   return (
     stages.find((s) => s.id === nameOrId) ??
@@ -36,12 +52,18 @@ export const leadTools: Tool[] = [
         type: "object",
         properties: {
           lost: { type: "boolean", description: "also list recently lost leads and their lost reasons" },
+          board: { type: "string", description: "only this board, by name ('main' for the main board). Omit for every board." },
         },
       },
     },
     allowed: (a) => canSell(a.role),
     run: async (actor, args) => {
-      const stages = await ensureStages(actor.companyId);
+      const allStages = await ensureStages(actor.companyId);
+      const boards = await listBoards(prisma, actor.companyId);
+      const boardName = (id: string | null) => (id ? boards.find((b) => b.id === id)?.name ?? "?" : MAIN_BOARD_NAME);
+      const only = str(args.board, 40) ? await resolveBoard(actor.companyId, str(args.board, 40)) : null;
+      if (only === undefined) return { error: `No board named "${str(args.board, 40)}". Boards: ${[MAIN_BOARD_NAME, ...boards.map((b) => b.name)].join(", ")}` };
+      const stages = only ? allStages.filter((s) => s.isConverted || (s.boardId ?? null) === only.id) : allStages;
       const leads = await prisma.contact.findMany({
         where: {
           companyId: actor.companyId,
@@ -64,6 +86,7 @@ export const leadTools: Tool[] = [
       const seePrices = canSeePricing(actor.role);
       const board = stages.map((s) => ({
         stage: s.name,
+        ...(boards.length > 0 && !s.isConverted ? { board: boardName(s.boardId ?? null) } : {}),
         ...(s.isConverted ? { converted: true } : {}),
         ...(s.autoAdvanceOn ? { autoAdvancesOn: triggerLabel[s.autoAdvanceOn] } : {}),
         leads: leads
@@ -100,6 +123,12 @@ export const leadTools: Tool[] = [
         : null;
       return {
         board,
+        ...(boards.length > 0
+          ? {
+              boards: [MAIN_BOARD_NAME, ...boards.map((b) => b.name)],
+              boardsNote: "This company has more than one leads board. Each has its own stages; a lead is on one board at a time. The Converted section is shared. New leads land on the main board unless a form or a lead source sends them to another (manage_lead_board).",
+            }
+          : {}),
         ...(lost
           ? {
               lost: lost.map((l) => ({
@@ -120,25 +149,38 @@ export const leadTools: Tool[] = [
     decl: {
       name: "move_lead",
       description:
-        "Stage moving a lead's card to another pipeline stage (by stage name — see get_lead_board). Confirmation card required.",
+        "Stage moving a lead's card to another pipeline stage (by stage name — see get_lead_board). With more than one leads board, the stage is looked for on the lead's own board first; pass board to move the lead to another board (its first stage when no stage is named). Confirmation card required.",
       parameters: {
         type: "object",
         properties: {
           clientId: { type: "string", description: "The lead's id (from get_lead_board or search)" },
           stage: { type: "string", description: "Target stage name" },
+          board: { type: "string", description: "Move to this board (by name; 'main' = the main board)" },
         },
-        required: ["clientId", "stage"],
+        required: ["clientId"],
       },
     },
     allowed: (a) => canSell(a.role),
     run: async (actor, args, ctx) => {
       const contact = await findContact(actor, str(args.clientId, 40));
       if (!contact) return { error: "No lead with that id (or not visible to this user)." };
-      const target = await resolveStage(actor.companyId, str(args.stage, 40));
-      if (!target) return { error: `No stage matching "${str(args.stage, 40)}" — check get_lead_board.` };
+      const wantStage = str(args.stage, 40);
+      const wantBoard = str(args.board, 40);
+      if (!wantStage && !wantBoard) return { error: "Give a stage, a board, or both." };
+      const toBoard = wantBoard ? await resolveBoard(actor.companyId, wantBoard) : null;
+      if (toBoard === undefined) return { error: `No board named "${wantBoard}" — check get_lead_board.` };
+      const all = await ensureStages(actor.companyId);
+      const on = await prisma.contact.findUnique({ where: { id: contact.id }, select: { pipelineStageId: true } });
+      const current = all.find((s) => s.id === on?.pipelineStageId);
+      const boardId = toBoard ? toBoard.id : current && !current.isConverted ? current.boardId ?? null : null;
+      const target = wantStage
+        ? await resolveStage(actor.companyId, wantStage, { boardId, onlyBoard: Boolean(toBoard) })
+        : all.find((s) => !s.isConverted && (s.boardId ?? null) === boardId) ?? null;
+      if (!target) return { error: `No stage matching "${wantStage}"${toBoard ? ` on ${toBoard.name}` : ""} — check get_lead_board.` };
+      const crossing = current && !current.isConverted && (current.boardId ?? null) !== (target.boardId ?? null);
       return stage(ctx, {
         kind: "move_lead",
-        title: `Move ${clientName(contact)} to "${target.name}"`,
+        title: `Move ${clientName(contact)} to "${target.name}"${toBoard || crossing ? ` on ${toBoard?.name ?? "another board"}` : ""}`,
         lines: [],
         endpoint: `/api/app/contacts/${contact.id}/stage`,
         method: "PATCH",
@@ -198,6 +240,78 @@ export const leadTools: Tool[] = [
   },
   {
     decl: {
+      name: "manage_lead_board",
+      description:
+        "Stage adding, renaming or removing a leads board, or setting which lead sources land on it (managers). A company has a main board and can add more, each with its own stages; a lead is on one board at a time. create: a new board with the starter stages. set_sources: the lead source names whose NEW leads land on this board (an empty list clears it; a source belongs to one board). delete: its leads move to the first stage of the main board. A booking form can also send its leads to a board (manage_booking_item is not needed: that is set on the form's page, Booking & forms). Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          action: { type: "string", enum: ["create", "rename", "set_sources", "delete"] },
+          board: { type: "string", description: "Existing board name (all actions except create)" },
+          name: { type: "string", description: "create/rename: the (new) board name" },
+          sources: { type: "array", items: { type: "string" }, description: "set_sources: lead source names, e.g. Facebook, Google Ads" },
+        },
+        required: ["action"],
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args, ctx) => {
+      const action = str(args.action, 16);
+      if (action === "create") {
+        const name = str(args.name, 40);
+        if (!name) return { error: "name is required" };
+        return stage(ctx, {
+          kind: "manage_lead_board",
+          title: `Add leads board "${name}"`,
+          lines: ["It starts with the standard stages; change them under Customize stages."],
+          endpoint: "/api/app/pipeline/boards",
+          method: "POST",
+          payload: { name },
+          href: "/app/leads",
+        });
+      }
+      const target = await resolveBoard(actor.companyId, str(args.board, 40));
+      if (!target) return { error: `No board named "${str(args.board, 40)}" — check get_lead_board.` };
+      if (!target.id) return { error: "The main board can't be renamed, removed or given sources: it is where every lead lands unless a rule sends it elsewhere." };
+      if (action === "rename") {
+        const name = str(args.name, 40);
+        if (!name) return { error: "name is required" };
+        return stage(ctx, {
+          kind: "manage_lead_board",
+          title: `Rename board "${target.name}" to "${name}"`,
+          lines: [],
+          endpoint: `/api/app/pipeline/boards/${target.id}`,
+          method: "PATCH",
+          payload: { name },
+        });
+      }
+      if (action === "set_sources") {
+        const sources = Array.isArray(args.sources) ? args.sources.filter((v): v is string => typeof v === "string").map((v) => v.slice(0, 60)).slice(0, 30) : [];
+        return stage(ctx, {
+          kind: "manage_lead_board",
+          title: sources.length ? `Send new leads from ${sources.join(", ")} to "${target.name}"` : `Stop sending leads to "${target.name}" by source`,
+          lines: sources.length ? ["Only new leads follow this; leads already on a board stay where they are."] : [],
+          endpoint: `/api/app/pipeline/boards/${target.id}`,
+          method: "PATCH",
+          payload: { sources },
+        });
+      }
+      if (action === "delete") {
+        return stage(ctx, {
+          kind: "delete_lead_board",
+          title: `Delete leads board "${target.name}"`,
+          lines: ["Its leads move to the first stage of the main board. Its stages are removed."],
+          endpoint: `/api/app/pipeline/boards/${target.id}`,
+          method: "DELETE",
+          payload: {},
+          danger: true,
+        });
+      }
+      return { error: "action must be create, rename, set_sources, or delete" };
+    },
+  },
+  {
+    decl: {
       name: "manage_pipeline_stage",
       description:
         "Stage changes to the pipeline board's columns (managers): create a stage, rename/recolor one, set its auto-advance trigger (REQUEST_CREATED / CONTACT_MADE / CALL_NO_ANSWER / APPOINTMENT_SCHEDULED / QUOTE_SENT — moves a lead's card there when that happens, forward only; one stage per trigger; 'none' clears it; quote approval isn't a trigger — an approved quote always converts the lead), reorder all stages, or delete one (its leads move to the first stage). Confirmation card required.",
@@ -206,6 +320,7 @@ export const leadTools: Tool[] = [
         properties: {
           action: { type: "string", enum: ["create", "rename", "recolor", "set_trigger", "reorder", "delete"] },
           stage: { type: "string", description: "Existing stage name (all actions except create/reorder)" },
+          board: { type: "string", description: "Which leads board, by name, when there is more than one ('main' or omitted = the main board)" },
           name: { type: "string", description: "create/rename: the (new) stage name" },
           color: { type: "string", description: "recolor/create: hex like #0B57D8" },
           trigger: {
@@ -225,6 +340,8 @@ export const leadTools: Tool[] = [
     run: async (actor, args, ctx) => {
       const action = str(args.action, 16);
       const color = str(args.color, 7);
+      const onBoard = await resolveBoard(actor.companyId, str(args.board, 40));
+      if (onBoard === undefined) return { error: `No board named "${str(args.board, 40)}" — check get_lead_board.` };
       if (action === "create") {
         const name = str(args.name, 40);
         if (!name) return { error: "name is required" };
@@ -241,6 +358,7 @@ export const leadTools: Tool[] = [
           method: "POST",
           payload: {
             name,
+            ...(onBoard.id && { boardId: onBoard.id }),
             ...(color && { color }),
             ...((PIPELINE_TRIGGERS as readonly string[]).includes(trigger) && { autoAdvanceOn: trigger }),
           },
@@ -251,7 +369,7 @@ export const leadTools: Tool[] = [
           ? args.orderedNames.filter((v): v is string => typeof v === "string")
           : [];
         // Converted is pinned last and never reordered
-        const stages = (await ensureStages(actor.companyId)).filter((s) => !s.isConverted);
+        const stages = (await ensureStages(actor.companyId)).filter((s) => !s.isConverted && (s.boardId ?? null) === onBoard.id);
         const ids: string[] = [];
         for (const n of names) {
           const m = stages.find((s) => s.name.toLowerCase() === n.trim().toLowerCase());
@@ -270,7 +388,7 @@ export const leadTools: Tool[] = [
           payload: { orderedIds: ids },
         });
       }
-      const target = await resolveStage(actor.companyId, str(args.stage, 40));
+      const target = await resolveStage(actor.companyId, str(args.stage, 40), { boardId: onBoard.id, onlyBoard: Boolean(str(args.board, 40)) });
       if (!target) return { error: `No stage matching "${str(args.stage, 40)}" — check get_lead_board.` };
       if (action === "delete") {
         return stage(ctx, {
