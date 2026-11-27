@@ -12,6 +12,31 @@ waiting* — not how to build.
 > **2026-09-24:** day-of checklist for this Play release (with what is
 > deliberately left for versionCode 5) is `android-1.3-release-2026-09-25.md`.
 
+## iOS: a pushed call dropped on a cold launch (ticket #8ld9vq, 2026-11-27; in the tree, rides the next iOS build)
+
+What happened on build 15 (2026-11-26 18:10 UTC, read from the `[voip-trace]`
+log): the VoIP push woke a closed app, the engine asked for its Telnyx grant
+before iOS had loaded the cookie jar (`cookies=0`), the server answered 401,
+and the engine took that as "signed out" and ended the system call screen.
+The caller sat on ringback for 38 s, then the cell rang for the last few
+seconds. Two changes in `ios/App/App/VoipPlugin.swift`:
+
+- `connect`: a 401 with no session cookie, while an inbound call is waiting,
+  is retried once a second for up to 8 s (`grant-401-cold` in the trace)
+  before it counts as signed out.
+- `finishConnect`: `off:<reason>` (the company the app is signed into has no
+  line) no longer ends a pushed call outright. The engine asks the ready
+  route first, which answers `switch` when the call belongs to another
+  company on the login, and registers as that membership.
+
+Until that build ships, the web side covers the case where the person opens
+the app: the page asks `POST /api/app/line/softphone/ready { catchUp: true }`
+whenever the engine is registered with no call, and the server dials the
+phone's leg for a call still inside its wake window (the INVITE rings the
+system screen). Not compiled here (no Mac): build and place a test call to a
+force-quit app before shipping. Android reads its cookies synchronously and
+did not show this.
+
 ## Capacitor 8.4.3 — both shells (security audit 2026-11-01; rides the next build, no code of ours changes)
 
 `@capacitor/core`, `@capacitor/android`, `@capacitor/ios` and `@capacitor/cli`

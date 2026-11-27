@@ -34,6 +34,7 @@ import { COMPOSER_ACCEPT } from "@/lib/media-types";
 import { resizeForMms, resizePhotoFile } from "@/lib/resize-image";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { usePasteFiles } from "@/lib/use-paste-files";
+import { enterSends } from "@/lib/enter-sends";
 
 // Mirrors TAPBACKS in lib/chat.ts (server module)
 const TAPBACKS = ["👍", "❤️", "😂", "😮", "😢", "🎉"];
@@ -1221,7 +1222,7 @@ export default function ChatClient({
               if (e.target.value.trim()) pingTyping();
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
+              if (enterSends(e)) {
                 e.preventDefault();
                 send();
               }

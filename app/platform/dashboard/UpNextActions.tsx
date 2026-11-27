@@ -183,7 +183,7 @@ export default function UpNextActions({
       ...(phone
         ? [lineCalling ? { key: "call", label: "Call", icon: Phone, onClick: () => void callFromLine({ to: phone }) } : { key: "call", label: "Call", icon: Phone, href: telHref(phone) }]
         : []),
-      ...(phone && smsOk
+      ...(phone && smsOk && !lineCalling
         ? [{ key: "text", label: "Text", icon: MessageSquare, href: smsHref(phone) }]
         : []),
       ...(directions && apptType === "IN_PERSON"

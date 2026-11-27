@@ -208,7 +208,7 @@
   }
   function sendStyle(f) {
     if (f.match) post(f, sample(f.el));
-    post(f, { type: "jobflow:page", href: location.href });
+    post(f, { type: "jobflow:page", href: location.href, title: document.title });
     post(f, { type: "workbench:arrival", arrival: ARRIVAL });
   }
 
@@ -233,6 +233,10 @@
     } else {
       src += "?match=0";
     }
+    // data-service="Fence repair": the form arrives with that service picked.
+    // Without it the form picks the one this page is about, when it can tell.
+    var service = (el.getAttribute("data-service") || "").slice(0, 120);
+    if (service) src += "&service=" + encodeURIComponent(service);
 
     var f = document.createElement("iframe");
     f.src = src;

@@ -69,6 +69,8 @@ export type BookingIntake = {
     type: "text" | "select" | "radio";
     placeholder: string;
     options: FieldOption[];
+    /** Embedded on a page about one of the options (or one of a SERVICE item's services): arrive with it picked (lib/page-service-match.ts). */
+    matchPage: boolean;
   };
   customFields: CustomField[];
   /** After they book / send: screen words + a note for the confirmations */
@@ -149,6 +151,7 @@ export function defaultIntake(kind: BookingKind, mode: BookingMode): BookingInta
       type: "text",
       placeholder: "e.g. AC tune-up, Lawn mowing, Roof inspection",
       options: [],
+      matchPage: true,
     },
     customFields: [],
     done: { heading: "", body: "", note: "" },
@@ -250,6 +253,7 @@ export function sanitizeIntake(raw: unknown, kind: BookingKind, mode: BookingMod
             type: sq.type === "select" || sq.type === "radio" ? sq.type : "text",
             placeholder: str(sq.placeholder, 120),
             options: sanitizeOptions(sq.options),
+            matchPage: sq.matchPage !== false,
           },
     customFields: sanitizeCustomFields(r.customFields),
     done: { heading: str(done.heading, 80), body: str(done.body, 300), note: str(done.note, MAX_DONE_NOTE) },

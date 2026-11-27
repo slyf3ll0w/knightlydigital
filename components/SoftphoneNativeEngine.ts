@@ -96,6 +96,37 @@ export function startNativeSoftphone(voip: VoipPlugin, sessionUpdate: () => (dat
     }
   };
 
+  /**
+   * The engine is registered and has no call: ask the server whether one is
+   * ringing that this phone should have (ticket #8ld9vq). A wake push whose
+   * system call screen died before the engine could sign in (a cold launch)
+   * left the caller on ringback while the person sat in the app with nothing
+   * to answer. The server dials this phone's leg if a call is still inside
+   * its wake window; the INVITE rings the system screen on its own.
+   */
+  let lastCatchUp = 0;
+  const catchUp = () => {
+    if (stopped || current() || getSoftphoneState().status !== "ready") return;
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+    const now = Date.now();
+    if (now - lastCatchUp < 4000) return;
+    lastCatchUp = now;
+    void fetch("/api/app/line/softphone/ready", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ catchUp: true, device }),
+    }).catch(() => {});
+  };
+  const onVisible = () => catchUp();
+  document.addEventListener("visibilitychange", onVisible);
+  // While the app is open and idle, a look every few seconds: the wake
+  // window is short, and a call that rings out costs a customer.
+  const catchUpTimer = setInterval(catchUp, 6000);
+  off.push(() => {
+    document.removeEventListener("visibilitychange", onVisible);
+    clearInterval(catchUpTimer);
+  });
+
   // ── What the engine tells us ──────────────────────────────────────────────
   off.push(
     onVoip<{ token: string | null }>(voip, "voipToken", ({ token }) => {
@@ -113,6 +144,7 @@ export function startNativeSoftphone(voip: VoipPlugin, sessionUpdate: () => (dat
       if (stopped) return;
       if (ready) {
         setSoftphoneState({ status: "ready", reason: null, error: null });
+        catchUp();
         return;
       }
       if (error === "signedOut") setSoftphoneState({ status: "off", reason: "disabled" });
@@ -244,7 +276,10 @@ export function startNativeSoftphone(voip: VoipPlugin, sessionUpdate: () => (dat
         setSoftphoneState({ call: toCard(first) });
         nameCall(first.callId);
       }
-      if (ready) setSoftphoneState({ status: "ready", reason: null });
+      if (ready) {
+        setSoftphoneState({ status: "ready", reason: null });
+        catchUp();
+      }
     })
     .catch(() => {});
   void voip.register().catch(() => {});

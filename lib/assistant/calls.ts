@@ -3,6 +3,7 @@ import { canSell, contactScope, isManager } from "../permissions";
 import { fmtPhone } from "../format";
 import { type Tool, str, num, clientName, fmtWhen, stage } from "./core";
 import { quoted } from "./untrusted";
+import { blockDigits, listBlockedNumbers, prettyBlocked } from "../blocked-numbers";
 
 /**
  * The business line's call log and placing a call (2026-10-22). Reads mirror
@@ -183,6 +184,76 @@ export const callTools: Tool[] = [
         payload: { to },
         confirmLabel: "Call now",
         href: "/app/calls",
+      });
+    },
+  },
+  {
+    decl: {
+      name: "list_blocked_numbers",
+      description: "The phone numbers this business has blocked on its business line, with who each one was when it was blocked. Calls from a blocked number do not ring and cannot leave a voicemail, and its texts do not reach Messages.",
+      parameters: { type: "object", properties: {} },
+    },
+    allowed: (a) => canSell(a.role),
+    run: async (actor) => {
+      const rows = await listBlockedNumbers(actor.companyId);
+      return { count: rows.length, blocked: rows.map((r) => ({ number: r.number, ...(r.label ? { who: quoted(r.label) } : {}), since: r.createdAt.slice(0, 10) })) };
+    },
+  },
+  {
+    decl: {
+      name: "block_number",
+      description: "Stage blocking a phone number on the business line: calls from it will not ring or reach voicemail and its texts will not reach Messages. The team can still call and text that number. Give the number, or a clientId to block that client's number.",
+      parameters: {
+        type: "object",
+        properties: {
+          phone: { type: "string", description: "the number to block, any US format" },
+          clientId: { type: "string", description: "block this client's phone number instead of typing it" },
+        },
+      },
+    },
+    allowed: (a) => canSell(a.role),
+    run: async (actor, args, ctx) => {
+      const clientId = str(args.clientId, 40);
+      const client = clientId
+        ? await prisma.contact.findFirst({ where: { id: clientId, companyId: actor.companyId, ...contactScope(actor) }, select: { firstName: true, lastName: true, companyName: true, phone: true } })
+        : null;
+      if (clientId && !client) return { error: "No client with that id." };
+      const digits = blockDigits(client ? client.phone : str(args.phone, 30));
+      if (!digits) return { error: client ? "That client has no 10-digit phone number on file." : "Give a 10-digit US phone number, or a clientId." };
+      const who = client ? clientName(client) : "";
+      return stage(ctx, {
+        kind: "block_number",
+        title: `Block ${prettyBlocked(digits)}`,
+        lines: [who ? `${who}'s number` : "", "Calls won't ring or reach voicemail; texts won't reach Messages.", "You can still call and text them."].filter(Boolean),
+        endpoint: "/api/app/blocked-numbers", method: "POST",
+        payload: { phone: digits, label: who || null },
+        confirmLabel: "Block number", href: "/app/dashboard?settings=phone",
+      });
+    },
+  },
+  {
+    decl: {
+      name: "unblock_number",
+      description: "Stage unblocking a phone number that was blocked on the business line, so its calls ring and its texts arrive again. Use list_blocked_numbers to see what is blocked.",
+      parameters: {
+        type: "object",
+        properties: { phone: { type: "string", description: "the blocked number, any US format" } },
+        required: ["phone"],
+      },
+    },
+    allowed: (a) => canSell(a.role),
+    run: async (actor, args, ctx) => {
+      const digits = blockDigits(str(args.phone, 30));
+      if (!digits) return { error: "Give a 10-digit US phone number." };
+      const rows = await listBlockedNumbers(actor.companyId);
+      if (!rows.some((r) => r.digits === digits)) return { error: `${prettyBlocked(digits)} is not blocked.` };
+      return stage(ctx, {
+        kind: "unblock_number",
+        title: `Unblock ${prettyBlocked(digits)}`,
+        lines: ["Calls from it will ring and its texts will arrive again."],
+        endpoint: `/api/app/blocked-numbers?phone=${digits}`, method: "DELETE",
+        payload: {},
+        confirmLabel: "Unblock number", href: "/app/dashboard?settings=phone",
       });
     },
   },

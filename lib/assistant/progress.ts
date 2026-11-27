@@ -17,6 +17,8 @@ const VERBS: [RegExp, string][] = [
 
 const SPECIAL: Record<string, string> = {
   help_search: "Checking the Help Center…",
+  block_number: "Preparing to block a number…",
+  unblock_number: "Preparing to unblock a number…",
   queue_next_step: "Lining up the next step…",
   get_client_theme: "Looking at your client pages…",
   draft_client_theme: "Drafting a new look…",

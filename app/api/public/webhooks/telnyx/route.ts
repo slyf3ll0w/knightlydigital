@@ -1,3 +1,4 @@
+import { isBlockedNumber } from "@/lib/blocked-numbers";
 import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
@@ -87,6 +88,10 @@ export async function POST(req: NextRequest) {
     }
     if (digits && (keyword === "STOP" || keyword === "START") && media.length === 0) {
       await setOptOut(digits, keyword === "STOP", company?.id ?? null);
+    } else if (digits && company && (text || media.length) && (await isBlockedNumber(company.id, digits).catch(() => false))) {
+      // A number this business blocked (lib/blocked-numbers.ts): the text goes
+      // nowhere. STOP / START above still count, so an opt-out is never lost.
+      console.info(`[telnyx] inbound text from a blocked number to ${to} dropped`);
     } else if (digits && (text || media.length) && (keyword !== "HELP" || media.length)) {
       // Everything that isn't a bare keyword is a message for the business — a photo with no words included
       await landInboundSms(digits, from, text.slice(0, 5000), company?.id ?? null, media, event.data.payload?.id ?? null);

@@ -390,6 +390,7 @@ model Company {
   stickyNotes           StickyNote[]
   contractTemplates     ContractTemplate[]
   places                Place[]
+  blockedNumbers        BlockedNumber[]
   contracts             Contract[]
   expenses              Expense[]
   recurringExpenses     RecurringExpense[]
@@ -2476,6 +2477,23 @@ model Place {
   tasks      Task[]
 
   @@index([companyId, archivedAt])
+}
+
+// A phone number the business never wants to hear from (ticket #bwggje):
+// calls from it are hung up before anything rings, texts from it are dropped
+// (lib/blocked-numbers.ts). `digits` is the bare ten-digit number, the same
+// shape as Contact.phoneDigits / Call.customerDigits.
+model BlockedNumber {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  digits      String
+  // Who it was when it was blocked ("Idk", "(507) 205-4014"): the list reads better than bare numbers.
+  label       String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@unique([companyId, digits])
 }
 
 // Where a member's day ends — the return leg the optimizer costs.

@@ -1,7 +1,7 @@
 "use client";
 
 import AddressAutocomplete from "@/components/AddressAutocomplete";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { smsConsentLabel, businessSmsTermsUrl, businessPrivacyUrl } from "@/lib/sms-consent";
 import Link from "next/link";
 import { CheckCircle, Loader2 } from "lucide-react";
@@ -13,6 +13,7 @@ import type { ScheduleAppearance } from "./schedule/shell";
 import { notifyEmbedSubmitted } from "@/lib/embed-submitted";
 import { getArrival } from "@/lib/arrival-client";
 import { clientFormStyle } from "@/lib/client-form-style";
+import { matchServiceFromPage, matchServiceName } from "@/lib/page-service-match";
 import "@/app/client-heavy.css";
 
 /**
@@ -57,6 +58,12 @@ export default function RequestForm({
   const accent = embedAccent(savedAccent);
   const onAccent = embedOnAccent(savedAccent);
   const intake = item.intake;
+  // ?service= (or data-service on the snippet): a dropdown or choice list takes the option it names, a text box the words as typed.
+  const resolveService = (wanted: string) => {
+    const q = intake.serviceQuestion;
+    if (!wanted || q.type === "text" || q.options.length === 0) return wanted;
+    return q.options[matchServiceName(q.options.map((o) => o.label), wanted)]?.label ?? "";
+  };
   const f = intake.fields;
   // In the hub, what the client already has on file isn't asked again
   const askEmail = f.email.show && !(hub && hub.contact.email);
@@ -74,12 +81,43 @@ export default function RequestForm({
     email: hub?.contact.email ?? "",
     phone: hub?.contact.phone ?? "",
     address: hub?.contact.address ?? "",
-    service: initialService,
+    service: resolveService(initialService),
     preferredDate: "",
     message: "",
   });
   const [custom, setCustom] = useState<Record<string, string>>({});
-  const [selectedServices, setSelectedServices] = useState<string[]>(item.services.length === 1 ? [item.services[0].id] : []);
+  const [selectedServices, setSelectedServices] = useState<string[]>(() => {
+    if (item.services.length === 1) return [item.services[0].id];
+    const named = item.kind === "SERVICE" ? item.services[matchServiceName(item.services.map((s) => s.name), initialService)] : undefined;
+    return named ? [named.id] : [];
+  });
+  // On a website: the page the form sits on usually names one service
+  // ("/fence-repair"). The embed says which page that is; pick the service it
+  // is about, once, and never over something the visitor already chose.
+  const serviceTouched = useRef(false);
+  useEffect(() => {
+    if (hub || !intake.serviceQuestion.matchPage || window.parent === window) return;
+    const onMessage = (e: MessageEvent) => {
+      if (e.source !== window.parent) return;
+      const d = e.data as { type?: unknown; href?: unknown; title?: unknown } | null;
+      if (!d || d.type !== "jobflow:page" || serviceTouched.current) return;
+      const page = { href: typeof d.href === "string" ? d.href.slice(0, 500) : "", title: typeof d.title === "string" ? d.title.slice(0, 200) : "" };
+      const sq = intake.serviceQuestion;
+      if (sq.show && sq.type !== "text" && sq.options.length > 0) {
+        const hit = sq.options[matchServiceFromPage(sq.options.map((o) => o.label), page)];
+        if (hit) setForm((s) => (s.service ? s : { ...s, service: hit.label }));
+      }
+      if (item.kind === "SERVICE" && item.services.length > 1) {
+        const hit = item.services[matchServiceFromPage(item.services.map((s) => s.name), page)];
+        if (hit) setSelectedServices((cur) => (cur.length ? cur : [hit.id]));
+      }
+    };
+    window.addEventListener("message", onMessage);
+    // The embed sends the page once on load, which can beat this listener: ask again.
+    window.parent.postMessage({ type: "workbench:style-request" }, "*");
+    return () => window.removeEventListener("message", onMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Anti-spam: bots fill the off-screen "website" field and submit instantly;
   // the API silently drops submissions that trip either signal
   const [honeypot, setHoneypot] = useState("");
@@ -93,9 +131,13 @@ export default function RequestForm({
   const pickedEdge = (on: boolean) => (on && !st.heavy ? { borderColor: accent } : undefined);
   const accentVars = { "--ch-accent": accent, "--ch-on-accent": onAccent } as React.CSSProperties;
 
-  const set = (field: string, value: string) => setForm((s) => ({ ...s, [field]: value }));
+  const set = (field: string, value: string) => {
+    if (field === "service") serviceTouched.current = true;
+    setForm((s) => ({ ...s, [field]: value }));
+  };
 
   function toggleService(id: string) {
+    serviceTouched.current = true;
     if (intake.allowMultiple) setSelectedServices((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
     else setSelectedServices([id]);
   }

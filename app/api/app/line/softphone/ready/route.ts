@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell } from "@/lib/permissions";
 import { wakeSoftphoneLeg } from "@/lib/voice";
-import { membershipOf, siblingMembershipFor } from "@/lib/voip";
+import { membershipOf, siblingMembershipFor, VOIP_WAKE_SECS } from "@/lib/voip";
 import type { PhoneDevice } from "@/lib/softphone";
 
 /**
@@ -23,15 +23,43 @@ import type { PhoneDevice } from "@/lib/softphone";
  * `membership` set (its session stays as it was; only the SIP leg moves).
  * `device` names which phone credential to dial ("ios" when absent — the
  * iPhone builds in the field send none; the Android engine sends "android").
+ *
+ * POST { catchUp: true } — no call named (ticket #8ld9vq). The phone app's
+ * page asks this whenever its engine comes up registered with no call on
+ * it: "is something ringing for my company that I should have?" A push that
+ * reached a phone whose engine could not sign in (a cold launch reads no
+ * cookies and the build in the field ends the system call screen on that
+ * 401) left the caller on ringback with no leg ever dialed to the phone,
+ * though the person had the app open seconds later. The newest call still
+ * inside its wake window, unanswered and not yet handed to the cell, is
+ * dialed to this phone now; its INVITE rings the system screen by itself.
  */
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const body = (await req.json().catch(() => ({}))) as { callId?: unknown; probe?: unknown; membership?: unknown; device?: unknown };
-  const callId = typeof body.callId === "string" ? body.callId : "";
+  const body = (await req.json().catch(() => ({}))) as { callId?: unknown; probe?: unknown; membership?: unknown; device?: unknown; catchUp?: unknown };
   const device: PhoneDevice = body.device === "android" ? "android" : "ios";
-  if (!callId) return NextResponse.json({ error: "callId required." }, { status: 400 });
   const headers = { "Cache-Control": "no-store" };
+  if (body.catchUp === true) {
+    if (!canSell(actor.role)) return NextResponse.json({ outcome: "none" }, { headers });
+    const waiting = await prisma.call.findFirst({
+      where: {
+        companyId: actor.companyId,
+        direction: "INBOUND",
+        status: "RINGING",
+        agentCallId: null,
+        appRingAt: { gte: new Date(Date.now() - VOIP_WAKE_SECS * 1000) },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+    if (!waiting) return NextResponse.json({ outcome: "none" }, { headers });
+    const outcome = await wakeSoftphoneLeg(actor.id, actor.companyId, waiting.id, device);
+    console.info(`[voice] catch-up call=${waiting.id} user=${actor.id} device=${device} → ${outcome}`);
+    return NextResponse.json({ outcome, callId: waiting.id }, { headers });
+  }
+  const callId = typeof body.callId === "string" ? body.callId : "";
+  if (!callId) return NextResponse.json({ error: "callId required." }, { status: 400 });
 
   const call = await prisma.call.findUnique({ where: { id: callId }, select: { companyId: true } });
   // The whole wake path is otherwise silent in the server log; one line per
