@@ -3031,7 +3031,7 @@ export default function AppShell({
         {/* Scrollable content */}
         <main
           ref={mainRef}
-          className="app-main relative flex-1 overflow-y-auto pb-[calc(5.75rem+env(safe-area-inset-bottom))] lg:pb-0"
+          className="app-main relative flex-1 overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0"
         >
           {/* Sticky notes on any page: the desktop layer (right-click empty
               space) and the phone "Notes on this page" strip (David 2026-10-06) */}
@@ -3291,11 +3291,11 @@ function MobileTabBar({
   // Team chat rides the Chat tab.
   const moreDot = requests + pastDue + tasks > 0;
 
-  // Each tab is a pill inside the glass capsule; the selected one carries a
-  // faint accent wash (.tab-on-pill) — the iOS 26 selection capsule.
+  // Docked iOS tabs (2026-11-27 trial): no capsule; the selected tab is
+  // the brand tint, the rest system gray (.tabbar-tab in app/ds-tabbar.css).
   const tabClass = (active: boolean) =>
-    `my-1.5 flex flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[10.5px] transition-colors ${
-      active ? "tab-on-pill tab-ink-on font-semibold" : "tab-ink font-medium"
+    `tabbar-tab flex flex-1 flex-col items-center justify-center gap-[3px] text-[10.5px] transition-colors ${
+      active ? "is-on font-semibold" : "font-medium"
     }`;
 
   const tabLink = (
@@ -3472,15 +3472,40 @@ function MobileTabBar({
         </div>
       )}
 
-      {/* ── Mobile bottom tab bar — the iOS 26 layout: a floating glass
-          capsule of tabs inset from the screen edges, and the create button
-          as its own tinted-glass circle beside it (no more notch). Nothing
-          here may carry a transform — see the Liquid Glass block in
-          globals.css. ── */}
-      <nav className="mobile-tab-bar lg:hidden fixed inset-x-3 bottom-[calc(0.625rem+env(safe-area-inset-bottom))] z-30 flex items-stretch gap-2.5">
-        <div className="glass-control flex h-[58px] min-w-0 flex-1 items-stretch rounded-full px-1.5">
+      {/* ── Mobile bottom tab bar — docked (David 2026-11-27 trial: "do
+          something different with the bottom menu"). The classic iOS bar:
+          edge to edge on the bottom, frosted, a hairline on top, five equal
+          slots with Create in the middle as a filled square. Replaces the
+          floating glass capsule + separate + circle. Nothing here may carry
+          a transform — see the Liquid Glass block in globals.css. ── */}
+      <nav className="mobile-tab-bar tabbar-dock lg:hidden fixed inset-x-0 bottom-0 z-30" aria-label="Main">
+        <div className="tabbar-dock-row">
           {tabLink("/app/dashboard", "Home", HomeFill)}
           {tabLink("/app/schedule", "Schedule", ScheduleFill)}
+          {creates.length > 0 && (
+            <div className="flex flex-1 items-center justify-center">
+              <button
+                onClick={() => {
+                  setSheetOpen((v) => {
+                    if (!v) hapticImpact("MEDIUM");
+                    return !v;
+                  });
+                }}
+                aria-label="Create"
+                data-tour="create"
+                aria-expanded={sheetOpen}
+                className="tabbar-create"
+              >
+                <Plus
+                  size={24}
+                  strokeWidth={2.6}
+                  className={`transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+                    sheetOpen ? "rotate-[135deg]" : ""
+                  }`}
+                />
+              </button>
+            </div>
+          )}
           {tabLink("/app/chat", "Chat", ChatFill, chatUnread > 0)}
           <button
             type="button"
@@ -3505,29 +3530,6 @@ function MobileTabBar({
             Menu
           </button>
         </div>
-        {creates.length > 0 && (
-          <button
-            onClick={() => {
-              setSheetOpen((v) => {
-                if (!v) hapticImpact("MEDIUM");
-                return !v;
-              });
-            }}
-            aria-label="Create"
-            data-tour="create"
-            className="glass-tinted glass-hit relative flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-full"
-          >
-            <span className="glass-press flex">
-              <Plus
-                size={26}
-                strokeWidth={2.5}
-                className={`transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
-                  sheetOpen ? "rotate-[135deg]" : ""
-                }`}
-              />
-            </span>
-          </button>
-        )}
       </nav>
       <ReachPicker
         open={picker !== null}

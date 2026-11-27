@@ -25,6 +25,7 @@ import "./ds-phone-comms.css";
 import "./ds-ios.css";
 import "./ds-tickets-f2.css";
 import "./ds-tickets-f3.css";
+import "./ds-tabbar.css";
 import "./moment.css";
 
 export const viewport: Viewport = {
