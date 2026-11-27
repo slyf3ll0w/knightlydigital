@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/db";
 import { dealLine } from "@/lib/empty-lines";
-import { headerNote } from "@/lib/header-notes";
 import Link from "next/link";
 import { Plus, UserCheck, Search, Phone, Mail, MapPin, ExternalLink, CalendarPlus, MessageSquare, Globe } from "lucide-react";
 import { BandBody, Button, Chip, DsPage, PageHeader } from "@/components/ds";
@@ -38,7 +37,6 @@ export default async function RequestsPage({
 }) {
   const actor = await requirePageActor((a) => canSell(a.role));
   // One true line from this company's numbers, dealt per visit (lib/header-notes.ts)
-  const pageNote = await headerNote("requests", actor);
   const companyId = actor.companyId;
   // Dates render in the company's zone — the server clock is UTC.
   const companyRow = await prisma.company.findUnique({
@@ -163,7 +161,6 @@ export default async function RequestsPage({
       className="rq-page"
       header={
         <PageHeader
-          note={pageNote}
           eyebrow={contextLine}
           title="Requests"
           actions={

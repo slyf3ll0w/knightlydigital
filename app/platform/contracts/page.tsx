@@ -146,14 +146,6 @@ export default async function ContractsPage({
   const byStatus = await prisma.contract.groupBy({ by: ["status"], where: { companyId, ...scope }, _count: { _all: true } });
   const nStatus = (v: string) =>
     v ? (byStatus.find((b) => b.status === v)?._count._all ?? 0) : byStatus.reduce((t, b) => t + b._count._all, 0);
-  const contextLine = [
-    outCount > 0 ? `${outCount} waiting on a signature` : "Nothing waiting on a signature",
-    oldestOut ? `oldest out ${waitedFor(oldestOut.sentAt ?? oldestOut.createdAt)}` : null,
-    signed30 > 0 ? `${signed30} signed in 30 days` : null,
-    draftCount > 0 ? `${draftCount} ${draftCount === 1 ? "draft" : "drafts"}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
 
   return (
     <DsPage
@@ -162,7 +154,6 @@ export default async function ContractsPage({
       header={
         <div>
           <PageHeader
-            eyebrow={contextLine}
             title="Agreements"
             info={
               manager

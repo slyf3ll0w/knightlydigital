@@ -214,14 +214,6 @@ export default async function AppointmentsPage({
   const when = (a: (typeof appointments)[number]) => (a.scheduledAnytime ? "Anytime" : fmtTime(a.scheduledAt, tz));
 
   const tabCounts = await tabCountsP;
-  const contextLine = [
-    `${tabCounts[0].toLocaleString("en-US")} coming up`,
-    toApproveCount > 0 ? `${toApproveCount} to approve` : null,
-    toCloseCount > 0 ? `${toCloseCount} to close out` : null,
-    nextAppt ? `next ${dayHeading(nextAppt.scheduledAt).toLowerCase()}${nextAppt.scheduledAnytime ? "" : ` at ${fmtTime(nextAppt.scheduledAt, tz)}`}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
 
   return (
     <DsPage
@@ -230,7 +222,6 @@ export default async function AppointmentsPage({
       header={
         <div>
           <PageHeader
-            eyebrow={contextLine}
             title="Appointments"
             actions={
               <Button href="/app/appointments/new" icon={Plus}>

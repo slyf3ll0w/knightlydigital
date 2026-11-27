@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/db";
 import { dealLine } from "@/lib/empty-lines";
-import { headerNote } from "@/lib/header-notes";
 import { requirePageActor, canSeeMoney, viaContactScope, isManager } from "@/lib/permissions";
 import EntityRowActions from "@/components/EntityRowActions";
 import Link from "next/link";
@@ -40,7 +39,6 @@ export default async function InvoicesPage({
 }) {
   const actor = await requirePageActor(canSeeMoney);
   // One true line from this company's numbers, dealt per visit (lib/header-notes.ts)
-  const pageNote = await headerNote("invoices", actor);
   const companyId = actor.companyId;
   const scope = viaContactScope(actor);
   // Dates render in the company's zone — the server clock is UTC.
@@ -187,15 +185,6 @@ export default async function InvoicesPage({
     PAID: byStatus.get("PAID") ?? 0,
     ARCHIVED: byStatus.get("ARCHIVED") ?? 0,
   };
-  const owedTotal = owedBy("PAST_DUE") + owedBy("AWAITING_PAYMENT");
-  const unpaidCount = pastDue._count + awaiting._count;
-  const eyebrow = [
-    unpaidCount > 0 ? `${unpaidCount} unpaid` : "Nothing unpaid",
-    owedTotal > 0 ? `${money(owedTotal)} owed` : null,
-    owedBy("PAST_DUE") > 0 ? `${money(owedBy("PAST_DUE"))} past due` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
   const currentTab = scheduledOnly ? "SCHEDULED" : (validStatus ?? "");
   const initials = (first?: string | null, last?: string | null) =>
     `${(first ?? "").charAt(0)}${(last ?? "").charAt(0)}`.toUpperCase() || "—";
@@ -204,8 +193,6 @@ export default async function InvoicesPage({
       open
       header={
         <PageHeader
-          note={pageNote}
-          eyebrow={eyebrow}
           title="Invoices"
           actions={
             <>

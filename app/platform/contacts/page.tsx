@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/db";
 import { dealLine } from "@/lib/empty-lines";
-import { headerNote } from "@/lib/header-notes";
 import Link from "next/link";
 import { Plus, ChevronRight, UserCheck, Upload, ListPlus, Download, Phone, Search } from "lucide-react";
 import { BandBody, Button, Chip, DsPage, PageHeader } from "@/components/ds";
@@ -40,7 +39,6 @@ export default async function ContactsPage({
 }) {
   const actor = await requirePageActor((a) => canSell(a.role));
   // One true line from this company's numbers, dealt per visit (lib/header-notes.ts)
-  const pageNote = await headerNote("clients", actor);
   const companyId = actor.companyId;
   // Dates render in the company's zone — the server clock is UTC.
   const tz =
@@ -186,7 +184,6 @@ export default async function ContactsPage({
       className="cl-list"
       header={
           <PageHeader
-            note={pageNote}
             eyebrow={eyebrow}
             title={contactsTab ? "Contacts" : "Clients"}
             actions={

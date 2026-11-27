@@ -348,14 +348,6 @@ export default function SubscriptionsClient({
 
   // The open page (2026-11-24; phones too since the phone pass) — its own
   // header with a context line.
-  const contextLine = [
-    `${live.length} active${live.length === 1 ? " plan" : " plans"}`,
-    mrr > 0 ? `${money(mrr)} a month` : null,
-    paused > 0 ? `${paused} paused` : null,
-    readyJobs.length > 0 && !readyBilled ? `${money(readyTotal)} ready to bill` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
   return (
     <DsPage
       open
@@ -363,7 +355,6 @@ export default function SubscriptionsClient({
       header={
         <div>
           <PageHeader
-            eyebrow={subs.length > 0 ? contextLine : undefined}
             title="Recurring"
             info="Auto-charged plans, plus work billed per completed visit."
             actions={

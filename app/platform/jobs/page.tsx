@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/db";
 import { dealLine } from "@/lib/empty-lines";
-import { headerNote } from "@/lib/header-notes";
 import { requirePageActor, jobScope, canSeePricing, canSeeMoney, isManager } from "@/lib/permissions";
 import EntityRowActions from "@/components/EntityRowActions";
 import Link from "next/link";
@@ -29,7 +28,6 @@ export default async function JobsPage({
 }) {
   const actor = await requirePageActor();
   // One true line from this company's numbers, dealt per visit (lib/header-notes.ts)
-  const pageNote = await headerNote("jobs", actor);
   const companyId = actor.companyId;
   const scope = jobScope(actor);
   const showMoney = canSeePricing(actor.role);
@@ -133,21 +131,12 @@ export default async function JobsPage({
     { key: "ARCHIVED", label: "Closed", n: closedCount, href: listHref("/app/jobs", cur, { status: "ARCHIVED" }) },
   ];
   const tabOn = unscheduled ? "unscheduled" : (validStatus ?? "");
-  const eyebrow = [
-    `${activeCount.toLocaleString("en-US")} active`,
-    requiresInvoicingCount > 0 ? `${requiresInvoicingCount} to invoice` : null,
-    unscheduledCount > 0 ? `${unscheduledCount} not scheduled` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
   const cols = `minmax(0,1fr) 72px 190px 150px ${showMoney ? "110px " : ""}28px`;
   const desktop = (
     <DsPage
       open
       header={
         <PageHeader
-          note={pageNote}
-          eyebrow={eyebrow}
           title="Jobs"
           actions={
             <>
