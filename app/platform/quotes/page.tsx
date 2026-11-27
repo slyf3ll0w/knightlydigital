@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/db";
 import { dealLine } from "@/lib/empty-lines";
-import { headerNote } from "@/lib/header-notes";
 import { requirePageActor, canSell, viaContactScope, isManager } from "@/lib/permissions";
 import EntityRowActions from "@/components/EntityRowActions";
 import Link from "next/link";
@@ -40,7 +39,6 @@ export default async function QuotesPage({
 }) {
   const actor = await requirePageActor((a) => canSell(a.role));
   // One true line from this company's numbers, dealt per visit (lib/header-notes.ts)
-  const pageNote = await headerNote("quotes", actor);
   const companyId = actor.companyId;
   const scope = viaContactScope(actor);
   // Dates render in the company's zone — the server clock is UTC.
@@ -188,15 +186,6 @@ export default async function QuotesPage({
       : v === "SCHEDULED"
         ? scheduledCount
         : statusN(v);
-  const awaiting = pipeline.find((p) => p.key === "AWAITING_RESPONSE");
-  const approvedStage = pipeline.find((p) => p.key === "APPROVED");
-  const eyebrow = [
-    `${tabCount("").toLocaleString("en-US")} ${tabCount("") === 1 ? "quote" : "quotes"} in play`,
-    awaiting && awaiting.count > 0 ? `${awaiting.count} waiting on a reply · ${money(awaiting.amount)}` : null,
-    approvedStage && approvedStage.count > 0 ? `${approvedStage.count} approved` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
   const curParams = { status: scheduledOnly ? "SCHEDULED" : validStatus, q: query, sort: sortRaw };
   const tabValue = scheduledOnly ? "SCHEDULED" : (validStatus ?? "");
 
@@ -205,8 +194,6 @@ export default async function QuotesPage({
       open
       header={
         <PageHeader
-          note={pageNote}
-          eyebrow={eyebrow}
           title="Quotes"
           actions={
             <>
