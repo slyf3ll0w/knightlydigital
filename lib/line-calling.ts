@@ -65,6 +65,36 @@ export function useLineCalling(): boolean {
   return useSyncExternalStore(subscribeFlag, () => enabled, () => false);
 }
 
+/* ── The texting flag ─────────────────────────────────────────────────── */
+
+let texting = false;
+const textingListeners = new Set<() => void>();
+
+/** Set once by components/LineCalling.tsx: the business line can send texts (its registration is active). */
+export function setLineTexting(on: boolean): void {
+  if (texting === on) return;
+  texting = on;
+  textingListeners.forEach((l) => l());
+}
+
+const subscribeTexting = (l: () => void) => {
+  textingListeners.add(l);
+  return () => {
+    textingListeners.delete(l);
+  };
+};
+
+/**
+ * True once texts go out from the business line. The free "Text" buttons
+ * (an sms: link to the phone's own Messages app, from a personal number)
+ * step aside then: Message is the one way to text (ticket #5gk3f2). While a
+ * line is still waiting on carrier approval they stay, as the only way to
+ * text at all.
+ */
+export function useLineTexting(): boolean {
+  return useSyncExternalStore(subscribeTexting, () => texting, () => false);
+}
+
 /* ── Placing the call ─────────────────────────────────────────────────── */
 
 export type LineCallResult = { via: "app" } | { via: "cell"; agentNumber: string | null };

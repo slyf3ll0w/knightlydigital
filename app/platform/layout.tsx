@@ -83,6 +83,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             accessPendingAt: true,
             lineVoiceAppAt: true,
             lineNumber: true,
+            // Texting from the line is live (LineCalling's texting flag: the free Text button steps aside).
+            messagingRegistration: { select: { status: true } },
             // planGrants / paidPlans / paidSeats / addonActiveAt / isTest — the
             // nav's Pro chips (lockedFeatures) and the softphone's hasAddon.
             ...PLAN_HOLDER_SELECT,
@@ -185,7 +187,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <ArrivalNudge />
       {(softphone || ringsForSibling) && <Softphone />}
       {/* Every Call button dials from the line under the same conditions (components/CallLink.tsx). */}
-      <LineCalling enabled={softphone} />
+      <LineCalling
+        enabled={softphone}
+        texting={Boolean(company?.lineNumber && !company.lineNumber.startsWith("pending:") && hasAddon(company) && company.messagingRegistration?.status === "ACTIVE")}
+      />
       {/* "Suggest a change" — tap anything, say what to change; test accounts only for now */}
       {company?.isTest && <SuggestChange />}
       <AppShell

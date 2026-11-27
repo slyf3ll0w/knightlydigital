@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { AlertCircle, PhoneOutgoing, X } from "lucide-react";
 import { hapticNotify } from "@/lib/haptics";
-import { dismissLineCallNotice, setLineCalling, useLineCallNotice, type LineCallNotice } from "@/lib/line-calling";
+import { dismissLineCallNotice, setLineCalling, setLineTexting, useLineCallNotice, type LineCallNotice } from "@/lib/line-calling";
 
 /**
  * Mounted once by the platform layout: publishes whether Call buttons dial
@@ -12,11 +12,15 @@ import { dismissLineCallNotice, setLineCalling, useLineCallNotice, type LineCall
  * call did not go out. Same glass banner as components/LiveToasts.tsx
  * (opacity-only animation: a transform on the glass kills the blur on iOS).
  */
-export default function LineCalling({ enabled }: { enabled: boolean }) {
+export default function LineCalling({ enabled, texting = false }: { enabled: boolean; texting?: boolean }) {
   useEffect(() => {
     setLineCalling(enabled);
     return () => setLineCalling(false);
   }, [enabled]);
+  useEffect(() => {
+    setLineTexting(texting);
+    return () => setLineTexting(false);
+  }, [texting]);
 
   const notice = useLineCallNotice();
   if (!notice) return null;

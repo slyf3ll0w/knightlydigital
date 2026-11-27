@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Phone, MessageSquare, MessageCircle, Navigation } from "lucide-react";
 import { smsHref, canSendSms } from "@/lib/messaging";
 import CallLink from "@/components/CallLink";
-import { useLineCalling } from "@/lib/line-calling";
+import { useLineTexting } from "@/lib/line-calling";
 import { openDirections } from "@/components/NavChooser";
 
 /**
@@ -16,8 +16,8 @@ import { openDirections } from "@/components/NavChooser";
  * `messageHref` adds a Message tile that opens the client's conversation in
  * WorkBench (/app/messages/thread/…): texts go from the business line and
  * replies land in the inbox, unlike the Text tile, which opens the phone's
- * own Messages app from the tech's personal number. A company with a
- * business line gets no Text tile at all (ticket #5gk3f2): Message is the
+ * own Messages app from the tech's personal number. A company whose
+ * business line can text gets no Text tile at all (ticket #5gk3f2): Message is the
  * one way to text, so nothing goes out from a personal number by accident.
  *
  * Accent-tinted tiles (green utilities bridge to the tenant color).
@@ -39,7 +39,7 @@ export default function JobActionRow({
 }) {
   const [smsOk, setSmsOk] = useState(false);
   useEffect(() => setSmsOk(canSendSms()), []);
-  const line = useLineCalling();
+  const line = useLineTexting();
 
   const actions = [
     ...(messageHref
