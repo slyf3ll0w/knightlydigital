@@ -7,7 +7,7 @@ import CallRow, { isMissed } from "@/components/CallRow";
 import CallsLive from "@/components/CallsLive";
 import CallRowSettling from "@/components/CallRowSettling";
 import { callLogStamp } from "@/lib/call-pulse";
-import { LinePanel, LineSub, KeypadFab, type LineStats } from "@/components/LineCard";
+import { LinePanel, LineSub, KeypadButton, type LineStats } from "@/components/LineCard";
 import { Button, DsPage, PageHeader } from "@/components/ds";
 import { markCallsSeen, resolveCallContacts, type ResolvedCallContact } from "@/lib/voice";
 import { loadCallEvents, type CallEvent } from "@/lib/call-events";
@@ -18,13 +18,16 @@ import VoicePlanNote from "@/components/VoicePlanNote";
  * Calls on the business line (lib/voice.ts), laid out like a softphone:
  *
  *   desktop — the phone on the left (components/LineCard.tsx LinePanel:
- *             number, where it rings, the keypad, mic check, a stat foot),
- *             the recents on the right — filter chips, then one list of
- *             calls, newest first, each row dating itself.
- *   phones  — iOS Recents: the large title, a one-row line strip, a
- *             segmented All / Missed / Voicemail / Outgoing (with the
- *             unseen counts on the segments), one list of rows, and the green
- *             keypad button above the tab bar (KeypadFab → bottom sheet).
+ *             number, where it rings, the keypad, mic check), the recents
+ *             on the right — a segmented All / Missed / Voicemail /
+ *             Outgoing, then one list of calls, newest first, each row
+ *             dating itself; Text / Call back show on the row under the
+ *             pointer (ticket cmwz7vhi, 2026-11-27: no stat tiles, no
+ *             button on every row).
+ *   phones  — iOS Recents: the large title, the line as one quiet line
+ *             with a Keypad button beside it (the keypad opens as a bottom
+ *             sheet — no second floating circle over the + button), the
+ *             segmented control with the unseen counts, one list of rows.
  *
  * Each row opens its call screen (/app/calls/[id]); a voicemail plays in
  * the row. The list keeps itself current (components/CallsLive.tsx): a
@@ -150,7 +153,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
     filter === "missed" ? isMissed(c) : filter === "voicemail" ? c.status === "VOICEMAIL" : filter === "out" ? c.direction === "OUTBOUND" : true
   );
   const href = (k: Filter) => `/app/calls${k === "all" ? "" : `?f=${k}`}${contactId ? `${k === "all" ? "?" : "&"}contact=${contactId}` : ""}`;
-  // The unseen counts ride the phone's segments (iOS puts the badge on the tab); desktop has the stat foot.
+  // The unseen counts ride the segments (iOS puts the badge on the tab).
   const badge = (k: Filter) => (k === "missed" ? stats.missedUnseen : k === "voicemail" ? stats.voicemailsUnseen : 0);
   const phone = routed && company?.lineNumber ? { lineNumber: company.lineNumber, forwardTo: company.lineForwardTo, manager } : null;
 
@@ -182,33 +185,29 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
       </div>
     ) : (
       <>
-        {/* Underline tabs on a hairline; the unseen counts ride them */}
-        <div className="rx-tabsrow">
-          <div className="clx-filters">
-            <nav className="clx-tabs" aria-label="Show">
-              {FILTERS.map(([k, label]) => (
-                <Link
-                  key={k}
-                  prefetch={false}
-                  href={href(k)}
-                  aria-current={filter === k ? "page" : undefined}
-                  className={`clx-tab ${filter === k ? "is-on" : ""}`}
-                >
-                  {label}
-                  {badge(k) > 0 && <span className={`clx-tab-n ${k === "missed" ? "rx-bad" : ""}`}>{badge(k)} new</span>}
-                </Link>
-              ))}
-            </nav>
-          </div>
-        </div>
+        {/* iOS segmented control; the unseen counts ride the segments */}
+        <nav className="cx-seg" aria-label="Show">
+          {FILTERS.map(([k, label]) => (
+            <Link
+              key={k}
+              prefetch={false}
+              href={href(k)}
+              aria-current={filter === k ? "page" : undefined}
+              className={`cx-seg-item ${filter === k ? "is-on" : ""}`}
+            >
+              {label}
+              {badge(k) > 0 && <span className="cx-seg-n" aria-label={`${badge(k)} new`}>{badge(k)}</span>}
+            </Link>
+          ))}
+        </nav>
 
         {visible.length === 0 ? (
-          <div className="ds-card rx-open-card mt-4 px-4 py-10 text-center text-sm text-[color:var(--ds-muted)] lg:mt-0">
+          <div className="cx-list cx-list-empty">
             {filter === "missed" ? "No missed calls." : filter === "voicemail" ? "No voicemails." : "No outgoing calls yet."}
           </div>
         ) : (
           // One list, newest first, like a phone's Recents: each row dates itself (CallRow recentsStamp), no day groups or counts (ticket #seej3a).
-          <div className="ds-card rx-open-card mt-4 divide-y divide-[color:var(--ds-line)] overflow-hidden lg:mt-0">
+          <div className="cx-list">
             {visible.map((c) => {
               const row = <CallRow key={c.id} call={{ ...c, events: events.get(c.id) }} tz={tz} canCall={routed} canText={smsReady} />;
               if (c.status !== "RINGING" && c.status !== "IN_PROGRESS") return row;
@@ -277,8 +276,9 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
           />
           {/* Phones: the line under the title (desktop has the panel) */}
           {phone && !filteredContact && (
-            <div className="rx-linesub lg:hidden">
+            <div className="cx-linesub lg:hidden">
               <LineSub lineNumber={phone.lineNumber} forwardTo={phone.forwardTo} />
+              <KeypadButton />
             </div>
           )}
         </>
@@ -289,11 +289,10 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
 
       {/* Two columns only when the line panel is there: without it the list (or the "No business line yet" empty) would sit in the 312px panel column, off-center. */}
       <div className={`mt-3 lg:mt-6 ${phone ? "lg:grid lg:grid-cols-[312px_minmax(0,1fr)] lg:items-start lg:gap-6" : ""}`}>
-        {phone && <LinePanel {...phone} stats={stats} className="hidden lg:sticky lg:top-6 lg:block" />}
+        {phone && <LinePanel {...phone} className="hidden lg:sticky lg:top-6 lg:block" />}
         <div className="min-w-0">{list}</div>
       </div>
 
-      {phone && <KeypadFab />}
     </DsPage>
   );
 }

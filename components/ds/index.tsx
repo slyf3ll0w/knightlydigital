@@ -145,7 +145,7 @@ export function PageHeader({
 }) {
   return (
     <div className={`ds-pagehead ds-rise flex flex-wrap items-end justify-between gap-4 ${className}`}>
-      <div className="min-w-0">
+      <div className="ds-pagehead-main min-w-0">
         {eyebrow && <p className="ds-eyebrow ds-eyebrow-plain">{eyebrow}</p>}
         <h1 className={`ds-title ${heavy ? "ds-title-heavy" : ""} mt-1 flex items-center gap-2`}>
           <span className="ds-wipe min-w-0">
@@ -156,7 +156,7 @@ export function PageHeader({
         </h1>
         {note && <p className="ds-pagenote">{note}</p>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <div className="ds-pagehead-acts flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
 }

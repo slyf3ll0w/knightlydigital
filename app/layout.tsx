@@ -23,6 +23,8 @@ import "./ds-open-settings.css";
 import "./ds-phone-home.css";
 import "./ds-phone-comms.css";
 import "./ds-ios.css";
+import "./ds-tickets-f2.css";
+import "./ds-tickets-f3.css";
 import "./moment.css";
 
 export const viewport: Viewport = {

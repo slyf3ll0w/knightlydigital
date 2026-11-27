@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Grid3x3, Mic, Settings2 } from "lucide-react";
+import { Grid3x3, Mic } from "lucide-react";
 import { fmtPhone } from "@/lib/format";
 import { hapticImpact } from "@/lib/haptics";
 import { softphone, useSoftphone, type SoftphoneState } from "@/lib/softphone-client";
@@ -16,15 +16,17 @@ import Modal from "@/components/Modal";
  * about where calls ring right now (this browser, another tab, the cell,
  * switched off, microphone blocked — an owner never has to guess):
  *
- *   LinePanel  — desktop: the phone itself, a sticky sheet in the left
- *                column next to the recents list (the softphone layout —
- *                keypad on the left, calls on the right). Number up top,
- *                the keypad, the microphone check, a stat foot.
- *   LineSub    — phones: the large title's subtitle — number, where it
- *                rings (the gear for owners sits in the title row).
- *   KeypadFab  — phones: the green keypad button above the tab bar; opens
- *                the keypad as a bottom sheet (Modal → sheet under lg) with
- *                the big keys.
+ *   LinePanel    — desktop: the phone itself, a sticky sheet in the left
+ *                  column next to the recents list (the softphone layout —
+ *                  keypad on the left, calls on the right). Number up top,
+ *                  the keypad, the microphone check. No stat tiles (ticket
+ *                  cmwz7vhi, 2026-11-27): the counts are the title's line.
+ *   LineSub      — phones: the large title's subtitle — number, where it
+ *                  rings (the gear for owners sits in the title row).
+ *   KeypadButton — phones: a "Keypad" button on the line's row; opens the
+ *                  keypad as a bottom sheet (Modal → sheet under lg) with
+ *                  the big keys. (It was a second floating circle stacked
+ *                  over the + button — ticket cmwz875g.)
  */
 export type LineStats = {
   today: number;
@@ -66,30 +68,26 @@ function useWhere(s: SoftphoneState, forwardTo: string | null): { where: React.R
 export function LinePanel({
   lineNumber,
   forwardTo,
-  manager,
-  stats,
   className = "",
 }: {
   lineNumber: string;
   forwardTo: string | null;
-  manager: boolean;
-  stats: LineStats;
+  /** Owners/managers (the title row carries Line settings for them). */
+  manager?: boolean;
   className?: string;
 }) {
   const s = useSoftphone();
   const { where, dot } = useWhere(s, forwardTo);
   const inBrowser = s.status === "ready";
-  const talkMin = Math.round(stats.talkWeekSec / 60);
 
   return (
-    <aside className={`ds-card overflow-hidden ${className}`}>
+    <aside className={`cx-panel ${className}`}>
       <div className="px-5 pt-5">
-        <p className="flex items-center gap-2 text-[12px] font-medium text-gray-500">
-          <span className={`h-2 w-2 rounded-full ${dot}`} />
-          Business line
+        <p className="cx-panel-num numeral-ledger">
+          <span className={`h-2 w-2 shrink-0 rounded-full ${dot}`} aria-hidden />
+          {fmtPhone(lineNumber)}
         </p>
-        <p className="numeral-ledger mt-1 text-[24px] font-semibold leading-tight text-gray-900">{fmtPhone(lineNumber)}</p>
-        <p className="mt-1 text-[13px] leading-snug text-gray-500">{where}</p>
+        <p className="cx-panel-where">{where}</p>
         {s.status === "ready" && s.mic === "denied" && (
           <p className="mt-2 text-xs text-red-700" role="alert">
             The microphone is blocked for this site, so calls can&apos;t be answered here. Click the icon left of the address bar, allow it, then reload.
@@ -106,48 +104,20 @@ export function LinePanel({
         )}
       </div>
 
-      <div className="px-5 pb-4 pt-5">
+      <div className="px-5 pb-4 pt-4">
         <DialPad className="mx-auto w-[236px]" />
-        <p className="mt-3 text-center text-[11px] text-gray-400">
+        <p className="mt-3 text-center text-[11.5px] text-[color:var(--ds-faint)]">
           {inBrowser ? "Calls from the keypad go out from this browser." : "Calls from the keypad ring your cell first, then the customer."}
         </p>
       </div>
 
       {s.status === "ready" && s.mic !== "denied" && (
-        <div className="border-t border-gray-100 px-5 py-3">
+        <div className="cx-panel-mic">
           <MicCheck />
         </div>
       )}
 
-      <div className="grid grid-cols-2 border-t border-gray-100 bg-gray-50/60">
-        <Stat label="Today" value={String(stats.today)} className="border-b border-r border-gray-100" />
-        <Stat label="Missed" value={String(stats.missedUnseen)} tone={stats.missedUnseen ? "text-[color:var(--ds-bad)]" : undefined} hint={stats.missedUnseen ? "not yet seen" : undefined} className="border-b border-gray-100" />
-        <Stat label="Voicemails" value={String(stats.voicemailsUnseen)} tone={stats.voicemailsUnseen ? "text-[color:var(--ds-primary)]" : undefined} hint={stats.voicemailsUnseen ? "unheard" : undefined} className="border-r border-gray-100" />
-        <Stat label="Talk time" value={talkMin < 60 ? `${talkMin}m` : `${Math.floor(talkMin / 60)}h ${talkMin % 60}m`} hint="last 7 days" />
-      </div>
-
-      {manager && (
-        <Link
-          href="/app/settings?s=phone"
-          className="flex items-center justify-between gap-3 border-t border-gray-100 px-5 py-2.5 text-xs text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-800"
-        >
-          <span>Ring-through number, greeting, caller ID</span>
-          <span className="inline-flex shrink-0 items-center gap-1 font-medium text-gray-700">
-            <Settings2 size={12} /> Line settings
-          </span>
-        </Link>
-      )}
     </aside>
-  );
-}
-
-function Stat({ label, value, tone, hint, className = "" }: { label: string; value: string; tone?: string; hint?: string; className?: string }) {
-  return (
-    <div className={`px-5 py-3 ${className}`}>
-      <p className="text-[11px] font-medium text-gray-500">{label}</p>
-      <p className={`numeral-ledger mt-0.5 text-xl font-semibold leading-none ${tone ?? "text-gray-900"}`}>{value}</p>
-      <p className="mt-1 min-h-[14px] text-[11px] leading-[14px] text-gray-400">{hint ?? ""}</p>
-    </div>
   );
 }
 
@@ -178,12 +148,11 @@ export function LineSub({ lineNumber, forwardTo }: { lineNumber: string; forward
 }
 
 /**
- * The keypad on a phone: a round button in the tab bar's own glass hardware
- * (same 58px tinted circle as Create), pinned above it, opening the keypad
- * as a bottom sheet.
+ * The keypad on a phone: a quiet "Keypad" button on the line's row under
+ * the title, opening the keypad as a bottom sheet.
  * Hidden while a call is up in this app — the call screen has the tones.
  */
-export function KeypadFab() {
+export function KeypadButton() {
   const s = useSoftphone();
   const [open, setOpen] = useState(false);
   // The phone Create sheet's Call tile lands here with ?keypad=1: open the
@@ -205,13 +174,10 @@ export function KeypadFab() {
           hapticImpact("MEDIUM");
           setOpen(true);
         }}
-        aria-label="Keypad"
-        className="glass-tinted glass-hit fixed right-3 z-30 flex h-[58px] w-[58px] items-center justify-center rounded-full lg:hidden"
-        style={{ bottom: "calc(0.625rem + env(safe-area-inset-bottom) + 58px + 12px)" }}
+        className="cx-keypad-btn lg:hidden"
       >
-        <span className="glass-press flex">
-          <Grid3x3 size={24} strokeWidth={2.25} />
-        </span>
+        <Grid3x3 size={16} strokeWidth={2.4} aria-hidden />
+        Keypad
       </button>
       {/* The sheet's grab handle is the close control — no title bar, like the system keypad. */}
       <Modal open={open} onClose={() => setOpen(false)} size="sm" portal>

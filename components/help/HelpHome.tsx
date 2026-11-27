@@ -10,6 +10,7 @@ import WBScribble from "@/components/wb/WBScribble";
 import { HELP_ICONS } from "./icons";
 import HelpFooterBand from "./HelpFooterBand";
 import WBHelpHomeSections from "@/components/wb/WBHelpHomeSections";
+import Arrow from "@/components/ds/Arrow";
 
 /** Stagger index for the app's ds-rise entrance. */
 const rise = (i: number) => ({ "--ds-i": i }) as React.CSSProperties;
@@ -39,10 +40,18 @@ function Highlight({ text, query }: { text: string; query: string }) {
 }
 
 /**
- * Help Center home — the public /help and the in-app /app/help. A classic
- * help center: centered title + search on the site's bloom hero, a grid of
- * topic cards (each opens its topic page), popular guides, the navy band.
- * The title wipes in and the sections rise, like every app page.
+ * Help Center home — the public /help and the in-app /app/help.
+ *
+ * Public: a classic help center — centered title + search on the site's
+ * hero, topic cards, popular guides, the navy band.
+ *
+ * In the app (ticket cmwz7xbh, 2026-11-27: "looks super AI generated
+ * besides the arrow"): a product docs index, not a landing page — the
+ * title left-aligned with the hand-drawn note pointing down at a plain
+ * wide search field, the topics as a ruled two-column list (title, one
+ * line, the guide count; no icon tiles, no cards), Popular as a plain list
+ * of links beside it. Phones get iOS grouped lists. The title wipes in and
+ * the sections rise, like every app page.
  */
 export default function HelpHome({
   base,
@@ -82,6 +91,144 @@ export default function HelpHome({
   }, [query]);
 
   const popular = POPULAR_SLUGS.map((s) => findHelpArticle(s)).filter((a) => a !== null);
+
+  if (inApp) {
+    const clear = () => {
+      setQuery("");
+      inputRef.current?.focus();
+    };
+    return (
+      <div className="ds help-root help-app">
+        <header className="help-app-head mx-auto max-w-6xl px-4 pt-6 sm:px-8 lg:pt-10">
+          <div className="flex items-end justify-between gap-6">
+            <div className="min-w-0">
+              <h1 className="ds-title">
+                <span className="ds-wipe">
+                  <span className="ds-wipe-text">How can we help?</span>
+                  <span className="ds-wipe-bar" aria-hidden />
+                </span>
+              </h1>
+              <p className="help-app-sub ds-rise" style={rise(1)}>
+                {HELP_SECTIONS.reduce((n, s) => n + s.articles.length, 0)} guides, one for every screen in WorkBench.
+                <span className="hidden lg:inline"> Press <kbd>/</kbd> to search.</span>
+              </p>
+            </div>
+            {/* The hand-drawn note, pointing down at the search */}
+            <div className="help-app-note hidden lg:flex" aria-hidden>
+              <p>
+                Type what
+                <br />
+                you&apos;re stuck on
+              </p>
+              <span className="help-app-note-arrow">
+                <Arrow variant="droop" delay={0.9} className="h-full w-full" />
+              </span>
+            </div>
+          </div>
+
+          <form
+            className="help-app-search ds-rise"
+            style={rise(1)}
+            role="search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              inputRef.current?.blur();
+            }}
+          >
+            <Search className="h-[18px] w-[18px] flex-none" strokeWidth={2.2} aria-hidden />
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setQuery("");
+              }}
+              placeholder="Search the guides"
+              aria-label="Search the Help Center"
+              type="search"
+              enterKeyHint="search"
+              autoComplete="off"
+            />
+            {searching && (
+              <button type="button" onClick={clear} className="help-app-clear" aria-label="Clear search">
+                <X className="h-4 w-4" strokeWidth={2.4} />
+              </button>
+            )}
+          </form>
+        </header>
+
+        <div className="mx-auto max-w-6xl px-4 pb-14 pt-8 sm:px-8 lg:pb-20 lg:pt-10">
+          {searching ? (
+            <section>
+              <p className="help-app-label">
+                {hits.length === 0
+                  ? "No guides match that yet. Try fewer words, or the name of the screen you're on."
+                  : `${hits.length} ${hits.length === 1 ? "guide" : "guides"} for “${query.trim()}”`}
+              </p>
+              {hits.length > 0 && (
+                <ul className="help-app-list">
+                  {hits.map(({ article, section }) => (
+                    <li key={article.slug}>
+                      <Link prefetch={false} href={`${base}/${article.slug}`} className="help-app-row">
+                        <span className="min-w-0 flex-1">
+                          <span className="help-app-row-title">
+                            <Highlight text={article.title} query={query} />
+                          </span>
+                          <span className="help-app-row-sub">
+                            {section.title} · <Highlight text={article.summary} query={query} />
+                          </span>
+                        </span>
+                        <ChevronRight className="help-app-chev" strokeWidth={2.4} aria-hidden />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          ) : (
+            <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_17rem] lg:gap-14">
+              <section className="ds-rise" style={rise(2)}>
+                <h2 className="help-app-label">Topics</h2>
+                <ul className="help-app-topics">
+                  {HELP_SECTIONS.map((s) => (
+                    <li key={s.id}>
+                      <Link prefetch={false} href={`${base}/topic/${s.id}`} className="help-app-row">
+                        <span className="min-w-0 flex-1">
+                          <span className="help-app-row-title">{s.title}</span>
+                          <span className="help-app-row-sub help-app-tagline">{s.tagline}</span>
+                        </span>
+                        <span className="help-app-count">{s.articles.length}</span>
+                        <ChevronRight className="help-app-chev" strokeWidth={2.4} aria-hidden />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              <section className="ds-rise mt-10 lg:mt-0" style={rise(3)}>
+                <h2 className="help-app-label">Popular</h2>
+                <ul className="help-app-popular">
+                  {popular.map(({ article, section }) => (
+                    <li key={article.slug}>
+                      <Link prefetch={false} href={`${base}/${article.slug}`} className="help-app-row">
+                        <span className="min-w-0 flex-1">
+                          <span className="help-app-row-title">{article.title}</span>
+                          <span className="help-app-row-sub">{section.title}</span>
+                        </span>
+                        <ChevronRight className="help-app-chev lg:hidden" strokeWidth={2.4} aria-hidden />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </div>
+          )}
+        </div>
+
+        <HelpFooterBand inApp />
+      </div>
+    );
+  }
 
   return (
     <div className={`ds help-root ${inApp ? "" : "help-public"}`}>

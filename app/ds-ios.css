@@ -171,3 +171,135 @@ html[data-mode="dark"] .ios-ic.is-reach { background: #48484A; }
 .ios-create .is-in { animation: ios-create-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 @keyframes ios-create-in { from { opacity: 0; transform: translateY(14px); } }
 @media (prefers-reduced-motion: reduce) { .ios-create .is-in { animation: none; } .ios-ic { transition: none; } }
+
+/* ══ Look tickets, 2026-11-27 (David: "less AI generated", "too much like a
+   website" on phones) ══════════════════════════════════════════════════ */
+@media (max-width: 1023px) {
+  .wb-app, .wb-app .ds { --ios-fill: rgba(118, 118, 128, 0.12); }
+  html[data-mode="dark"] .wb-app, html[data-mode="dark"] .wb-app .ds { --ios-fill: rgba(118, 118, 128, 0.24); }
+
+  /* 1. Large titles stand alone. The desktop's title wipe left its 3px
+     secondary edge parked against the first letter on phones (entrances are
+     off here, so the sweep never ran) — no edge, no clip. */
+  .wb-app .ds-wipe-bar { display: none !important; }
+  .wb-app .ds-wipe-text { clip-path: none !important; }
+
+  /* 2. The page head, the iOS way: the large title with its actions as
+     compact controls on the same row (primary = a filled circle, the rest
+     plain gray circles — the label stays the accessible name), the eyebrow
+     as a gray subtitle under the title. Open pages only; Home's band keeps
+     its own buttons. */
+  .wb-app .bb-open .ds-pagehead:has(> .ds-pagehead-acts) { flex-wrap: nowrap !important; align-items: flex-start !important; gap: 12px !important; }
+  .wb-app .bb-open .ds-pagehead-main { display: flex; flex-direction: column; flex: 1 1 auto; }
+  .wb-app .bb-open .ds-pagehead-main > .ds-title { order: 1; margin-top: 0 !important; }
+  .wb-app .bb-open .ds-pagehead-main > .ds-eyebrow { order: 2; margin-top: 2px; font-size: 15px; color: var(--ios-label2) !important; }
+  .wb-app .bb-open .ds-pagehead-main > .ds-pagenote { order: 3; }
+  .wb-app .bb-open .ds-pagehead-acts {
+    flex: none; flex-wrap: nowrap !important; justify-content: flex-end; gap: 10px !important;
+    padding-top: 1px; max-width: 55%;
+  }
+  .wb-app .bb-open .ds-pagehead-acts .ds-btn:has(> svg) {
+    width: 38px; height: 38px; min-height: 38px !important; padding: 0 !important; gap: 0 !important;
+    border-radius: 50% !important; font-size: 0 !important; justify-content: center;
+    box-shadow: none !important;
+  }
+  .wb-app .bb-open .ds-pagehead-acts .ds-btn:has(> svg) > svg { width: 19px; height: 19px; flex: none; }
+  .wb-app .bb-open .ds-pagehead-acts .ds-btn:has(> svg):not(.ds-btn-primary) {
+    background: var(--ios-fill) !important; color: var(--ds-primary) !important;
+  }
+  /* a button without an icon stays words, sized like an iOS bar button */
+  .wb-app .bb-open .ds-pagehead-acts .ds-btn:not(:has(> svg)) {
+    min-height: 38px !important; height: 38px; padding: 0 14px !important; border-radius: 19px !important; font-size: 15px !important;
+  }
+
+  /* 3. List filter headers, one design on every list (Invoices .mx-, Quotes
+     .qx-, Clients/Jobs/Requests/Agreements/Appointments/Estimates/Tasks
+     .clx-): the iOS search field with the sort as a gray circle at its end,
+     then one row of filter chips that scrolls edge to edge (a "Mine"
+     toggle leads that row). No underline tabs, nothing overlapping. */
+  .wb-app :is(.mx-filters, .clx-filters, .qx-filters) {
+    display: grid !important; grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "search search sort" "chips chips chips";
+    align-items: center; gap: 12px 8px !important; min-height: 0 !important; padding: 0 !important;
+    border-bottom: 0 !important; margin-bottom: 12px;
+  }
+  .wb-app :is(.mx-filters, .clx-filters, .qx-filters):has(.clx-mine) { grid-template-areas: "search search sort" "mine chips chips"; }
+  .wb-app :is(.mx-filters, .clx-filters, .qx-filters):not(:has(.fs)) { grid-template-areas: "search search search" "chips chips chips"; }
+  .wb-app :is(.mx-filters, .clx-filters, .qx-filters):not(:has(.fs)):has(.clx-mine) { grid-template-areas: "search search search" "mine chips chips"; }
+  /* no search (Tasks): just the chips, anything else after them */
+  .wb-app :is(.mx-filters, .clx-filters, .qx-filters):not(:has(:is(.mx-search, .clx-search, .qx-search))) { display: flex !important; align-items: center; }
+  .wb-app :is(.mx-filters, .clx-filters, .qx-filters):not(:has(:is(.mx-search, .clx-search, .qx-search))) > :is(.mx-tabs, .clx-tabs, .qx-tabs) { flex: 1 1 auto; }
+  .wb-app :is(.mx-filters-end, .clx-filters-end, .qx-filters-end) { display: contents !important; }
+  .wb-app :is(.mx-search, .clx-search, .qx-search) {
+    grid-area: search; order: 0 !important; width: auto !important; min-width: 0; height: 38px !important; margin: 0 !important;
+    padding: 0 10px !important; gap: 6px; border-radius: 10px !important;
+    background: var(--ios-fill) !important; border: 0 !important; box-shadow: none !important; color: var(--ios-label2);
+  }
+  .wb-app :is(.mx-search, .clx-search, .qx-search):focus-within { box-shadow: inset 0 0 0 1.5px var(--ds-primary) !important; }
+  .wb-app :is(.mx-search, .clx-search, .qx-search) input { font-size: 16px !important; letter-spacing: -0.01em; }
+  .wb-app :is(.mx-search, .clx-search, .qx-search) input::placeholder { color: var(--ios-label2); }
+  .wb-app :is(.mx-filters, .clx-filters, .qx-filters) .fs { grid-area: sort; margin: 0 !important; }
+  .wb-app :is(.mx-filters, .clx-filters, .qx-filters) .fs-btn {
+    width: 38px; height: 38px; padding: 0 !important; justify-content: center; gap: 0;
+    border: 0 !important; background: var(--ios-fill) !important; box-shadow: none !important; color: var(--ds-primary) !important;
+  }
+  .wb-app :is(.mx-filters, .clx-filters, .qx-filters) .fs-btn svg { color: currentColor !important; width: 17px; height: 17px; }
+  .wb-app :is(.mx-filters, .clx-filters, .qx-filters) :is(.fs-label, .fs-chev) { display: none; }
+
+  /* the chips */
+  .wb-app :is(.mx-tabs, .clx-tabs, .qx-tabs) {
+    grid-area: chips; order: 0 !important; display: flex !important; align-items: center !important; align-self: auto !important;
+    gap: 8px !important; height: auto !important; min-height: 0 !important; min-width: 0;
+    margin: 0 -16px !important; padding: 0 16px !important; border: 0 !important;
+    overflow-x: auto; scrollbar-width: none; scroll-padding: 0 16px; overscroll-behavior-x: contain;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 24px), transparent 100%);
+            mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 24px), transparent 100%);
+  }
+  .wb-app :is(.mx-filters, .clx-filters, .qx-filters):has(.clx-mine) :is(.mx-tabs, .clx-tabs, .qx-tabs) { margin-left: 0 !important; padding-left: 0 !important; }
+  .wb-app :is(.mx-tabs, .clx-tabs, .qx-tabs)::-webkit-scrollbar { display: none; }
+  .wb-app :is(.mx-tab, .clx-tab, .qx-tab), .wb-app .clx-mine {
+    flex: none; display: inline-flex !important; align-items: center; gap: 5px; height: 32px; padding: 0 13px !important;
+    border-radius: 16px; border: 0 !important; white-space: nowrap;
+    background: var(--ios-fill) !important; box-shadow: none !important;
+    font-size: 15px !important; font-weight: 500 !important; letter-spacing: -0.01em; color: var(--ds-ink) !important;
+  }
+  .wb-app :is(.mx-tab, .clx-tab, .qx-tab)::after { display: none !important; }
+  .wb-app :is(.mx-tab, .clx-tab, .qx-tab).is-on { background: var(--ds-ink) !important; color: var(--ds-surface) !important; font-weight: 600 !important; }
+  .wb-app :is(.mx-tab-n, .clx-tab-n, .qx-tab-n) { font-size: 13.5px !important; font-weight: 500 !important; color: inherit !important; opacity: 0.55; }
+  .wb-app .mx-tab.is-bad .mx-tab-n { color: var(--ds-bad) !important; opacity: 1; font-weight: 600 !important; }
+  .wb-app .clx-mine { grid-area: mine; margin: 0 !important; }
+  .wb-app .clx-mine > svg { width: 15px; height: 15px; }
+  .wb-app .clx-mine.is-on { background: var(--ds-primary) !important; color: var(--ds-on-primary) !important; font-weight: 600 !important; }
+  .wb-app .rx-tabsrow { margin: 0 !important; }
+
+  /* Appointments: one week that fits the width (no clipped card, no
+     sideways scroll); the count above still covers both weeks */
+  .wb-app .appt-strip { grid-template-columns: repeat(7, minmax(0, 1fr)) !important; overflow: visible !important; scroll-snap-type: none !important; }
+  .wb-app .appt-day[data-week2] { display: none !important; }
+  .wb-app .appt-pic { max-width: 100%; overflow: hidden; }
+
+  /* 4. Sheets keep their frosted glass (a 28px blur — the page under it
+     never reads; the ticket screenshot tool can't draw backdrop blur, so
+     it showed the notes strip through it); the title is iOS's centered
+     17pt semibold. */
+  .wb-app .bsheet-head:not(:has(button)) .bsheet-title { text-align: center; font-size: 17px !important; font-weight: 600 !important; letter-spacing: -0.02em; }
+
+  /* 5. The hand-drawn empty-state arrow draws on phones too: the "no
+     entrances" rule above stopped its stroke animation, which left it at
+     dashoffset 1, i.e. invisible, on every open page. */
+  .wb-app .bb-wrap[data-enter] .wb-scribble path { animation: wb-draw 0.9s cubic-bezier(0.6, 0, 0.3, 1) var(--wb-draw-delay, 0.3s) forwards !important; }
+  .wb-app .bb-wrap[data-enter] .wb-scribble .wb-scribble-late { animation-duration: 0.25s !important; animation-delay: calc(var(--wb-draw-delay, 0.3s) + 0.85s) !important; }
+  .wb-app .bb-wrap[data-enter] .wb-scribble .wb-scribble-spark { animation-duration: 0.2s !important; animation-delay: calc(var(--wb-draw-delay, 0.3s) + 1.1s) !important; }
+}
+@media (max-width: 1023px) and (prefers-reduced-motion: reduce) {
+  .wb-app .bb-wrap[data-enter] .wb-scribble path { animation: none !important; stroke-dashoffset: 0; }
+}
+
+/* the quick-action sheet (components/QuickMenu.tsx, phones) */
+.ios-qm { padding: 4px 16px 2px; }
+.ios-qm .ios-group { margin-bottom: 12px; }
+.ios-qm-head { margin: 4px 0 6px; padding: 0 16px; font-size: 13px; font-weight: 400; color: var(--ios-label2, var(--ds-muted)); }
+.ios-ic.is-qm { background: var(--ds-primary); color: var(--ds-on-primary, #FFFFFF); }
+.ios-ic.is-bad { background: var(--ds-bad); color: #FFFFFF; }
+.ios-cell.is-destructive .ios-cell-label { color: var(--ds-bad); }
+.ios-cell:disabled { cursor: default; }

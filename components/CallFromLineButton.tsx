@@ -31,6 +31,7 @@ export default function CallFromLineButton({
   compact = false,
   label,
   stacked = false,
+  iconOnly = false,
   className,
 }: {
   contactId?: string | null;
@@ -44,6 +45,8 @@ export default function CallFromLineButton({
   label?: string;
   /** Icon over a small label, filling its box — the swipe-action tray on a phone row (components/SwipeRow.tsx). */
   stacked?: boolean;
+  /** Just the icon (the label becomes the accessible name) — the hover actions on a Calls row. */
+  iconOnly?: boolean;
   /** Replaces the button's own surface classes entirely (a colored swipe block). */
   className?: string;
 }) {
@@ -91,7 +94,8 @@ export default function CallFromLineButton({
         onClick={call}
         disabled={disabled}
         className={cls}
-        title={lineCallTitle(sp, contactName, agentPhone)}
+        title={iconOnly ? text : lineCallTitle(sp, contactName, agentPhone)}
+        aria-label={iconOnly ? text : undefined}
       >
         {state === "busy" ? (
           <Loader2 size={size} className="animate-spin" />
@@ -102,9 +106,9 @@ export default function CallFromLineButton({
         ) : (
           <PhoneOutgoing size={size} />
         )}
-        {stacked ? (state === "error" ? "Failed" : state === "ringing" ? "Pick up" : text) : text}
+        {iconOnly ? null : stacked ? (state === "error" ? "Failed" : state === "ringing" ? "Pick up" : text) : text}
       </button>
-      {state === "ringing" && !compact && !stacked && (
+      {state === "ringing" && !compact && !stacked && !iconOnly && (
         <p className="absolute left-0 top-full mt-1 whitespace-nowrap text-[11px] text-gray-500">
           Ringing {agentPhone || "your cell"} — press 1 to connect.
         </p>

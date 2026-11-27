@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ChevronRight, Pause, Play, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowRight, ChevronRight, Clock, Filter as FilterIcon, Pause, Play, Plus, Sparkles, Trash2, X, Zap } from "lucide-react";
 import TitleSentinel from "@/components/TitleSentinel";
 import { Chip, DsPage, PageHeader } from "@/components/ds";
 import BottomSheet from "@/components/BottomSheet";
@@ -277,7 +277,7 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
               <OnSwitch on={a.isActive} disabled={busy === a.id || a.broken} onChange={(v) => void setActive(a, v)} name={a.name} />
             </span>
           </div>
-          {nodes.length > 0 ? <Flow nodes={nodes} paused={!a.isActive} max={3} /> : <p className="ds-small mt-1 text-[color:var(--ds-bad)]">Needs rebuilding</p>}
+          {nodes.length > 0 ? <FlowLine nodes={nodes} /> : <p className="ds-small mt-1 text-[color:var(--ds-bad)]">Needs rebuilding</p>}
           <div className="auto-card-foot">
             <RunDots runs={runsOf.get(a.id) ?? []} />
             <span>{firedLine(a)}</span>
@@ -295,6 +295,7 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
           &ldquo;When this happens, do that&rdquo; rules that run on their own. Start from one of these, or describe your own.
         </p>
       </div>
+      <div className="hidden lg:block">
       <ul className="auto-examples">
         {EXAMPLES.map((e, i) => (
           <li key={e.ask} className="auto-example" style={{ ["--i" as string]: i }}>
@@ -310,6 +311,34 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
               </>
             ) : (
               <p className="ds-small">&ldquo;{e.ask}&rdquo;</p>
+            )}
+          </li>
+        ))}
+      </ul>
+      </div>
+      {/* Phones: each starting point as an iOS grouped card, the steps read
+          top to bottom on a thin spine, the whole footer row starts it */}
+      <ul className="ae-list lg:hidden">
+        {EXAMPLES.map((e) => (
+          <li key={e.ask} className="ae-card">
+            <ol className="ae-steps">
+              {e.flow.map((n, i) => (
+                <li key={i} className={`ae-step is-${n.kind}`}>
+                  <span className="ae-mark" aria-hidden>
+                    {n.kind === "trigger" ? <Zap size={12} strokeWidth={2.6} /> : n.kind === "wait" ? <Clock size={12} strokeWidth={2.4} /> : n.kind === "filter" ? <FilterIcon size={11} strokeWidth={2.4} /> : null}
+                  </span>
+                  <span className="ae-text">
+                    {n.kind === "trigger" ? <><b>When</b> {n.text.replace(/^Whens+/i, "")}</> : n.text}
+                  </span>
+                </li>
+              ))}
+            </ol>
+            {atlas.available ? (
+              <button type="button" onClick={() => openCreate(e.ask)} className="ae-go">
+                Start from this <ChevronRight size={17} strokeWidth={2.2} aria-hidden />
+              </button>
+            ) : (
+              <p className="ae-ask">&ldquo;{e.ask}&rdquo;</p>
             )}
           </li>
         ))}
@@ -359,7 +388,7 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
   return (
     <DsPage
       open
-      className="rx-phone lg:max-w-5xl"
+      className="rx-phone ios-grouped lg:max-w-5xl"
       header={
         <div>
           <PageHeader
@@ -532,6 +561,20 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
         </div>
       </BottomSheet>
     </DsPage>
+  );
+}
+
+/** Phone list rows: the rule as one plain line ("When a quote is sent → Wait 5 days → …"), wrapping, no pills. */
+function FlowLine({ nodes }: { nodes: FlowNode[] }) {
+  return (
+    <p className="ae-line">
+      {nodes.map((n, i) => (
+        <span key={i}>
+          {i > 0 && <span className="ae-line-arrow" aria-hidden> → </span>}
+          {n.kind === "trigger" ? <><b>When</b> {n.text.replace(/^Whens+/i, "")}</> : n.text}
+        </span>
+      ))}
+    </p>
   );
 }
 

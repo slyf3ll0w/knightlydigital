@@ -27,7 +27,7 @@ type Drag = { id: string; mode: "move" | "size"; startX: number; startY: number;
  *    pointer, no text selected) → "Stick a note here"; notes render in a
  *    layer at the spot they were stuck, draggable, resizable from the
  *    corner; the same menu hides / shows every note.
- *  - phone: a slim "Notes on this page" strip at the top of the content
+ *  - phone: a slim "Notes on this page" strip at the bottom of the content
  *    that expands to the row of notes and an inline composer.
  *  - small desktop: notes are placed in px, so one stuck on a wide monitor
  *    can land past the right edge of a laptop screen. If any note on the
@@ -265,7 +265,9 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
       const x = n.x ?? 24 + i * (n.width + 16);
       return x + n.width > mainWidth;
     });
-  const stripAtBottom = count === 0 && !hidden && bottomEl !== null;
+  // The strip always lives at the bottom of the page, phone and desktop
+  // (David 2026-11-27: "move the sticky notes thing to the bottom")
+  const stripAtBottom = bottomEl !== null;
 
   return (
     <>
@@ -306,11 +308,11 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
         </div>
       )}
 
-      {/* ── Phone: the page strip (at the top with notes, at the bottom without).
+      {/* ── Phone: the page strip (always at the bottom of the page).
              Also the desktop layout when a placed note would be cut off. ── */}
       {ready && (() => {
         const strip = (
-      <div className={`${stripAtBottom ? "px-4 pb-3 pt-6" : "px-4 pt-3"} ${cutOff ? "lg:px-6" : "lg:hidden"}`} data-notes-skip>
+      <div className={`ds-notes-dock ${stripAtBottom ? "px-4 pb-3 pt-6" : "px-4 pt-3"} ${cutOff ? "lg:px-8 lg:pb-6" : "lg:hidden"}`} data-notes-skip>
         <div className={`ds-notes-strip ds-notes-strip-in ${stripOpen ? "ds-notes-strip-open" : ""}`}>
           <div className="flex items-center gap-2">
             <button

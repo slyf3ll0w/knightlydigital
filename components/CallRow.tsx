@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  ChevronRight,
+  Info,
   PhoneIncoming,
   PhoneOutgoing,
   PhoneMissed,
@@ -34,9 +34,12 @@ import SwipeRow, { type SwipeRowAction } from "@/components/SwipeRow";
  * missed call or voicemail is bold with a dot in the left margin, on a phone
  * the whole row opens the call screen (a stretched link under the
  * content), a swipe left reveals Text / Call back (components/SwipeRow.tsx),
- * and a voicemail row stays one line — the call screen plays it. Desktop
- * keeps the name as the link, the player in the row, and Text / Call back
- * at the end of the row.
+ * and a voicemail row stays one line — the call screen plays it; the (i) on
+ * the right is the iOS "details" mark. Desktop keeps the name as the link,
+ * the player in the row, and Text / Call back as two round icon buttons
+ * that show on the row under the pointer (ticket cmwz7vhi, 2026-11-27: a
+ * "Call back" button on every row was noise). The standing word (client,
+ * lead) rides the quiet second line, not floating beside the name.
  *
  * Server component; the interactive pieces are the in-app voicemail player
  * (components/VoicemailPlayer.tsx) and Call back, which rings the browser
@@ -232,7 +235,7 @@ export default function CallRow({
 
   return (
     <SwipeRow actions={swipe}>
-    <div className={`relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50 active:bg-gray-100 lg:py-2.5 ${live ? "bg-green-50/40" : ""}`}>
+    <div className={`cx-row relative flex items-center gap-3 px-4 py-3 lg:py-2.5 ${live ? "is-live" : ""}`}>
       {/* Phones: the whole row opens the call screen. Sits under the content so the voicemail player still takes taps. */}
       <Link href={href} aria-label={`Open the call with ${title}`} className="absolute inset-0 z-0 lg:hidden" />
       {/* An unseen missed call or voicemail: a dot in the left margin, as on a phone. */}
@@ -251,9 +254,7 @@ export default function CallRow({
               +{plus}
             </span>
           )}
-          {showContact && standing && <span className="shrink-0 text-xs text-gray-400">{standing}</span>}
-          {name && showContact && <span className="numeral-ledger hidden truncate text-xs text-gray-400 lg:inline">{number}</span>}
-          <span className="numeral-ledger ml-auto shrink-0 text-xs tabular-nums text-gray-500">{when}</span>
+          <span className="cx-when numeral-ledger ml-auto shrink-0 tabular-nums">{when}</span>
         </div>
         <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-gray-500">
           <span className={live || missed || call.status === "VOICEMAIL" ? `font-medium ${tone}` : ""}>{kind}</span>
@@ -263,6 +264,18 @@ export default function CallRow({
               <span className="numeral-ledger">{p}</span>
             </span>
           ))}
+          {showContact && standing && (
+            <span className="flex items-center gap-1.5">
+              <span className="text-gray-300">·</span>
+              <span>{standing}</span>
+            </span>
+          )}
+          {name && showContact && number && (
+            <span className="hidden items-center gap-1.5 lg:flex">
+              <span className="text-gray-300">·</span>
+              <span className="numeral-ledger">{number}</span>
+            </span>
+          )}
           {/* What got done on the call: desktop only — a phone row stays one line (the call screen lists them). */}
           {events.slice(0, 3).map((e) => {
             const Icon = EVENT_ICON[e.kind];
@@ -286,20 +299,18 @@ export default function CallRow({
         )}
       </div>
       {(showCallBack || showText) && (
-        <div className="hidden shrink-0 items-center gap-1.5 lg:flex">
+        <div className="cx-acts hidden shrink-0 items-center gap-1.5 lg:flex">
           {showText && call.contact && (
-            <Link
-              href={`/app/messages/thread/${call.contact.id}`}
-              className="btn-tool-line inline-flex items-center gap-1 rounded-[10px] bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <MessageSquare size={12} />
-              Text
+            <Link href={`/app/messages/thread/${call.contact.id}`} className="cx-act" aria-label="Text" title="Text">
+              <MessageSquare size={15} />
             </Link>
           )}
-          {showCallBack && <CallFromLineButton to={call.customerNumber} contactId={call.contact?.id} contactName={label} agentPhone="" compact label="Call back" />}
+          {showCallBack && (
+            <CallFromLineButton to={call.customerNumber} contactId={call.contact?.id} contactName={label} agentPhone="" iconOnly label="Call back" className="cx-act cx-act-call" />
+          )}
         </div>
       )}
-      <ChevronRight size={15} className="shrink-0 text-gray-300 lg:hidden" aria-hidden />
+      <Info size={20} strokeWidth={1.9} className="cx-info shrink-0 lg:hidden" aria-hidden />
     </div>
     </SwipeRow>
   );

@@ -82,7 +82,7 @@ export default function BottomSheet({
         ref={sheetRef}
         {...dragHandlers}
         style={open && dragY > 0 ? { transform: `translateY(${dragY}px)` } : undefined}
-        className={`absolute inset-x-0 bottom-0 sheet-material rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] ${
+        className={`bsheet absolute inset-x-0 bottom-0 sheet-material rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] ${
           dragging ? "" : "transition-transform duration-300"
         } [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
           /* open = NO transform: iOS kills backdrop-filter on transformed elements */
@@ -91,8 +91,8 @@ export default function BottomSheet({
       >
         <div className="mx-auto mt-2.5 h-1 w-9 rounded-full bg-gray-300/80" />
         {(title || closeButton) && (
-          <div className="flex items-center gap-3 px-5 pt-3.5 pb-2">
-            <p className="font-display min-w-0 flex-1 truncate text-[16px] font-bold text-gray-900">{title}</p>
+          <div className="bsheet-head flex items-center gap-3 px-5 pt-3.5 pb-2">
+            <p className="bsheet-title font-display min-w-0 flex-1 truncate text-[16px] font-bold text-gray-900">{title}</p>
             {closeButton && (
               <button
                 type="button"

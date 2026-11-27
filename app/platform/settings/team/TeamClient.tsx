@@ -138,7 +138,7 @@ export default function TeamClient({
 
   // The controls a row carries, shared by the row and the profile sheet.
   const rateControl = (m: Member) => (
-    <label className="flex items-center gap-1 text-xs text-gray-600">
+    <label className="tm-rate-ctl flex items-center gap-1 text-xs text-gray-600">
       <span className="text-gray-400">$</span>
       <input
         type="number"
@@ -155,7 +155,7 @@ export default function TeamClient({
             patchMember(m.id, { hourlyCost: rates[m.id] || null });
           }
         }}
-        className="w-16 px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+        className="tm-input w-16 px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
       />
       <span className="text-gray-400">/hr</span>
       <InfoTip label="Labor cost">
@@ -165,15 +165,15 @@ export default function TeamClient({
   );
 
   const bookableControl = (m: Member) => (
-    <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+    <label className="tm-book-ctl flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
       <input
         type="checkbox"
         checked={m.bookable}
         disabled={busy}
         onChange={(e) => patchMember(m.id, { bookable: e.target.checked })}
-        className="accent-[color:var(--ds-primary)]"
+        className="tm-switch accent-[color:var(--ds-primary)]"
       />
-      Bookable online
+      <span className="tm-book-text">Bookable online</span>
       <InfoTip label="Bookable online">
         This person&apos;s open time shows in the online booking slot picker.
       </InfoTip>
@@ -187,7 +187,7 @@ export default function TeamClient({
         disabled={busy}
         aria-label="Role"
         onChange={(e) => patchMember(m.id, { role: e.target.value })}
-        className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+        className="tm-input px-2 py-1.5 border border-gray-300 rounded-lg text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
       >
         {manageable.map((r) => (
           <option key={r} value={r}>
@@ -400,20 +400,21 @@ export default function TeamClient({
       )}
 
       {/* Member list */}
-      <div className="ds-card ds-divide mb-6">
-        {users.map((m) => (
-          <div key={m.id} id={`member-${m.id}`} className={`px-4 py-3 ${m.isActive ? "" : "opacity-60"}`}>
-            <div
-              className="flex cursor-pointer flex-wrap items-center gap-3"
-              onClick={(e) => openProfileFromRow(e, m.id)}
-            >
-              {/* Identity takes the full first line on phones so the controls
-                  wrap into their own tidy row underneath; desktop unchanged. */}
+      {/* Member list: every row is the same grid, so the columns line up
+          even when a cell is empty (David 2026-11-27: "this grid needs to be
+          even … the standard across all grids like this"). On phones each
+          person is an iOS grouped card with labeled rows. */}
+      <div className="tm-list ds-card ds-divide mb-6">
+        {users.map((m) => {
+          const mine = m.isActive && (canManage(m) || m.id === actorId);
+          return (
+          <div key={m.id} id={`member-${m.id}`} className={`tm-member px-4 py-3 ${m.isActive ? "" : "opacity-60"}`}>
+            <div className="tm-row cursor-pointer" onClick={(e) => openProfileFromRow(e, m.id)}>
               <button
                 type="button"
                 onClick={() => setProfileId(m.id)}
                 aria-label={`Open ${m.name}'s profile`}
-                className="flex w-full min-w-0 items-center gap-3 rounded-lg text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ds-primary)] sm:w-auto sm:flex-1"
+                className="tm-person flex min-w-0 items-center gap-3 rounded-lg text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ds-primary)]"
               >
                 <Avatar name={m.name} userId={m.id} size={32} />
                 <div className="min-w-0 flex-1">
@@ -437,54 +438,77 @@ export default function TeamClient({
                 </div>
               </button>
 
-              {m.isActive && (canManage(m) || m.id === actorId) && rateControl(m)}
+              <div className="tm-cell tm-c-rate">
+                {mine && (
+                  <>
+                    <span className="tm-lbl">Hourly cost</span>
+                    {rateControl(m)}
+                  </>
+                )}
+              </div>
 
-              {m.isActive && (canManage(m) || m.id === actorId) && bookableControl(m)}
+              <div className="tm-cell tm-c-book">{mine && bookableControl(m)}</div>
 
-              {m.isActive && (canManage(m) || m.id === actorId) && (
-                <span className="flex items-center gap-0.5">
-                <button
-                  aria-label={m.workingHours ? "Edit custom working hours" : "Working hours"}
-                  onClick={() => {
-                    if (hoursFor === m.id) {
-                      setHoursFor(null);
-                      return;
-                    }
-                    openHours(m);
-                  }}
-                  className={`p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-100 ${
-                    m.workingHours ? "text-[color:var(--ds-primary)]" : "text-gray-400 hover:text-gray-700"
-                  }`}
-                >
-                  <CalendarClock size={14} />
-                </button>
-                <InfoTip label="Working hours">
-                  {m.workingHours
-                    ? "Custom working hours are set for this person — tap the calendar to edit them."
-                    : "Tap the calendar to give this person their own working hours. Until then they work the company's business hours."}
-                </InfoTip>
-                </span>
-              )}
+              <div className="tm-cell tm-c-hours">
+                {mine && (
+                  <>
+                    <span className="tm-lbl">Working hours</span>
+                    <span className="flex items-center gap-0.5">
+                      <button
+                        aria-label={m.workingHours ? "Edit custom working hours" : "Working hours"}
+                        onClick={() => {
+                          if (hoursFor === m.id) {
+                            setHoursFor(null);
+                            return;
+                          }
+                          openHours(m);
+                        }}
+                        className={`tm-iconbtn p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-100 ${
+                          m.workingHours ? "text-[color:var(--ds-primary)]" : "text-gray-400 hover:text-gray-700"
+                        }`}
+                      >
+                        <CalendarClock size={14} />
+                        <span className="tm-ph-only">{m.workingHours ? "Custom" : "Business hours"}</span>
+                      </button>
+                      <InfoTip label="Working hours">
+                        {m.workingHours
+                          ? "Custom working hours are set for this person — tap the calendar to edit them."
+                          : "Tap the calendar to give this person their own working hours. Until then they work the company's business hours."}
+                      </InfoTip>
+                    </span>
+                  </>
+                )}
+              </div>
 
-              {roleControl(m)}
+              <div className="tm-cell tm-c-role">
+                <span className="tm-lbl">Role</span>
+                {roleControl(m)}
+              </div>
 
-              {canManage(m) && (
-                <>
+              <div className="tm-cell tm-c-key">
+                {canManage(m) && (
                   <button
                     onClick={() => {
                       setResetFor(resetFor === m.id ? null : m.id);
                       setResetPassword("");
                       setHoursFor(null);
                     }}
-                    className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 active:bg-gray-100 rounded-full"
+                    className="tm-iconbtn p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 active:bg-gray-100 rounded-full"
                     title="Reset password"
+                    aria-label="Reset password"
                   >
                     <KeyRound size={14} />
+                    <span className="tm-ph-only">Reset password</span>
                   </button>
+                )}
+              </div>
+
+              <div className="tm-cell tm-c-act">
+                {canManage(m) && (
                   <button
                     onClick={() => patchMember(m.id, { isActive: !m.isActive })}
                     disabled={busy}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    className={`tm-actbtn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                       m.isActive
                         ? "text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)]"
                         : "text-[color:var(--ds-primary)] hover:bg-[color:var(--ds-primary-soft)]"
@@ -492,12 +516,12 @@ export default function TeamClient({
                   >
                     {m.isActive ? "Deactivate" : "Reactivate"}
                   </button>
-                </>
-              )}
+                )}
+              </div>
             </div>
 
             {hoursFor === m.id && (
-              <div className="mt-3 space-y-3 rounded-xl border border-gray-100 bg-gray-50/60 p-3 sm:ml-11">
+              <div className="tm-panel mt-3 space-y-3 rounded-xl border border-gray-100 bg-gray-50/60 p-3 sm:ml-11">
                 <div className="flex items-center gap-1">
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
                   <input
@@ -586,7 +610,7 @@ export default function TeamClient({
             )}
 
             {resetFor === m.id && (
-              <div className="flex flex-wrap items-center gap-2 mt-3 sm:pl-11">
+              <div className="tm-panel flex flex-wrap items-center gap-2 mt-3 sm:pl-11">
                 <input
                   type="text"
                   value={resetPassword}
@@ -615,7 +639,8 @@ export default function TeamClient({
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Member profile: side card on desktop, bottom sheet on phones */}

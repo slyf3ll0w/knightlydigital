@@ -92,3 +92,151 @@
 @media (max-width: 1023px) and (prefers-reduced-motion: reduce) {
   .bb-open .tl-inbox-row::after { transition: none; }
 }
+
+/* ── Calls, 2026-11-27 (tickets cmwz7vhi desktop, cmwz875g phones) ──
+   Desk and phone in one place: an iOS segmented control for the filters,
+   the recents as a plain list (bold name, red when missed, a quiet line
+   under it), round icon actions that show on the row under the pointer,
+   the dialer panel without stat tiles, and on phones a Keypad button on
+   the line's row instead of a second floating circle. */
+.cx-seg {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: var(--ds-surface-2);
+  box-shadow: inset 0 0 0 1px var(--ds-line);
+}
+.cx-seg-item {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ds-muted);
+  white-space: nowrap;
+  transition: color var(--ds-dur, .18s) var(--ds-ease, ease), background-color var(--ds-dur, .18s) var(--ds-ease, ease);
+}
+.cx-seg-item:hover { color: var(--ds-ink); }
+.cx-seg-item.is-on {
+  color: var(--ds-ink);
+  background: var(--ds-surface);
+  box-shadow: 0 0 0 .5px var(--ds-line-strong), 0 1px 3px rgb(0 0 0 / .12);
+}
+.cx-seg-n {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--ds-bad);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.cx-list { margin-top: 12px; border-top: 1px solid var(--ds-line); }
+.cx-list > * + * { border-top: 1px solid var(--ds-line); }
+.cx-list-empty { padding: 40px 16px; text-align: center; font-size: 14px; color: var(--ds-muted); }
+
+.cx-row { transition: background-color .15s ease; }
+.cx-row:hover { background: color-mix(in srgb, var(--ds-surface-2) 70%, transparent); }
+.cx-row:active { background: var(--ds-surface-2); }
+.cx-row.is-live { background: color-mix(in srgb, var(--ds-good) 8%, transparent); }
+.cx-when { font-size: 12.5px; color: var(--ds-muted); }
+.cx-info { color: var(--ds-primary); }
+.cx-act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  color: var(--ds-primary);
+  background: var(--ds-primary-soft);
+  transition: filter .15s ease, transform .15s ease;
+}
+.cx-act:hover { filter: brightness(.95); }
+.cx-act:active { transform: scale(.94); }
+.cx-act:disabled { opacity: .5; }
+.cx-act-call { color: var(--ds-good); background: var(--ds-good-soft); }
+@media (hover: hover) and (min-width: 1024px) {
+  .cx-acts { opacity: 0; transition: opacity .15s ease; }
+  .cx-row:hover .cx-acts,
+  .cx-row:focus-within .cx-acts { opacity: 1; }
+}
+
+/* The dialer panel (desktop) */
+.cx-panel {
+  border-radius: var(--ds-r-xl, 18px);
+  background: var(--ds-surface);
+  box-shadow: 0 0 0 1px var(--ds-line), var(--ds-shadow-1, 0 1px 2px rgb(0 0 0 / .05));
+  overflow: hidden;
+}
+.cx-panel-num {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--ds-ink);
+}
+.cx-panel-where { margin-top: 4px; font-size: 13px; line-height: 1.4; color: var(--ds-muted); }
+.cx-panel-mic { border-top: 1px solid var(--ds-line); padding: 12px 20px; }
+/* The keys as a phone's: round, filled, no outline */
+.cx-panel .btn-tool-line {
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 999px !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: var(--ds-surface-2) !important;
+  color: var(--ds-ink) !important;
+  transition: filter .12s ease;
+}
+.cx-panel .btn-tool-line:hover { filter: brightness(.96); }
+.cx-panel .btn-tool-line:active { filter: brightness(.9); }
+.cx-panel .grid { column-gap: 14px !important; row-gap: 10px !important; }
+
+/* Phones: the line as one quiet row, Keypad beside it */
+.cx-linesub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 14px;
+}
+.cx-linesub > :first-child { min-width: 0; }
+.cx-keypad-btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ds-primary);
+  background: var(--ds-primary-soft);
+}
+.cx-keypad-btn:active { filter: brightness(.92); }
+
+@media (min-width: 1024px) {
+  .rx-calls .cx-seg { max-width: 440px; }
+  .rx-calls .cx-list { border-top-color: var(--ds-line-strong); }
+}
+@media (max-width: 1023px) {
+  .rx-calls .cx-list { margin-left: -16px; margin-right: -16px; }
+  .rx-calls .cx-row { padding-left: 20px; padding-right: 16px; min-height: 60px; }
+  .rx-calls .cx-row:hover { background: transparent; }
+  .rx-calls .cx-row:active { background: var(--ds-surface-2); }
+  .cx-seg-item { min-height: 30px; font-size: 13px; padding: 0 6px; }
+}

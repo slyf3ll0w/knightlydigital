@@ -55,14 +55,14 @@ export default function FilterSelect({
   const filtered = active.value !== options[0].value;
 
   return (
-    <div ref={ref} className={`relative ${className}`}>
+    <div ref={ref} className={`fs relative ${className}`}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="listbox"
-        aria-label={compact ? (icon === "sort" ? `Sort: ${active.label}` : `Show: ${active.label}`) : undefined}
-        className={`flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border text-[13px] font-semibold transition-colors ${
+        aria-label={compact || icon === "sort" ? (icon === "sort" ? `Sort: ${active.label}` : `Show: ${active.label}`) : undefined}
+        className={`fs-btn flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border text-[13px] font-semibold transition-colors ${
           compact ? "w-9 justify-center" : "px-3.5"
         } ${
           filtered ? "glass-tinted border-transparent" : "glass-control border-gray-200 bg-gray-100 text-gray-800"
@@ -71,10 +71,10 @@ export default function FilterSelect({
         <Icon size={14} className={filtered ? "" : "text-gray-500"} />
         {!compact && (
           <>
-            {active.label}
+            <span className="fs-label">{active.label}</span>
             <ChevronDown
               size={14}
-              className={`transition-transform ${open ? "rotate-180" : ""} ${
+              className={`fs-chev transition-transform ${open ? "rotate-180" : ""} ${
                 filtered ? "" : "text-gray-500"
               }`}
             />

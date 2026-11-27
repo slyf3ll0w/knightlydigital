@@ -167,19 +167,22 @@ export function QuickMenu({ open, anchor, title, actions, onClose }: { open: boo
     );
   };
 
+  // Phones: the iOS grouped list (the Create sheet's .ios-group/.ios-cell,
+  // app/ds-ios.css) — rounded cards, a filled icon square, hairlines that
+  // start after the icon; a heading starts a new card (David 2026-11-27:
+  // the full-width divider lines didn't look good).
   const phoneItem = (a: QuickAction) => {
-    if (a.heading) return <p key={a.key} className="px-5 pb-1 pt-3 text-[12px] font-semibold text-gray-500">{a.label}</p>;
-    const cls = `flex w-full items-center gap-3 px-5 py-3 text-left text-[15px] ${a.destructive ? "text-red-600 active:bg-red-50" : "text-gray-900 active:bg-gray-100"} disabled:opacity-50`;
+    const cls = `ios-cell ${a.destructive ? "is-destructive" : ""} disabled:opacity-50`;
     const inner = (
       <>
         {a.icon && (
-          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] ${a.destructive ? "bg-red-50 text-red-600" : "bg-gray-100 text-gray-700"}`}>
-            <a.icon size={16} strokeWidth={2.25} />
+          <span className={`ios-ic ${a.destructive ? "is-bad" : "is-qm"}`} aria-hidden>
+            <a.icon size={17} strokeWidth={2.2} />
           </span>
         )}
-        <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium">{a.label}</span>
-          {a.hint && <span className="block truncate text-xs font-normal text-gray-500">{a.hint}</span>}
+        <span className="ios-cell-text">
+          <span className="ios-cell-label">{a.label}</span>
+          {a.hint && <span className="ios-cell-sub">{a.hint}</span>}
         </span>
       </>
     );
@@ -201,6 +204,14 @@ export function QuickMenu({ open, anchor, title, actions, onClose }: { open: boo
       </button>
     );
   };
+  const phoneGroups: { key: string; heading?: string; items: QuickAction[] }[] = [];
+  for (const a of items) {
+    if (a.heading) phoneGroups.push({ key: a.key, heading: a.label, items: [] });
+    else {
+      if (phoneGroups.length === 0) phoneGroups.push({ key: "first", items: [] });
+      phoneGroups[phoneGroups.length - 1].items.push(a);
+    }
+  }
 
   const popover =
     open && anchor && typeof document !== "undefined"
@@ -226,7 +237,14 @@ export function QuickMenu({ open, anchor, title, actions, onClose }: { open: boo
   // that surface's backdrop-filter and opens inside a 56px strip.
   const sheet = (
     <BottomSheet open={open} onClose={onClose} title={title}>
-      <div className="divide-y divide-gray-100/80">{items.map(phoneItem)}</div>
+      <div className="ios-qm">
+        {phoneGroups.map((g) => (
+          <div key={g.key}>
+            {g.heading && <p className="ios-qm-head">{g.heading}</p>}
+            {g.items.length > 0 && <div className="ios-group">{g.items.map(phoneItem)}</div>}
+          </div>
+        ))}
+      </div>
     </BottomSheet>
   );
 

@@ -1,0 +1,129 @@
+/* Look tickets 2026-11-27 (fork F2): sidebar logo, client work rows,
+   amount + status ends, Team settings grid and phone cards. */
+
+/* ── Sidebar logo: centered at the top of the rail (David 2026-11-27) ── */
+.rail-live .rail-live-co.rail-live-co-logo { justify-content: center; }
+.rail-live .rail-live-co-logo .rail-live-logo { justify-content: center; }
+.rail-live .rail-live-co-logo .rail-live-logo img { object-position: center; margin-inline: auto; }
+
+/* ── Phone-only row lists stay hidden on desktop (David 2026-11-27) ──
+   .bb-rows sets display:flex outside any layer, which beat Tailwind's
+   lg:hidden, so the client page showed the phone rows above the table. */
+@media (min-width: 1024px) {
+  .bb-rows.lg\:hidden, .bb-row.lg\:hidden { display: none; }
+}
+@media (min-width: 768px) {
+  .bb-rows.md\:hidden, .bb-row.md\:hidden { display: none; }
+}
+@media (min-width: 640px) {
+  .bb-rows.sm\:hidden, .bb-row.sm\:hidden { display: none; }
+}
+
+/* ── An amount and its status never touch (David 2026-11-27: "the paid
+   is on top of the number … here and anywhere else") ── */
+/* client page work rows (phone): amount, then the status under it */
+.cp-wrow-end { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; line-height: 1.2; }
+.cp-wrow-end > .ds-num { white-space: nowrap; }
+.cp-wrow-end > .ds-chip { margin: 0; }
+/* anywhere a status sits inline right after a number */
+.ds-num + .ds-chip, .ds-num + .stamp { margin-left: 8px; }
+.cp-wrow-end > .ds-num + .ds-chip { margin-left: 0; }
+/* money lists on phones: a touch more air between amount and status */
+@media (max-width: 1023px) {
+  .mx-table-inv .mx-row { row-gap: 5px; }
+  .mx-table-inv .mx-row > .mx-c-amt { white-space: nowrap; }
+}
+
+/* ── Team settings: one even grid on desktop, iOS cards on phones ──
+   (David 2026-11-27). Every row carries the same seven cells, empty or not:
+   person | cost | bookable | hours | role | key | deactivate */
+.tm-ph-only, .tm-lbl { display: none; }
+.tm-row .tm-input {
+  background: var(--ds-surface-2, var(--ds-surface)); color: var(--ds-ink);
+  border-color: var(--ds-line-strong, var(--ds-line));
+}
+.tm-row .tm-input:disabled { opacity: 0.6; }
+
+@media (min-width: 640px) {
+  .tm-row {
+    display: grid; align-items: center; column-gap: 14px;
+    grid-template-columns: minmax(0, 1fr) 118px 146px 52px 124px 32px 92px;
+    min-height: 56px;
+  }
+  .tm-cell { display: flex; align-items: center; min-width: 0; }
+  .tm-c-role, .tm-c-act { justify-content: flex-start; }
+  .tm-c-key { justify-content: center; }
+  .tm-c-role select { width: 100%; }
+  /* a role shown as a label sits where the select would */
+  .tm-c-role > .ds-chip, .tm-c-role > span:not(.tm-lbl) { margin-left: 2px; }
+}
+@media (min-width: 640px) and (max-width: 860px) {
+  /* narrow desktop: drop the fixed widths a touch so nothing spills */
+  .tm-row { grid-template-columns: minmax(0, 1fr) 108px 136px 48px 112px 30px 84px; column-gap: 10px; }
+}
+
+/* phones: each person is a grouped card, labeled rows with inset hairlines */
+@media (max-width: 639px) {
+  .tm-list.ds-card { background: transparent; box-shadow: none; border: 0; border-radius: 0; overflow: visible; }
+  .tm-list.ds-divide > * + * { border-top: 0; }
+  .tm-member {
+    padding: 0 !important; margin-bottom: 14px; overflow: hidden;
+    background: var(--ios-card, var(--ds-surface)); border-radius: 14px;
+    box-shadow: 0 0 0 1px var(--ds-line);
+  }
+  .tm-row { display: flex; flex-direction: column; align-items: stretch; }
+  .tm-person { width: 100%; padding: 14px 16px; }
+  .tm-cell {
+    position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    min-height: 46px; padding: 0 16px; font-size: 15px; color: var(--ds-ink);
+  }
+  .tm-cell:empty { display: none; }
+  .tm-cell::before {
+    content: ""; position: absolute; top: 0; left: 16px; right: 0; height: 1px;
+    background: var(--ios-sep, var(--ds-line));
+  }
+  .tm-lbl { display: block; font-size: 15px; color: var(--ds-ink); }
+  .tm-ph-only { display: inline; }
+
+  /* cost: input on the right */
+  .tm-row .tm-rate-ctl { font-size: 15px; gap: 6px; }
+  .tm-row .tm-rate-ctl .tm-input {
+    width: 76px; height: 32px; text-align: right; font-size: 16px; /* no iOS zoom */
+    border: 0; border-radius: 8px; background: var(--ds-surface-2, rgba(120,120,128,.16));
+  }
+  /* bookable: label left, a switch on the right */
+  .tm-row .tm-book-ctl { width: 100%; font-size: 15px; color: var(--ds-ink); gap: 6px; }
+  .tm-row .tm-book-ctl .tm-book-text { order: 1; }
+  .tm-row .tm-book-ctl > :not(.tm-switch):not(.tm-book-text) { order: 2; }
+  .tm-row .tm-switch {
+    order: 3; margin-left: auto; appearance: none; -webkit-appearance: none; flex-shrink: 0;
+    width: 51px; height: 31px; border-radius: 999px; position: relative; cursor: pointer;
+    background: rgba(120, 120, 128, 0.32); transition: background-color 180ms ease;
+  }
+  .tm-row .tm-switch::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%;
+    background: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18); transition: transform 200ms cubic-bezier(.3,.7,.4,1);
+  }
+  .tm-row .tm-switch:checked { background: var(--ds-good, #34C759); }
+  .tm-row .tm-switch:checked::after { transform: translateX(20px); }
+  .tm-row .tm-switch:disabled { opacity: 0.5; }
+  /* hours + key: text buttons on the right */
+  .tm-row .tm-iconbtn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 0; border-radius: 8px;
+    font-size: 15px; background: transparent !important;
+  }
+  .tm-c-key { justify-content: flex-start; }
+  .tm-c-key .tm-iconbtn { color: var(--ds-primary); }
+  /* role: select reads as a value */
+  .tm-row .tm-c-role select.tm-input {
+    height: 32px; font-size: 15px; border: 0; background: transparent; color: var(--ds-muted, inherit);
+    text-align: right; padding-right: 4px;
+  }
+  /* deactivate: a red row at the bottom */
+  .tm-c-act { padding: 0; }
+  .tm-row .tm-actbtn {
+    width: 100%; min-height: 46px; padding: 0 16px; text-align: left; font-size: 15px; font-weight: 500;
+    border-radius: 0;
+  }
+  .tm-panel { margin: 0 !important; border-radius: 0 !important; border-width: 1px 0 0 !important; padding: 14px 16px !important; }
+}

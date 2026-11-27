@@ -342,3 +342,139 @@ html[data-mode="dark"] .app-ui .help-mark { background: color-mix(in srgb, var(-
 /* Closing band: the site's flat navy */
 .help-public .help-band { background-color: #0E1C3F; background-image: none; }
 .help-public .help-band h2 { font-size: clamp(2.2rem, 5vw, 3.2rem); font-weight: 900; letter-spacing: -0.03em; }
+
+/* ═══ In-app Help Center, 2026-11-27 (ticket cmwz7xbh: "looks super AI
+   generated besides the arrow"). A product docs index inside the app: the
+   app's own face and tokens, no bloom or graph paper, no icon tiles, no
+   floating cards — ruled lists, a plain search field, the hand-drawn note.
+   Phones: iOS grouped lists. The topic and guide pages (HelpPageFrame,
+   also .help-app) get the same flat header and ruled lists. The public
+   /help (.help-public) is untouched. ═══ */
+.help-root.help-app {
+  font-family: var(--ds-font-stack, inherit);
+  color: var(--ds-ink);
+  background: transparent;
+  --hi: var(--ds-ink);
+}
+.help-root.help-app :is(h1, h2, h3, h4) { font-family: var(--ds-font-stack, inherit); color: var(--ds-ink); }
+.help-root.help-app :is(button, input, select, textarea) { font-family: var(--ds-font-stack, inherit); }
+html[data-mode="dark"] .app-ui .help-root.help-app { background: transparent; color: var(--ds-ink); }
+.help-app .help-hero::before,
+.help-app .help-hero::after { display: none; }
+.help-app .help-hero { border-color: var(--ds-line) !important; }
+.help-app .help-tile { display: none; }
+
+.help-app-sub { margin-top: 6px; font-size: 15px; color: var(--ds-muted); }
+.help-app-sub kbd {
+  display: inline-block; min-width: 20px; padding: 0 5px; border-radius: 5px;
+  font: 600 12px/18px var(--ds-font-stack, inherit); text-align: center;
+  color: var(--ds-ink); background: var(--ds-surface-2); box-shadow: inset 0 -1px 0 var(--ds-line-strong);
+}
+.help-app-note { align-items: flex-end; gap: 6px; padding-right: 12%; color: var(--ds-ink); }
+.help-app-note p { padding-bottom: 34px; font-size: 14.5px; font-weight: 700; line-height: 1.3; text-align: right; white-space: nowrap; }
+.help-app-note-arrow { display: block; width: 46px; height: 64px; flex: none; margin-bottom: -18px; }
+
+.help-app-search {
+  display: flex; align-items: center; gap: 10px;
+  max-width: 44rem; height: 48px; margin-top: 20px; padding: 0 6px 0 16px;
+  border-radius: 12px;
+  background: var(--ds-surface);
+  box-shadow: 0 0 0 1px var(--ds-line-strong);
+  color: var(--ds-faint);
+  transition: box-shadow .15s ease;
+}
+.help-app-search:focus-within { box-shadow: 0 0 0 2px var(--ds-primary); }
+.help-app-search input {
+  flex: 1; min-width: 0; height: 100%; border: 0; background: transparent;
+  font-size: 16px; color: var(--ds-ink); outline: none;
+}
+.help-root .help-app-search input:focus-visible { outline: none; box-shadow: none; }
+.help-app-search input::placeholder { color: var(--ds-faint); }
+.help-app-search input::-webkit-search-cancel-button { display: none; }
+.help-app-clear {
+  display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex: none;
+  border-radius: 999px; color: var(--ds-muted);
+}
+.help-app-clear:hover { background: var(--ds-surface-2); color: var(--ds-ink); }
+
+.help-root.help-app .help-app-label { margin-bottom: 8px; font-size: 14px; font-weight: 650; letter-spacing: 0; color: var(--ds-muted); }
+
+/* Ruled rows */
+.help-app-list, .help-app-topics, .help-app-popular { border-top: 1px solid var(--ds-line-strong); }
+.help-app-list > li, .help-app-topics > li, .help-app-popular > li { border-bottom: 1px solid var(--ds-line); }
+.help-app-row {
+  display: flex; align-items: center; gap: 12px; height: 100%;
+  padding: 14px 4px; color: var(--ds-ink);
+  transition: background-color .15s ease;
+}
+.help-app-row:hover { background: color-mix(in srgb, var(--ds-surface-2) 70%, transparent); }
+.help-app-row:hover .help-app-row-title { color: var(--ds-primary); }
+.help-app-row-title { display: block; font-size: 15.5px; font-weight: 650; line-height: 1.35; color: var(--ds-ink); transition: color .15s ease; }
+.help-app-row-sub { display: block; margin-top: 2px; font-size: 13.5px; line-height: 1.45; color: var(--ds-muted); }
+.help-app-tagline { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.help-app-count { flex: none; min-width: 22px; font-size: 13px; font-weight: 600; text-align: right; color: var(--ds-faint); font-variant-numeric: tabular-nums; }
+.help-app-chev { width: 16px; height: 16px; flex: none; color: var(--ds-faint); }
+.help-app-popular .help-app-row { padding: 11px 0; }
+.help-app-popular .help-app-row-title { font-size: 14.5px; font-weight: 600; }
+.help-app-popular .help-app-row-sub { font-size: 12.5px; }
+.help-app-popular .help-app-row:hover { background: transparent; }
+
+@media (min-width: 640px) {
+  /* Topics: two columns, every row the same height (flush) */
+  .help-app-topics { display: grid; grid-template-columns: 1fr 1fr; column-gap: 32px; border-top: 0; }
+  .help-app-topics > li { border-top: 1px solid var(--ds-line); border-bottom: 0; }
+  .help-app-topics > li:nth-child(-n + 2) { border-top-color: var(--ds-line-strong); }
+  .help-app-topics > li:nth-last-child(-n + 2) { border-bottom: 1px solid var(--ds-line); }
+  .help-app-topics .help-app-row { min-height: 84px; padding: 16px 4px; }
+  .help-app-topics .help-app-chev { display: none; }
+}
+
+/* The way out, quiet: a ruled section, not the navy band */
+.help-app .help-band { background: transparent; background-image: none; color: var(--ds-ink); border-top: 1px solid var(--ds-line); }
+html[data-mode="dark"] .app-ui .help-app .help-band { background: transparent; }
+.help-root.help-app .help-band :is(h2, h3) { color: var(--ds-ink); font-size: 22px; }
+.help-app .help-band > div { padding-top: 36px; padding-bottom: 48px; }
+.help-app .help-band p { color: var(--ds-muted) !important; }
+.help-app .help-band .text-white { color: var(--ds-ink) !important; }
+.help-app .help-band path[stroke] { stroke: var(--ds-ink); }
+.help-app .help-pill { border-radius: 10px; padding: .6rem 1rem; font-size: 14px; font-weight: 600; }
+.help-app .help-pill-orange { background: var(--ds-primary); color: var(--ds-on-primary, #fff); }
+.help-app .help-pill-ghost { color: var(--ds-ink); border: 0; box-shadow: inset 0 0 0 1px var(--ds-line-strong); background: var(--ds-surface); }
+.help-app .help-pill-ghost:hover { background: var(--ds-surface-2); }
+
+/* Topic + guide pages */
+.help-app .help-card { border-radius: 0; border: 0; border-top: 1px solid var(--ds-line-strong); background: transparent; box-shadow: none; }
+html[data-mode="dark"] .app-ui .help-app .help-card { background: transparent; }
+.help-app a.help-card:hover { box-shadow: none; border-color: var(--ds-line-strong); }
+.help-app .help-card > li { border-color: var(--ds-line) !important; }
+.help-app .help-side a[aria-current="page"] { background: var(--ds-surface-2); color: var(--ds-ink); box-shadow: inset 2px 0 0 var(--ds-primary); border-radius: 0 8px 8px 0; }
+.help-app .help-chip { border-radius: 8px; background: var(--ds-surface-2); color: var(--ds-ink); }
+
+/* Phones: iOS grouped lists */
+@media (max-width: 639px) {
+  .help-app-search { height: 40px; margin-top: 14px; padding-left: 12px; border-radius: 10px; background: var(--ds-surface-2); box-shadow: none; }
+  .help-app-search input { font-size: 17px; }
+  .help-root.help-app .help-app-label { margin: 0 0 6px 16px; font-size: 13px; font-weight: 500; }
+  .help-app-list, .help-app-topics, .help-app-popular {
+    border: 0; border-radius: 12px; overflow: hidden; background: var(--ios-card, var(--ds-surface));
+  }
+  /* The grouped page's gray ground behind the white groups (home only) */
+  .wb-app .bb-wrap:has(.help-app-head),
+  .wb-app .bb-wrap:has(.help-app-head) > .bb-page { background: var(--ios-bg, var(--ds-surface-2)) !important; }
+  .help-app-search { background: rgba(118, 118, 128, .12); }
+  .help-app-list > li, .help-app-topics > li, .help-app-popular > li { border: 0; position: relative; }
+  .help-app-list > li + li::before, .help-app-topics > li + li::before, .help-app-popular > li + li::before {
+    content: ""; position: absolute; top: 0; left: 16px; right: 0; height: 1px;
+    background: var(--ds-line); transform: scaleY(.5); transform-origin: top;
+  }
+  .help-app-row { min-height: 44px; padding: 11px 14px 11px 16px; }
+  .help-app-row:hover { background: transparent; }
+  .help-app-row:active { background: var(--ds-surface-2); }
+  .help-app-row:hover .help-app-row-title { color: var(--ds-ink); }
+  .help-app-row-title { font-size: 17px; font-weight: 400; }
+  .help-app-tagline { display: none; }
+  .help-app-popular .help-app-row { padding: 11px 14px 11px 16px; }
+  .help-app-popular .help-app-row-title { font-size: 17px; font-weight: 400; }
+  .help-app-count { font-size: 15px; font-weight: 400; }
+  .help-app .help-band > div { padding-top: 28px; }
+}
