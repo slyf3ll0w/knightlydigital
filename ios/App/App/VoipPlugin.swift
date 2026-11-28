@@ -436,7 +436,7 @@ final class VoipEngine: NSObject {
             // answered a second later (ticket #8ld9vq). Look again for a few
             // seconds while a call is waiting on us.
             if !cookie.contains("session-token"), coldTries < 8, calls.values.contains(where: { $0.direction == .inbound && $0.sdk == nil }) {
-                trace("grant-401-cold", "try=(coldTries + 1)")
+                trace("grant-401-cold", "try=\(coldTries + 1)")
                 connectStartedAt = Date()
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 return await connect(membership: membership, coldTries: coldTries + 1)
