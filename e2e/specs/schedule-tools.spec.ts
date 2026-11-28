@@ -49,15 +49,19 @@ test.describe("schedule tools", () => {
 
   test("palette finds clients, requests, and unscheduled jobs by name", async () => {
     const job = await api.post("/api/app/jobs", { contactId, title: `${runTag} palette job` });
+    // A client card knows it's a client, not a lead. Checked before the
+    // request below: a new request puts even an existing client back on the
+    // Leads board as repeat business, and the palette then says so. (This
+    // used to be asserted after it, and held only while the e2e company had
+    // never opened its Leads board.)
+    const before = await api.get(`/api/app/schedule/palette?q=${encodeURIComponent(runTag)}`);
+    expect(before.contacts.find((c: { id: string }) => c.id === contactId)?.lead).toBe(false);
     const request = await api.post("/api/app/requests", { contactId, title: `${runTag} palette request` });
 
     const hit = await api.get(`/api/app/schedule/palette?q=${encodeURIComponent(runTag)}`);
     expect(hit.contacts.some((c: { id: string }) => c.id === contactId)).toBe(true);
     expect(hit.jobs.some((j: { job: { id: string } }) => j.job.id === job.id)).toBe(true);
     expect(hit.requests.some((r: { id: string }) => r.id === request.id)).toBe(true);
-    // A client card knows it's a client, not a lead
-    const me = hit.contacts.find((c: { id: string }) => c.id === contactId);
-    expect(me.lead).toBe(false);
 
     // The empty query = the waiting lists (requests + recent clients)
     const idle = await api.get("/api/app/schedule/palette");
