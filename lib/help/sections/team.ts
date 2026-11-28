@@ -292,6 +292,10 @@ export const reportsSection: HelpSection = {
           ],
         },
         {
+          type: "p",
+          text: "With more than one Leads board, a source can decide where a new lead lands: open the board, press `Customize stages`, and add the source under **New leads from these sources land here**. See [Use the Leads board](/help/leads-pipeline).",
+        },
+        {
           type: "tip",
           text: "Or just ask Atlas: \"where are my leads coming from this month?\"",
         },
