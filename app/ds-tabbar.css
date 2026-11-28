@@ -56,3 +56,60 @@
     outline-offset: 3px;
   }
 }
+
+/* The same bar drawn in the marketing site's phone pictures (David
+   2026-11-28: "site screens must look exactly like the app"). The site is
+   viewed on a desk, where the block above is off, so these are the same
+   values without the width switch, on an absolute (not fixed) bar inside
+   the phone frame. Keep the two blocks in step. */
+.tabbar-mock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  padding-bottom: var(--tabbar-mock-safe, 28px);
+  background: rgba(249, 249, 249, 0.86);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: inset 0 0.5px 0 rgba(60, 60, 67, 0.29);
+}
+.tabbar-mock .tabbar-dock-row {
+  display: flex;
+  align-items: stretch;
+  height: 52px;
+  padding: 0 6px;
+}
+.tabbar-mock .tabbar-tab {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding-top: 6px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: rgba(60, 60, 67, 0.6);
+  letter-spacing: 0.01em;
+}
+.tabbar-mock .tabbar-tab.is-on {
+  font-weight: 600;
+  color: var(--mobile-accent, var(--ds-primary));
+}
+.tabbar-mock .tabbar-slot {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+}
+.tabbar-mock .tabbar-create {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--mobile-accent, var(--ds-primary));
+  color: var(--mobile-on-accent, var(--ds-on-primary, #fff));
+}

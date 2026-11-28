@@ -19,7 +19,7 @@ import {
   SquareKanban,
   Users,
 } from "lucide-react";
-import { ChatFill, HomeFill, MoreFill, ScheduleFill } from "@/components/TabIcons";
+import PhoneTabBarMock, { type MockTab } from "@/components/wb/PhoneTabBarMock";
 import { appVars, BRAND, useFitZoom } from "@/components/wb/demos/WBAppFrame";
 import "./wb-live.css";
 
@@ -81,28 +81,9 @@ function Screen({ className = "", children, light = false }: { className?: strin
   );
 }
 
-function TabBar({ on }: { on: "Home" | "Schedule" | "Chat" | "Menu" | null }) {
-  const tabs: [string, typeof HomeFill][] = [
-    ["Home", HomeFill],
-    ["Schedule", ScheduleFill],
-    ["Chat", ChatFill],
-    ["Menu", MoreFill],
-  ];
-  return (
-    <div className="wbp-tabs">
-      <div className="cap">
-        {tabs.map(([label, Icon]) => (
-          <span key={label} className={`tab ${label === on ? "on" : ""}`}>
-            <Icon size={24} />
-            {label}
-          </span>
-        ))}
-      </div>
-      <span className="plus">
-        <Plus size={27} strokeWidth={2.5} />
-      </span>
-    </div>
-  );
+/** The app's docked bottom bar (components/wb/PhoneTabBarMock.tsx), clear of the home indicator. */
+function TabBar({ on }: { on: MockTab | null }) {
+  return <PhoneTabBarMock on={on} safeArea={30} zIndex={15} />;
 }
 
 function Dot({ c, children }: { c: string; children: React.ReactNode }) {

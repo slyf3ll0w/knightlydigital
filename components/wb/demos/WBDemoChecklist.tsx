@@ -1,8 +1,8 @@
 "use client";
 
+import PhoneTabBarMock from "@/components/wb/PhoneTabBarMock";
 import { useEffect, useRef } from "react";
-import { Bell, CalendarDays, Check, CheckCircle, ChevronDown, ChevronLeft, Inbox, MapPin, MessageSquare, Mic, MoreHorizontal, Navigation, PenLine, Phone as PhoneIcon, Plus, Receipt, Settings, User } from "lucide-react";
-import { HomeFill, ScheduleFill, ChatFill, MoreFill } from "@/components/TabIcons";
+import { Bell, CalendarDays, Check, CheckCircle, ChevronDown, ChevronLeft, Inbox, MapPin, MessageSquare, Mic, MoreHorizontal, Navigation, PenLine, Phone as PhoneIcon, Receipt, Settings, User } from "lucide-react";
 import { FONT, IOS_FONT, Phone, firstName, useDemoLoop } from "./kit";
 
 /**
@@ -127,26 +127,7 @@ export function PhoneApp({
           </span>
         </div>
         {docked && <div className="absolute inset-x-0 bottom-[88px] z-10 flex justify-center">{docked}</div>}
-        <div className="absolute inset-x-3 bottom-2.5 z-10 flex items-stretch gap-2.5">
-          <div className="flex h-[58px] min-w-0 flex-1 items-stretch rounded-full px-1.5" style={GLASS}>
-            {(
-              [
-                [HomeFill, "Home"],
-                [ScheduleFill, "Schedule"],
-                [ChatFill, "Chat"],
-                [MoreFill, "More"],
-              ] as const
-            ).map(([Icon, label]) => (
-              <span key={label} className="my-1.5 flex flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[10.5px] font-medium" style={{ color: "color-mix(in srgb, #10244A 52%, #8a94a1)" }}>
-                <Icon size={24} />
-                {label}
-              </span>
-            ))}
-          </div>
-          <span className="flex h-[58px] w-[58px] flex-none items-center justify-center rounded-full text-white" style={{ ...GLASS, backgroundColor: "color-mix(in srgb, #10244A 84%, transparent)" }}>
-            <Plus size={24} strokeWidth={2.5} />
-          </span>
-        </div>
+        <PhoneTabBarMock />
         {overlay}
       </div>
     </Phone>
