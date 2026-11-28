@@ -66,7 +66,62 @@ Project exists: **streamflaire-hub**.
    the Apple dev portal → upload to Firebase → Cloud Messaging → Apple app
    config. Until then iOS push will not deliver (Android is unaffected).
 
-## RELEASE 1.4 — build 14 (Tap to Pay + icon/launch + Siri), 2026-10-23 — DO THIS ONE
+## RELEASE 1.6 — build 16 (incoming calls that ring when the app is closed), Monday 2026-11-30 — DO THIS ONE
+
+One reason for this build: an incoming call to a closed iPhone app must ring
+and connect with sound. Two Swift fixes, both in
+`ios/App/App/VoipPlugin.swift`, both written on the PC and **never
+compiled**. The pbxproj already says **1.6 / build 16** (1.5 is live in the
+store, so the version moves too).
+
+| Fix | What went wrong | Ticket / call |
+| --- | --- | --- |
+| Cold-launch sign-in | A push woke the closed app; it asked for its phone login before iOS had loaded its cookies, got "signed out", and ended the call screen. | #8ld9vq, call `cmwxvbw3f014t11306l5hpnul`, 2026-11-26 |
+| Audio on an early Answer | Answer tapped before the call reached the phone connected with silence both ways. | call `cmwf718e200nuqxz4ccq0eqfb`, 2026-11-13 |
+
+The audio fix was in build 15 on the phone but lived only on branch
+`call-audio`; it was merged into main on 2026-11-28, so main is now
+the right source. The server already covers build 15 for the first fix
+(answers "too early" instead of "signed out", and hands out the ringing
+company's login), so this build makes it right inside the app as well.
+
+**Mac, in order**
+
+1. **Before pulling:** `git status` and `git log origin/main..HEAD` on the
+   Mac. Build 15 was archived with the `call-audio` change; if the Mac
+   has any iOS change that isn't pushed, push it first and say so.
+2. `git checkout main && git pull` → `npm ci` → `npx cap sync ios` →
+   commit anything sync rewrites under `ios/App/CapApp-SPM/`.
+3. `npx cap open ios`. Product → Scheme → Edit → Run → Build
+   Configuration = **Release**, ⌘B. Fix any compile error in
+   `VoipPlugin.swift` without changing what it does; the two new spots
+   are `connect(membership:coldTries:)` (a retry loop) and
+   `finishConnect` (the `off:` branch calls `postReady`). Switch back
+   to Debug, ⌘B once more.
+4. Archive → Distribute → App Store Connect → TestFlight. Install build 16
+   on the iPhone from TestFlight.
+5. **The tests** (another phone calls the business line, (469) 860-5060).
+   After each one, the trace is in
+   `railway logs -s Streamflaire -e production --since 1h --filter "voip-trace"`.
+
+   | # | Setup | Do | Pass |
+   | --- | --- | --- | --- |
+   | A | App swiped closed, signed into **David Lessly** | Call; answer on the **first ring** from the lock screen | It rings within ~3 s; both sides hear each other. Trace: `grant-ok` (or `grant-401-cold` then `grant-ok`), `callkit-answer sdk=false`, `answer-released`, `audio-activate`. |
+   | B | App swiped closed, signed into **Steadfast** | Call the David Lessly line; answer | Same as A. Trace shows `grant-off` or a `switch`, then `grant-ok` as the other membership. |
+   | C | App closed | Call and let it ring out | Voicemail takes it; no cell ring on top of the phone's own call screen. |
+   | D | App open on Home | Call; answer | Normal call, sound both ways. |
+   | E | App open | Place an outbound call from a client page | Normal call, sound both ways. |
+
+6. If A–E pass, submit 1.6 for review. What's New: "Calls ring and connect
+   reliably when the app is closed." App privacy: nothing new.
+7. Tell Claude the build is live: ticket #8ld9vq goes from Planned to
+   Resolved, and the server's build-15 workaround can stay (it is harmless).
+
+**Also riding along (no extra work):** Capacitor 8.4.3 (security update,
+already in package.json), and anything else under "iOS" in
+`native-release-queue.md` that is marked done in the tree.
+
+## RELEASE 1.4 — build 14 (Tap to Pay + icon/launch + Siri), 2026-10-23 — shipped
 
 Build 13 was never uploaded, so this archive is the first upload since 1.3
 (build 12): it carries everything queued for 1.4 (icon, launch screen,

@@ -138,12 +138,6 @@
 .wbp-next .acts span { height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 15px; font-weight: 600; background: rgba(118, 118, 128, 0.12); color: var(--ds-primary); }
 .wbp-next .acts .pri { background: var(--ds-primary); color: #fff; }
 
-/* the glass tab bar */
-.wbp-tabs { position: absolute; left: 12px; right: 12px; bottom: 26px; z-index: 15; display: flex; gap: 10px; }
-.wbp-tabs .cap { flex: 1; height: 62px; border-radius: 999px; display: flex; padding: 0 6px; background: rgba(250, 250, 252, 0.78); backdrop-filter: blur(20px) saturate(180%); box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.08), 0 10px 30px -12px rgba(0, 0, 0, 0.3); }
-.wbp-tabs .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 10.5px; font-weight: 500; color: #3C3C43; border-radius: 999px; margin: 5px 0; }
-.wbp-tabs .tab.on { color: var(--ds-primary); font-weight: 600; background: color-mix(in srgb, var(--ds-primary) 10%, transparent); }
-.wbp-tabs .plus { flex: none; width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center; background: var(--ds-secondary); color: var(--ds-on-secondary); box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--ds-secondary) 80%, transparent); }
 .wbp-home { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 134px; height: 5px; border-radius: 3px; background: #000; z-index: 22; }
 
 /* the Create sheet */

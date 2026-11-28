@@ -12,7 +12,9 @@ waiting* — not how to build.
 > **2026-09-24:** day-of checklist for this Play release (with what is
 > deliberately left for versionCode 5) is `android-1.3-release-2026-09-25.md`.
 
-## iOS: a pushed call dropped on a cold launch (ticket #8ld9vq, 2026-11-27; in the tree, rides the next iOS build)
+## iOS build 16 (1.6), Monday 2026-11-30 — steps and tests: `mobile-app-runbook-mac.md` § RELEASE 1.6
+
+### A pushed call dropped on a cold launch (ticket #8ld9vq, 2026-11-27; in the tree for build 16)
 
 What happened on build 15 (2026-11-26 18:10 UTC, read from the `[voip-trace]`
 log): the VoIP push woke a closed app, the engine asked for its Telnyx grant
@@ -404,7 +406,7 @@ WorkBench"; the Shortcuts app lists ten WorkBench shortcuts.
 
 ---
 
-## iOS — queued for build 15
+## iOS — queued for build 15 (shipped in 15 from branch `call-audio`; merged into main 2026-11-28 so build 16 keeps it)
 
 1. **Calling engine: silence after answering a pushed call** (branch
    `call-audio`, `ios/App/App/VoipPlugin.swift`, found 2026-11-13 on build

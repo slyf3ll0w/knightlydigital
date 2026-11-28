@@ -1,5 +1,6 @@
 "use client";
 
+import PhoneTabBarMock, { type MockTab } from "@/components/wb/PhoneTabBarMock";
 import { useEffect, useRef, useState } from "react";
 import {
   Bell,
@@ -37,7 +38,6 @@ import {
   Zap,
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
-import { ChatFill, HomeFill, MoreFill, ScheduleFill } from "@/components/TabIcons";
 import { resolveAccent, shade, textOn } from "@/lib/branding";
 import { dsBrandVars } from "@/lib/ds-theme";
 import { FONT } from "./kit";
@@ -458,35 +458,15 @@ export default function WBAppFrame({
 /**
  * The phone app (390 px wide, drawn at real size; put it inside kit's
  * `Phone` with `Fit`): the header with the company, the page, and the
- * floating glass tab bar with the Create button. `tab` lights Home /
- * Schedule / Chat / More (a page reached from More lights none).
+ * docked tab bar with Create in the middle (components/wb/PhoneTabBarMock.tsx).
+ * `tab` lights Home / Schedule / Chat / Menu (a page reached from Menu lights none).
  */
-export function PhoneApp({ tab, children, height = 780 }: { tab?: "Home" | "Schedule" | "Chat" | "More"; children: React.ReactNode; height?: number }) {
-  const tabCls = (on: boolean) =>
-    `my-1.5 flex flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[10.5px] ${on ? "tab-on-pill tab-ink-on font-semibold" : "tab-ink font-medium"}`;
-  const tabs: [string, typeof HomeFill][] = [
-    ["Home", HomeFill],
-    ["Schedule", ScheduleFill],
-    ["Chat", ChatFill],
-    ["More", MoreFill],
-  ];
+export function PhoneApp({ tab, children, height = 780 }: { tab?: MockTab; children: React.ReactNode; height?: number }) {
   return (
     <div className="app-ui ds relative flex flex-col overflow-hidden bg-paper-plain" style={{ ...appVars(), ...FONT, width: 390, height }}>
       <PhoneTopBar />
       <main className="app-main relative min-h-0 flex-1 overflow-hidden">{children}</main>
-      <nav className="mobile-tab-bar absolute inset-x-3 bottom-2.5 z-30 flex items-stretch gap-2.5">
-        <div className="glass-control flex h-[58px] min-w-0 flex-1 items-stretch rounded-full px-1.5">
-          {tabs.map(([label, Icon]) => (
-            <span key={label} className={tabCls(label === tab)}>
-              <Icon size={24} />
-              {label}
-            </span>
-          ))}
-        </div>
-        <span className="glass-tinted relative flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-full">
-          <Plus size={26} strokeWidth={2.5} />
-        </span>
-      </nav>
+      <PhoneTabBarMock on={tab} />
     </div>
   );
 }
