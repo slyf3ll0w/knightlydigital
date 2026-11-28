@@ -36,6 +36,57 @@ export type Announcement = {
 
 export const ANNOUNCEMENTS: Announcement[] = [
   {
+    slug: "more-than-one-leads-board",
+    title: "Run more than one Leads board",
+    date: "2026-11-27",
+    tag: "Leads",
+    summary:
+      "Give each kind of work its own Leads board, with its own stages. New leads land on the right board by the form they came through or where they came from.",
+    help: { slug: "leads-pipeline", label: "Use the Leads board" },
+    blocks: [
+      {
+        type: "p",
+        text: "A lead for a new fence and a lead for a commercial maintenance contract do not move the same way. One is a visit, a quote and a yes or no. The other is a walk-through, a proposal, a second meeting and a signature. Until now they shared one board and one set of stages, so one of them never quite fit. Now each can have its own.",
+      },
+      { type: "h", text: "What you can do" },
+      {
+        type: "list",
+        items: [
+          {
+            title: "Add a board for each kind of work.",
+            text: "Press New board at the top of Leads and name it. It starts with the standard stages, and you change them to match how that work is actually sold.",
+          },
+          {
+            title: "Each board runs itself.",
+            text: "Every board has its own automatic moves: a call that connects, an appointment booked, a quote sent. A card only moves along the board it is on.",
+          },
+          {
+            title: "New leads land where they belong.",
+            text: "Tell a booking form which board its leads go to, or list the lead sources that belong on a board. Everything else lands on your main board, as before.",
+          },
+          {
+            title: "Move a lead in two taps.",
+            text: "Open the card's menu and pick the board. It lands in that board's first stage.",
+          },
+        ],
+      },
+      { type: "h", text: "How to start" },
+      {
+        type: "steps",
+        items: [
+          "Open Leads and press New board. This is for owners and admins.",
+          "Name the board and press Create board. A tab for it appears at the top of Leads.",
+          "Press Customize stages to set its stages, and to pick the lead sources whose new leads land on it.",
+          "To send a form's leads there, open the form under Business, Booking & forms, and set New leads go to.",
+        ],
+      },
+      {
+        type: "p",
+        text: "If one board is all you need, nothing changes: you will not see tabs until you add a second board. Won leads from every board land in the same Converted section, and the Leads badge counts the new leads on all of them. You can also ask Atlas to add a board or move a lead to one.",
+      },
+    ],
+  },
+  {
     slug: "a-new-look",
     title: "WorkBench has a new look",
     date: "2026-11-27",

@@ -182,6 +182,25 @@ export const leadsSection: HelpSection = {
           type: "tip",
           text: "Want to see who didn't pick up? Add a **No answer** stage *before* Contacted and set its trigger to \"You call and they don't pick up.\"",
         },
+        {
+          type: "h",
+          text: "More than one board",
+        },
+        {
+          type: "p",
+          text: "One board suits most businesses. If you sell two kinds of work that move differently (say homeowners and commercial accounts, or installs and repairs), give each its own board. Owners and admins press `New board` at the top of Leads and name it. It starts with the standard stages, and from then on the top of Leads shows a tab for each board with the number of open leads on it.",
+        },
+        {
+          type: "list",
+          items: [
+            "Each board has its own stages and its own automatic moves. Open a board and press `Customize stages` to change them. A card moves by itself only along the board it is on.",
+            "A lead is on one board at a time. To move one, open the card's menu (right-click it, or tap it on a phone) and pick the board under **Move to board**. It lands in that board's first stage.",
+            "**Converted** is shared: a won lead lands there whichever board it was on.",
+            "New leads land on the **Main board** unless you say otherwise. Two ways to send them elsewhere: on the board's `Customize stages` page, add lead sources under **New leads from these sources land here**; or open a booking form (Business → Booking & forms), and under **Sharing** set **New leads go to**. Only new leads follow these. Nobody already on a board is moved.",
+            "On the same page you can rename the board or press `Delete board`. Its leads move to the first stage of the Main board.",
+            "The Leads badge and **Needs you** on Home count the first stage of every board.",
+          ],
+        },
       ],
     },
     {
@@ -209,6 +228,14 @@ export const leadsSection: HelpSection = {
         {
           type: "p",
           text: "A lead from a form on your website is filed by how the visitor got there: a Google ad, a search, Facebook or typing your address. See [See where your leads come from](/help/lead-sources).",
+        },
+        {
+          type: "p",
+          text: "When a form asks what the customer needs with a dropdown or a list of choices, and it sits on a page of your website about one of them, it arrives with that choice already picked: on your Fence repair page, **Fence repair**. It reads the page's address and title and picks nothing when it can't tell, and the visitor can change it. The same goes for a form that lists services from your price book. To turn it off, open the item's **Questions** card and untick **Pick the one the page is about**. To set the choice yourself on one page, add `data-service=\"Fence repair\"` to the code's first tag there.",
+        },
+        {
+          type: "p",
+          text: "If you run more than one Leads board, an item's **Sharing** card has **New leads go to**, which puts new leads from that form on the board you pick. See [Use the Leads board](/help/leads-pipeline).",
         },
         {
           type: "p",

@@ -116,6 +116,10 @@ export const phoneSection: HelpSection = {
         },
         {
           type: "p",
+          text: "After a call, its page has `Text` beside `Call back`. It opens a conversation with that number from your business line, even when the caller is not saved yet. `Block this number` is under those buttons: see [Block a phone number](/help/block-a-number).",
+        },
+        {
+          type: "p",
           text: "During a call you can **Mute**, **Hold** (they hear hold music), use the **Keypad** for phone menus, and **Hang up**. Scroll down to save the caller or start something and a slim bar stays pinned to the top with the timer, **Mute** and **End**, so hanging up never needs a scroll back — even with the keyboard up on a phone. The call screen also lets you save an unknown caller as a lead or client (tap an answer under **How did they hear about you?** and it becomes their lead source), start a quote, appointment, job or invoice for them, and type **Notes** that save as you go.",
         },
         {
@@ -365,6 +369,43 @@ export const textingSection: HelpSection = {
       ],
     },
     {
+      slug: "block-a-number",
+      title: "Block a phone number",
+      summary: "Stop a number's calls from ringing and its texts from reaching Messages.",
+      keywords: ["block", "blocked numbers", "spam call", "robocall", "unblock", "stop calls", "telemarketer", "harassing"],
+      where: { label: "Calls", href: "/app/calls" },
+      roles: "Everyone except Tech",
+      blocks: [
+        {
+          type: "p",
+          text: "Blocking is for a number you never want to hear from on your business line: a robocaller, a telemarketer, someone who won't stop.",
+        },
+        {
+          type: "steps",
+          items: [
+            "Open the call on the **Calls** page and press `Block this number` under **Call back**. Or open the conversation in **Messages**, press `⋮`, then `Block this number`.",
+            "Confirm with `Block number`.",
+          ],
+        },
+        {
+          type: "list",
+          items: [
+            "A call from a blocked number does not ring anywhere, cannot leave a voicemail and does not show in your call list. The caller hears the call fail.",
+            "A text from a blocked number does not reach Messages. A **STOP** from it still counts.",
+            "Blocking only silences what comes in. You can still call and text that number, and the person's record and history stay as they are.",
+          ],
+        },
+        {
+          type: "p",
+          text: "Every blocked number is listed under **Settings → Phone & texting → Blocked numbers**. Press `Unblock` beside one to hear from it again, or type a number in the box there and press `Block`. On a call page, a blocked number reads **Blocked · Unblock**.",
+        },
+        {
+          type: "tip",
+          text: "Or ask Atlas: \"block 469-555-0100\" or \"what numbers have I blocked?\"",
+        },
+      ],
+    },
+    {
       slug: "messages-inbox",
       title: "Message clients from the inbox",
       summary: "One conversation per client: texts, portal messages and replies in one place.",
@@ -386,7 +427,9 @@ export const textingSection: HelpSection = {
             `**Without texting**, it goes to their client portal plus an email. A company not on the **${VOICE}** sees a one-line note about that at the top of the inbox.`,
             "Clients can also write to you from the Messages tab in their portal.",
             "Unread messages show as a red number on Messages (in the sidebar, or in **More** on a phone) and on the phone's `+` button. Opening a conversation takes its messages off the count.",
-            "The separate `Text` button on jobs and client pages opens your own phone's messaging app instead. It's free and sends from your personal number.",
+            "Until your business line can text, jobs and client pages also show a separate `Text` button. It opens your own phone's messaging app, is free, and sends from your personal number. Once texting is on for your line that button goes away, so every text goes out from your business number through `Message`.",
+            "On a phone, the return key starts a new line. Only the send button sends, so a half-written message never goes out by accident. On a computer, **Enter** sends and **Shift+Enter** starts a new line.",
+            "To stop hearing from a number, open the conversation's `⋮` menu and press `Block this number`. See [Block a phone number](/help/block-a-number).",
           ],
         },
         {
